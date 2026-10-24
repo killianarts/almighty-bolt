@@ -1,0 +1,30 @@
+# Categories for GitHub's auto-generated release notes (the "What's changed"
+# list appended to each release). Label pull requests with an area:* label.
+changelog:
+  exclude:
+    labels:
+      - internal
+      - skip-changelog
+  categories:
+    - title: Breaking changes
+      labels: [breaking]
+    - title: Windowing and platform
+      labels: [area:platform]
+    - title: Rendering
+      labels: [area:rendering]
+    - title: Text
+      labels: [area:text]
+    - title: Layout
+      labels: [area:layout]
+    - title: Input and replay
+      labels: [area:input]
+    - title: Variants (retained, immediate, reactive)
+      labels: [area:variants]
+    - title: Machine interface
+      labels: [area:machine-interface]
+    - title: Performance and memory
+      labels: [performance]
+    - title: Documentation
+      labels: [docs]
+    - title: Other changes
+      labels: ["*"]

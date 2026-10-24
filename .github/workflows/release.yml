@@ -1,0 +1,50 @@
+name: Release
+
+# Push a tag such as v0.2.0 (or v0.2.0-rc1 for a pre-release) to publish.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the release body
+        id: body
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          version="${tag#v}"
+          minor="$(echo "${version%%-*}" | cut -d. -f1,2)"
+          notes="docs/releases/${minor}.md"
+          if [ ! -f "$notes" ]; then
+            echo "Missing $notes. Write the release notes before tagging." >&2
+            exit 1
+          fi
+          {
+            sed -n '/<!-- highlights:start -->/,/<!-- highlights:end -->/p' "$notes" \
+              | grep -v '<!--'
+            echo
+            echo "Full release notes: [${minor}](https://github.com/${GITHUB_REPOSITORY}/blob/${tag}/${notes})."
+            echo "See also the [change log](https://github.com/${GITHUB_REPOSITORY}/blob/${tag}/CHANGELOG.md)."
+            echo
+          } > body.md
+          if ! grep -q '^- ' body.md; then
+            echo "No highlights in $notes." >&2
+            exit 1
+          fi
+          case "$version" in *-*) echo "prerelease=--prerelease" >> "$GITHUB_OUTPUT" ;; esac
+
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            --title "${GITHUB_REF_NAME}" \
+            --notes-file body.md \
+            --generate-notes \
+            ${{ steps.body.outputs.prerelease }}

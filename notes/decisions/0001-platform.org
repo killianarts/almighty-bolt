@@ -1,0 +1,53 @@
+#+TITLE: 0001 — Platform
+#+DATE: 2026-10-23
+- Status :: accepted
+
+* Context
+We are experimenting with three kinds of GUI library (retained, immediate + cache,
+reactive hybrid) in Common Lisp and Coalton. Before building them we need a
+shared core. This record is one of five that split the original "Core Scope"
+draft: [[file:0001-platform.org][0001 Platform]], [[file:0002-gpu-api.org][0002 GPU API]], [[file:0003-text-engine.org][0003 Text engine]],
+[[file:0004-layout.org][0004 Layout]] and [[file:0005-core-scope.org][0005 Core scope]].
+
+* Options
+1. SDL3.
+2. Native windowing per OS.
+
+* Evidence
+Nothing has been measured. This rests on prior art and documentation.
+- All three reference frameworks (Flutter, GPUI, RAD Debugger) draw their own
+  widgets inside a native window, and none uses SDL or GLFW. See the prior-art
+  table in the charter's "Platform layer" section.
+- SDL3 would give windows, events, HiDPI scale, clipboard and timers on every
+  OS with one C dependency, and basic IME through composition events and
+  =SDL_SetTextInputArea= (since 3.2.0).
+  [[https://www.mankier.com/3/SDL_SetTextInputArea][SDL_SetTextInputArea]]
+- Rejected because SDL hides the OS view that IME (=NSTextInputClient=, TSF)
+  and accessibility (NSAccessibility, UI Automation) need, so serious work on
+  either means reaching past it.
+- Revisit if the Linux or Windows backends stall; the charter allows wrapping a
+  portable library first if the variant contract does not change.
+
+* Decision
+Native windowing. First macOS (AppKit), then Windows (Win32), then Linux
+(Wayland and X11, decided when we get there).
+
+* Consequences
+- Easier:
+  - Direct access to the OS view (=NSView=, =HWND=), which IME and
+    accessibility both need.
+  - No extra C dependency, and the smallest image.
+  - We own the event loop, so "frames only on request" and "idle means asleep"
+    need no workaround.
+- Harder:
+  - Each OS gets its own window, event loop, timers and clipboard, and key,
+    HiDPI and focus quirks that a portable library would have absorbed.
+  - AppKit is reached through the Objective-C runtime and Win32 through CFFI.
+  - macOS requires the event loop on the main thread, so the REPL cannot be
+    the UI thread. The UI thread owns the loop and the REPL queues work to it.
+  - Access to the OS view is not the same as having IME and accessibility. The
+    bridges are still ours to write (Phase 6).
+  - Window code can only be tested on an OS that has a backend. Tests that need
+    no window (layout, display-list contents) run anywhere.
+- Gives up: the quick start of SDL3. The charter still allows it as a stopgap
+  if a platform stalls, as long as the variant contract does not change.

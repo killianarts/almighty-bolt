@@ -1,0 +1,63 @@
+#+TITLE: 0002 — GPU API
+#+DATE: 2026-10-23
+- Status :: accepted
+
+* Context
+We are experimenting with three kinds of GUI library (retained, immediate + cache,
+reactive hybrid) in Common Lisp and Coalton. Before building them we need a
+shared core. This record is one of five that split the original "Core Scope"
+draft: [[file:0001-platform.org][0001 Platform]], [[file:0002-gpu-api.org][0002 GPU API]], [[file:0003-text-engine.org][0003 Text engine]],
+[[file:0004-layout.org][0004 Layout]] and [[file:0005-core-scope.org][0005 Core scope]].
+
+* Options
+1. Native API per OS.
+2. WebGPU (or SDL_GPU).
+
+* Evidence
+Nothing has been measured. This rests on prior art and documentation.
+- GPUI uses Direct3D 11 with HLSL shaders and DirectWrite on Windows. Zed first
+  ran its Linux Vulkan path on Windows, then wrote a Direct3D 11 backend after
+  users reported that Zed "didn't run on their machines due to the Vulkan
+  dependency". The post says "DirectX 11 is guaranteed to be available on
+  Windows 7 or later, including Windows VMs", and reports a lower memory
+  footprint. It also notes that Direct3D 11 required a third shader
+  implementation (MSL, WGSL, HLSL).
+  [[https://zed.dev/blog/windows-progress-report][Zed: Windows progress report]]
+- The RAD Debugger uses Direct3D 11 (charter's prior-art table). I found no
+  stated reasoning; I assume Direct3D 12's features were unnecessary.
+- Flutter's Windows backend is unclear (sources conflict between ANGLE over
+  Direct3D 11 and Impeller on Vulkan). Not relied on.
+- =SDL_GPU= wraps Vulkan, Direct3D 12 and Metal, and =SDL_shadercross= converts
+  HLSL or SPIR-V. It presents to a window claimed with
+  =SDL_ClaimWindowForGPUDevice=, which takes an SDL window; the documentation
+  does not say whether a native window can be used. It offers Direct3D 12, not
+  11, and limits four color targets per pass and four uniform slots per stage.
+  [[https://wiki.libsdl.org/SDL3/CategoryGPU][SDL_GPU]],
+  [[https://wiki.libsdl.org/SDL3/SDL_ClaimWindowForGPUDevice][SDL_ClaimWindowForGPUDevice]]
+- Direct3D 12 needs Windows 10 or newer, Feature Level 11_0 and Resource
+  Binding Tier 2, a narrower set of machines than Direct3D 11. Its gains
+  (explicit memory, synchronization, multithreaded command recording) mainly
+  help CPU-bound, draw-call-heavy renderers, which a batched 2D UI is not.
+  This is reasoning, not a measurement.
+
+* Decision
+Native API per OS, GPU only (no software renderer for now).
+- macOS: Metal (first target).
+- Windows: Direct3D 11 with HLSL. Chosen over Direct3D 12 and Vulkan for wide
+  hardware and driver support and less code in a 2D renderer.
+- Linux: Vulkan, decided when we get there.
+
+* Consequences
+- Easier: wide hardware and driver support, and no resource-state or fence
+  management.
+- Harder:
+  - Metal Shading Language and HLSL are two shader languages, with a third
+    (Vulkan's) later on Linux.
+  - Direct3D is COM, so CFFI needs hand-written vtable wrappers.
+  - Three renderers have to look identical. With no software renderer as the
+    reference, plan golden screenshots read back from each GPU backend and
+    compared with a tolerance, plus display-list tests that need no GPU.
+- Gives up: Direct3D 12 and Vulkan features a 2D UI is unlikely to need, a
+  shared Windows/Linux renderer, and a CPU renderer (so no GPU-less CI and no
+  fallback for users without a usable GPU). Revisit if either becomes a
+  problem.

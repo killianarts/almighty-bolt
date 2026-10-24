@@ -1,0 +1,54 @@
+#+TITLE: 0005 — Core scope
+#+DATE: 2026-10-23
+- Status :: accepted
+
+* Context
+We are experimenting with three kinds of GUI library (retained, immediate + cache,
+reactive hybrid) in Common Lisp and Coalton. Before building them we need a
+shared core. This record is one of five that split the original "Core Scope"
+draft: [[file:0001-platform.org][0001 Platform]], [[file:0002-gpu-api.org][0002 GPU API]], [[file:0003-text-engine.org][0003 Text engine]],
+[[file:0004-layout.org][0004 Layout]] and [[file:0005-core-scope.org][0005 Core scope]].
+
+* Options
+All six shared-core areas from the charter now, or platform, GPU rendering,
+text and layout now, with input primitives, replay and full instrumentation
+added when needed?
+
+* Evidence
+Nothing has been measured. Decisions 0001 to 0004 cover platform, GPU API, text
+and layout.
+
+* Decision
+In the core now: platform, GPU rendering, text and layout.
+
+Kept from the start, because they are cheap now and expensive to add later:
+- Input: plain event structs with timestamps, as the platform layer's output.
+- Clock: one monotonic core clock. All time goes through it, so replay can
+  substitute a virtual clock later.
+- Instrumentation: a preallocated per-frame ring buffer holding the clock and
+  =sb-ext:get-bytes-consed=.
+
+Added later, each when its trigger is reached:
+- Input primitives (stable ids, hit testing, focus): when the first
+  interactive variant needs them (7GUIs Counter).
+- Replay (script format, checkpoints, recording, test-id targeting): when the
+  first variant renders.
+- Full instrumentation (phase breakdown, trace output, settle statistics,
+  build-time switch): before the Phase 3 benchmarks.
+
+Not in the core for now: software rendering (a CPU rasterizer for tests or as a
+fallback). Revisit if CI without a GPU, or users without a usable GPU, become a
+problem.
+
+* Consequences
+- Easier: a smaller Phase 1, so a window and a rendered display list arrive
+  sooner. The triggers pre-approve the later additions.
+- Harder: the seams have to hold. No code calls the system clock directly, and
+  events stay plain serializable data. Otherwise adding replay later means
+  hunting down every time call and redesigning the event types.
+- Gives up: Phase 1 as the charter wrote it, which included instrumentation and
+  input replay. Benchmark numbers are not trustworthy until full
+  instrumentation exists, and replay-based tests and golden frames start only
+  after the first variant renders.
+- Also gives up: a CPU renderer. Replay checks hash the display list instead of
+  the pixels, which covers everything above the renderer.

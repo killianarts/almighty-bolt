@@ -1,0 +1,42 @@
+#+TITLE: 0003 — Text engine
+#+DATE: 2026-10-23
+- Status :: accepted
+
+* Context
+We are experimenting with three kinds of GUI library (retained, immediate + cache,
+reactive hybrid) in Common Lisp and Coalton. Before building them we need a
+shared core. This record is one of five that split the original "Core Scope"
+draft: [[file:0001-platform.org][0001 Platform]], [[file:0002-gpu-api.org][0002 GPU API]], [[file:0003-text-engine.org][0003 Text engine]],
+[[file:0004-layout.org][0004 Layout]] and [[file:0005-core-scope.org][0005 Core scope]].
+
+* Options
+1. HarfBuzz and FreeType.
+2. OS text engine.
+3. Pure-Lisp shaper.
+
+* Evidence
+GPUI and the RAD Debugger use OS text engines (Core Text and DirectWrite;
+FreeType on Linux for Fleury, a Rust stack for GPUI). Flutter bundles its own
+stack. See the charter's "Text" section for the three options.
+
+* Decision
+OS text engine. Linux is harder and is decided later.
+
+* Consequences
+- Easier:
+  - The smallest image, with no HarfBuzz or ICU to bundle.
+  - Correct shaping for every script the OS supports, system fonts, font
+    fallback and emoji.
+  - Text that matches the user's other applications.
+- Harder:
+  - Core Text and DirectWrite sit behind one measurement API: measure a run,
+    break a paragraph to a width, map a point to a caret, map a caret to a
+    rectangle. The shared text cache is therefore per OS.
+  - Metrics, shaping and antialiasing differ by OS. The bundled test font set
+    matters more, and every result record names its OS.
+  - Hashes and screenshots are comparable only on one OS.
+  - Linux has no single OS text engine. The charter's fallback is a bundled
+    stack (HarfBuzz and FreeType through CFFI), which brings the C dependency
+    back there. Whether tests use that stack on every OS is left open.
+- Gives up: identical text on every OS. This sits against the Beauty
+  priority's "same look everywhere", so it is a deliberate exception for text.

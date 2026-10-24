@@ -1,0 +1,35 @@
+#+TITLE: 0004 — Layout
+#+DATE: 2026-10-23
+- Status :: accepted
+
+* Context
+We are experimenting with three kinds of GUI library (retained, immediate + cache,
+reactive hybrid) in Common Lisp and Coalton. Before building them we need a
+shared core. This record is one of five that split the original "Core Scope"
+draft: [[file:0001-platform.org][0001 Platform]], [[file:0002-gpu-api.org][0002 GPU API]], [[file:0003-text-engine.org][0003 Text engine]],
+[[file:0004-layout.org][0004 Layout]] and [[file:0005-core-scope.org][0005 Core scope]].
+
+* Options
+1. Shared Flutter-style constraint box layout.
+2. Layout per variant.
+
+* Evidence
+- Flutter box constraints: constraints go down, sizes go up, the parent sets
+  the position, in a single pass.
+  [[https://api.flutter.dev/flutter/rendering/BoxConstraints-class.html][BoxConstraints]]
+- RAD Debugger: size kinds (pixels, text content, percent of parent, children
+  sum, each with a strictness) resolved in five passes per axis at the end of
+  the build.
+  [[https://raw.githubusercontent.com/EpicGamesExt/raddebugger/master/src/ui/ui_core.h][ui_core.h]],
+  [[https://raw.githubusercontent.com/EpicGamesExt/raddebugger/master/src/ui/ui_core.c][ui_core.c]]
+- Hypothesis H6 and the layout spike in the charter test whether the immediate
+  mode branch needs the box tree.
+
+* Decision
+Start with Flutter-style constraints. Consider testing a RAD Debugger
+immediate-mode box tree for the immediate + cache branch.
+
+* Consequences
+Flutter style works well in multiple styles and potentially makes the end-user
+API easier to understand and use, but immediate + cache may gain extra benefits
+from a box tree.

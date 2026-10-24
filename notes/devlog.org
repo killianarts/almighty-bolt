@@ -1,0 +1,105 @@
+#+TITLE: Devlog
+
+* 2026-10-24 — Repository layout
+** Goal
+Set up the directories from the charter's "Repository layout".
+** What I did
+Created core/, variants/, apps/, bench/, results/, notes/ and design/.
+** What I measured
+Nothing yet.
+** What I learned
+** Next
+Spikes: Objective-C from SBCL on the main thread, a Metal rectangle, Core Text,
+a zero-allocation frame loop.
+* 2026-10-24 -- Initial research
+** Fowler
+Martin Fowler wrote an often cited [[https://martinfowler.com/eaaDev/uiArchs.html][article about GUI architectures]]. I have some
+background in web development, but none in native development, so I could follow
+some of what he had to say, but I started to find the content difficult to
+follow in the middle so I asked Opus 5.5 to duplicate the article and add Common
+Lisp code, visualizations, and example GUIs in the duplicated article to help
+demonstrate the concepts and architectures Fowler discusses. Opus wouldn't
+duplicate it because of copyright (ironic), but it rephrased and explained the
+original so it ended up being better than what I asked for.
+
+What I found is that the reason I couldn't understand what Fowler wrote is
+because the architectures he writes about are insanely complex. At the end of
+the article that Opus wrote, it mentioned that the architectures discussed were
+retained-mode architectures. Since I was passively aware of Casey Muratori's
+Youtube video about something he popularized called immediate-mode GUIs, I asked
+Opus to add some explanation about immediate mode.
+
+Simple--dead simple. All of the complexity and insane abstractions of
+retained-mode melted away. So while Fowler's work may be often cited, I think it
+should be cited more as a warning of what not to do.
+
+** Fluery
+
+Instead, I have been digging deeper into the immediate-mode mindset and doing
+some initial research on GUI architectures generally (rendering backend, text
+rendering, input, windowing, etc.), learning how other GUI frameworks have
+approached the challenge of GUIs and trying to find out /why/ they made some
+decisions (Why a hybrid retained-immediate mode? Why do they use native
+windowing but custom widgets? Why did they trade one layout architecture for
+another?).
+
+Ryan Fluery has an article titled [[https://www.dgtlgrove.com/p/ui-part-2-build-it-every-frame-immediate][UI, Part 2: Every Single Frame (IMGUI)]] in which he
+makes the case against retained-mode GUI architectures and the case for
+immediate-mode architectures. He says,
+
+#+begin_quote
+Ideally, the code that it takes to construct a single widget should be entirely localized and as small as possible, so if we ever add or remove widgets from our user interface design, we only have a very small, local place in the code to modify.
+#+end_quote
+
+Sounds good to me, especially the "very small, local" part. Later, after
+explaining retained mode and its complexity, he compares it to immediate mode
+using a code example, finally saying,
+
+#+begin_quote
+That [code example] looks pretty manageable, compared to the aforementioned
+[retained mode] APIs that require all of this code to be segmented. And,
+notably, this API design fits our goals fairly well. It shrinks and centralizes
+the code for each widget instance, meaning our builder code gets smaller, and
+unified. *Both widget building code, widget hierarchy modification code, and
+widget interaction response code exists in the same location*, and is succinct.
+#+end_quote
+
+This principle of progamming--that all behavior related to some GUI element or
+programming object should be as close as possible to each other--is called
+Locality of Behavior, which is contrasted with the Separation of Concerns
+principle. It's one of the reasons why HTMX and other similar JavaScript
+libraries for creating reactive GUIs in web applications is so powerful. HTMX
+places information about the behavior of a DOM element in the element itself,
+rather than in a separate JavaScript file. It, too, shinks and centralizez the
+code for each widget, making the web application GUI building code smaller and unified.
+
+Fluery uses a cache for his immediate mode GUI applications. That saves on CPU usage.
+
+** Blick
+
+The Blick video editor people wrote an article titled [[https://blickeditor.com/blog/caching-an-immediate-mode-ui][Don't throw it all away:
+Caching an immediate-mode]] in which they show how they made a high performance
+GUI that also doesn't eat up battery power.
+
+In a simple immediate mode GUI, the whole window will be rerendered
+continuously. It common for games where the UI is going to be constantly updated
+anyway, but for typical GUI applications it has some downsides:
+
+1. Constant CPU use. Immediate mode GUIs are constantly refreshing even when
+   nothing is happening.
+2. Untouched parts of the GUI are still rerendered--wasting CPU and possible GPU
+   power for no benefit.
+
+The typical way to deal with 1 is to only update the window when some events
+occur in the window--mouse cursor moves inside it, keyboard caret blinks, etc.
+
+2 is dealt with in two ways by Blick: first, they have a cache like Fluery uses.
+Second, they use system of window tiles to both render tiles and narrow down
+what events are affecting which areas of the window. The filtering down of
+possible commands on a given region allows them to only render the parts of the
+UI that actually need to be updated (as in an animation or mouse hover). They
+still have to build the UI on the backend, even if it isn't rendered, but they
+still save considerable battery power via their method.
+** Other
+I read Levien. Didn't get so much out of it, although I have similar goals.
+
