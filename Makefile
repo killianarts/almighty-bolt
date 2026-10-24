@@ -33,7 +33,10 @@ shim: vendored/cl-nextstep
 	cmake -B vendored/cl-nextstep/C/build -S vendored/cl-nextstep/C
 	make -C vendored/cl-nextstep/C/build
 
-# Spike A: a window and an MTKView through cl-nextstep. Run `make shim` first.
+# Spike A: a window and an MTKView through cl-nextstep. Run `make shim` first. The
+# first run compiles cl-opengl and the rest, which runs out of the default 1 GB heap:
+#   make spike-a HEAP='--dynamic-space-size 4096'
+# Once compiled, the default heap is enough.
 # (cl-nextstep.asd calls sb-posix:setenv, so sb-posix is loaded before ASDF reads it.)
 spike-a:
 	$(SBCL_APP) $(REGISTRY) --eval '(require :sb-posix)' --load spikes/a-shim/run.lisp
