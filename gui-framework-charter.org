@@ -1,0 +1,809 @@
+#+TITLE: GUI Framework Experiment — Project Charter
+#+DATE: 2026-10-19
+#+STARTUP: content
+#+TODO: TODO NEXT | DONE CANCELLED
+#+TODO: OPEN | CONFIRMED REFUTED INCONCLUSIVE
+
+* Purpose
+
+Build a GUI framework through a deliberate, measured experiment, then turn the
+best results into two real libraries: one for Common Lisp applications and one
+for Coalton applications (see [[*Two libraries][Two libraries]]). This document is the charter: what we are
+trying to learn, how we will measure it, how we will record it, and what ends
+the experiment.
+
+** Goals
+1. *Experiment.* Compare approaches by their effect on code length, code
+   quality and API usability.
+2. *Benchmark.* Make the framework as fast and efficient as possible while
+   balancing the end-user API and long-term maintainability. Decisions are
+   based on /measurements/, not intuition.
+3. *Record.* Work on several approaches at once and keep a record good enough
+   to tell the story: research, priorities, trade-offs, decisions, lessons.
+4. *Beauty.* Beautiful code and beautiful results. Not at the cost of the
+   other goals, but when in doubt, choose the beautiful solution.
+5. *Usable libraries.* End with a Common Lisp library and a Coalton library
+   that others are excited to use, each idiomatic in its own language.
+6. *Machine intelligence friendly.* Machines are users too. An LLM agent
+   should be able to see, understand and operate any app built with the
+   framework as reliably as a person using a screen reader can. The same
+   semantic structure serves both, so accessibility is not deferred polish
+   but a core feature with two audiences (see [[*Machine interface][Machine interface]]).
+
+* Priorities
+
+Write this section before any implementation and revisit it only through a
+decision record (see [[*Decision records][Decision records]]). It keeps decisions consistent and
+makes deviations visible in the story.
+
+** Weighting
+Fill in weights (summing to 100) and a one-line rationale for each.
+
+| Priority                  | Weight | Rationale                                                                                                    |
+|---------------------------+--------+--------------------------------------------------------------------------------------------------------------|
+| Runtime performance       |     30 | Computers are fast so applications should feel fast.                                                         |
+| Memory efficiency         |     20 | Respect user resources; Inefficiency here usually indicates problems with code quality.                      |
+| Binary/image size         |     10 | Respect user resources.                                                                                      |
+| End-user API usability    |     10 | Human users need to be able to credibly audit the code.                                                      |
+| Long-term maintainability |     20 | Human developers need to be able to credibly audit the code.                                                 |
+| Beauty (code and output)  |     10 | Beauty is a proxy for overall quality. Beauty on multiple platforms means consistency--same look everywhere. |
+|---------------------------+--------+--------------------------------------------------------------------------------------------------------------|
+| Total                     |    100 |                                                                                                              |
+
+** Decision rules
+- A measured difference beats an argument.
+- A difference within measurement noise is a tie.
+- Ties are broken by: usability → maintainability → beauty.
+- "Respectful of the user's resources" is a floor, not a weight: no variant
+  may use CPU when idle, regardless of its other scores.
+
+* Research questions and hypotheses
+
+Each hypothesis gets a state: OPEN, CONFIRMED, REFUTED or INCONCLUSIVE, and
+links to the evidence (benchmark runs, decision records) that settled it.
+
+** OPEN H1: The UI approach mostly affects code size and usability, not raw speed
+Expectation: retained, immediate-with-cache and reactive hybrid variants can
+all reach similar frame times on the same core; the differences show up in
+code length, change cost and allocation behavior.
+
+** OPEN H2: Immediate mode with a cache gives the smallest change cost
+Fleury's claim: keeping building, mutation and interaction code in one place
+makes typical edits smaller. Test with [[*Change-cost tests][change-cost tests]].
+
+** OPEN H3: Retained structure makes accessibility, IME and machine access easier
+Levien's claim: accessibility needs stable identity and retained structure.
+Test by implementing a minimal accessibility tree in each variant, then
+driving each variant through the [[*Machine interface][machine interface]] with the same [[*Agent tasks][agent tasks]].
+
+** OPEN H4: Coalton yields more efficient code than Common Lisp
+See [[*Common Lisp vs. Coalton][Common Lisp vs. Coalton]] for the expected benefits, costs and how to
+measure both. The answer does not decide /whether/ there is a Coalton library
+(there is; see [[*Two libraries][Two libraries]]); it decides how the two libraries share code and
+whether one library could serve both languages.
+
+** OPEN H5: Per-frame allocation, not the approach, dominates GC cost
+Test by comparing each variant with and without node pooling.
+
+** OPEN H6: Immediate variants need a per-frame node tree to reach complex layouts
+Expectation: a cursor-style layout (Dear ImGui) places widgets as they are
+emitted, so a parent cannot know its children's sizes until after they are
+drawn. It stays correct only by lagging a frame or by rebuilding (the settle
+loop). Layouts like the stress apps' split panels, wrapped text in resizable
+containers and content-sized columns need a node tree built each frame and
+laid out afterwards (Fleury's approach), or children that return a size and
+local-coordinate commands for the parent to position. Test with the
+[[*Layout][layout spike]]: count the cases that need a lagged size or an extra build.
+
+* Architecture
+
+** Shared core
+Everything that is not the subject of an experiment is shared, so that
+measured differences come from the approach and not from incidental code.
+
+- Platform layer: windows, event loop, clipboard, timers
+- Rendering backend: one GPU path, plus a software path for tests
+- Text: shaping, line breaking, font loading, IME hooks
+- Input: event types, hit testing primitives, focus primitives
+- Instrumentation: frame timer, allocation counters, trace output
+- Replay: record and replay input scripts deterministically
+
+Layout may be shared or per-variant; if it is per-variant, it becomes its own
+experiment axis and gets its own hypothesis.
+
+*** Rules for the core
+- *Narrow boundary.* A variant talks to the core only through the variant
+  contract below. Anything a variant needs that is not in the contract is a
+  request to change the core, made through a decision record.
+- *No policy.* The core provides mechanisms (draw this, measure that, is this
+  point inside that shape) and never decides /what/ to draw or /when/ state
+  changes. Those decisions are the experiment.
+- *Zero steady-state allocation.* After warm-up the core allocates nothing per
+  frame: buffers are preallocated and reused. Every byte consed during a frame
+  is then attributable to the variant, which keeps H5 honest.
+- *Idle means asleep.* The core blocks in the OS when nothing is pending. It
+  never polls, never spins, and never presents a frame nobody asked for.
+- *Injectable clock.* All time comes from one core clock that replay can
+  replace with a virtual clock.
+- *Baseline variant.* A =null= variant that replays a fixed, precomputed
+  display list measures the core's own cost. Variant results are reported
+  relative to it.
+
+*** Variant contract
+The whole interface a variant implements, sketched in Lisp:
+
+#+begin_src lisp
+(defgeneric handle-event (variant event))        ; returns T if a redraw is needed
+(defgeneric frame (variant context display-list)) ; build, lay out, record drawing;
+                                                  ; returns T if app state changed
+(defgeneric hit-target (variant point))          ; stable id under a point, or NIL
+(defgeneric lookup-target (variant test-id))     ; rectangle for a test id (replay)
+(defgeneric accessibility-tree (variant))        ; for H3; may start as a stub
+#+end_src
+
+=context= gives access to text measurement, the clock, the window's size and
+scale, and the frame's instrumentation scope. A variant asks for a frame by
+calling =request-frame=; it never runs its own loop.
+
+*Settled frames.* A frame is /settled/ when its build changed no app state.
+A variant may change state during a build: an immediate-mode button that
+returns T when clicked does exactly that. Widgets built before the change
+then show old state and widgets built after it show new state. Levien calls
+this /state tearing/. The contract tolerates it in the build and contains it
+at the edges:
+- When =frame= returns T, the core runs =frame= again before presenting, up
+  to a cap (three builds). Only the settled frame is presented. This is the
+  "run the app logic twice" fix; it costs one extra build per state change.
+- A variant may instead present unsettled frames, as a game loop does, if a
+  decision record says why. The core then schedules a follow-up frame, so an
+  app that redraws only on events never leaves a torn frame on screen.
+- Machine-facing outputs come only from settled frames: the accessibility
+  tree, screenshots for the machine interface, and replay checkpoints.
+- A frame that hits the cap is a defect in the variant or the app (a view
+  that changes state on every build). The core logs it with the frame
+  number and presents the last build.
+
+Settling keeps the immediate-mode style (straight-line code, events as
+return values) available to the variants without exposing torn state to
+screen readers, tests or agents.
+
+*** Platform layer
+- *Window.* Create, resize, close, size in logical pixels and the scale factor
+  for HiDPI. One window first; several windows are deferred.
+- *Event loop.* Runs on the main thread (a macOS requirement). Waits for OS
+  events, timers or a frame request, then: drain events → =handle-event= for
+  each → if a redraw is needed, =frame= → submit → present at vsync.
+- *Frame scheduling.* Frames happen only on request. Animations request the
+  next frame themselves, so an animating app ticks at the display rate and a
+  still app does not tick at all.
+- *Timers.* One-shot and repeating, on the monotonic clock, coalesced into a
+  single OS wait. The 7GUIs Timer task is the first user.
+- *Clipboard.* Plain text first; rich formats are deferred.
+- *Choice to make (Phase 0).* SDL3 or GLFW through CFFI (one dependency,
+  portable, quick to start) or native windowing APIs written per OS: AppKit
+  through the Objective-C runtime on macOS, Win32 on Windows, Wayland and
+  X11 on Linux. Widgets are custom-drawn either way; "native" here means
+  native /windowing/, not native /widgets/. Native windowing gives the
+  smallest image and, more importantly, direct access to the OS view, which
+  IME (=NSTextInputClient=, TSF) and accessibility (NSAccessibility, UI
+  Automation) both need. SDL3 and GLFW hide that view, so serious IME and
+  accessibility work means reaching past them anyway. Record as a decision
+  record. Wrapping a portable library first and replacing it one OS at a time
+  later is acceptable, as long as the contract above does not change.
+- *Prior art.* All three reference frameworks draw their own widgets inside a
+  native window, and none uses SDL or GLFW. They differ in how much else they
+  take from the OS:
+
+  |               | Flutter                                              | GPUI (Zed)                                      | Fleury (RAD Debugger)              |
+  |---------------+------------------------------------------------------+-------------------------------------------------+------------------------------------|
+  | Windowing     | Native embedder per OS (AppKit, Win32, GTK on Linux) | AppKit, Win32, Wayland/X11 directly             | Win32; Linux (X11) partial         |
+  | GPU           | Skia/Impeller over Metal, Vulkan, OpenGL             | Metal, DirectX 11, Vulkan                       | Direct3D 11                        |
+  | Text          | Bundled (HarfBuzz, ICU, Skia)                        | OS: Core Text, DirectWrite; Rust stack on Linux | OS: DirectWrite; FreeType on Linux |
+  | IME           | Native, bridged                                      | Native                                          | Minimal                            |
+  | Accessibility | Semantics tree bridged to each OS                    | Weak                                            | None                               |
+
+  GPUI and Fleury use a /thin/ platform layer: native windows, the OS text
+  engine, little else. Flutter uses a /thick/ one: its own text stack
+  everywhere, plus real per-OS bridges for IME and accessibility. Flutter's
+  accessibility is possible precisely because its embedders are native.
+  (GPUI's backends change often; check before citing.)
+
+*** Rendering backend
+- *Display list as the boundary.* Variants never call the GPU. They append
+  commands to a flat, preallocated display list: filled rectangle, rounded
+  rectangle, border, shadow, line/path, glyph run, image, push/pop clip,
+  push/pop transform. The backend consumes the list. Both backends render
+  the same list, so the variants cannot differ in how they draw, only in
+  how they decide what to draw.
+- *GPU path.* Batches commands by pipeline, draws glyphs from a cached atlas,
+  and uses signed distance functions for rounded rectangles and shadows. API
+  choice (OpenGL, Metal/Vulkan, or WebGPU through =wgpu-native=) is a
+  Phase 0 decision record; portability and image size weigh most.
+- *Software path.* A deterministic, single-threaded rasterizer producing a
+  pixel buffer. Used for screenshot tests, for verifying that replay is
+  deterministic (hash each frame), and for running benchmarks headless in CI.
+  It does not need to be fast, only exact and repeatable.
+- *Damage.* The backend accepts an optional damage rectangle and repaints only
+  inside it; without one it repaints the whole window. A retained variant can
+  compute damage easily and an immediate one cannot, so damage is a measured
+  difference between variants, not something the core hides.
+
+*** Text
+- *Fonts.* Load from files and from the system; a fixed bundled font set for
+  tests and benchmarks so results do not depend on the machine.
+- *Shaping and rasterization.* Three options, a Phase 0 decision record:
+  1. /Bundled stack/ (HarfBuzz and FreeType through CFFI; Flutter's
+     approach). Correct for every script and identical on every OS, so
+     benchmark and screenshot results are comparable across machines.
+     Costs image size and a C dependency.
+  2. /OS text engine/ (Core Text on macOS, DirectWrite on Windows, a bundled
+     fallback on Linux; GPUI's and Fleury's approach). Smallest image, text
+     looks native, system fonts and fallback for free. Costs per-OS code,
+     and results differ by OS, so the bundled test font set and recording
+     the OS in each result matter more.
+  3. /Pure-Lisp shaper/ for Latin only. Smallest and simplest, no FFI, but a
+     dead end for a real library.
+  Start with what gets the 7GUIs working; record what is deferred.
+- *Line breaking.* UAX #14 break opportunities, then greedy fitting to a
+  width. Bidirectional text is deferred and recorded as such.
+- *Measurement API.* What layout calls: measure a run, break a paragraph to a
+  width, map a point to a caret position, map a caret position to a
+  rectangle. Results are cached by (text, font, size, width), and the cache
+  is shared, so no variant gains an advantage from a better cache.
+- *Glyph atlas.* Rasterized glyphs packed into a texture, keyed by glyph,
+  font, size and subpixel offset; evicted least-recently-used.
+- *IME hooks.* The core reports the caret rectangle to the OS (so the
+  candidate window appears in the right place) and delivers composition
+  events: preedit started/changed/committed. Drawing the preedit text is the
+  variant's job. Needed by the text editor stress app.
+
+*** Input
+- *Event types.* Plain structs with a timestamp: pointer down/up/move/enter/
+  leave, wheel (with precise and line deltas), key down/up (physical key,
+  logical key, modifiers, repeat flag), text input, IME composition, window
+  resize, scale change, focus in/out of the window.
+- *Stable ids.* A shared id type (a fixnum) for anything that can be hit,
+  focused, captured or exposed to accessibility. How a variant produces
+  stable ids (object identity, hashed key paths, explicit keys) is part of
+  its approach; the type is shared so focus, capture and accessibility code
+  can be shared too.
+- *Hit testing primitives.* Point in rectangle, rounded rectangle and clip
+  stack, in the presence of transforms. The variant owns the structure being
+  searched; the core only does the geometry.
+- *Focus primitives.* Current focus id, keyboard capture, pointer capture
+  (so a drag continues outside the widget), and tab order computed from an
+  ordered list of focusable ids the variant provides.
+
+*** Instrumentation
+- *Phases.* Each frame is split into phases: events, build/update, layout,
+  record, submit, present. Each phase records wall time, bytes consed
+  (=sb-ext:get-bytes-consed=) and GC time.
+- *Storage.* Samples go into a preallocated ring buffer of fixed-size
+  records, so measuring does not allocate and does not disturb what it
+  measures.
+- *Output.* At the end of a run, the buffer is written in the result record
+  format (see [[*Result records][Result records]]). Optionally also as Chrome trace event JSON,
+  viewable in Perfetto, for looking at individual frames.
+- *Settling.* Each presented frame records how many builds it took and
+  whether it hit the settle cap. Extra builds are reported apart from the
+  first build, so the cost of settling is visible per variant.
+- *Cost.* Instrumentation is switched on at build time. Its overhead is
+  measured once (the =null= variant with and without it) and recorded.
+
+*** Replay
+- *Script format.* An s-expression file: header (window size, scale, font
+  set, variant, app), then timestamped events on the virtual clock, plus
+  checkpoints.
+- *Settled frames only.* Checkpoints wait for the next settled frame, so a
+  frame hash or state query never captures a torn frame. Frame hashes are
+  taken from settled frames only.
+- *Targeting.* Pointer events can target raw coordinates or a test id. Test
+  ids are resolved through =lookup-target= at replay time, so one script
+  drives every variant even when their layouts differ by a few pixels.
+- *Checkpoints.* Assertions at points in the script: a frame hash from the
+  software renderer, a screenshot to compare, or a query of app state.
+  Replay therefore tests correctness as well as driving benchmarks.
+- *Determinism.* Under replay the clock is virtual, timers fire from the
+  script's timeline, and the software renderer is used for checking. Running
+  a script twice must give identical frame hashes; if it does not, the bug
+  is fixed before any measurement is trusted.
+- *Recording.* A recording mode writes a script from a live session, so
+  realistic scripts (editing in the text editor, scrolling the million-row
+  list) are captured rather than written by hand.
+
+*** Machine interface
+The accessibility tree, test-id targeting, the software renderer and replay
+together are almost everything an LLM agent needs to operate an app. The
+machine interface exposes them as one protocol, shared by every variant and
+both libraries.
+
+- *See.* The semantic tree from =accessibility-tree=, taken from the most
+  recent settled frame (see [[*Variant contract][Variant contract]]): role, name, value,
+  state (focused, disabled, selected, expanded), bounds and stable id for
+  every node. This is the same tree the OS accessibility bridge consumes, so
+  improving one improves both.
+- *Act.* Actions addressed by stable id or test id, not coordinates: focus,
+  activate, set value, type text, scroll into view, plus raw input events as
+  a fallback. Actions go through the same input path as real events, so the
+  app cannot tell an agent from a person.
+- *Observe.* A screenshot of a window or a node, from the GPU path or the
+  software renderer, and the state queries used by replay checkpoints.
+- *Wait.* "Until idle" and "until this node exists or changes", so agents do
+  not poll or sleep. The core already knows when it is idle. "Idle" means
+  no pending events and the last frame settled.
+- *Reproduce.* Every agent session can be recorded as a replay script, so an
+  agent's bug report is a deterministic reproduction.
+- *Transport.* An MCP server is a thin adapter over this protocol; other
+  transports can follow. It is opt-in, local-only, and off by default in
+  release builds.
+
+Prior art: Playwright MCP and Chrome DevTools MCP (accessibility-tree
+snapshots with element references), Flutter's MCP server (widget tree, errors,
+hot reload), =egui_kittest= (tests through the AccessKit tree), and the Dear
+ImGui Test Engine (label paths for immediate-mode widgets).
+
+*** Layout
+Shared layout is the default. A per-variant layout system would change the
+code-size and change-cost numbers for reasons unrelated to the approach being
+tested. The proposal is a small constraint-based box layout (Flutter-style:
+constraints go down, sizes come up, parents position children) written as
+pure functions that each variant calls from its own structure. If a variant
+cannot use it naturally, that is evidence about the approach and goes in the
+devlog; making layout per-variant then becomes its own hypothesis.
+
+*Front ends.* Every variant reaches the shared protocol its own way:
+- /Retained and reactive/: nodes persist, so they hold their sizes, dirty
+  flags and relayout boundaries (a node with tight constraints cannot be
+  affected by changes below it).
+- /Immediate/: builds a lightweight box tree each frame and lays it out once
+  the build ends. Sizes are declared as Fleury's kinds (pixels, text content,
+  percent of parent, children sum, each with a strictness) and lowered to
+  constraints. The alternative to evaluate: each child builds with its
+  constraints and returns a size plus commands in local coordinates, and the
+  parent positions them with push/pop transform.
+- /Cursor layout/ (Dear ImGui style) may exist as a convenience for simple
+  screens. It is not the reference, because it relies on last frame's sizes
+  or on the settle loop.
+
+*Layout spike (H6).* Before the variants are built out, implement the same
+layouts in each front end: 7GUIs Flight Booker and Cells, a nested split
+panel, and a wrapped paragraph in a resizable container. Record, per front
+end: layout-related lines of code; layout time per frame (the layout phase in
+the instrumentation); builds per settled frame; and whether display-list
+hashes match across front ends for the same app. Write the
+outcome as a decision record.
+
+** Variant matrix
+Each cell is a front end built on the shared core.
+
+| Approach                      | Common Lisp     | Coalton              |
+|-------------------------------+-----------------+----------------------|
+| Retained (widget tree)        | =cl-retained=   | =coalton-retained=   |
+| Immediate + cache (Fleury)    | =cl-immediate=  | =coalton-immediate=  |
+| Reactive hybrid (Flutter/GPUI)| =cl-reactive=   | =coalton-reactive=   |
+
+*Immediate + cache vs. reactive hybrid.* Both compare against the previous
+frame and skip unchanged output work, so the difference is on the input side:
+how much UI code runs before that comparison.
+- /Immediate + cache/ does not know what changed. It runs the whole UI
+  function on every requested frame, then compares results (command hashes,
+  =eq= inputs) and skips unchanged layout, paint and GPU work. Staleness
+  comes from a cache key that misses something.
+- /Reactive hybrid/ is told what changed (notify, dependency tracking). It
+  re-runs only dirty components and diffs their output against a persistent
+  tree with stable identity. Staleness comes from a missed notification.
+- The approaches can converge: =eq=-memoized views plus read tracking make
+  immediate mode reactive, and cached layers make reactive mode more
+  immediate. Variants must therefore state their defaults (rebuild
+  everything unless opted out, or rebuild only what is dirty) and report
+  build time separately from layout, paint and GPU time.
+- Both are checked the same way: compare against a full uncached rebuild.
+
+Six cells is a lot of work. Suggested order: build all three approaches in
+Common Lisp first (faster iteration), pick the two most promising, then port
+those to Coalton.
+
+The two columns feed two different libraries, so each column picks its own
+winner. The approach that wins in Common Lisp need not win in Coalton:
+algebraic data types and immutability may favor the reactive hybrid, for
+example. If the approach dropped after the Common Lisp round looks like a good
+fit for Coalton, port it anyway and record why.
+
+** Repository layout
+#+begin_example
+core/            shared platform, rendering, text, input, instrumentation
+variants/
+  cl-retained/
+  cl-immediate/
+  cl-reactive/
+  coalton-.../
+apps/
+  7guis/         one directory per task, one implementation per variant
+  stress/        large list, editor, dashboard, idle
+bench/           harness, replay scripts, result schema
+results/         raw benchmark results, one file per run
+notes/
+  devlog.org     dated lab notebook
+  decisions/     one file per decision record
+  research.org   annotated bibliography
+design/          design tokens, screenshots, gallery
+#+end_example
+
+* Common Lisp vs. Coalton
+
+Coalton is a statically typed functional language embedded in Common Lisp.
+The hypothesis is that it produces more efficient code. The real question is
+/at what cost/, and whether the efficiency comes from Coalton itself or simply
+from having static type information.
+
+** Two libraries
+The plan is two libraries, each written for its own audience:
+- a *Common Lisp library* for applications written in Common Lisp, with a
+  Lisp-shaped API (CLOS, keyword arguments, macros, live redefinition);
+- a *Coalton library* for applications written in Coalton, with a
+  Coalton-shaped API (types, typeclasses, algebraic data types, pattern
+  matching).
+
+Neither library is a wrapper over the other's public API. They may share
+internals, most likely the shared core (see [[*Possible boundary designs][Possible boundary designs]]).
+
+*Default and exception.* Two libraries is the default. A single Coalton
+library that also serves Common Lisp applications replaces it only if the
+benefits outweigh the costs, measured rather than argued. Proposed bar:
+- its Common Lisp-facing API scores at least as well as the native Common Lisp
+  library on the usability rubric and change-cost tests; and
+- its performance advantage is outside measurement noise on the stress apps;
+  and
+- the wrapper code needed to give Common Lisp users that API is smaller than
+  maintaining a second front end.
+Falling short on any point keeps the two-library plan. Record the outcome as a
+decision record either way.
+
+** Expected benefits
+- Type inference supplies the compiler with type information that Common Lisp
+  code only gets through hand-written declarations.
+- Specialization of generic (typeclass) code can remove dispatch overhead in
+  hot paths.
+- Algebraic data types and exhaustive pattern matching may make widget state
+  and event handling clearer and catch errors at compile time.
+- Immutability-by-default may make the reactive variant's diffing simpler.
+
+** Expected costs
+- *Interactivity:* redefining types at the REPL can force recompiling
+  dependents; live development may feel less fluid than in Common Lisp.
+- *Compile time:* type checking and specialization add build time.
+- *Interop boundary:* every call into Common Lisp libraries happens through
+  untyped =lisp= forms, which need typed wrappers and may add overhead.
+- *Audience:* applies only to the single-library exception. A Coalton library
+  serving Common Lisp users would need a pleasant Lisp-facing API, and
+  typeclass-based APIs do not translate directly. This cost is the main
+  reason two libraries is the default.
+- *Flexibility:* no CLOS-style open dispatch or method combination; extension
+  points must be designed with typeclasses instead.
+- *Ecosystem and maturity:* Coalton is pre-1.0 and practically SBCL-only;
+  expect language changes and fewer learning resources.
+- *Unspecialized generics:* typeclass dispatch that is not specialized may be
+  /slower/ than equivalent Common Lisp code.
+
+** Fair comparison
+To separate "static types help" from "Coalton helps", benchmark three
+versions of each hot path:
+
+| Version               | Description                                      |
+|-----------------------+--------------------------------------------------|
+| CL (idiomatic)        | Ordinary Common Lisp, no type declarations       |
+| CL (declared)         | Same code with type declarations and =optimize=  |
+| Coalton (release)     | Coalton built in release mode                    |
+
+If CL (declared) matches Coalton, the benefit is the types, not the language,
+and the real comparison becomes ergonomics and safety.
+
+** Additional measurements for this axis
+- Full and incremental compile times
+- Time from editing a widget definition to seeing the change in a running app
+- Count of bugs caught at compile time vs. found at runtime (from the devlog)
+- Lines of wrapper code needed at the Lisp boundary
+- Usability rubric scores from someone writing apps against each API
+
+** Possible boundary designs
+With two public APIs settled, the open question is what the libraries share
+underneath:
+
+1. *Common Lisp core, shared.* Both libraries sit on one Common Lisp core;
+   the Coalton library reaches it through typed wrappers. Least duplication;
+   the cost is wrapper code and any overhead at the boundary, measured on
+   hot paths.
+2. *Coalton core, shared.* Both libraries sit on one Coalton core; the
+   Common Lisp library calls into it. Worth it only if the core's hot paths
+   are measurably faster in Coalton, since every Common Lisp call then
+   crosses the boundary.
+3. *Separate stacks.* Each library has its own core. Cleanest comparison and
+   no boundary cost, but two of everything to maintain.
+
+The experiment's variants already use option 1 (one shared core), so it is
+the starting point; the three-way comparison in [[*Fair comparison][Fair comparison]] says whether
+option 2 is worth it. Record the choice as a decision record.
+
+* Reference apps
+
+** 7GUIs
+[[https://eugenkiss.github.io/7guis/][7GUIs]] is a benchmark of seven tasks designed to compare GUI approaches on
+usability. Implement every task in every variant.
+
+| Task                  | What it exercises                          |
+|-----------------------+--------------------------------------------|
+| Counter               | Basic state and events                     |
+| Temperature converter | Bidirectional data flow                    |
+| Flight booker         | Constraints, validation, disabled states   |
+| Timer                 | Concurrency, time-driven updates           |
+| CRUD                  | Lists, selection, separating data from UI  |
+| Circle drawer         | Custom drawing, undo/redo, dialogs         |
+| Cells                 | Spreadsheet: dependencies, large grid      |
+
+** Stress apps
+| App                  | Measures                                         |
+|----------------------+--------------------------------------------------|
+| Million-row list     | Virtualization, scrolling frame time, memory     |
+| Text editor          | Text layout, IME, large documents                |
+| Animated dashboard   | Continuous updates, allocation per frame         |
+| Idle app             | CPU and wakeups when nothing changes             |
+
+** Dogfood app
+One real application built with the framework, chosen later. Its purpose is
+to find what benchmarks miss.
+
+* Benchmark specification
+
+** Metrics
+| Metric                 | Unit       | How                                           |
+|------------------------+------------+-----------------------------------------------|
+| Frame time             | ms         | p50, p95, p99, max from the core frame timer  |
+| Startup time           | ms         | Process start to first presented frame        |
+| Idle CPU               | %, wakeups | OS counters over a fixed idle window          |
+| Peak / steady memory   | MiB        | Process RSS; Lisp heap via =room=             |
+| Allocation per frame   | bytes      | =sb-ext:get-bytes-consed= deltas              |
+| GC time                | ms         | =sb-ext:*gc-run-time*= deltas                 |
+| Builds per frame       | count      | Mean and max per presented frame; cap hits    |
+| Image size             | MiB        | Saved executable, raw and compressed          |
+| Compile time           | s          | Full and incremental builds                   |
+
+Use =sb-sprof= for profiling when a number needs explaining.
+
+** Protocol
+- Same machine, power settings and display for every comparison; record them.
+- Build Coalton variants in release mode.
+- Warm up before measuring; discard the first runs.
+- Drive every run with a recorded input script, never by hand.
+- Repeat each run (at least 10 times) and report median and spread.
+- Treat differences within the spread as ties.
+
+** Result records
+One file per run in =results/=, containing: commit hash, variant, app,
+machine profile, date, raw samples and summary statistics. Results are never
+edited, only superseded.
+
+** Continuous tracking
+Run the suite in CI on each merge and chart results over time, so wins and
+regressions are visible and can be linked from decision records.
+
+* Code quality and usability
+
+** Size and concept counts
+For each reference app in each variant: lines of code, and the number of
+distinct framework concepts the app must use.
+
+** Change-cost tests
+Scripted edits applied to each variant; measure the size of the diff.
+- Add a field to the CRUD form
+- Make the flight booker's return date optional
+- Add undo to the temperature converter
+- Hide a group of controls behind a checkbox
+- Change the layout of a dialog from vertical to two columns
+
+** Usability rubric
+Scored 1–5 after writing each app, first by me, later by others.
+
+| Criterion                                   | Score | Notes |
+|---------------------------------------------+-------+-------|
+| Could I write it without reading the source |       |       |
+| Is the code readable top to bottom          |       |       |
+| Is state flow obvious                       |       |       |
+| Were errors caught early and explained well |       |       |
+| Was the change easy to make                 |       |       |
+| Would I enjoy writing a large app this way  |       |       |
+
+** Agent tasks
+Scripted goals given to an LLM agent that operates each variant only through
+the [[*Machine interface][machine interface]], for example "add a person named Ada Lovelace in CRUD",
+"book a return flight for next Friday", "set cell B3 to the sum of A1:A3".
+Fix the model, prompt and tool set for a comparison and record them, and
+repeat each task several times.
+
+| Metric       | How                                                      |
+|--------------+----------------------------------------------------------|
+| Success rate | Task verified by a state query at the end                |
+| Steps        | Number of tool calls                                     |
+| Tokens       | Total input and output tokens                            |
+| Fallbacks    | Times the agent needed screenshots or raw coordinates    |
+
+Fallbacks are the key number: each one marks a place where the semantic tree
+failed to describe the UI, which is also a place a screen reader user is
+likely stuck.
+
+* Beauty
+
+** Output
+- Define a small design system early: color, type scale, spacing, motion.
+- Every example app uses it, so comparisons look deliberate, not accidental.
+- Screenshot tests catch visual regressions.
+- Keep a gallery of examples worth showing.
+
+** Code
+- Ask on every change: is this the clearest way to say this?
+- Prefer fewer, more general concepts over many special cases.
+- When two solutions measure the same, take the beautiful one.
+
+* Recording system
+
+** Devlog
+=notes/devlog.org=, one dated entry per working session. Record what was
+tried, what was read, what was measured, what failed and what was learned.
+Dead ends are as valuable as wins.
+
+** Decision records
+=notes/decisions/NNNN-short-title.org=, one per significant decision. Each
+links to the evidence it rests on. Decisions are never edited after the fact;
+a later decision supersedes an earlier one.
+
+** Research notes
+=notes/research.org=: an annotated bibliography. For each source: a summary
+in my own words, the ideas I take from it, and the ideas I reject.
+
+** Telling the story
+The devlog, decision records and benchmark history are the raw material for
+blog posts and a final report. Write a short post at the end of each phase
+while the reasoning is fresh.
+
+* Graduation criteria
+
+The experimental phase ends when:
+- every hypothesis is CONFIRMED, REFUTED or INCONCLUSIVE with linked evidence;
+- in each language, one variant (or a synthesis) wins or ties on benchmarks
+  /and/ change-cost tests under the weights in [[*Priorities][Priorities]];
+- the CL vs. Coalton question has a recorded answer, including what the two
+  libraries share and whether the single-library exception applies.
+
+* Roadmap
+
+** TODO Phase 0: Foundations
+- [X] Fill in the priorities table and decision rules
+- [X] Set up repository, devlog and decision record templates
+- [ ] Choose the platform and rendering backend for the core
+- [ ] Write the first decision record: scope of the core
+
+** TODO Phase 1: Shared core
+- [ ] Window, event loop and GPU renderer (Metal first)
+- [ ] Text rendering (start simple; record what is deferred)
+- [ ] Input event structs, core clock and minimal instrumentation (consing
+  counter, frame ring buffer)
+
+** TODO Phase 2: Common Lisp variants
+- [ ] Input primitives (stable ids, hit testing, focus) and input replay, as
+  the first variants need them
+- [ ] Retained, immediate + cache, reactive hybrid
+- [ ] Layout spike across front ends (H6)
+- [ ] All 7GUIs tasks in each
+
+** TODO Phase 3: Benchmarks and stress apps
+- [ ] Full instrumentation (phases, trace output, settle statistics)
+- [ ] Harness, protocol, result records, CI tracking
+- [ ] Stress apps in each variant
+- [ ] Change-cost tests and usability rubric
+- [ ] Machine interface with an MCP adapter; agent tasks in each variant
+
+** TODO Phase 4: Coalton
+- [ ] Choose the boundary design (decision record)
+- [ ] Port the two most promising variants
+- [ ] Three-way comparison: CL idiomatic, CL declared, Coalton
+
+** TODO Phase 5: Analysis and decision
+- [ ] Settle every hypothesis
+- [ ] Decide two libraries vs. the single-library exception (decision record)
+- [ ] Write the decision records choosing each library's design
+- [ ] Publish the phase report
+
+** TODO Phase 6: Hardening and release
+- [ ] Stable API and versioning policy for each library
+- [ ] Text, IME and accessibility plan, then implementation (OS bridges on
+  top of the semantic tree that already serves the machine interface)
+- [ ] Documentation and examples gallery for each library
+- [ ] Build the dogfood app
+- [ ] First public release of each library
+
+* Templates
+
+** Decision record
+#+begin_src org
+,#+TITLE: NNNN — Short title
+,#+DATE: YYYY-MM-DD
+- Status :: proposed | accepted | superseded by NNNN
+
+,* Context
+What forces are at play? Which priorities are involved?
+
+,* Options
+1. ...
+2. ...
+
+,* Evidence
+Links to benchmark results, devlog entries and research notes.
+
+,* Decision
+What we chose, in one or two sentences.
+
+,* Consequences
+What becomes easier, what becomes harder, what we give up.
+#+end_src
+
+** Devlog entry
+#+begin_src org
+,* YYYY-MM-DD — Session title
+,** Goal
+,** What I did
+,** What I measured
+,** What I learned
+,** Next
+#+end_src
+
+** Benchmark run summary
+#+begin_src org
+,* Run: <variant> / <app> / <commit>
+- Machine :: <profile>
+- Date :: YYYY-MM-DD
+| Metric | p50 | p95 | p99 | Notes |
+|--------+-----+-----+-----+-------|
+#+end_src
+
+* Bibliography
+
+** UI architecture
+- [[https://www.dgtlgrove.com/p/ui-part-2-build-it-every-frame-immediate][Ryan Fleury — UI, Part 2: Every Single Frame (IMGUI)]] and the rest of his UI series
+- [[https://caseymuratori.com/blog_0001][Casey Muratori — Immediate-Mode Graphical User Interfaces (2005)]]
+- [[https://raphlinus.github.io/rust/druid/2020/09/25/principled-reactive-ui.html][Raph Levien — Towards principled reactive UI]], plus "Towards a unified
+  theory of reactive UI" and "Xilem: an architecture for UI in Rust"
+- [[https://raphlinus.github.io/rust/gui/2022/07/15/next-dozen-guis.html][Raph Levien — Advice for the next dozen Rust GUIs (2022)]]: why Crochet
+  (immediate-mode API over a retained tree) was not pursued, including state
+  tearing; the source of the settled-frame rule in the variant contract. Also
+  notes that platform accessibility needs stable ids and diffing, so pure
+  immediate mode cannot serve it.
+- [[https://docs.flutter.dev/resources/inside-flutter][Inside Flutter]]
+- [[https://zed.dev/blog/tagged/gpui][Zed blog — GPUI posts]]
+- [[https://forrestthewoods.com/blog/proving-immediate-mode-guis-are-performant][Forrest Smith — Proving Immediate Mode GUIs are Performant]]
+- [[https://martinfowler.com/eaaDev/uiArchs.html][Martin Fowler — GUI Architectures]]: MVC, Separated Presentation,
+  Presentation Model, MVP and Humble View. Background for the retained
+  variant. Note: Fowler's "presentation" means the UI layer kept /separate/
+  from the domain, the opposite emphasis from CLIM's presentations below.
+
+** Presentations
+Output linked to the domain object it shows, typed so that it can be picked as
+input. Prior art for the [[*Machine interface][machine interface]].
+- [[https://dspace.mit.edu/handle/1721.1/15346][Eugene C. Ciccarelli — Presentation Based User Interfaces]] (MIT PhD
+  thesis, 1984); an earlier [[https://dspace.mit.edu/handle/1721.1/41161][AI Lab working paper of the same name]] (WP-219,
+  1981). The origin of the idea.
+- [[https://www.lispworks.com/documentation/lw81/clim/clim-ch6.htm][CLIM 2.0 User Guide — Presentation Types]] (LispWorks)
+- [[https://www.jucs.org/jucs_14_20/an_implementation_of_clim.html][Timothy Moore — An Implementation of CLIM Presentation Types]] (JUCS
+  14(20), 2008): how McCLIM implements them on the CLOS MOP.
+- [[https://github.com/slime/slime/blob/master/contrib/slime-presentations.el][SLIME — slime-presentations contrib]]: REPL output that stays linked to
+  the live Lisp object; described in its source as imitating Lisp machine
+  presentations.
+
+** Lisp toolkits
+- [[https://codeberg.org/shirakumo/alloy][Alloy]]
+- [[https://mcclim.common-lisp.dev/][McCLIM]]
+- [[https://github.com/coalton-lang/coalton][Coalton]]
+
+** Memory
+- [[https://github.com/sbcl/sbcl/blob/master/doc/internals-notes/arena-allocation.txt][SBCL internals notes — arena allocation]]
+
+** Benchmarks
+- [[https://eugenkiss.github.io/7guis/][7GUIs]]
