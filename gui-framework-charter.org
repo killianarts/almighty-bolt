@@ -102,14 +102,17 @@ Everything that is not the subject of an experiment is shared, so that
 measured differences come from the approach and not from incidental code.
 
 - Platform layer: windows, event loop, clipboard, timers
-- Rendering backend: one GPU path, plus a software path for tests
+- Rendering backend: one GPU path per OS (no software renderer for now)
 - Text: shaping, line breaking, font loading, IME hooks
+- Layout: shared constraint box layout (see [[*Layout][Layout]])
 - Input: event types, hit testing primitives, focus primitives
 - Instrumentation: frame timer, allocation counters, trace output
 - Replay: record and replay input scripts deterministically
 
-Layout may be shared or per-variant; if it is per-variant, it becomes its own
-experiment axis and gets its own hypothesis.
+Scope ([[file:notes/decisions/0005-core-scope.org][decision record 0005]]): platform, GPU rendering, text and layout come
+first. Input event structs, the core clock and a minimal instrumentation ring
+buffer are kept from the start. Input primitives, replay and full
+instrumentation are added when their triggers are reached (see the roadmap).
 
 *** Rules for the core
 - *Narrow boundary.* A variant talks to the core only through the variant
@@ -120,7 +123,10 @@ experiment axis and gets its own hypothesis.
   changes. Those decisions are the experiment.
 - *Zero steady-state allocation.* After warm-up the core allocates nothing per
   frame: buffers are preallocated and reused. Every byte consed during a frame
-  is then attributable to the variant, which keeps H5 honest.
+  is then attributable to the variant, which keeps H5 honest. Calls into the OS
+  (Objective-C, COM, CFFI string conversion) may cons. The first spike
+  measures this; if they do, keep them out of the frame loop or report them
+  apart from the variant's allocation.
 - *Idle means asleep.* The core blocks in the OS when nothing is pending. It
   never polls, never spins, and never presents a frame nobody asked for.
 - *Injectable clock.* All time comes from one core clock that replay can
@@ -170,7 +176,8 @@ screen readers, tests or agents.
 *** Platform layer
 - *Window.* Create, resize, close, size in logical pixels and the scale factor
   for HiDPI. One window first; several windows are deferred.
-- *Event loop.* Runs on the main thread (a macOS requirement). Waits for OS
+- *Event loop.* Runs on the main thread (a macOS requirement; on macOS AppKit owns
+  the loop itself and the core owns frame scheduling). Waits for OS
   events, timers or a frame request, then: drain events → =handle-event= for
   each → if a redraw is needed, =frame= → submit → present at vsync.
 - *Frame scheduling.* Frames happen only on request. Animations request the
@@ -179,17 +186,17 @@ screen readers, tests or agents.
 - *Timers.* One-shot and repeating, on the monotonic clock, coalesced into a
   single OS wait. The 7GUIs Timer task is the first user.
 - *Clipboard.* Plain text first; rich formats are deferred.
-- *Choice to make (Phase 0).* SDL3 or GLFW through CFFI (one dependency,
-  portable, quick to start) or native windowing APIs written per OS: AppKit
-  through the Objective-C runtime on macOS, Win32 on Windows, Wayland and
-  X11 on Linux. Widgets are custom-drawn either way; "native" here means
-  native /windowing/, not native /widgets/. Native windowing gives the
-  smallest image and, more importantly, direct access to the OS view, which
-  IME (=NSTextInputClient=, TSF) and accessibility (NSAccessibility, UI
+- *Choice.* Native windowing, settled in [[file:notes/decisions/0001-platform.org][decision record 0001]]: AppKit through
+  the Objective-C runtime on macOS first (called straight from Lisp, with no C
+  shim: [[file:notes/decisions/0007-appkit-access.org][decision record 0007]]), then Win32 on Windows, then Wayland
+  and X11 on Linux. Widgets are custom-drawn; "native" here means native
+  /windowing/, not native /widgets/. Native windowing gives the smallest
+  image and, more importantly, direct access to the OS view, which IME
+  (=NSTextInputClient=, TSF) and accessibility (NSAccessibility, UI
   Automation) both need. SDL3 and GLFW hide that view, so serious IME and
-  accessibility work means reaching past them anyway. Record as a decision
-  record. Wrapping a portable library first and replacing it one OS at a time
-  later is acceptable, as long as the contract above does not change.
+  accessibility work means reaching past them anyway. Wrapping a portable
+  library first and replacing it one OS at a time later remains acceptable if
+  a platform stalls, as long as the contract above does not change.
 - *Prior art.* All three reference frameworks draw their own widgets inside a
   native window, and none uses SDL or GLFW. They differ in how much else they
   take from the OS:
@@ -212,17 +219,20 @@ screen readers, tests or agents.
 - *Display list as the boundary.* Variants never call the GPU. They append
   commands to a flat, preallocated display list: filled rectangle, rounded
   rectangle, border, shadow, line/path, glyph run, image, push/pop clip,
-  push/pop transform. The backend consumes the list. Both backends render
+  push/pop transform. The backend consumes the list. Every backend renders
   the same list, so the variants cannot differ in how they draw, only in
   how they decide what to draw.
 - *GPU path.* Batches commands by pipeline, draws glyphs from a cached atlas,
   and uses signed distance functions for rounded rectangles and shadows. API
-  choice (OpenGL, Metal/Vulkan, or WebGPU through =wgpu-native=) is a
-  Phase 0 decision record; portability and image size weigh most.
-- *Software path.* A deterministic, single-threaded rasterizer producing a
-  pixel buffer. Used for screenshot tests, for verifying that replay is
-  deterministic (hash each frame), and for running benchmarks headless in CI.
-  It does not need to be fast, only exact and repeatable.
+  choice is settled in [[file:notes/decisions/0002-gpu-api.org][decision record 0002]]: Metal, Direct3D 11 and Vulkan
+  natively, one per OS.
+- *No software path (for now).* There is no CPU rasterizer. Replay
+  determinism is checked by hashing the display list each frame, which covers
+  everything above the renderer. Screenshot tests are golden images read back
+  from each GPU backend and compared with a tolerance. Benchmarks and
+  renderer tests need a machine with a GPU; display-list and layout tests run
+  anywhere. Revisit if GPU-less CI or users without a usable GPU become a
+  problem (see [[file:notes/decisions/0002-gpu-api.org][decision record 0002]]).
 - *Damage.* The backend accepts an optional damage rectangle and repaints only
   inside it; without one it repaints the whole window. A retained variant can
   compute damage easily and an immediate one cannot, so damage is a measured
@@ -230,20 +240,16 @@ screen readers, tests or agents.
 
 *** Text
 - *Fonts.* Load from files and from the system; a fixed bundled font set for
-  tests and benchmarks so results do not depend on the machine.
-- *Shaping and rasterization.* Three options, a Phase 0 decision record:
-  1. /Bundled stack/ (HarfBuzz and FreeType through CFFI; Flutter's
-     approach). Correct for every script and identical on every OS, so
-     benchmark and screenshot results are comparable across machines.
-     Costs image size and a C dependency.
-  2. /OS text engine/ (Core Text on macOS, DirectWrite on Windows, a bundled
-     fallback on Linux; GPUI's and Fleury's approach). Smallest image, text
-     looks native, system fonts and fallback for free. Costs per-OS code,
-     and results differ by OS, so the bundled test font set and recording
-     the OS in each result matter more.
-  3. /Pure-Lisp shaper/ for Latin only. Smallest and simplest, no FFI, but a
-     dead end for a real library.
-  Start with what gets the 7GUIs working; record what is deferred.
+  tests and benchmarks so results do not depend on which fonts are installed.
+  Metrics and shaping still differ by OS, so results are compared on one OS
+  only and every result record names its OS.
+- *Shaping and rasterization.* The OS text engine, settled in
+  [[file:notes/decisions/0003-text-engine.org][decision record 0003]]: Core Text on macOS, DirectWrite on Windows, and on
+  Linux a bundled stack (HarfBuzz and FreeType through CFFI), decided when we
+  get there. The alternatives considered were a bundled stack everywhere
+  (identical on every OS, but costs image size and a C dependency) and a
+  pure-Lisp Latin-only shaper (a dead end for a real library). Start with
+  what gets the 7GUIs working; record what is deferred.
 - *Line breaking.* UAX #14 break opportunities, then greedy fitting to a
   width. Bidirectional text is deferred and recorded as such.
 - *Measurement API.* What layout calls: measure a run, break a paragraph to a
@@ -295,24 +301,24 @@ screen readers, tests or agents.
   set, variant, app), then timestamped events on the virtual clock, plus
   checkpoints.
 - *Settled frames only.* Checkpoints wait for the next settled frame, so a
-  frame hash or state query never captures a torn frame. Frame hashes are
+  display-list hash or state query never captures a torn frame. Hashes are
   taken from settled frames only.
 - *Targeting.* Pointer events can target raw coordinates or a test id. Test
   ids are resolved through =lookup-target= at replay time, so one script
   drives every variant even when their layouts differ by a few pixels.
-- *Checkpoints.* Assertions at points in the script: a frame hash from the
-  software renderer, a screenshot to compare, or a query of app state.
-  Replay therefore tests correctness as well as driving benchmarks.
+- *Checkpoints.* Assertions at points in the script: a display-list hash, a
+  screenshot to compare, or a query of app state. Replay therefore tests
+  correctness as well as driving benchmarks.
 - *Determinism.* Under replay the clock is virtual, timers fire from the
-  script's timeline, and the software renderer is used for checking. Running
-  a script twice must give identical frame hashes; if it does not, the bug
+  script's timeline, and display-list hashes are used for checking. Running
+  a script twice must give identical hashes; if it does not, the bug
   is fixed before any measurement is trusted.
 - *Recording.* A recording mode writes a script from a live session, so
   realistic scripts (editing in the text editor, scrolling the million-row
   list) are captured rather than written by hand.
 
 *** Machine interface
-The accessibility tree, test-id targeting, the software renderer and replay
+The accessibility tree, test-id targeting, screenshots and replay
 together are almost everything an LLM agent needs to operate an app. The
 machine interface exposes them as one protocol, shared by every variant and
 both libraries.
@@ -326,8 +332,8 @@ both libraries.
   activate, set value, type text, scroll into view, plus raw input events as
   a fallback. Actions go through the same input path as real events, so the
   app cannot tell an agent from a person.
-- *Observe.* A screenshot of a window or a node, from the GPU path or the
-  software renderer, and the state queries used by replay checkpoints.
+- *Observe.* A screenshot of a window or a node, read back from the GPU, and
+  the state queries used by replay checkpoints.
 - *Wait.* "Until idle" and "until this node exists or changes", so agents do
   not poll or sleep. The core already knows when it is idle. "Idle" means
   no pending events and the last frame settled.
@@ -343,13 +349,13 @@ hot reload), =egui_kittest= (tests through the AccessKit tree), and the Dear
 ImGui Test Engine (label paths for immediate-mode widgets).
 
 *** Layout
-Shared layout is the default. A per-variant layout system would change the
+Layout is shared ([[file:notes/decisions/0004-layout.org][decision record 0004]]). A per-variant layout system would change the
 code-size and change-cost numbers for reasons unrelated to the approach being
-tested. The proposal is a small constraint-based box layout (Flutter-style:
-constraints go down, sizes come up, parents position children) written as
-pure functions that each variant calls from its own structure. If a variant
-cannot use it naturally, that is evidence about the approach and goes in the
-devlog; making layout per-variant then becomes its own hypothesis.
+tested. It is a small constraint-based box layout (Flutter-style: constraints
+go down, sizes come up, parents position children) written as pure functions
+that each variant calls from its own structure. If a variant cannot use it
+naturally, that is evidence about the approach and goes in the devlog; making
+layout per-variant then becomes its own hypothesis.
 
 *Front ends.* Every variant reaches the shared protocol its own way:
 - /Retained and reactive/: nodes persist, so they hold their sizes, dirty
@@ -412,6 +418,9 @@ fit for Coalton, port it anyway and record why.
 ** Repository layout
 #+begin_example
 core/            shared platform, rendering, text, input, instrumentation
+  almighty-bolt-core.asd
+  src/           one package per file, named almighty-bolt-core/<file>
+  t/             one test package per source file (lisp-unit2)
 variants/
   cl-retained/
   cl-immediate/
@@ -427,7 +436,19 @@ notes/
   decisions/     one file per decision record
   research.org   annotated bibliography
 design/          design tokens, screenshots, gallery
+spikes/          throwaway programs that answer one question each
+vendored/        third-party sources, fetched with vend (see Makefile)
+scripts/         repository maintenance scripts
+docs/            release notes and the release guide
+.github/         release workflow, release categories, pull request template
+Makefile         deps, test
 #+end_example
+
+*Source layout.* Common Lisp source follows [[file:notes/decisions/0006-source-layout.org][decision record 0006]]: every file
+defines exactly one package, named after the project and the file (tests under
+=t/=), and each system is an ordinary =defsystem= with =:serial t= and an
+explicit =:components= list in dependency order, as in =almighty-toki=. Not
+=package-inferred-system=.
 
 * Common Lisp vs. Coalton
 
@@ -584,7 +605,10 @@ edited, only superseded.
 
 ** Continuous tracking
 Run the suite in CI on each merge and chart results over time, so wins and
-regressions are visible and can be linked from decision records.
+regressions are visible and can be linked from decision records. With no
+software renderer, the benchmark and renderer jobs need a runner with a GPU
+(a dedicated machine if hosted runners lack one). Display-list and layout
+tests run on any runner.
 
 * Code quality and usability
 
@@ -678,14 +702,18 @@ The experimental phase ends when:
 ** TODO Phase 0: Foundations
 - [X] Fill in the priorities table and decision rules
 - [X] Set up repository, devlog and decision record templates
-- [ ] Choose the platform and rendering backend for the core
-- [ ] Write the first decision record: scope of the core
+- [X] Choose the platform and rendering backend for the core
+- [X] Write the first decision record: scope of the core
 
 ** TODO Phase 1: Shared core
-- [ ] Window, event loop and GPU renderer (Metal first)
-- [ ] Text rendering (start simple; record what is deferred)
-- [ ] Input event structs, core clock and minimal instrumentation (consing
+- [X] Window, event loop and GPU renderer (Metal first). Done on macOS: AppKit
+  and Metal from Lisp with no C ([[file:notes/decisions/0007-appkit-access.org][0007]]). Windows and Linux to follow.
+- [X] Text rendering (start simple; record what is deferred). Done on macOS
+  with Core Text; deferred items are in the devlog entry for Spike D.
+- [X] Input event structs, core clock and minimal instrumentation (consing
   counter, frame ring buffer)
+- [ ] The =null= baseline variant, once the variant contract exists
+- [ ] Direct3D 11 (Windows) and Vulkan (Linux) backends
 
 ** TODO Phase 2: Common Lisp variants
 - [ ] Input primitives (stable ids, hit testing, focus) and input replay, as
@@ -697,7 +725,7 @@ The experimental phase ends when:
 ** TODO Phase 3: Benchmarks and stress apps
 - [ ] Full instrumentation (phases, trace output, settle statistics)
 - [ ] Harness, protocol, result records, CI tracking
-- [ ] Stress apps in each variant
+- [ ] Stress apps in each variant (the text editor needs IME hooks first)
 - [ ] Change-cost tests and usability rubric
 - [ ] Machine interface with an MCP adapter; agent tasks in each variant
 
@@ -714,7 +742,7 @@ The experimental phase ends when:
 
 ** TODO Phase 6: Hardening and release
 - [ ] Stable API and versioning policy for each library
-- [ ] Text, IME and accessibility plan, then implementation (OS bridges on
+- [ ] Full IME and accessibility plan, then implementation (OS bridges on
   top of the semantic tree that already serves the machine interface)
 - [ ] Documentation and examples gallery for each library
 - [ ] Build the dogfood app

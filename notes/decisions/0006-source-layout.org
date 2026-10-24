@@ -1,0 +1,61 @@
+#+TITLE: 0006 — Source layout
+#+DATE: 2026-10-24
+- Status :: accepted
+
+* Context
+The core, the three variants and the apps will be many small Common Lisp files.
+We need one convention for packages and ASDF systems that every file follows.
+Micah's existing library =almighty-toki= is the model: it has a rule of one
+package per file and a plain =defsystem=. Maintainability is the second
+heaviest weight in the charter (20), and a reader has to be able to see what
+each file depends on.
+
+* Options
+1. One package per project, defined once in a =package.lisp= that every file
+   uses.
+2. One package per file, with a classic =defsystem= (=:serial t=, explicit
+   =:components= in dependency order).
+3. One package per file, with =:class :package-inferred-system=, where ASDF
+   infers the file order from each file's =defpackage=.
+
+* Evidence
+- =almighty-toki/CLAUDE.md= ("One Package Per File") and =almighty-toki.asd=
+  (option 2, =t/= directory, lisp-unit2, an umbrella =package.lisp= loaded last).
+- =vend get=, which fetches our dependencies, reads only the =:depends-on= of
+  systems that a =.asd= file defines. An inferred sub-system such as
+  =almighty-bolt-core/main= is not defined there, so vend stops with "not a
+  known system" (=vend/src/vend.lisp=, function =work=). This works against
+  option 3. It was not the reason for the decision; Micah asked for it not to be
+  used.
+- ASDF 3.3.7 does scan =:local-nicknames= for inferred dependencies
+  (=asdf/package-inferred-system=, function =package-dependencies=), so option 3
+  would have worked technically.
+
+* Decision
+Option 2, as =almighty-toki= does it.
+- Every Lisp file we write (library, tests, spike scripts) defines exactly one
+  package as its first form, then =(in-package ...)=. The exceptions are =.asd=
+  files and third-party code in =vendored/=.
+- A package is named =almighty-bolt-core/<file>=, with a segment per
+  subdirectory (=almighty-bolt-core/platform/macos/objc=); test packages are
+  =almighty-bolt-core/t/<file>=. Packages use =#:= designators, =(:use #:cl)=
+  only, exact =(:import-from ...)= lists, their own =(:export ...)=, and
+  =:local-nicknames= for qualified calls.
+- The system is =core/almighty-bolt-core.asd= with =:pathname "src"=, =:serial t=
+  and an explicit =:components= list, nested =:module= forms for
+  subdirectories. A second system, =almighty-bolt-core/tests=, covers =t/=.
+- The umbrella package =almighty-bolt-core= lives in =src/package.lisp=, last in
+  the list, re-exports the public API, and is never imported by other files.
+- Tests use lisp-unit2. =make test= runs them and exits non-zero on a failure.
+- Dependencies are fetched with =make deps= (vend) into =vendored/=, which is not
+  committed (as in almighty-toki). Scripts make ASDF look only in this tree.
+
+* Consequences
+- Easier: each file states what it depends on, so it can be read alone; there
+  is no global package to collide with; the layout matches Micah's other
+  libraries; vend works.
+- Harder: the order of =:components= is kept by hand, and a wrong order is a load
+  error (an =:import-from= of a package that does not exist yet); each file
+  carries a =defpackage=; the umbrella package's export list is maintained by
+  hand.
+- Gives up: ASDF inferring the load order.

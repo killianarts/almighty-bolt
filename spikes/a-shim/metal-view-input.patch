@@ -1,0 +1,77 @@
+diff --git a/C/metal-view.m b/C/metal-view.m
+index eb36c34..5ffa31a 100644
+--- a/C/metal-view.m
++++ b/C/metal-view.m
+@@ -7,6 +7,7 @@
+ @interface LispMTKView<MTKViewDelegate> : MTKView {
+   DrawFn mDrawFn;
+   EventFn mEventFn;
++  NSTrackingArea* trackingArea;
+ }
+ @property(readonly, nonatomic) int id;
+ @end
+@@ -36,8 +37,64 @@
+ 
+ -(void) dealloc {
+   mDrawFn(self.id, SHUTDOWN, NULL, NULL, self.bounds.size.width, self.bounds.size.height);
++  if(trackingArea != nil) {
++    [self removeTrackingArea:trackingArea];
++    [trackingArea release];
++  }
+   [super dealloc];
+ }
+ 
++// Input forwarding, copied from view.m (the plain NSView), which this view
++// lacked: without it the MTKView never calls mEventFn.
++-(void) updateTrackingAreas {
++  if(trackingArea != nil) {
++    [self removeTrackingArea:trackingArea];
++    [trackingArea release];
++  }
++  int opts = (NSTrackingActiveAlways | NSTrackingMouseEnteredAndExited | NSTrackingMouseMoved | NSTrackingInVisibleRect);
++  trackingArea = [ [NSTrackingArea alloc] initWithRect:[self bounds]
++					       options:opts
++						 owner:self
++					      userInfo:nil];
++  [self addTrackingArea:trackingArea];
++}
++
++-(BOOL) acceptsFirstResponder {
++  return YES;
++}
++
++-(BOOL) acceptsFirstMouse:(NSEvent *)event {
++  return YES;
++}
++
++-(void) keyDown:(NSEvent*) event {
++  mEventFn(self.id, KEY_DOWN, event, 0, 0);
++}
++
++-(void) mouseDown:(NSEvent*) event {
++  NSPoint point = [self convertPoint: [event locationInWindow] fromView: nil];
++  mEventFn(self.id, DOWN, event, point.x, point.y);
++}
++
++-(void) mouseDragged:(NSEvent*) event {
++  NSPoint point = [self convertPoint: [event locationInWindow] fromView: nil];
++  mEventFn(self.id, DRAGGED, event, point.x, point.y);
++}
++
++-(void) mouseUp:(NSEvent*) event {
++  NSPoint point = [self convertPoint: [event locationInWindow] fromView: nil];
++  mEventFn(self.id, UP, event, point.x, point.y);
++}
++
++-(void) mouseMoved: (NSEvent*) event {
++  NSPoint point = [self convertPoint: [event locationInWindow] fromView: nil];
++  mEventFn(self.id, MOVED, event, point.x, point.y);
++}
++
++-(void) scrollWheel:(NSEvent*) event {
++  NSPoint point = [self convertPoint: [event locationInWindow] fromView: nil];
++  mEventFn(self.id, SCROLLWHEEL, event, point.x, point.y);
++}
++
+ @end
+ 

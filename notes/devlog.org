@@ -103,3 +103,360 @@ still save considerable battery power via their method.
 ** Other
 I read Levien. Didn't get so much out of it, although I have similar goals.
 
+* 2026-10-24 — Phase 1: scaffolding and the pure-Lisp seams
+** Goal
+Start Phase 1 with the parts that need no window and no GPU, so that every
+later spike measures with the same clock and ring buffer: the core clock, the
+frame ring buffer, event structures and the display list.
+** What I did
+- Created branch =phase-1=, =core/almighty-bolt-core.asd=, =core/src/=, =core/t/=
+  and a Makefile (=make deps= runs vend, =make test= runs the suite with ASDF
+  limited to this tree). Wrote decision record 0006 (source layout).
+- =vend get= fetched cffi, alexandria and lisp-unit2 with their dependencies
+  (about 21 MB in =vendored/=, which is not committed, as in almighty-toki). cl-unicode generates source files at first load
+  and needs flexi-streams for that, which vend cannot see, so the tests system
+  names flexi-streams and the generated files are in =.gitignore=.
+- Wrote =clock=, =ring=, =event= and =display-list= (one package each) with tests:
+  37 tests, 10123 assertions, all passing.
+** What I measured
+- =sb-ext:get-bytes-consed= does not allocate itself, but it advances only when
+  SBCL closes an allocation region (24 value changes across 20,000 small
+  allocations, about 64 KB per step). One frame's consing therefore reads as
+  zero or as a whole region. Totals over many frames are exact. The ring buffer
+  stores the raw values, and the allocation tests compare totals over many
+  iterations.
+- A pointer event is 80 bytes, a key event 64, a resize event 48. A 1 kHz mouse
+  allocates about 80 KB a second, outside the frame.
+- Building a display list and recording a frame allocate nothing (2 million
+  commands, zero bytes). Hashing a frame did allocate, about 32 bytes: a full
+  64-bit hash result is a bignum when boxed. Folding it to 62 bits makes it a
+  fixnum and the allocation disappears.
+** What I learned
+- Events are immutable structures with keyword constructors, not a preallocated
+  event ring. Their cost is small, they are allocated when the operating system
+  delivers them rather than during a frame, and the printed form reads back
+  (=#S(...)=), which replay needs. A constructor with a =&key= lambda list
+  breaks that reading, so the default keyword constructors stay.
+- The display list hash is a 62-bit fixnum so that the replay check costs no
+  allocation per frame.
+** Next
+Spike A: a window and an =MTKView= through cl-nextstep (vendored upstream, not
+the stale local copy), then Spike B with our own Objective-C bindings.
+
+* 2026-10-24 — Spike A: a window and a paused MTKView through cl-nextstep
+** Goal
+Open a window holding an =MTKView= from SBCL through cl-nextstep, draw only when
+asked, and see what the shim gives and what it forces. The same acceptance script
+will be run against our own bindings in Spike B.
+** What I did
+- Cloned upstream cl-nextstep (commit =4c9f062=, 2026-09-10, public domain /
+  0-clause MIT) into =vendored/=, built =libcl-nextstep.dylib= with cmake (7 s),
+  and ran =vend get= for its Lisp dependencies. Not the local copy in
+  =~/Learning/lisp=, which is two years behind and has uncommitted edits.
+- =spikes/a-shim/=: the view is paused with =setNeedsDisplay= enabled; each
+  requested frame clears to a colour; the script requests 300 frames one at a
+  time, waits two seconds without asking for anything, resizes the window,
+  feeds the view a mouse down/move/up and a key press built by hand, then closes
+  the window and lets the close function quit. Run it with =make spike-a=.
+- vend stopped on =float-features= naming a DotCL-only system; the converter
+  guide predicts this. I removed that dependency from the vendored =.asd=.
+- =cl-nextstep.asd= calls =sb-posix:setenv= as it is read, so =sb-posix= has to
+  be loaded first.
+** What I measured
+All 300 requested frames were drawn. A still window drew nothing in two
+seconds. The resize was reported (640 x 400 points arrived as 1280 x 800 pixels:
+this display has a scale factor of 2). Closing the window quit the process.
+- Request to drawn frame: mean 16.6 ms, max 17.7 ms, which is one display
+  refresh at 60 Hz. Time inside the draw callback: mean 0.22 ms; the first frame
+  takes about 2.5 ms.
+- Heap: the default 1 GB runs out of memory while /compiling/ the dependencies.
+  Once the fasls exist, the default heap runs it. So =--dynamic-space-size 4096=
+  is a build-time need, not a run-time one.
+- Consing: two runs read 196,608 bytes and 0 bytes for the draw callback over
+  300 frames, which is the region quantization again (three 64 KB steps or
+  none). The per-call cost shows more cleanly in isolation: =ns:sel= with a
+  string conses 32 bytes a call (the selector is looked up by string each time),
+  =ns:objc= 48 bytes, and a bare =objc_msgSend= with a cached selector 16 bytes
+  when it returns a pointer (the returned pointer is boxed). A frame makes about
+  eight such calls.
+** What I learned
+- The shim's =LispMTKView= forwarded nothing but draw and resize. Input needed a
+  57-line change to its C source (=spikes/a-shim/metal-view-input.patch=,
+  copied from the shim's plain view), a rebuild, and Lisp methods on
+  =ns:mouse-down= and friends. After that the events arrive with the right
+  coordinates. Every new hook the shim lacks costs a C edit and a rebuild.
+- What the shim cannot report at all: its window forwards only
+  =windowWillClose:= (no resize, focus or scale-change notifications), and its
+  application forwards only launch and terminate. Key events go through
+  =(aref characters 0)=, which fails for keys that produce no characters (read
+  from the source, not tried).
+- Dependencies pulled in: alexandria, cffi (babel, trivial-features),
+  float-features (documentation-utils, trivial-indent), bordeaux-threads,
+  trivial-main-thread (global-vars), trivial-garbage, cl-opengl. OpenGL is not
+  used here, but the system requires it.
+- This version of cl-nextstep passes structures by value through =sb-alien=
+  (=alien-funcall= with =(sb-alien:struct rect)=, results written with
+  =alien-funcall-into=), so SBCL 2.6.3 handles =CGRect= and =CGSize= natively on
+  arm64 and the libffi route is not needed.
+** Next
+Spike B: the same acceptance script with our own Objective-C bindings and no C
+shim, then decision record 0007.
+
+* 2026-10-24 — Spike B: the same window through our own Objective-C bindings
+** Goal
+Repeat Spike A's acceptance script with no C shim and no cl-nextstep, to compare.
+The script is now shared (=spikes/acceptance/=), so both spikes run the same
+checks. Run it with =make spike-b=.
+** What I did
+Wrote the bindings as six files, one package each, under
+=core/src/platform/macos/=: =objc= (classes, selectors, =msg-send=, making
+classes at run time, strings, autorelease pools), =main-queue= (hand work to the
+main thread), =ns-event= (NSEvent to core event structures), =app=, =window=
+(a delegate class) and =view= (an MTKView subclass that is its own delegate).
+All calls go straight to =objc_msgSend= through =sb-alien=. Added 17 macOS-only
+tests (class creation, structure passing, allocation, the main queue); the
+suite is now 54 tests and passes.
+** What I measured
+Both spikes pass every check, with the same request-to-draw time (one display
+refresh).
+| | A: cl-nextstep | B: own bindings |
+|-|-|-|
+| C code | 928 lines in the shim, 57 of them patched by me | none |
+| Lisp | 4,227 lines (the whole shim, which covers OpenGL, AV, WebKit and more) | 919 lines, 745 without comments |
+| Lisp dependencies | cffi, alexandria, bordeaux-threads, float-features, trivial-main-thread, cl-opengl, and theirs | cffi, for the clock only |
+| Build | cmake and a 222 KB dylib; 4 GB heap to compile the dependencies | nothing |
+| Draw only when asked | yes | yes |
+| Request to drawn frame | mean 16.6 ms | mean 16.6 ms |
+| Time in the draw callback | mean 0.23 ms | mean 0.22 ms |
+| Consing, 300 frames, driver included | 197 to 213 KB (about 700 bytes a frame) | 14 to 24 KB (about 50 to 80 a frame) |
+| Consing per message send | 32 to 48 bytes (selector looked up by string) | 0 |
+| Input on the Metal view | needed the C patch | built in |
+| Window events | close only | resize, scale change, focus |
+| Where y starts | bottom | top (the view claims to be flipped) |
+Allocation, measured one thing at a time in compiled code: a message send with a
+cached selector and integer object ids conses nothing, whether it passes
+doubles, passes a rectangle (four doubles), or returns a rectangle, size or
+point. A round trip from Lisp through =objc_msgSend= into a Lisp callback and
+back takes 23 to 28 ns and conses nothing, for integer, double and pointer
+arguments. The core clock and =NSProcessInfo systemUptime= (the base NSEvent
+timestamps use) agree to within 0.02 to 0.14 ms.
+** What I learned
+- SBCL's default floating-point traps have to be masked around AppKit:
+  =[NSApplication sharedApplication]= alone raised
+  =FLOATING-POINT-INVALID-OPERATION=. =with-masked-float-traps= does it; the
+  event loop runs inside it and callbacks keep the mask.
+- Structures by value need no libffi and no C. On arm64 a =CGRect= (four
+  doubles) travels like four double arguments, so it is passed that way, and
+  structure results come back through =sb-alien=. A =CGSize= argument to a
+  callback arrives as two doubles. Set a window frame, read it back: same
+  numbers (AppKit rounds window frames to whole points).
+- An Objective-C class made in Lisp works for everything the shim's C does: a
+  subclass of =MTKView= that is its own delegate, with methods for drawing,
+  drawable resize, mouse, scroll and keys, and a window delegate. A method finds
+  its Lisp object through an integer in an instance variable. Callbacks are
+  =define-alien-callable= functions; redefining one at the REPL changes what the
+  method does.
+- A Lisp error must not unwind through AppKit's frames. =define-callback=
+  catches it, reports it and returns zero; a test shows this.
+- Running a script, the Lisp REPL thread /is/ the process's main thread, so
+  =[NSApp run]= runs there directly and no thread swap is needed. Another
+  thread hands work over with =run-on-main= (Grand Central Dispatch); the tests
+  pump the main run loop to check it.
+- The tests found a trap: lisp-unit2 evaluates test bodies with a debug-heavy
+  policy, and under it a structure-returning send allocates 16 bytes a call
+  while the same code compiled with the file allocates none. Allocation tests
+  now call functions compiled with the test file.
+- Not shown: when started from the agent's shell the process is never activated
+  (=isActive= is false), so there are no key-window or focus events here, and
+  scale-change events need a second display. To see focus events, run
+  =make spike-b= in a terminal of your own; failing that, an app bundle is the
+  usual fix and belongs to later work.
+** Next
+Decision record 0007, then Spike C: a rounded rectangle through a Metal
+pipeline, on request.
+
+* 2026-10-24 — Spike C: rounded rectangles through a Metal pipeline, on request
+** Goal
+Draw the display list with Metal: a rounded rectangle through a pipeline, only
+when a frame is requested, with the cost of the renderer and its allocation
+measured. =make spike-c= runs it in a window behind the shared acceptance script;
+=make bench-metal= runs it without a window.
+** What I did
+Four files under =core/src/render/metal/=: =device= (the device, command queue,
+shader library and pipeline state), =target= (an off-screen texture and its
+read-back), =rect-pipeline= (the shaders and the pipeline) and =renderer=.
+- Every command is one instance of a four-vertex strip; the vertex shader places
+  the quad a pixel larger than the shape, and the fragment shader covers the
+  shape by its signed distance, so edges and corners are antialiased and a
+  plain rectangle is a rounded one with radius zero. Colours are premultiplied
+  by coverage and blended source-over.
+- A frame copies the display list into one shared buffer, encodes one instanced
+  draw and commits. At most one frame is in flight: a frame first waits for the
+  last. Several in flight need a completion handler, which is an Objective-C
+  block, so they wait until something needs them.
+- 11 tests with a Mac's GPU and no window: exact pixels worked out by hand (a
+  rectangle edge on the pixel boundary at one and at two pixels a point, a
+  corner cut away, a half-covered pixel, translucent colours over the background
+  and over each other), a golden image (=core/t/golden/shapes.ppm=, 37 KB,
+  compared with a tolerance of 3 per channel), and a 10,000-frame allocation
+  check. The suite is 65 tests and passes.
+** What I measured
+- The shaders compile at run time with only the Command Line Tools installed
+  (no Xcode): the first compile on this machine took 46.7 to 49.7 ms and the
+  pipeline 15.7 to 18.3 ms; once the operating system had cached the result,
+  0.5 ms and 0.8 ms.
+- In a window, 300 requested frames of 200 rounded squares were all drawn, a
+  still window drew nothing, a resize was reported, and the draw callback
+  averaged 0.28 ms (0.20 ms for a frame that only clears).
+- Without a window, 1000 frames each into a 960 x 640 target:
+| commands | build the list (us) | encode and commit (us) | GPU (us) | bytes consed per frame |
+|-
+| 10 | 0.6 | 11.4 | 33 | 0.0 |
+| 100 | 4.8 | 9.9 | 21 | 0.0 |
+| 1000 | 39.6 | 11.8 | 143 | 0.0 |
+| 10000 | 320 | 47.1 | 1270 | 0.0 |
+  Building and drawing a frame allocates nothing at any size. Encoding is about
+  10 us whatever the count; building the list costs 32 ns a command.
+** What I learned
+- A structure over 16 bytes goes by address, as predicted: =MTLRegion= (six
+  words) for =getBytes:...fromRegion:...= and the frame constants for
+  =setVertexBytes:= both worked as pointers.
+- Pixel checks at two pixels a point confirm the scale handling: a rectangle at
+  10 points starts at pixel 20, and a rectangle that starts half way through a
+  pixel blends to 140, 13, 19 over the background, as 0.5 * 255 + 0.5 * 26 says.
+- Colours are blended as stored, in the framebuffer's non-linear values. A gamma
+  decision (blending in linear light) is open.
+- Not done: borders, shadows, clips, transforms and glyphs in the display list;
+  more than one frame in flight; any damage rectangle.
+** Next
+Spike D: Core Text, then glyphs through the same renderer.
+
+* 2026-10-24 — Spike D: text through Core Text, an atlas and the renderer
+** Goal
+Measure and shape text, break a paragraph to a width, map a click to a caret and a
+caret to a rectangle (the measurement API in the charter), then rasterize glyphs
+into an atlas and draw them through the same renderer. =make spike-d= is the
+window and =make bench-text= the benchmark.
+** What I did
+- =core/src/text/=: =core-foundation= (a =ccall= macro for C functions, the
+  three frameworks, CFString and CFArray helpers), =font=, =line= (shaping, the
+  measurement API, the cache) and =glyph-raster= (one glyph into a coverage
+  bitmap with Core Graphics).
+- =core/src/render/metal/=: =glyph-atlas= (a shelf-packed R8 texture, a buffer of
+  texture coordinates, a table from font and glyph to index) and =draw-text=
+  (a shaped line into glyph commands).
+- The display list gained a glyph command, and its "radius" became a general
+  /parameter/ (a corner radius, or an atlas index). The shader draws glyphs from
+  the atlas in the same single instanced draw as the shapes.
+- 36 new tests (101 in all, none failing, no compiler warnings): measuring
+  against bounds and against each other, carets and clicks, UTF-16 and emoji,
+  line breaking, the cache; rasterization (orientation, scale, bearing); text
+  that lands where it was measured, the atlas filling up, rasterizing once, and
+  allocation.
+** What I measured
+Without a window (a 960 x 640 target, 2 pixels a point):
+| step | cost | allocation |
+|-
+| shape a new string of 10, 100 or 1000 characters | 170, 173, 221 us | n/a |
+| find a string already shaped (10, 100, 1000 characters) | 20, 27, 126 ns | 0 bytes |
+| rasterize a glyph and upload it to the atlas | 12 us | n/a |
+| make a glyph command for a glyph already in the atlas | 47 ns | 0 bytes |
+| encode and draw a frame of 97, 969, 4841 glyphs | 12, 17, 32 us | 0 bytes |
+| GPU time for those frames | 44, 34, 23 us | |
+In the window: all 300 requested frames drawn, nothing drawn while still. The draw
+callback averaged 0.32 ms; it conses 435 bytes a frame in that short run, which is
+the first frame rasterizing about 150 glyphs. The offscreen test shows no allocation
+once the glyphs are in the atlas.
+** What I learned
+- Core Text through =sb-alien= needs nothing special: a =CFRange= goes as two
+  longs, a =CGPoint= as two doubles, results come back through arrays. A line
+  records, for each glyph, the font its run used, so text in a script the font
+  lacks (Japanese, in Helvetica) is drawn with the font Core Text substituted.
+- Core Text counts UTF-16 units, so after an emoji its indices are one off from
+  the Lisp string's. The API takes and returns Lisp indices and converts; the
+  tests use an emoji in the middle of a string.
+- Metrics and positions are single floats, which SBCL keeps unboxed, so measuring
+  allocates nothing. A string's hash is the cost of a cache hit and grows with its
+  length (20 ns for 10 characters, 126 ns for 1000).
+- The fixed cost of shaping a new string is about 170 us, mostly making the
+  Core Foundation objects. A UI that builds a new string each frame, a counter
+  for example, would pay that every frame and grow a cache that has no eviction.
+  Eviction, and layout that does not re-measure unchanged text, are the next
+  things this needs.
+- The ink of a glyph reaches a little past the box that Core Text reports for
+  it; one pixel of margin round the bitmap was not enough and two is.
+- Open or not done: colour glyphs (an emoji comes out as a flat silhouette in the
+  text colour, because the atlas is coverage only); glyphs between pixels (they
+  are snapped to whole pixels); an atlas per scale, made for the main screen's;
+  eviction; carets in right-to-left text; glyph-run commands (one command a glyph
+  is simple, and costs 47 ns each, which is not yet a problem).
+** Next
+Spike E: the long frame loop and idle.
+
+* 2026-10-24 — Spike E: a long run of frames, and a window left alone
+** Goal
+Run the whole path for many frames in a real window and count what it allocates
+(callbacks, input, renderer and all), then leave the window alone and see whether
+the process sleeps. =make spike-e= (2000 frames, then idle) is the repeatable
+form; a 10,000-frame run was done once from a scratch script.
+** What I did
+Reused Spike D's text scene behind the shared acceptance script, then measured
+10 seconds of stillness from inside the process (CPU time and allocation), with
+=top= (CPU and idle wakeups) and with =sample= (what every thread is doing).
+** What I measured
+- 10,000 requested frames of text in a window: every one drawn, none drawn while
+  the window was still, request to drawn frame 16.7 ms on average (the longest
+  was 44 ms, once), 0.30 ms in the draw callback. The draw path allocated 262 KB
+  in all. About 130 KB of that is the first frame rasterizing its glyphs, so the
+  steady state is under 13 bytes a frame, which is as fine as
+  =sb-ext:get-bytes-consed= can tell (it advances 64 KB at a time). The whole run
+  allocated 2.07 MB, which is the test driver's closures and lists, not the path
+  under test. In the offscreen tests the same path allocates nothing.
+- Idle: in ten seconds of stillness the process used 1.0 ms of CPU and allocated
+  nothing; =top= showed 0.0 % CPU. A sample of 6110 ticks found every thread
+  blocked in the kernel for all of them: the main thread in =mach_msg= inside
+  =[NSApp run]=, the finalizer waiting on a condition, AppKit's event thread
+  waiting, and the Grand Central Dispatch workers parked. Idle means asleep.
+- Idle wakeups in ten seconds, by =top=: 0 for a bare SBCL, 0 for an application
+  with no window, 0 with a window holding a plain view, 0 with a paused Metal view
+  that has not drawn or has drawn 60 frames, 0 after 5 frames of the text scene.
+  After 300 frames of the text scene 7, and after 2000 frames 26, in each case
+  steady over three consecutive ten-second windows rather than dying away.
+** What I learned
+- Wakeups grow with the amount of earlier drawing, and the sample shows only
+  system worker threads. I did not find the cause (Metal or Core Animation
+  housekeeping after sustained drawing is my guess). The CPU cost is nil, so it
+  is a metric to watch in the idle benchmark of Phase 3, not a defect.
+- My first idle measurement ran =top= through =run-program= from inside the
+  measured window and recorded 160 ms of CPU and 7.6 MB of allocation. That was
+  the measuring, not the window. Keep tools out of the interval being measured.
+- The charter's zero-allocation rule holds for the whole platform, renderer and
+  callback path in a real window, to within the resolution of the counter. Events
+  are the exception by design: 80 bytes each, allocated when AppKit delivers them,
+  outside the frame.
+** Next
+Phase 1 is done on macOS; see the status entry below.
+
+* 2026-10-24 — Phase 1 status
+** Done, on macOS
+Window, event loop and Metal renderer; text through Core Text; event structures,
+clock and frame ring. 104 tests pass from an empty build cache, with no compiler
+warnings. Decision records 0006 (source layout) and 0007 (AppKit access).
+** Questions the spikes raised
+- Display list: one command per glyph (47 ns each) or one per run? Layout numbers
+  as single floats or fixed point? (The display list and text metrics use single
+  floats, which SBCL keeps unboxed.)
+- Text: eviction for the line cache and the atlas; colour glyphs (emoji are flat
+  silhouettes now); glyphs between pixels; an atlas per screen scale.
+- Renderer: more than one frame in flight (needs a completion handler, so an
+  Objective-C block); blending in linear light or as stored.
+- Platform: keyboard focus and scale-change events could not be seen from an
+  agent-launched process (it is never activated by macOS). Run =make spike-b= in
+  a terminal of your own to see them; an app bundle is the usual remedy. No IME
+  (NSTextInputClient) yet.
+- Idle wakeups after sustained drawing (above).
+- The variant contract and the =null= baseline variant, which Phase 2 starts from;
+  Direct3D 11 and Vulkan backends.
+- =vendored/= (44 MB, mostly lisp-unit2 and its dependencies) is not committed,
+  as in almighty-toki. =make deps= clones cl-nextstep at the commit Spike A was
+  measured with, applies the input patch, and runs vend for the rest.
