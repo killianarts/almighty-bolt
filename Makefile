@@ -20,8 +20,10 @@ vendored/cl-nextstep:
 	git -C $@ checkout $(SHIM_COMMIT)
 	git -C $@ apply ../../spikes/a-shim/metal-view-input.patch
 
+# vend stops on float-features naming a system only DotCL needs (dotcl-float).
+# The converter guide's remedy is to take it out of the vendored .asd and go on.
 deps: vendored/cl-nextstep
-	vend get
+	vend get || { sed -i '' 's/ (:feature :dotcl (:require :dotcl-float))//' vendored/float-features/float-features.asd && vend get; }
 
 test:
 	$(SBCL) $(REGISTRY) --eval '(asdf:test-system "almighty-bolt-core")'
