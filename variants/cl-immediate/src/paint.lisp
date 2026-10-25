@@ -85,6 +85,10 @@
 
 (defstruct (entry (:constructor make-entry ()))
   (hash -1 :type fixnum)
+  ;; The size of the box when the fragment was drawn: a box that a flex has made wider is not
+  ;; the box that was drawn, though it has the same hash.
+  (width -1f0 :type single-float)
+  (height -1f0 :type single-float)
   (fragment (make-display-list :capacity 64)))
 
 (declaim (inline snap-to-pixel))
@@ -272,7 +276,9 @@ kept, and otherwise afresh, which is then kept."
          (entry (or (gethash key (ui-paint-cache ui))
                     (setf (gethash key (ui-paint-cache ui)) (make-entry))))
          (fragment (entry-fragment entry)))
-    (unless (= (entry-hash entry) hash)
+    (unless (and (= (entry-hash entry) hash)
+                 (= (entry-width entry) (box-w box))
+                 (= (entry-height entry) (box-h box)))
       (loop
         (clear-display-list fragment)
         (handler-case (progn (draw-leaf box context fragment 0f0 0f0)
@@ -280,7 +286,9 @@ kept, and otherwise afresh, which is then kept."
           (display-list-full ()
             (setf fragment (make-display-list :capacity (* 2 (display-list-capacity fragment)))
                   (entry-fragment entry) fragment))))
-      (setf (entry-hash entry) hash))
+      (setf (entry-hash entry) hash
+            (entry-width entry) (box-w box)
+            (entry-height entry) (box-h box)))
     (let ((scale (context-scale context)))
       (append-display-list list fragment (snap-to-pixel x scale) (snap-to-pixel y scale)))))
 

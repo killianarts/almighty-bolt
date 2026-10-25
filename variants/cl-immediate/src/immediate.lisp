@@ -8,6 +8,7 @@
                 #:lookup-target
                 #:request-frame
                 #:context-width
+                #:context-scale
                 #:context-height
                 #:context-now-ns
                 #:push-rect
@@ -55,6 +56,9 @@
                 #:ui-frame-layout-hash
                 #:ui-frame-paint-hash
                 #:ui-last-layout-hash
+                #:ui-last-width
+                #:ui-last-height
+                #:ui-last-scale
                 #:ui-last-paint-hash
                 #:ui-last-list
                 #:ui-saved-geometry
@@ -232,12 +236,16 @@ frame presented, round."
   (let* ((ui (immediate-variant-ui variant))
          (root (ui-root ui))
          (width (context-width context))
-         (height (context-height context)))
+         (height (context-height context))
+         (scale (context-scale context)))
     (cond
       ((null root)
        (push-rect list 0 0 width height +background+))
       (t
-       (let ((same-layout (and (= (ui-last-layout-hash ui) (ui-frame-layout-hash ui))
+       (let ((same-layout (and (= (ui-last-width ui) width)
+                               (= (ui-last-height ui) height)
+                               (= (ui-last-scale ui) scale)
+                               (= (ui-last-layout-hash ui) (ui-frame-layout-hash ui))
                                (= (length (ui-saved-geometry ui)) (* 4 (ui-count ui))))))
          (if same-layout
              (restore-geometry ui)
@@ -254,7 +262,10 @@ frame presented, round."
               (setf (ui-last-list ui) (make-display-list :capacity (display-list-capacity list))))
             (replace-display-list (ui-last-list ui) list)))
          (setf (ui-last-layout-hash ui) (ui-frame-layout-hash ui)
-               (ui-last-paint-hash ui) (ui-frame-paint-hash ui)))))))
+               (ui-last-paint-hash ui) (ui-frame-paint-hash ui)
+               (ui-last-width ui) width
+               (ui-last-height ui) height
+               (ui-last-scale ui) scale))))))
 
 (defmethod frame ((variant immediate-variant) context list)
   (let ((ui (immediate-variant-ui variant)))

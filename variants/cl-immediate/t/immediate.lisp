@@ -381,3 +381,44 @@
         (assert-false (search "item 7" (glyphs *list*)))
         (wheel 24)                      ; back a row
         (assert-true (search "item 2" (glyphs *list*)))))))
+
+;;; --- a window that changes size ---
+
+(define-test a-frame-after-the-window-changes-size-is-laid-out-again-and-places-follow ()
+  (let ((variant (show (lambda ()
+                         (w:center ()
+                           (w:label "middle" :id :middle))))))
+    (multiple-value-bind (x-before) (core:lookup-target variant :middle)
+      (setf (core:context-width *context*) 800f0)
+      (build variant)
+      (multiple-value-bind (x-after) (core:lookup-target variant :middle)
+        ;; 400 wide, centred: (400 - 48) / 2; 800 wide: (800 - 48) / 2.
+        (assert-eql 176f0 x-before)
+        (assert-eql 376f0 x-after)))))
+
+(define-test a-box-a-flex-has-made-wider-is-drawn-again-and-not-from-what-was-kept ()
+  (let ((variant (show (lambda ()
+                         (w:row ()
+                           (w:progress 0.5 :id :bar :width 50 :flex 1))))))
+    (flet ((bar-widths ()
+             (loop :for index :below (core:display-list-count *list*)
+                   :when (= (core:display-list-kind *list* index) core:+command-rounded-rect+)
+                     :collect (core:display-list-width *list* index))))
+      (let ((before (bar-widths)))
+        (setf (core:context-width *context*) 800f0)
+        (build variant)
+        (let ((after (bar-widths)))
+          ;; The track fills the row and the bar is half of it: 400 and 200, then 800 and 400.
+          (assert-true (and (member 400f0 before) (member 200f0 before)))
+          (assert-true (and (member 800f0 after) (member 400f0 after)))
+          (assert-false (member 200f0 after)))))))
+
+(define-test a-new-scale-draws-the-frame-again ()
+  (let* ((variant (show (lambda () (w:label "scaled" :id :label))))
+         (hash-before (core:display-list-hash *list*)))
+    (declare (ignorable hash-before))
+    ;; The same description at another scale must not come from the list kept for the first.
+    (setf (core:context-scale *context*) 2f0)
+    (let ((builds (build variant)))
+      (assert-eql 1 builds)
+      (assert-true (plusp (core:display-list-count *list*))))))

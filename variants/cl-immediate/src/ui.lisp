@@ -65,6 +65,9 @@
            #:ui-frame-layout-hash
            #:ui-frame-paint-hash
            #:ui-last-layout-hash
+           #:ui-last-width
+           #:ui-last-height
+           #:ui-last-scale
            #:ui-last-paint-hash
            #:ui-last-list
            #:ui-saved-geometry
@@ -184,6 +187,11 @@
   (frame-layout-hash 0 :type (unsigned-byte 62))
   (frame-paint-hash 0 :type (unsigned-byte 62))
   (last-layout-hash -1 :type fixnum)
+  ;; The size and scale of the window of the last presented frame: the same description in
+  ;; another window is not the same frame.
+  (last-width -1f0 :type single-float)
+  (last-height -1f0 :type single-float)
+  (last-scale -1f0 :type single-float)
   (last-paint-hash -1 :type fixnum)
   (last-list (make-display-list :capacity 1024))
   ;; The places of the boxes of the last presented frame, in order: x, y, w, h each.
