@@ -60,7 +60,9 @@ the changes that rested on it can be found.
 - 0013: the 7GUIs models (=apps/7guis/*/model.lisp=), with tests.
 - Retained widgets (text field, slider, choice, list box, canvas, containers, tickers).
 - Variant-agnostic acceptance tests (=apps/7guis/t/acceptance=) and the launcher
-  (=make 7guis=); all seven retained apps; 0014 clipping.
+  (=make 7guis=); all seven retained apps; 0014 clipping. Tag =auto/01-retained-complete=.
+- 0015 and the reactive library (signals, views, reconciler, variant); all seven reactive
+  apps pass the same acceptance tests and idle in windows. Tag =auto/02-reactive-complete=.
 
 * Review queue
 (Decision records made without Micah, newest last.)
