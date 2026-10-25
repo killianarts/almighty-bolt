@@ -15,6 +15,12 @@
                (:file "display-list")
                (:file "variant")
                (:file "settle")
+               (:module "replay"
+                :serial t
+                :components
+                ((:file "script")
+                 (:file "player")
+                 (:file "recorder")))
                (:module "layout"
                 :serial t
                 :components
@@ -81,6 +87,13 @@
                  (:file "display-list")
                  (:file "variant")
                  (:file "settle")
+                 (:module "replay"
+                  :serial t
+                  :components
+                  ((:file "support")
+                   (:file "script")
+                   (:file "player")
+                   (:file "recorder")))
                  (:module "layout"
                   :serial t
                   :components
@@ -126,6 +139,9 @@
                                                       :almighty-bolt-core/t/display-list
                                                       :almighty-bolt-core/t/variant
                                                       :almighty-bolt-core/t/settle
+                                                      :almighty-bolt-core/t/replay/script
+                                                      :almighty-bolt-core/t/replay/player
+                                                      :almighty-bolt-core/t/replay/recorder
                                                       :almighty-bolt-core/t/layout/constraints
                                                       :almighty-bolt-core/t/layout/box
                                                       :almighty-bolt-core/t/layout/flex

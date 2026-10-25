@@ -16,6 +16,9 @@
     :almighty-bolt-core/display-list
     :almighty-bolt-core/variant
     :almighty-bolt-core/settle
+    :almighty-bolt-core/replay/script
+    :almighty-bolt-core/replay/player
+    :almighty-bolt-core/replay/recorder
     :almighty-bolt-core/layout/constraints
     :almighty-bolt-core/layout/box
     :almighty-bolt-core/layout/flex))

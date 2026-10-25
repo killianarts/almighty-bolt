@@ -82,7 +82,8 @@
                                (:file "timer")
                                (:file "crud")
                                (:file "circles")
-                               (:file "cells"))))))
+                               (:file "cells")
+                               (:file "replay"))))))
   :perform (test-op (o s)
                     (let* ((results
                              (loop :for package :in '(:almighty-bolt-7guis/t/acceptance/counter
@@ -91,7 +92,8 @@
                                                       :almighty-bolt-7guis/t/acceptance/timer
                                                       :almighty-bolt-7guis/t/acceptance/crud
                                                       :almighty-bolt-7guis/t/acceptance/circles
-                                                      :almighty-bolt-7guis/t/acceptance/cells)
+                                                      :almighty-bolt-7guis/t/acceptance/cells
+                                                      :almighty-bolt-7guis/t/acceptance/replay)
                                    :collect (uiop:symbol-call :lisp-unit2 :run-tests
                                                               :package package)))
                            (bad (loop :for db :in results

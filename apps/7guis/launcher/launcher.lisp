@@ -2,6 +2,10 @@
   (:use #:cl)
   (:import-from #:almighty-bolt-core
                 #:now-ns
+                #:make-recorder
+                #:record-event
+                #:recorder-script
+                #:save-script
                 #:handle-event
                 #:hit-target
                 #:variant
@@ -83,13 +87,26 @@
                  (modifier-names (key-event-modifiers event)) (key-event-repeat-p event))))))
   (finish-output))
 
+(defclass recording-mixin ()
+  ((recorder :initform nil :accessor mixin-recorder))
+  (:documentation "Notes the events for a replay script, before the variant handles them."))
+
+(defmethod handle-event :before ((variant recording-mixin) event)
+  (when (mixin-recorder variant)
+    (record-event (mixin-recorder variant) variant event)))
+
+(defun with-mixins (variant &rest mixins)
+  "VARIANT, changed into an instance of a subclass of its class that has the MIXINS."
+  (let* ((class (class-of variant))
+         (name (intern (format nil "~{~a~^+~}+~a" mixins (class-name class))
+                       '#:almighty-bolt-7guis/launcher)))
+    (unless (find-class name nil)
+      (sb-mop:ensure-class name :direct-superclasses (append mixins (list (class-name class)))))
+    (change-class variant (find-class name))))
+
 (defun logged (variant)
   "VARIANT, changed into an instance of a subclass of its class that logs."
-  (let* ((class (class-of variant))
-         (name (intern (format nil "LOGGED-~a" (class-name class)) '#:almighty-bolt-7guis/launcher)))
-    (unless (find-class name nil)
-      (sb-mop:ensure-class name :direct-superclasses (list 'logging-mixin (class-name class))))
-    (change-class variant (find-class name))))
+  (with-mixins variant 'logging-mixin))
 
 (defun smoke-check (host)
   "Wait for the app to draw, then see that it draws nothing while nothing happens."
@@ -101,15 +118,31 @@
     (finish-output)
     (close-host-window host)))
 
-(defun run (variant task &key log smoke)
-  "Open the app of TASK in VARIANT (keywords) in a window, and run until it is closed."
+(defun run (variant task &key log smoke record)
+  "Open the app of TASK in VARIANT (keywords) in a window, and run until it is closed. With
+RECORD, a pathname, the events are written to it as a replay script when the window closes."
   (let ((app (or (find-app variant task)
-                 (error "There is no ~(~a~) app for ~(~a~)." variant task))))
+                 (error "There is no ~(~a~) app for ~(~a~)." variant task)))
+        (recorder nil))
     (let ((object (funcall (app-constructor app))))
       (when log
         (setf object (logged object))
         (format t "~&~a: press, drag, type; what arrives is printed. Close the window to finish.~%"
                 (app-title app))
         (finish-output))
-      (run-variant object :title (app-title app) :width (app-width app) :height (app-height app)
-                          :driver (and smoke #'smoke-check)))))
+      (when record
+        (setf object (with-mixins object 'recording-mixin)
+              recorder (make-recorder :header (list :variant variant :app task
+                                                    :width (app-width app)
+                                                    :height (app-height app)))
+              (mixin-recorder object) recorder)
+        (format t "~&~a: what you do is recorded to ~a when the window is closed.~%"
+                (app-title app) record)
+        (finish-output))
+      (unwind-protect
+           (run-variant object :title (app-title app) :width (app-width app)
+                               :height (app-height app) :driver (and smoke #'smoke-check))
+        (when recorder
+          (save-script (recorder-script recorder) record)
+          (format t "~&Wrote ~a.~%" record)
+          (finish-output))))))

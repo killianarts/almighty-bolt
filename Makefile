@@ -1,4 +1,4 @@
-.PHONY: deps shim test spike-a spike-b spike-c spike-d spike-e bench-metal bench-text bench-null bench-retained bench-compare snapshots 7guis 7guis-smoke clean
+.PHONY: deps shim test spike-a spike-b spike-c spike-d spike-e bench-metal bench-text bench-null bench-retained bench-compare snapshots replay 7guis 7guis-smoke clean
 
 # ASDF looks only in this tree (project and vendored/), never in ~/common-lisp/.
 SBCL = sbcl --noinform --non-interactive --no-sysinit --no-userinit
@@ -84,9 +84,19 @@ snapshots:
 
 # A 7GUIs task of a variant in a window: make 7guis VARIANT=retained TASK=counter
 # LOG=1 prints the presses, releases and keys that reach it and what is under the
-# pointer. 7guis-smoke opens it, draws, waits and reports, with nobody at the window.
+# pointer. RECORD=session.script writes what you do as a replay script when the window is
+# closed (make replay SCRIPT=session.script plays it back). 7guis-smoke opens it, draws,
+# waits and reports, with nobody at the window.
 7guis:
-	VARIANT=$(VARIANT) TASK=$(TASK) LOG=$(LOG) $(SBCL_APP) $(REGISTRY) --load apps/7guis/run.lisp
+	VARIANT=$(VARIANT) TASK=$(TASK) LOG=$(LOG) RECORD=$(RECORD) $(SBCL_APP) $(REGISTRY) --load apps/7guis/run.lisp
+
+# Play a replay script back with the real text engine and no window, and say what happened:
+#   make replay SCRIPT=apps/7guis/replay/counter-clicks.script [VARIANT=reactive] [FREEZE=golden.script]
+# VARIANT plays a script in another variant than the one it was made in. FREEZE plays the
+# script twice, and if the frames are the same, writes a copy with a checkpoint after each
+# event that holds the hash of the frame there, to check later runs against.
+replay:
+	SCRIPT=$(SCRIPT) VARIANT=$(VARIANT) FREEZE=$(FREEZE) sbcl $(HEAP) --noinform --disable-debugger --no-sysinit --no-userinit --eval '(require :asdf)' --eval '(asdf:initialize-source-registry (list :source-registry (list :tree (uiop:getcwd)) :ignore-inherited-configuration))' --load scripts/replay.lisp
 
 7guis-smoke:
 	SMOKE=1 VARIANT=$(VARIANT) TASK=$(TASK) $(SBCL_APP) $(REGISTRY) --load apps/7guis/run.lisp

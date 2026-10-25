@@ -187,6 +187,47 @@
                 #:settle-frame
                 #:settle-cap-reached
                 #:settle-cap-reached-frame-number)
+  (:import-from #:almighty-bolt-core/replay/script
+                #:script
+                #:make-script
+                #:script-header
+                #:script-entries
+                #:entry-time
+                #:entry-form
+                #:event-form
+                #:form-event
+                #:write-script
+                #:read-script
+                #:save-script
+                #:load-script
+                #:+script-version+)
+  (:import-from #:almighty-bolt-core/replay/player
+                #:replay
+                #:replay-result
+                #:replay-result-frames
+                #:replay-result-builds
+                #:replay-result-capped
+                #:replay-result-hashes
+                #:replay-result-checkpoints
+                #:replay-result-list
+                #:replay-ok-p
+                #:checkpoint-result
+                #:checkpoint-result-name
+                #:checkpoint-result-time
+                #:checkpoint-result-expected
+                #:checkpoint-result-actual
+                #:checkpoint-passed-p
+                #:freeze-checkpoints
+                #:script-with-checkpoints
+                #:replay-target-missing
+                #:replay-target-missing-id
+                #:replay-target-missing-time
+                #:+default-frame-interval-ns+)
+  (:import-from #:almighty-bolt-core/replay/recorder
+                #:recorder
+                #:make-recorder
+                #:record-event
+                #:recorder-script)
   (:import-from #:almighty-bolt-core/layout/constraints
                 #:+unbounded+
                 #:unbounded-p
@@ -379,6 +420,44 @@
            #:settle-frame
            #:settle-cap-reached
            #:settle-cap-reached-frame-number
+           #:script
+           #:make-script
+           #:script-header
+           #:script-entries
+           #:entry-time
+           #:entry-form
+           #:event-form
+           #:form-event
+           #:write-script
+           #:read-script
+           #:save-script
+           #:load-script
+           #:+script-version+
+           #:replay
+           #:replay-result
+           #:replay-result-frames
+           #:replay-result-builds
+           #:replay-result-capped
+           #:replay-result-hashes
+           #:replay-result-checkpoints
+           #:replay-result-list
+           #:replay-ok-p
+           #:checkpoint-result
+           #:checkpoint-result-name
+           #:checkpoint-result-time
+           #:checkpoint-result-expected
+           #:checkpoint-result-actual
+           #:checkpoint-passed-p
+           #:freeze-checkpoints
+           #:script-with-checkpoints
+           #:replay-target-missing
+           #:replay-target-missing-id
+           #:replay-target-missing-time
+           #:+default-frame-interval-ns+
+           #:recorder
+           #:make-recorder
+           #:record-event
+           #:recorder-script
            #:+unbounded+
            #:unbounded-p
            #:valid-constraints-p
