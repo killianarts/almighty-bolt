@@ -1225,3 +1225,21 @@ frame, so a glow past a box's edge cannot be missed by them.
   or have the binning pass pair clips and unclips as it scans, which it must do in order
   anyway.
 - The replay hash covers every field, so new kinds and fields change it and nothing else.
+
+* 2026-10-26 — Input replay
+** What I did
+Built what the charter says replay is (0019, proposed): a script as s-expressions, a player on the
+virtual clock in the portable core, a recorder, =make replay= and =RECORD=path= in the launcher,
+and three example scripts in =apps/7guis/replay/=.
+** What I measured
+With the real text engine and no window, the counter, timer and cells scripts played twice in
+each of the three variants gave the same hash for every frame, and the frozen copies passed: 9
+of 9. For the counter and the timer all three variants drew the same display list at every
+checkpoint; for cells retained and reactive agree and immediate differs, with the same pixels.
+** What I learned
+- The one hang was mine: SBCL left at its prompt after =--load= without =--non-interactive=
+  (it had also fooled the snapshot run earlier). It looked like a deadlock in the player.
+- Two of the first tests I wrote could not fail (the swipe tests, and for a moment the replay
+  frame count); taking the fix out, or counting by hand, is what finds them.
+** Not done
+Recording in a window (=RECORD=) is untried; replay in a window; checkpoints other than hashes.

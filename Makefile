@@ -96,7 +96,7 @@ snapshots:
 # script twice, and if the frames are the same, writes a copy with a checkpoint after each
 # event that holds the hash of the frame there, to check later runs against.
 replay:
-	SCRIPT=$(SCRIPT) VARIANT=$(VARIANT) FREEZE=$(FREEZE) sbcl $(HEAP) --noinform --disable-debugger --no-sysinit --no-userinit --eval '(require :asdf)' --eval '(asdf:initialize-source-registry (list :source-registry (list :tree (uiop:getcwd)) :ignore-inherited-configuration))' --load scripts/replay.lisp
+	SCRIPT=$(SCRIPT) VARIANT=$(VARIANT) FREEZE=$(FREEZE) sbcl $(HEAP) --noinform --non-interactive --no-sysinit --no-userinit --eval '(require :asdf)' --eval '(asdf:initialize-source-registry (list :source-registry (list :tree (uiop:getcwd)) :ignore-inherited-configuration))' --load scripts/replay.lisp
 
 7guis-smoke:
 	SMOKE=1 VARIANT=$(VARIANT) TASK=$(TASK) $(SBCL_APP) $(REGISTRY) --load apps/7guis/run.lisp
