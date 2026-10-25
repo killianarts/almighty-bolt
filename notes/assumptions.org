@@ -63,9 +63,11 @@ Entry format:
   and has no axis locking, so a long vertical swipe may move its columns a little (0.3 of a
   column for 24 points). On the cells grid (=LOG=1=, 2026-10-26) the trackpad moved the
   grid diagonally: a calm swipe across carried =dy= of about a fifth of =dx= (=dx -26,
-  dy -5=); a flick was clean. Fixed by 0018, which locks a gesture to one axis; tried so far
-  only with Micah's swipes replayed as made-up events. Not checked: the same swipes on the
-  trackpad after 0018, the wheel on the grid, and the retained and reactive CRUD list.
+  dy -5=); a flick was clean. Fixed by 0018, which locks a gesture to one axis. Micah then
+  swiped on the immediate cells grid and said "swiping looks good" (2026-10-26). Not checked:
+  the mouse wheel on the grid, and the retained and reactive variants in a window (wheel and
+  trackpad, CRUD list and grid). The immediate variant has been checked with the mouse
+  wheel and the trackpad on the CRUD list and the trackpad on the grid.
 - *Check.* =make 7guis VARIANT=immediate TASK=cells LOG=1= (and crud): swipe across calmly,
   swipe down with a little drift, and flick, and see that the grid moves along one axis; scroll
   with the wheel and the trackpad and read the printed deltas; a notch should move the list by as many rows
