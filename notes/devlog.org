@@ -1190,3 +1190,38 @@ Return and no double click, which is why nothing noticed.
   1234123412341234 is shown as =1234123412341233.92= and cut to its first eight digits in a
   cell, which misstates the number, and 0.000012345 is shown as 0. That is the shared model's
   =sheet-display=.
+
+* 2026-10-26 — 0014 and shadows: a question for later
+Micah asked whether the clip commands of 0014 stand in the way of glows and shadows that
+reach beyond the shape that makes them, as in the Blick editor's post on caching an
+immediate-mode UI (blickeditor.com/blog/caching-an-immediate-mode-ui, read on 2026-10-26;
+its numbers are one synthetic test on one laptop and the author calls the battery ones
+preliminary). Not decided; this is what is known, so that it can be taken up later.
+** What Blick does
+It bins the commands into a grid of tiles by an estimated area each can affect, keeps in
+each tile's list the commands that overlap it, in order, hashes every tile's list and each
+frame repaints only the tiles whose hash changed. Two points about bounds: a command that
+begins a group draws nothing but must stay in a tile's list wherever the group matters, and
+a glow or shadow must have bounds that include the extra area it reaches.
+** What we have
+- Every frame is drawn whole, as one instanced draw, with a quad that is each command's own
+  rectangle. Nothing uses bounds: no tile, no damage rectangle (0008 leaves damage open; the
+  charter says damage is a measured difference between variants). The display list's hash
+  is for replay and is over the whole list.
+- Shadows are in the charter's list of commands (an SDF in the shader) and not built.
+** Does 0014 affect it
+No. A shadow or glow is a new kind of command, in the open list of 0008, whose quad is
+larger than its rectangle (the blur and the offset added) and whose bounds say so. A clip
+cuts what is drawn inside it, so a glow drawn inside a clip is cut at the clip's edge, as
+overflow hidden does; one that must escape is drawn before the clip starts. The retained
+and immediate caches hold commands relative to a box, and the whole list is drawn every
+frame, so a glow past a box's edge cannot be missed by them.
+** What it would take, if we go to tiles or a damage rectangle
+- A bounds function in the core for every kind (the rectangle for the present kinds, the
+  rectangle grown by the blur and the offset for a shadow), so that no variant computes it.
+- A clip is a group in Blick's sense. =push-clip= has its rectangle for bounds, but
+  =push-unclip= holds zeros (0014), and a tile that had the clip and not the unclip would
+  clip what follows in it. The unclip needs the bounds of its clip: give it the rectangle,
+  or have the binning pass pair clips and unclips as it scans, which it must do in order
+  anyway.
+- The replay hash covers every field, so new kinds and fields change it and nothing else.

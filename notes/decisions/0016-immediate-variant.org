@@ -1,6 +1,6 @@
 #+TITLE: 0016 — The immediate variant: a function called every frame, cached by comparison
 #+DATE: 2026-10-26
-- Status :: accepted (autonomous, unreviewed)
+- Status :: accepted (Micah, 2026-10-26); it departs from 0009 in the two places the Decision names
 
 * Context
 The charter's immediate variant has no persistent tree: the interface is a

@@ -1,6 +1,6 @@
 #+TITLE: 0015 — The reactive variant: views over signals, on retained nodes
 #+DATE: 2026-10-26
-- Status :: accepted (autonomous, unreviewed)
+- Status :: accepted (Micah, 2026-10-26)
 
 * Context
 The charter's reactive hybrid is told what changed (a notification or a dependency

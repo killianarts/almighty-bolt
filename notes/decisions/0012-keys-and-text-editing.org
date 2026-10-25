@@ -1,6 +1,6 @@
 #+TITLE: 0012 — Keys and the editing of one line of text
 #+DATE: 2026-10-26
-- Status :: accepted (autonomous, unreviewed)
+- Status :: accepted (Micah, 2026-10-26)
 
 * Context
 The seven 7GUIs tasks need text fields: the temperature converter, the flight booker,

@@ -1,6 +1,6 @@
 #+TITLE: 0013 — The 7GUIs apps: what is shared, and where they differ from the task
 #+DATE: 2026-10-26
-- Status :: accepted (autonomous, unreviewed)
+- Status :: accepted (Micah, 2026-10-26)
 
 * Context
 Phase 2 asks for all seven 7GUIs tasks in each of the three variants. The point of
