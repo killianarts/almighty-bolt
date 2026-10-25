@@ -5,6 +5,7 @@
                     (#:registry #:almighty-bolt-7guis/common/registry))
   (:export #:driver
            #:driver-variant
+           #:driver-list
            #:define-acceptance
            #:available-variants
            #:start

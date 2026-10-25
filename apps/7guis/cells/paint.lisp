@@ -7,6 +7,8 @@
                 #:context-caret-x
                 #:context-push-text
                 #:push-rect
+                #:push-clip
+                #:push-unclip
                 #:pack-color
                 #:text-state-string
                 #:text-state-caret
@@ -80,6 +82,12 @@ SELECTED-ROW selected, and EDITING (a text state, or NIL) typed into it."
                                         first-column first-row
                                         (and (= column selected-column) (= row selected-row))
                                         editing)))
+        ;; The cell being typed into, over the cells beside it that its text runs across.
+        (when (and editing
+                   (<= first-column selected-column (1- last-column))
+                   (<= first-row selected-row (1- last-row)))
+          (paint-editor context list font x y width baseline selected-column selected-row
+                        first-column first-row editing))
         ;; The headers, over the cells' edges.
         (push-rect list x y +header-width+ +header-height+ +header-color+)
         (loop :for column :from first-column :below last-column
@@ -116,20 +124,38 @@ SELECTED-ROW selected, and EDITING (a text state, or NIL) typed into it."
                        (- +cell-width+ (* 2 +padding+))
                        (if (keywordp value) +error-color+ +text-color+)
                        :right (numberp value))))))
-    (when selected
-      (push-rect list left top +cell-width+ 2 +accent-color+)
-      (push-rect list left (+ top +cell-height+ -2) +cell-width+ 2 +accent-color+)
-      (push-rect list left top 2 +cell-height+ +accent-color+)
-      (push-rect list (+ left +cell-width+ -2) top 2 +cell-height+ +accent-color+))
-    (when editing-here
-      (let ((string (text-state-string editing))
-            (text-left (+ left +padding+)))
-        (when (text-state-selection-p editing)
-          (let ((a (context-caret-x context font string (text-state-selection-start editing)))
-                (b (context-caret-x context font string (text-state-selection-end editing))))
-            (push-rect list (+ text-left a) (+ top 3) (- b a) (- +cell-height+ 6)
-                       +selection-color+)))
-        (context-push-text context list font string text-left (+ top baseline) +text-color+)
-        (push-rect list (+ text-left (context-caret-x context font string
-                                                      (text-state-caret editing)))
-                   (+ top 4) 1.5f0 (- +cell-height+ 8) +caret-color+)))))
+    (when (and selected (not editing-here))
+      (push-outline list left top +cell-width+))))
+
+(defun push-outline (list left top width)
+  "The outline of the selected cell, WIDTH wide."
+  (push-rect list left top width 2 +accent-color+)
+  (push-rect list left (+ top +cell-height+ -2) width 2 +accent-color+)
+  (push-rect list left top 2 +cell-height+ +accent-color+)
+  (push-rect list (+ left width -2) top 2 +cell-height+ +accent-color+))
+
+(defun paint-editor (context list font x y width baseline column row first-column first-row
+                     editing)
+  "Draw the cell at COLUMN, ROW as it is typed into, over the cells beside it: a box as wide as
+the text needs, up to the right edge of the grid (X and WIDTH), with the text moved left, if
+it is longer than that, to keep the caret in it."
+  (let* ((left (+ x (cell-left column first-column)))
+         (top (+ y (cell-top row first-row)))
+         (string (text-state-string editing))
+         (room (- (+ x width) left))
+         (needed (+ (* 2 +padding+) (context-caret-x context font string (length string)) 2))
+         (box-width (min room (max +cell-width+ needed)))
+         (inner (- box-width (* 2 +padding+)))
+         (caret (context-caret-x context font string (text-state-caret editing)))
+         (text-left (- (+ left +padding+) (max 0 (- (+ caret 2) inner)))))
+    (push-rect list left top box-width +cell-height+ +edit-color+)
+    (push-clip list (+ left 1) (+ top 1) (- box-width 2) (- +cell-height+ 2))
+    (when (text-state-selection-p editing)
+      (let ((a (context-caret-x context font string (text-state-selection-start editing)))
+            (b (context-caret-x context font string (text-state-selection-end editing))))
+        (push-rect list (+ text-left a) (+ top 3) (- b a) (- +cell-height+ 6)
+                   +selection-color+)))
+    (context-push-text context list font string text-left (+ top baseline) +text-color+)
+    (push-rect list (+ text-left caret) (+ top 4) 1.5f0 (- +cell-height+ 8) +caret-color+)
+    (push-unclip list)
+    (push-outline list left top box-width)))

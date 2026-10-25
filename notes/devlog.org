@@ -1148,3 +1148,25 @@ A-007: the idle wakeups under =top=, hover and press looks and the wheel in a re
 ** Next
 The comparison needs more than one screen: a scenario that changes a lot at once, the code
 for changing an app (H3, H5), and the rubric. Those are Phase 3.
+
+* 2026-10-26 — Micah's checks of the autonomous run's assumptions
+Micah ran the apps in windows with =LOG=1= and answered the ledger. What came of it:
+- A-001 (snapshots match windows), A-003 (typing), A-005 (the apps in a window), A-006
+  (clipping) and A-007 (the immediate variant idle and responsive) are verified. A-002 has
+  the named keys, Tab and Shift-Tab confirmed and Backspace and Escape not yet logged; A-004
+  has the immediate and the retained and reactive mouse wheel, and the immediate trackpad.
+- The wheel (0017, 0018). My guess for the list that scrolled several rows to a notch was
+  wrong: the mouse sends 3.82 lines a notch (macOS's scrolling speed or the mouse's
+  software), which is right to follow. The trackpad sends points, which the lists read as
+  rows before 0017 and now as 24 to a row. On the cells grid a calm swipe across moved the
+  grid diagonally (=dy= about a fifth of =dx=), so a gesture is locked to its main axis now
+  (=core/src/wheel-lock.lisp=). The log of wheel events came from Micah's request to see what
+  the mouse sends, and it settled all of this in one run each.
+- A bug in the cells grid, found by looking: while typing in a cell, text longer than the cell
+  was drawn at the cell and covered by the cells drawn after it. The cell being typed in is
+  now drawn on top, as wide as its text needs, and scrolls to keep the caret in view at the
+  edge of the grid. The acceptance tests had never typed more than a cell holds.
+- What the checks showed about the checking: three of the new tests passed on the code they
+  were meant to test (the swipe tests, which read the cell relative to the screen, and a
+  mutation run showed it); they read the selected cell's name now. A test that cannot fail is
+  worth finding out by taking the fix out.

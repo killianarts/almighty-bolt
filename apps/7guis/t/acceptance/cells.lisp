@@ -157,6 +157,62 @@ FIRST-COLUMN, FIRST-ROW."
   (assert-equal "twenty" (cell-text driver 0 20 :first-row 15))
   (assert-equal "" (cell-text driver 0 15 :first-row 15)))
 
+(defun glyph-centres (driver left top width height)
+  "The glyph commands of the last frame whose middle is in the rectangle, as lists (index x y
+glyph-width), in the order they were drawn."
+  (let ((list (d:driver-list driver)))
+    (loop :for index :below (core:display-list-count list)
+          :for x = (+ (core:display-list-x list index) (/ (core:display-list-width list index) 2))
+          :for y = (+ (core:display-list-y list index) (/ (core:display-list-height list index) 2))
+          :when (and (= (core:display-list-kind list index) core:+command-glyph+)
+                     (<= left x) (< x (+ left width)) (<= top y) (< y (+ top height)))
+            :collect (list index x y (core:display-list-width list index)))))
+
+(defun covered-by-later-shapes (driver glyphs)
+  "Those of GLYPHS (as GLYPH-CENTRES gives them) that a rectangle drawn after them covers."
+  (let ((list (d:driver-list driver)))
+    (loop :for (index x y) :in glyphs
+          :when (loop :for later :from (1+ index) :below (core:display-list-count list)
+                      :thereis (and (member (core:display-list-kind list later)
+                                            (list core:+command-rect+
+                                                  core:+command-rounded-rect+))
+                                    (<= (core:display-list-x list later) x)
+                                    (< x (+ (core:display-list-x list later)
+                                            (core:display-list-width list later)))
+                                    (<= (core:display-list-y list later) y)
+                                    (< y (+ (core:display-list-y list later)
+                                            (core:display-list-height list later)))))
+            :collect (list index x y))))
+
+(d:define-acceptance text-typed-into-a-cell-runs-over-the-cells-beside-it :cells
+  ;; 20 characters are 160 points, two cells wide; the box that is typed in widens to take
+  ;; them, over B and C, and no cell drawn after the text covers any of it.
+  (click-cell driver 0 1)
+  (d:type-text driver "12345678901234567890")
+  (destructuring-bind (grid-x grid-y grid-width grid-height) (d:rectangle driver :grid)
+    (declare (ignore grid-height))
+    (let ((glyphs (glyph-centres driver (+ grid-x g:+header-width+) (+ grid-y (g:cell-top 1 0))
+                                 (- grid-width g:+header-width+) g:+cell-height+)))
+      (assert-eql 20 (length glyphs))
+      (assert-equal nil (covered-by-later-shapes driver glyphs))
+      ;; The last of them is past the right edge of A, in the cells it runs over.
+      (assert-true (> (second (car (last glyphs))) (+ grid-x (g:cell-left 1 0)))))))
+
+(d:define-acceptance text-longer-than-the-room-to-the-edge-of-the-grid-keeps-the-caret-in-view :cells
+  ;; G is the last column showing, with 80 points to the grid's edge; 12 characters are 96.
+  (click-cell driver 6 1)
+  (d:type-text driver "abcdefghijkl")
+  (destructuring-bind (grid-x grid-y grid-width grid-height) (d:rectangle driver :grid)
+    (declare (ignore grid-height))
+    (let* ((glyphs (glyph-centres driver (+ grid-x g:+header-width+) (+ grid-y (g:cell-top 1 0))
+                                  (- grid-width g:+header-width+) g:+cell-height+))
+           (last (car (last glyphs))))
+      (assert-eql 12 (length glyphs))
+      ;; The end of the text, where the caret is, is inside the grid and inside column G.
+      (assert-true (< (second last) (+ grid-x grid-width)))
+      (assert-true (> (second last) (+ grid-x (g:cell-left 6 0))))
+      (assert-equal nil (covered-by-later-shapes driver glyphs)))))
+
 (d:define-acceptance a-trackpad-scrolls-the-grid-by-the-points-a-row-and-a-column-take :cells
   ;; A row is 24 points and a column 80: 48 points down are two rows, 240 across three columns.
   (d:scroll-points driver :grid :dy -48)
