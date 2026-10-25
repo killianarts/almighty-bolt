@@ -19,8 +19,7 @@
                 #:wheel-event
                 #:wheel-event-x
                 #:wheel-event-y
-                #:wheel-event-dx
-                #:wheel-event-dy
+                #:wheel-event-lines
                 #:key-event
                 #:key-event-kind
                 #:key-event-logical-key
@@ -237,13 +236,12 @@ as they are needed and no longer."
   (let ((session (retained-variant-session variant))
         (x (float (wheel-event-x event) 1f0))
         (y (float (wheel-event-y event) 1f0)))
-    (loop :for node = (interactive-at (retained-variant-root variant) x y)
-            :then (node-parent node)
-          :while node
-          :when (pointer-wheel node session
-                               (float (wheel-event-dx event) 1f0)
-                               (float (wheel-event-dy event) 1f0))
-            :return t)))
+    (multiple-value-bind (dx dy) (wheel-event-lines event)
+      (loop :for node = (interactive-at (retained-variant-root variant) x y)
+              :then (node-parent node)
+            :while node
+            :when (pointer-wheel node session (float dx 1f0) (float dy 1f0))
+              :return t))))
 
 ;;; --- the keyboard focus ---
 

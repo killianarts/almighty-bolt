@@ -44,18 +44,24 @@ Entry format:
 
 * A-004 [OPEN] The wheel's sign and units
 - *Statement.* A =wheel-event= with a positive =dy= means the content moves down (the
-  view goes toward the start), and one unit of =dy= is a row of a list. A trackpad gives
-  precise deltas in points, which the list box treats as rows, so it scrolls too fast
-  there; a wheel gives lines.
+  view goes toward the start). Inside the variants the deltas are in lines, and a line is a
+  row of a list or a grid (24 points). A wheel gives lines; a trackpad, or a mouse whose
+  software smooths its scrolling, gives precise deltas in points, which =wheel-event-lines=
+  divides by 24 (0017). The grid scrolls across by 0.3 of a column to a line.
 - *Why not checked.* No trackpad or wheel here.
-- *Evidence so far (2026-10-26, still OPEN).* With a mouse wheel (Micah's, with the maker's
-  software installed, which may report smooth, precise deltas) the immediate CRUD list scrolls
-  but by several rows to a notch, not one. That fits the statement above: a precise delta in
-  points is taken as that many rows. Not known: what the wheel event carried (no log of
-  =dx=, =dy= and =precise-p= yet), the direction on the grid, or the trackpad.
-- *Check.* Scroll the CRUD list and the cells grid with the trackpad and a wheel.
-- *If false.* Change the sign in =pointer-wheel= of the list box and of the grid, and
-  scale precise deltas by the row height (=wheel-event-precise-p=).
+- *Evidence so far (2026-10-26, still OPEN).* Before 0017, with a mouse wheel (Micah's, with
+  the maker's software installed, which may report smooth, precise deltas) the immediate
+  CRUD list scrolled by several rows to a notch, not one: precise deltas were being read as
+  rows. 0017 converts them; the tests do it with made-up events. Not known: what Micah's
+  mouse sends (=LOG=1= now prints each wheel event's =dx=, =dy= and lines or points), whether
+  one notch is one row now, the direction on the grid, and the trackpad.
+- *Check.* =make 7guis VARIANT=immediate TASK=crud LOG=1= (and cells): scroll with the wheel
+  and the trackpad and read the printed deltas; a notch should move the list by as many rows
+  as the printed lines, a trackpad by a row for each 24 points. The direction should be the
+  one your system's scrolling gives for the same gesture elsewhere.
+- *If false.* The sign: change it in =pointer-wheel= of the list box and of the grid
+  (retained) and in the immediate list box and the grid's =scroll=. The size of a line:
+  change =+points-per-line+= in =core/src/event.lisp=; the grid's columns follow it.
 
 * A-005 [OPEN] The apps behave in a real window as the acceptance tests drive them
 - *Statement.* A person using a task of a variant in a window sees what the acceptance

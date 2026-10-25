@@ -20,8 +20,7 @@
                 #:wheel-event
                 #:wheel-event-x
                 #:wheel-event-y
-                #:wheel-event-dx
-                #:wheel-event-dy
+                #:wheel-event-lines
                 #:key-event
                 #:key-event-kind
                 #:key-event-logical-key
@@ -332,8 +331,9 @@ were left."
            ;; A wheel acts where the pointer is, which it says.
            (setf (ui-pointer-x ui) (float (wheel-event-x event) 1f0)
                  (ui-pointer-y ui) (float (wheel-event-y event) 1f0))
-           (incf (ui-wheel-dx ui) (float (wheel-event-dx event) 1f0))
-           (incf (ui-wheel-dy ui) (float (wheel-event-dy event) 1f0)))
+           (multiple-value-bind (dx dy) (wheel-event-lines event)
+             (incf (ui-wheel-dx ui) (float dx 1f0))
+             (incf (ui-wheel-dy ui) (float dy 1f0))))
           (key-event
            (when (and (eql (key-event-logical-key event) #\Tab)
                       (ui-keys ui))

@@ -20,6 +20,7 @@
            #:type-text
            #:press-key
            #:scroll
+           #:scroll-points
            #:text-in
            #:text-within
            #:screen-text
@@ -173,6 +174,13 @@ control ID."
   (multiple-value-bind (x y) (centre driver id)
     (deliver driver (core:make-wheel-event :timestamp 0 :x (float x 1d0) :y (float y 1d0)
                                            :dx 0d0 :dy (float dy 1d0)))))
+
+(defun scroll-points (driver id &key (dx 0) (dy 0))
+  "Scroll a trackpad by DX across and DY down, in points, over the middle of the control ID."
+  (multiple-value-bind (x y) (centre driver id)
+    (deliver driver (core:make-wheel-event :timestamp 0 :x (float x 1d0) :y (float y 1d0)
+                                           :dx (float dx 1d0) :dy (float dy 1d0)
+                                           :precise-p t))))
 
 (defun glyph-string (list &optional (test (constantly t)))
   "The characters of the glyph commands of LIST that TEST (given x and y) accepts, in the

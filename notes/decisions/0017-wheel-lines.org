@@ -1,0 +1,52 @@
+#+TITLE: 0017 — The wheel is read in lines inside the variants
+#+DATE: 2026-10-26
+- Status :: accepted (approach agreed with Micah on 2026-10-26; record not yet reviewed)
+
+* Context
+A wheel event carries its deltas in lines for a wheel and in points for a
+trackpad, and =precise-p= says which (0009). The variants scrolled by rows and
+read the deltas as rows, so a trackpad, or a mouse whose software sends smooth
+scrolling, moved a row for every point. Micah saw the immediate CRUD list scroll
+several rows to a notch. A-004 had listed this as a known gap.
+
+* Options
+1. The core's translation of the AppKit event converts points to lines, so that
+   every wheel event is in lines.
+2. The core offers the conversion, and each variant applies it where an event
+   comes in.
+3. Every consumer is given =precise-p= and scales by its own size (a row, a
+   column).
+
+* Evidence
+- Option 1 changes what the event means (replay would record converted numbers,
+  not what the platform gave) and decides the size of a line for every future
+  consumer.
+- Option 3 changes =pointer-wheel= and the canvas's =on-wheel= in the retained
+  and reactive variants and every app's handler, to pass a flag that all but a
+  few ignore.
+- Option 2 touches two places, =handle-wheel= in the retained variant (which the
+  reactive one shares) and the frame's input in the immediate one, and leaves
+  the event as the platform gave it.
+- The acceptance tests scroll with line deltas; they pass unchanged. New tests
+  scroll by points: the core's conversion, a list in the retained and immediate
+  variants, and the cells grid in all three.
+
+* Decision
+Option 2. =wheel-event-lines= returns the across and down deltas of an event in
+lines, dividing precise deltas by =+points-per-line+=, which is 24 points, the
+height of a row. The retained variant's =handle-wheel= and the immediate
+variant's input use it, so that =pointer-wheel=, a canvas's =on-wheel= and a
+list box see lines, as they always read them. The cells grid scrolls across by
+=+columns-per-line+= (24 / 80) of a column to a line, because a column is 80
+points wide and a row 24. A wheel notch is not changed by the platform's own
+acceleration, which is in the deltas it gives. =make 7guis ... LOG=1= prints
+each wheel event with its deltas and whether they are in lines or points.
+
+* Consequences
+- Easier: a trackpad scrolls a row for each 24 points of finger movement, in a
+  list and a grid, in all three variants; a variant's consumers did not change.
+- Harder: a line is 24 points whatever the row height of the thing scrolled, so
+  a list with taller rows scrolls fewer rows for the same movement. A wheel that
+  scrolls across (a tilt wheel) moves the grid 0.3 column a notch where it moved
+  one.
+- Not checked: a real trackpad, and what Micah's mouse sends (the log will say).

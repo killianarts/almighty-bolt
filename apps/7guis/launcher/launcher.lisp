@@ -11,6 +11,12 @@
                 #:pointer-event-x
                 #:pointer-event-y
                 #:pointer-event-button
+                #:wheel-event
+                #:wheel-event-x
+                #:wheel-event-y
+                #:wheel-event-dx
+                #:wheel-event-dy
+                #:wheel-event-precise-p
                 #:key-event
                 #:key-event-kind
                 #:key-event-logical-key
@@ -37,9 +43,10 @@
 (in-package #:almighty-bolt-7guis/launcher)
 
 ;;; Open a task of a variant in a window. With LOG, the variant is changed into a subclass
-;;; that prints each press and release of the pointer with what is under it, and each key
-;;; with its character code, so that what a window really delivers can be seen. The
-;;; printing allocates, so it is for a person to read and not for measuring.
+;;; that prints each press and release of the pointer with what is under it, each key with
+;;; its character code, and each step of the wheel with its deltas and whether they are in
+;;; lines or points, so that what a window really delivers can be seen. The printing
+;;; allocates, so it is for a person to read and not for measuring.
 
 (defclass logging-mixin () ()
   (:documentation "Prints the events that matter, before the variant handles them."))
@@ -62,6 +69,12 @@
          (format t "~&pointer ~(~4a~) button ~a at ~,1f, ~,1f   under it: ~s~%"
                  (pointer-event-kind event) (pointer-event-button event) x y
                  (hit-target variant x y)))))
+    (wheel-event
+     (let ((x (float (wheel-event-x event) 1f0))
+           (y (float (wheel-event-y event) 1f0)))
+       (format t "~&wheel dx ~,2f dy ~,2f in ~:[lines~;points~] at ~,1f, ~,1f   under it: ~s~%"
+               (wheel-event-dx event) (wheel-event-dy event) (wheel-event-precise-p event)
+               x y (hit-target variant x y))))
     (key-event
      (when (eq (key-event-kind event) :down)
        (let ((key (key-event-logical-key event)))

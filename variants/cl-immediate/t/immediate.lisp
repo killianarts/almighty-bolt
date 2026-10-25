@@ -361,3 +361,23 @@
       (build variant)
       (assert-false (search "item 0" (glyphs *list*)))
       (assert-true (search "item 3" (glyphs *list*))))))
+
+(define-test a-trackpads-points-scroll-a-row-for-each-24-of-them ()
+  (let* ((selected nil)
+         (items (loop :for i :below 20 :collect (format nil "item ~d" i)))
+         (variant (show (lambda ()
+                          (setf selected (w:list-box :l items selected :rows 4))))))
+    (multiple-value-bind (x y) (center-of variant :l)
+      (flet ((wheel (dy)
+               (core:handle-event variant
+                                  (core:make-wheel-event :timestamp 0 :x (float x 1d0)
+                                                                      :y (float y 1d0) :dx 0d0
+                                                                      :dy (float dy 1d0)
+                                                                      :precise-p t))
+               (build variant)))
+        (wheel -72)                     ; three rows
+        (assert-false (search "item 2" (glyphs *list*)))
+        (assert-true (search "item 3" (glyphs *list*)))
+        (assert-false (search "item 7" (glyphs *list*)))
+        (wheel 24)                      ; back a row
+        (assert-true (search "item 2" (glyphs *list*)))))))

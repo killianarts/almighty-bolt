@@ -157,6 +157,18 @@ FIRST-COLUMN, FIRST-ROW."
   (assert-equal "twenty" (cell-text driver 0 20 :first-row 15))
   (assert-equal "" (cell-text driver 0 15 :first-row 15)))
 
+(d:define-acceptance a-trackpad-scrolls-the-grid-by-the-points-a-row-and-a-column-take :cells
+  ;; A row is 24 points and a column 80: 48 points down are two rows, 240 across three columns.
+  (d:scroll-points driver :grid :dy -48 :dx -240)
+  (enter driver 3 2 "moved" :first-column 3 :first-row 2)
+  (assert-equal "moved" (cell-text driver 3 2 :first-column 3 :first-row 2))
+  (assert-equal "D3" (d:text-in driver :cell-name))
+  ;; Small steps add up: two of 12 points up the grid are one row, and none of them is lost.
+  (d:scroll-points driver :grid :dy 12)
+  (assert-equal "moved" (cell-text driver 3 2 :first-column 3 :first-row 2))
+  (d:scroll-points driver :grid :dy 12)
+  (assert-equal "moved" (cell-text driver 3 2 :first-column 3 :first-row 1)))
+
 (d:define-acceptance a-scrolled-grid-selects-the-cell-under-the-pointer :cells
   (d:scroll driver :grid -10)
   (click-cell driver 2 12 :first-row 10)

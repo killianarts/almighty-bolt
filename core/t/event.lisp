@@ -90,3 +90,12 @@
     (let ((per-event (/ (- (sb-ext:get-bytes-consed) before) n)))
       (assert-true (< per-event 128))
       (assert-true (> per-event 32)))))
+
+(define-test a-wheels-deltas-are-lines-and-a-trackpads-are-points-made-into-lines ()
+  (flet ((lines (&rest keys)
+           (multiple-value-list
+            (event:wheel-event-lines (apply #'event:make-wheel-event :timestamp 0 keys)))))
+    (assert-equal '(0d0 -3d0) (lines :dy -3d0))
+    (assert-equal '(0d0 -3d0) (lines :dy -72d0 :precise-p t))
+    (assert-equal '(2d0 0.5d0) (lines :dx 48d0 :dy 12d0 :precise-p t))
+    (assert-equal 24d0 event:+points-per-line+)))

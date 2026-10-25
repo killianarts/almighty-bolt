@@ -72,6 +72,8 @@
                 #:wheel-event-dy
                 #:wheel-event-precise-p
                 #:wheel-event-modifiers
+                #:+points-per-line+
+                #:wheel-event-lines
                 #:key-event
                 #:make-key-event
                 #:key-event-kind
@@ -263,6 +265,8 @@
            #:wheel-event-dy
            #:wheel-event-precise-p
            #:wheel-event-modifiers
+           #:+points-per-line+
+           #:wheel-event-lines
            #:key-event
            #:make-key-event
            #:key-event-kind

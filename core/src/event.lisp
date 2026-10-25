@@ -35,6 +35,8 @@
            #:wheel-event-dy
            #:wheel-event-precise-p
            #:wheel-event-modifiers
+           #:+points-per-line+
+           #:wheel-event-lines
            #:key-event
            #:make-key-event
            #:key-event-kind
@@ -131,6 +133,20 @@ deltas (trackpads) and false for line deltas (wheels)."
   (dy 0d0 :type double-float :read-only t)
   (precise-p nil :type boolean :read-only t)
   (modifiers 0 :type modifiers :read-only t))
+
+(defconstant +points-per-line+ 24d0
+  "How many points a line of the scroll wheel is worth: the height of a row of a list
+or a grid. A wheel gives its deltas in lines and a trackpad in points (the event's
+PRECISE-P says which), and a variant that scrolls by rows reads both in lines.")
+
+(defun wheel-event-lines (event)
+  "The scroll of the wheel EVENT as two values, across and down, in lines: a wheel's
+deltas as they are, and a trackpad's (precise ones, in points) divided by
++POINTS-PER-LINE+. A positive DY is the content moving down."
+  (if (wheel-event-precise-p event)
+      (values (/ (wheel-event-dx event) +points-per-line+)
+              (/ (wheel-event-dy event) +points-per-line+))
+      (values (wheel-event-dx event) (wheel-event-dy event))))
 
 (defstruct (key-event (:include event))
   "A key went down or up. PHYSICAL-KEY is the platform's key code for the key's

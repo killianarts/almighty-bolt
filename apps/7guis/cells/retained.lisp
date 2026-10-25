@@ -50,6 +50,7 @@
                 #:+grid-height+
                 #:+visible-columns+
                 #:+visible-rows+
+                #:+columns-per-line+
                 #:cell-left
                 #:cell-top
                 #:cell-at
@@ -116,7 +117,7 @@
                      (select column row)))))
              (scroll (source dx dy)
                (declare (ignore source))
-               (incf remainder-x (- dx))
+               (incf remainder-x (- (* dx +columns-per-line+)))
                (incf remainder-y (- dy))
                (let ((columns (truncate remainder-x))
                      (rows (truncate remainder-y)))

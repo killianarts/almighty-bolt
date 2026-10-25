@@ -310,7 +310,8 @@ true if the pointer is over NODE.")
 
 (defgeneric pointer-wheel (node session dx dy)
   (:documentation "The wheel or trackpad scrolled DX across and DY down over NODE, in
-points. Returns true if it used them.")
+lines (a trackpad's points divided by the points a line is worth, 24, the height of a
+row of a list). Returns true if it used them.")
   (:method ((node node) session dx dy)
     (declare (ignore session dx dy))
     nil))

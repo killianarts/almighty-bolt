@@ -29,6 +29,7 @@
                 #:+grid-height+
                 #:+visible-columns+
                 #:+visible-rows+
+                #:+columns-per-line+
                 #:cell-at
                 #:clamp-first)
   (:import-from #:almighty-bolt-7guis/cells/paint
@@ -98,7 +99,7 @@
                    (when (and new-column (< new-column +columns+) (< new-row +rows+))
                      (select new-column new-row)))))
              (scroll (dx dy)
-               (incf remainder-x (- dx))
+               (incf remainder-x (- (* dx +columns-per-line+)))
                (incf remainder-y (- dy))
                (let ((columns (truncate remainder-x))
                      (rows (truncate remainder-y)))

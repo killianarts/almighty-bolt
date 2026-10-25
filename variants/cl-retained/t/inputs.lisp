@@ -345,6 +345,23 @@
       (wheel 100)
       (assert-eql 0 (i:list-box-top list-box)))))
 
+(define-test a-trackpads-points-scroll-a-row-for-each-24-of-them ()
+  (multiple-value-bind (variant list-box) (a-list 10)
+    (flet ((wheel (dy)
+             (core:handle-event variant (core:make-wheel-event :timestamp 0 :x 40d0 :y 40d0
+                                                               :dx 0d0 :dy (float dy 1d0)
+                                                               :precise-p t))))
+      (wheel -48)
+      (assert-eql 2 (i:list-box-top list-box))
+      ;; Small steps add up and are not lost: three of 10 points are a row and 6 points over.
+      (dotimes (k 3) (wheel -10))
+      (assert-eql 3 (i:list-box-top list-box))
+      ;; Going back, the 6 points over count: 6 - 24 is not yet a row, 6 - 48 is one.
+      (wheel 24)
+      (assert-eql 3 (i:list-box-top list-box))
+      (wheel 24)
+      (assert-eql 2 (i:list-box-top list-box)))))
+
 (define-test the-arrow-keys-move-the-pick-and-scroll-to-keep-it-in-view ()
   (multiple-value-bind (variant list-box) (a-list 10)
     (press variant 40 1)
