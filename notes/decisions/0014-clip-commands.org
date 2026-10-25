@@ -1,6 +1,6 @@
 #+TITLE: 0014 — Clipping in the display list
 #+DATE: 2026-10-26
-- Status :: accepted (autonomous, unreviewed)
+- Status :: accepted (Micah, 2026-10-26, after reviewing it)
 
 * Context
 0013 left clipping out and drew partly visible rows by not drawing them. The circle

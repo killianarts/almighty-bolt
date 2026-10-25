@@ -71,19 +71,20 @@ the changes that rested on it can be found.
   The decisions 0012 to 0018 are still to be reviewed.
 
 * Review queue
-(Decision records made without Micah, newest last. Accepted by Micah on 2026-10-26: 0012,
-0013, 0015 and 0016.)
+(Decision records made without Micah, newest last. All of them are accepted: 0012, 0013,
+0015 and 0016 on 2026-10-26, and 0014, 0017 and 0018 after Micah reviewed all the records
+on the same day.)
 - 0012 Keys and the editing of one line of text (A-002, A-003). Accepted.
 - 0013 The 7GUIs apps: what is shared, and where they differ from the task. Accepted.
-- 0014 Clipping in the display list (renderer scissor stretches). To review; Micah asked
+- 0014 Clipping in the display list (renderer scissor stretches). Accepted. Micah asked
   whether it affects glows and shadows that reach beyond their shape (it does not prevent
   them; see the devlog, "0014 and shadows").
 - 0015 The reactive variant: views over signals, on retained nodes. Accepted.
 - 0016 The immediate variant: a function called every frame, cached by comparison (A-007).
   Accepted, with its two departures from 0009.
-- 0017 The wheel is read in lines inside the variants (A-004); made with Micah's yes. To
-  review.
-- 0018 A trackpad gesture goes along one axis (A-004); made after Micah's report. To review.
+- 0017 The wheel is read in lines inside the variants (A-004); made with Micah's yes.
+  Accepted.
+- 0018 A trackpad gesture goes along one axis (A-004); made after Micah's report. Accepted.
 
 * Morning checklist
 State when the run stopped: branch =phase-2=, tags =auto/01-retained-complete=,
@@ -107,8 +108,7 @@ each variant). Nothing is pushed.
    - A-007: leave an immediate app alone and look at its wakeups with
      =top -l 3 -s 10 -pid <pid> -stats pid,command,idlew=; hover and press its buttons.
 3. When one fails, =scripts/assumption-impact.sh A-00n= lists the commits that rest on it.
-4. Decisions to accept, change or supersede: 0014, 0017 and 0018 are left (the review queue
-   below). 0012, 0013, 0015 and 0016 are accepted, 0016 with its two departures from 0009
+4. Decisions: all accepted (the review queue below), 0016 with its two departures from 0009
    (it drops what no widget took, and a press on nothing takes the keyboard from a field).
 5. Numbers: =make bench-compare= (the three variants on the same screen) and
    =make bench-retained= (what the retained caches are worth). Both are in the devlog.

@@ -1,6 +1,6 @@
 #+TITLE: 0017 — The wheel is read in lines inside the variants
 #+DATE: 2026-10-26
-- Status :: accepted (approach agreed with Micah on 2026-10-26; record not yet reviewed)
+- Status :: accepted (Micah, 2026-10-26, after reviewing it)
 
 * Context
 A wheel event carries its deltas in lines for a wheel and in points for a

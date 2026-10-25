@@ -1,6 +1,6 @@
 #+TITLE: 0018 — A trackpad gesture goes along one axis
 #+DATE: 2026-10-26
-- Status :: accepted (made in answer to Micah's report on 2026-10-26; record not yet reviewed)
+- Status :: accepted (Micah, 2026-10-26, after reviewing it)
 
 * Context
 On the cells grid Micah's trackpad scrolled diagonally. A swipe meant to go
