@@ -4,7 +4,7 @@
                     (#:n #:almighty-bolt-variant-retained/node)
                     (#:counter #:almighty-bolt-variant-retained/counter)
                     (#:retained #:almighty-bolt-variant-retained/retained)
-                    (#:fake #:almighty-bolt-variant-retained/t/fake-context)
+                    (#:fake #:almighty-bolt-variant-support/fake-context)
                     (#:core #:almighty-bolt-core)))
 
 (in-package #:almighty-bolt-variant-retained/t/widgets)

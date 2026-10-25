@@ -41,3 +41,13 @@ Entry format:
 - *Why not checked.* Needs a keyboard; composed input needs a second input source.
 - *Check.* Type letters, digits, punctuation and shifted letters in a text field.
 - *If false.* A real text-input path (NSTextInputClient) is needed, which is Phase 6.
+
+* A-004 [OPEN] The wheel's sign and units
+- *Statement.* A =wheel-event= with a positive =dy= means the content moves down (the
+  view goes toward the start), and one unit of =dy= is a row of a list. A trackpad gives
+  precise deltas in points, which the list box treats as rows, so it scrolls too fast
+  there; a wheel gives lines.
+- *Why not checked.* No trackpad or wheel here.
+- *Check.* Scroll the CRUD list and the cells grid with the trackpad and a wheel.
+- *If false.* Change the sign in =pointer-wheel= of the list box and of the grid, and
+  scale precise deltas by the row height (=wheel-event-precise-p=).

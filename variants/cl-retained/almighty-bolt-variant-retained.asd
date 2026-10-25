@@ -7,8 +7,10 @@
   :pathname "src"
   :serial t
   :depends-on ("almighty-bolt-core")
-  :components ((:file "node")
+  :components ((:file "theme")
+               (:file "node")
                (:file "widgets")
+               (:file "inputs")
                (:file "retained")
                (:file "counter")
                (:file "window" :if-feature :darwin)
@@ -16,18 +18,22 @@
   :in-order-to ((test-op (test-op "almighty-bolt-variant-retained/tests"))))
 
 (defsystem "almighty-bolt-variant-retained/tests"
-  :depends-on ("almighty-bolt-variant-retained" "lisp-unit2" "flexi-streams")
+  :depends-on ("almighty-bolt-variant-retained" "almighty-bolt-variant-support"
+                           "lisp-unit2" "flexi-streams")
   :components ((:module "t"
                 :serial t
                 :components
-                ((:file "fake-context")
-                 (:file "widgets")
+                ((:file "widgets")
+                 (:file "inputs")
+                 (:file "containers")
                  (:file "retained")
                  (:file "cache")
                  (:file "host" :if-feature :darwin))))
   :perform (test-op (o s)
                     (let* ((results
                              (loop :for package :in '(:almighty-bolt-variant-retained/t/widgets
+                                                      :almighty-bolt-variant-retained/t/inputs
+                                                      :almighty-bolt-variant-retained/t/containers
                                                       :almighty-bolt-variant-retained/t/retained
                                                       :almighty-bolt-variant-retained/t/cache
                                                       #+darwin :almighty-bolt-variant-retained/t/host)

@@ -20,6 +20,28 @@
            #:node-paint-dirty
            #:node-cache
            #:node-tree
+           #:node-visible
+           #:node-enabled
+           #:node-hovered
+           #:node-pressed
+           #:node-focused
+           #:session
+           #:make-session
+           #:session-context
+           #:session-hover
+           #:session-pressed
+           #:session-focus
+           #:session-tickers
+           #:refresh-look
+           #:focus-node
+           #:interactive-p
+           #:focusable-p
+           #:pointer-press
+           #:pointer-drag
+           #:pointer-release
+           #:pointer-wheel
+           #:key-input
+           #:node-focus-on-click-p
            #:*paint-caching*
            #:invalidate-paint
            #:set-size
@@ -61,6 +83,14 @@
   (y 0f0 :type single-float)
   (w 0f0 :type single-float)
   (h 0f0 :type single-float)
+  ;; Whether the node is shown, and whether it takes part in events. Set with
+  ;; (SETF NODE-VISIBLE) and (SETF NODE-ENABLED), which mark the tree.
+  (%visible t :type boolean)
+  (%enabled t :type boolean)
+  ;; What the pointer and the keyboard are doing to the node, set by the SESSION.
+  (hovered nil :type boolean)
+  (pressed nil :type boolean)
+  (focused nil :type boolean)
   ;; A node that is CACHEABLE keeps the commands it painted, relative to its own top
   ;; left, in CACHE, and paints again only when PAINT-DIRTY. See PAINT-NODE.
   (cacheable nil :type boolean)
@@ -132,6 +162,26 @@ work."
         (setf (tree-state-layout-dirty state) t))))
   nil)
 
+(declaim (inline node-visible node-enabled))
+(defun node-visible (node) (node-%visible node))
+(defun node-enabled (node) (node-%enabled node))
+
+(defun (setf node-visible) (visible node)
+  "Show or hide NODE. A hidden node takes no room, draws nothing and gets no events."
+  (unless (eq visible (node-%visible node))
+    (setf (node-%visible node) visible)
+    (touch node t)
+    (when (node-parent node)
+      (touch (node-parent node) t)))
+  visible)
+
+(defun (setf node-enabled) (enabled node)
+  "Enable or disable NODE. A disabled node is drawn dimmed and gets no events."
+  (unless (eq enabled (node-%enabled node))
+    (setf (node-%enabled node) enabled)
+    (touch node nil))
+  enabled)
+
 ;;; --- what a kind of node does ---
 
 (defgeneric layout-node (node context min-w max-w min-h max-h)
@@ -161,8 +211,16 @@ to a point."
   (* (/ 1f0 scale)
      (round (the (single-float -1f6 1f6) (* scale position)))))
 
+(defmethod layout-node :around ((node node) context min-w max-w min-h max-h)
+  (if (node-visible node)
+      (call-next-method)
+      (progn (set-size node 0f0 0f0)
+             (values 0f0 0f0))))
+
 (defmethod paint-node :around ((node node) context list x y)
   (cond
+    ((not (node-visible node))
+     nil)
     ((not (node-cacheable node))
      (call-next-method))
     (t
@@ -202,6 +260,100 @@ to a point."
   (:documentation "What a click, or the space bar on the focused node, does.")
   (:method ((node node)) nil))
 
+(defun interactive-p (node)
+  "True if pointer events are for NODE now: it is shown, enabled and interactive."
+  (and (node-visible node) (node-enabled node) (node-interactive-p node)))
+
+(defun focusable-p (node)
+  "True if the keyboard can be given to NODE now."
+  (and (node-visible node) (node-enabled node) (node-focusable-p node)))
+
+;;; What an interactive node does with the pointer and the keys. Coordinates are in the
+;;; node's own, from its top left. The SESSION is what the variant knows of the pointer
+;;; and the keyboard (see below), and gives a node the context for measuring text.
+
+(defgeneric pointer-press (node session x y button)
+  (:documentation "A button of the pointer went down on NODE at X, Y. BUTTON is 0 for
+the primary button. While the primary button is down NODE is the one pointer events go
+to, wherever the pointer goes.")
+  (:method ((node node) session x y button)
+    (declare (ignore session x y button))
+    nil))
+
+(defgeneric pointer-drag (node session x y)
+  (:documentation "The pointer moved to X, Y with the primary button down, after it went
+down on NODE; the point may be outside it.")
+  (:method ((node node) session x y)
+    (declare (ignore session x y))
+    nil))
+
+(defgeneric pointer-release (node session x y inside-p)
+  (:documentation "The primary button went up after it went down on NODE. INSIDE-P is
+true if the pointer is over NODE.")
+  (:method ((node node) session x y inside-p)
+    (declare (ignore session x y inside-p))
+    nil))
+
+(defgeneric pointer-wheel (node session dx dy)
+  (:documentation "The wheel or trackpad scrolled DX across and DY down over NODE, in
+points. Returns true if it used them.")
+  (:method ((node node) session dx dy)
+    (declare (ignore session dx dy))
+    nil))
+
+(defgeneric key-input (node session event)
+  (:documentation "A key event for NODE, which has the keyboard focus. Returns true if
+it used the key, so that the variant does not (Tab, for one, moves the focus).")
+  (:method ((node node) session event)
+    (declare (ignore session event))
+    nil))
+
+(defgeneric node-focus-on-click-p (node)
+  (:documentation "True if pressing the pointer on NODE gives it the keyboard focus.")
+  (:method ((node node)) nil))
+
+;;; --- what the variant knows of the pointer and the keyboard ---
+
+(defstruct (session (:constructor make-session ()))
+  "The state of the pointer and the keyboard in one tree: the node the pointer is over
+(HOVER), the node a press began on (PRESSED), the node with the keyboard (FOCUS), the
+context of the last frame, and functions to run at the start of each frame (TICKERS)."
+  (context nil)
+  (hover nil)
+  (pressed nil)
+  (focus nil)
+  (tickers '() :type list))
+
+(defun refresh-look (session node)
+  "Set what NODE shows of the pointer: hovered if the pointer is over it and nothing else
+is pressed, and pressed if a press began on it."
+  (when node
+    (let ((hovered (and (eq (session-hover session) node)
+                        (or (null (session-pressed session))
+                            (eq (session-pressed session) node))))
+          (pressed (eq (session-pressed session) node)))
+      ;; Being pressed shows only while the pointer is over the node, so a press that
+      ;; ends elsewhere changes nothing to look at.
+      (let ((visible (or (not (eq hovered (node-hovered node)))
+                         (and (not (eq pressed (node-pressed node)))
+                              (or hovered (node-hovered node))))))
+        (setf (node-hovered node) hovered
+              (node-pressed node) pressed)
+        (when visible
+          (touch node nil))))))
+
+(defun focus-node (session node)
+  "Give the keyboard to NODE, or to nothing if NODE is NIL."
+  (let ((old (session-focus session)))
+    (unless (eq old node)
+      (setf (session-focus session) node)
+      (when old
+        (setf (node-focused old) nil)
+        (touch old nil))
+      (when node
+        (setf (node-focused node) t)
+        (touch node nil)))))
+
 ;;; --- finding nodes ---
 
 (defun node-at (node x y)
@@ -209,7 +361,8 @@ to a point."
 or NIL if the point is outside NODE. Later children are on top, so they are asked
 first."
   (declare (type single-float x y))
-  (when (and (<= 0f0 x) (< x (node-w node)) (<= 0f0 y) (< y (node-h node)))
+  (when (and (node-visible node)
+             (<= 0f0 x) (< x (node-w node)) (<= 0f0 y) (< y (node-h node)))
     (let ((children (node-children node)))
       (loop :for i :from (1- (length children)) :downto 0
             :do (let* ((child (svref children i))
@@ -223,7 +376,7 @@ first."
 that is interactive, or the nearest interactive node above it. NIL if none."
   (loop :for node = (node-at root x y) :then (node-parent node)
         :while node
-        :when (node-interactive-p node)
+        :when (interactive-p node)
           :return node))
 
 (defun map-nodes (function root)

@@ -4,11 +4,26 @@
                 #:context-font
                 #:context-measure
                 #:context-push-text
+                #:push-rect
                 #:push-rounded-rect
                 #:layout-padding
                 #:layout-flex
+                #:layout-align
                 #:constrain
-                #:pack-color)
+                #:key-event-kind
+                #:key-event-logical-key)
+  (:import-from #:almighty-bolt-variant-retained/theme
+                #:+text-color+
+                #:+dim-text-color+
+                #:+button-text-color+
+                #:+accent-color+
+                #:+panel-color+
+                #:+track-color+
+                #:+thumb-color+
+                #:+scrim-color+
+                #:+font-name+
+                #:+control-radius+
+                #:button-color)
   (:import-from #:almighty-bolt-variant-retained/node
                 #:node
                 #:node-id
@@ -18,6 +33,10 @@
                 #:node-y
                 #:node-w
                 #:node-h
+                #:node-enabled
+                #:node-hovered
+                #:node-pressed
+                #:node-focused
                 #:adopt
                 #:touch
                 #:set-size
@@ -26,9 +45,11 @@
                 #:paint-node
                 #:node-interactive-p
                 #:node-focusable-p
-                #:activate)
-  (:export #:+background+
-           #:label
+                #:activate
+                #:pointer-press
+                #:pointer-release
+                #:key-input)
+  (:export #:label
            #:label-p
            #:label-text
            #:label-color
@@ -41,8 +62,16 @@
            #:button-focused
            #:button-on-click
            #:padding
+           #:panel
+           #:center
+           #:stack
+           #:scrim
+           #:progress
+           #:progress-fraction
            #:row
-           #:column))
+           #:column
+           #:paint-children
+           #:split-arguments))
 
 (in-package #:almighty-bolt-variant-retained/widgets)
 
@@ -51,24 +80,6 @@
 ;;; and painting are generic functions specialized on them. A tree is built once
 ;;; with these constructors and then changed with setters, which mark the tree and
 ;;; leave the work to the next frame.
-
-;;; --- the look ---
-
-(defparameter +background+ (pack-color 36 40 56))
-(defparameter +text-color+ (pack-color 232 234 242))
-(defparameter +button-colors+
-  (list :normal (pack-color 72 104 200)
-        :hover (pack-color 92 126 224)
-        :pressed (pack-color 52 80 164)))
-(defparameter +button-text-color+ (pack-color 255 255 255))
-(defparameter +focus-color+ (pack-color 150 200 255))
-(defconstant +button-radius+ 8)
-(defconstant +button-padding-x+ 14f0)
-(defconstant +button-padding-y+ 7f0)
-(defparameter +font-name+ "Helvetica")
-
-(defun button-color (state)
-  (getf +button-colors+ state))
 
 ;;; --- constructors take their children first and their options after ---
 
@@ -234,11 +245,11 @@ values. Nodes are never keywords, so the first keyword starts the options."
 
 ;;; --- a button ---
 
+(defconstant +button-padding-x+ 14f0)
+(defconstant +button-padding-y+ 7f0)
+
 (defstruct (button (:include node) (:constructor %make-button))
   (label nil)
-  ;; :NORMAL, :HOVER or :PRESSED, set by whoever handles the pointer.
-  (state :normal :type (member :normal :hover :pressed))
-  (focused nil :type boolean)
   (on-click nil :type (or null function)))
 
 (defun button (text &key id on-click (flex 0))
@@ -255,6 +266,14 @@ values. Nodes are never keywords, so the first keyword starts the options."
 (defun (setf button-text) (text button)
   (setf (label-text (button-label button)) text))
 
+(defun button-state (button)
+  "How the button looks: :DISABLED, :PRESSED (pressed and the pointer over it), :HOVER or
+:NORMAL."
+  (cond ((not (node-enabled button)) :disabled)
+        ((and (node-pressed button) (node-hovered button)) :pressed)
+        ((node-hovered button) :hover)
+        (t :normal)))
+
 (defmethod node-interactive-p ((button button))
   t)
 
@@ -265,6 +284,18 @@ values. Nodes are never keywords, so the first keyword starts the options."
   (when (button-on-click button)
     (funcall (button-on-click button)))
   (touch button nil))
+
+(defmethod pointer-release ((button button) session x y inside-p)
+  (declare (ignore session x y))
+  (when inside-p
+    (activate button)))
+
+(defmethod key-input ((button button) session event)
+  (declare (ignore session))
+  (when (and (eq (key-event-kind event) :down)
+             (member (key-event-logical-key event) '(#\Space #\Return)))
+    (activate button)
+    t))
 
 (defmethod layout-node ((button button) context min-w max-w min-h max-h)
   (let ((label (button-label button)))
@@ -282,8 +313,143 @@ values. Nodes are never keywords, so the first keyword starts the options."
 (defmethod paint-node ((button button) context list x y)
   (let ((w (node-w button))
         (h (node-h button)))
-    (when (button-focused button)
-      (push-rounded-rect list (- x 2) (- y 2) (+ w 4) (+ h 4) (+ +button-radius+ 2)
-                         +focus-color+))
-    (push-rounded-rect list x y w h +button-radius+ (button-color (button-state button)))
+    (when (node-focused button)
+      (push-rounded-rect list (- x 2) (- y 2) (+ w 4) (+ h 4) (+ +control-radius+ 2)
+                         +accent-color+))
+    (push-rounded-rect list x y w h +control-radius+ (button-color (button-state button)))
     (paint-children button context list x y)))
+
+;;; --- a panel: padding with a background ---
+
+(defstruct (panel (:include padding) (:constructor %make-panel))
+  (color +panel-color+)
+  (radius 8 :type real))
+
+(defun panel (child &key id all left top right bottom (color +panel-color+) (radius 8)
+                      (flex 0))
+  "CHILD on a rounded background of COLOR, with space round it as for PADDING."
+  (adopt (%make-panel :id id :flex (float flex 1f0) :color color :radius radius
+                      :left (float (or left all 0) 1f0)
+                      :top (float (or top all 0) 1f0)
+                      :right (float (or right all 0) 1f0)
+                      :bottom (float (or bottom all 0) 1f0))
+         (list child)))
+
+(defmethod paint-node ((panel panel) context list x y)
+  (push-rounded-rect list x y (node-w panel) (node-h panel) (panel-radius panel)
+                     (panel-color panel))
+  (paint-children panel context list x y))
+
+;;; --- centring a child in all the room there is ---
+
+(defstruct (center (:include node) (:constructor %make-center)))
+
+(defun center (child &key id (flex 0))
+  (adopt (%make-center :id id :flex (float flex 1f0)) (list child)))
+
+(defmethod layout-node ((center center) context min-w max-w min-h max-h)
+  (let ((child (svref (node-children center) 0)))
+    (flet ((measure (a b c d)
+             (layout-node child context a b c d)))
+      (declare (dynamic-extent #'measure))
+      (multiple-value-bind (w h x y) (layout-align min-w max-w min-h max-h #'measure)
+        (set-place child x y)
+        (set-size center w h)
+        (values w h)))))
+
+(defmethod paint-node ((center center) context list x y)
+  (paint-children center context list x y))
+
+;;; --- children on top of each other ---
+
+(defstruct (stack (:include node) (:constructor %make-stack)))
+
+(defun stack (&rest arguments)
+  "Children drawn one over another, the later on top, followed by the options :ID and
+:FLEX. The stack is as large as its largest child, and every child is at its corner."
+  (multiple-value-bind (children options) (split-arguments arguments)
+    (destructuring-bind (&key id (flex 0)) options
+      (adopt (%make-stack :id id :flex (float flex 1f0)) children))))
+
+(defmethod layout-node ((stack stack) context min-w max-w min-h max-h)
+  (let ((width 0f0)
+        (height 0f0))
+    (declare (type single-float width height))
+    (loop :for child :across (node-children stack)
+          :do (multiple-value-bind (w h) (layout-node child context 0f0 max-w 0f0 max-h)
+                (declare (type single-float w h))
+                (set-place child 0f0 0f0)
+                (setf width (max width w)
+                      height (max height h))))
+    (multiple-value-bind (w h) (values (constrain width min-w max-w) (constrain height min-h max-h))
+      (set-size stack w h)
+      (values w h))))
+
+(defmethod paint-node ((stack stack) context list x y)
+  (paint-children stack context list x y))
+
+;;; --- a veil that takes the pointer, to put under a dialog ---
+
+(defstruct (scrim (:include node) (:constructor %make-scrim))
+  (on-press nil :type (or null function)))
+
+(defun scrim (&key id on-press)
+  "A translucent layer over everything under it in a stack, as large as it is allowed
+to be, that takes the pointer so that nothing under it does. ON-PRESS is called with no
+arguments when it is pressed."
+  (%make-scrim :id id :on-press on-press))
+
+(defmethod node-interactive-p ((scrim scrim))
+  t)
+
+(defmethod layout-node ((scrim scrim) context min-w max-w min-h max-h)
+  (declare (ignore context))
+  (let ((w (if (< max-w most-positive-single-float) max-w min-w))
+        (h (if (< max-h most-positive-single-float) max-h min-h)))
+    (set-size scrim w h)
+    (values w h)))
+
+(defmethod paint-node ((scrim scrim) context list x y)
+  (declare (ignore context))
+  (push-rect list x y (node-w scrim) (node-h scrim) +scrim-color+))
+
+(defmethod pointer-press ((scrim scrim) session x y button)
+  (declare (ignore session x y button))
+  (when (scrim-on-press scrim)
+    (funcall (scrim-on-press scrim)))
+  t)
+
+;;; --- a gauge ---
+
+(defstruct (progress (:include node) (:constructor %make-progress))
+  (%fraction 0d0 :type double-float)
+  (width 200f0 :type single-float))
+
+(defun progress (&key id (fraction 0) (width 200) (flex 0))
+  "A bar that is FRACTION (0 to 1) full."
+  (%make-progress :id id :%fraction (float fraction 1d0) :width (float width 1f0)
+                  :flex (float flex 1f0) :cacheable t))
+
+(defun progress-fraction (progress)
+  (progress-%fraction progress))
+
+(defun (setf progress-fraction) (fraction progress)
+  (let ((fraction (float (max 0 (min 1 fraction)) 1d0)))
+    (unless (= fraction (progress-%fraction progress))
+      (setf (progress-%fraction progress) fraction)
+      (touch progress nil))
+    fraction))
+
+(defmethod layout-node ((progress progress) context min-w max-w min-h max-h)
+  (declare (ignore context))
+  (set-size progress (constrain (progress-width progress) min-w max-w) (constrain 14f0 min-h max-h))
+  (values (node-w progress) (node-h progress)))
+
+(defmethod paint-node ((progress progress) context list x y)
+  (declare (ignore context))
+  (let* ((w (node-w progress))
+         (h (node-h progress))
+         (filled (* w (float (progress-%fraction progress) 1f0))))
+    (push-rounded-rect list x y w h (* 0.5f0 h) +track-color+)
+    (when (> filled 0f0)
+      (push-rounded-rect list x y (max filled h) h (* 0.5f0 h) +thumb-color+))))
