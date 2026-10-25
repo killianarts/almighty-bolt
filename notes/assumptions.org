@@ -76,3 +76,22 @@ Entry format:
   edge.
 - *If false.* The scissor rectangle may have to be in the drawable's pixels at its real
   size, not the points times the scale given to the host: see =copy-commands=.
+
+* A-007 [OPEN] The immediate variant sleeps when idle and answers a window's events as the tests drive it
+- *Statement.* The immediate variant asks for a frame only when an event could change
+  what is shown (a press, a release, a key, a move that changes what the pointer is over or
+  happens while a button is down or over a canvas, a wheel over a box that takes it), and
+  while the timer runs. A window that is still therefore draws nothing. The pointer is
+  where the events say it is, in the window's points, which is where the last presented
+  frame's boxes are; a wheel event carries the place of the pointer.
+- *Why not checked.* The tests call =handle-event= and =frame= with a fake context; no
+  window or trackpad here. The ones that would show it are the idle wakeups under =top=
+  and the hover looks.
+- *Check.* =make 7guis VARIANT=immediate TASK=counter= (and the others): hover a button
+  and press it (it must look hovered, then pressed); leave it still and look at the
+  wakeups with =top -l 3 -s 10 -pid <pid> -stats pid,command,idlew= (as for the other
+  variants); scroll the CRUD list and the cells grid with the pointer still over them;
+  Tab round the flight booker and the CRUD form.
+- *If false.* Wakeups: look at the value =enqueue-event= returns for the events it is
+  given (=ui.lisp=). A wheel that does nothing: the place in =wheel-event= may be in
+  another coordinate system than the pointer's.

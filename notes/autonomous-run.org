@@ -63,6 +63,8 @@ the changes that rested on it can be found.
   (=make 7guis=); all seven retained apps; 0014 clipping. Tag =auto/01-retained-complete=.
 - 0015 and the reactive library (signals, views, reconciler, variant); all seven reactive
   apps pass the same acceptance tests and idle in windows. Tag =auto/02-reactive-complete=.
+- 0016 and the immediate variant (hash, box, ui, widgets, layout, paint, variant); all
+  seven immediate apps pass the same acceptance tests. Tag =auto/03-immediate-complete=.
 
 * Review queue
 (Decision records made without Micah, newest last.)
@@ -70,3 +72,4 @@ the changes that rested on it can be found.
 - 0013 The 7GUIs apps: what is shared, and where they differ from the task.
 - 0014 Clipping in the display list (renderer scissor stretches).
 - 0015 The reactive variant: views over signals, on retained nodes.
+- 0016 The immediate variant: a function called every frame, cached by comparison (A-007).

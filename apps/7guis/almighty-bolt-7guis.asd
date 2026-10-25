@@ -68,6 +68,7 @@
   :description "The same behavioural tests for every variant's version of every task"
   :depends-on ("almighty-bolt-7guis" "almighty-bolt-variant-support"
                "almighty-bolt-7guis/retained" "almighty-bolt-7guis/reactive"
+               "almighty-bolt-7guis/immediate"
                "lisp-unit2" "flexi-streams")
   :serial t
   :components ((:module "t"
@@ -100,6 +101,18 @@
                         (uiop:symbol-call :lisp-unit2 :print-summary db))
                       (when bad
                         (error "~d 7GUIs acceptance test~:p failed." (length bad))))))
+
+(defsystem "almighty-bolt-7guis/immediate"
+  :description "The seven 7GUIs tasks in the immediate variant"
+  :depends-on ("almighty-bolt-7guis" "almighty-bolt-variant-immediate")
+  :serial t
+  :components ((:module "counter" :components ((:file "immediate")))
+               (:module "temperature" :components ((:file "immediate")))
+               (:module "flight" :components ((:file "immediate")))
+               (:module "timer" :components ((:file "immediate")))
+               (:module "crud" :components ((:file "immediate")))
+               (:module "circles" :components ((:file "immediate")))
+               (:module "cells" :components ((:file "immediate")))))
 
 (defsystem "almighty-bolt-7guis/reactive"
   :description "The seven 7GUIs tasks in the reactive variant"

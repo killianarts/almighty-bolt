@@ -1,0 +1,110 @@
+#+TITLE: 0016 — The immediate variant: a function called every frame, cached by comparison
+#+DATE: 2026-10-26
+- Status :: accepted (autonomous, unreviewed)
+
+* Context
+The charter's immediate variant has no persistent tree: the interface is a
+function that the core calls again for every frame, and a widget that can be
+used says what happened to it by returning it (a button returns true when it was
+clicked). Two things that a retained tree gives for free have to be made here. A
+widget needs to be the same widget from one frame to the next (a field's caret,
+a list's scroll position), and the function runs for every frame whether
+anything changed or not, so the cost of a frame with nothing changed is what the
+experiment measures. 0009 left the first open: it says an immediate variant
+keeps events in a list of its own for FRAME to read, and hit-tests against the
+last presented frame.
+
+* Options
+Identity of a widget:
+1. The application gives every widget an id and the variant keeps state by id.
+2. A key is made from the key of the parent and the widget's id, or its place
+   among its parent's children when it has none, so the same description in the
+   same place is the same widget.
+Skipping work:
+3. Nothing is skipped: every frame is laid out and painted from nothing.
+4. Each box gets a hash of what decides its size and one of what decides its
+   look, each folded with its children's. A frame whose hashes are those of the
+   last presented frame takes its places, and its commands, from that frame; and
+   a box whose hash is that of its last painting appends the commands it kept.
+Input:
+5. Widgets look at a queue of all the events that arrived.
+6. The events that arrived become the input of one frame (where the pointer is,
+   an edge for a button that went down, the keys, the wheel), and a widget that
+   uses a part of it takes it, which removes it.
+
+* Evidence
+- RAD Debugger's UI core and Dear ImGui are the model (from memory; their
+  sources were not read for this): boxes with keys, a hot, an active and a
+  focused key, a layout that runs after the function. Both lay out and draw
+  every frame; this variant adds the comparison of 4 to see what it saves.
+- A press that a button takes and an application that then changes what it shows
+  means that widgets built before the button show the old state. 0009's settle
+  loop is for this: a build that took input returns true, and the core builds
+  again, up to three times, and only the last build is laid out and drawn. A
+  build that took nothing is the last, so a frame with no input is one build.
+- If the second build were given the same input as the first, the click would
+  count twice. Taking a part of the input (6) removes it, so the second build
+  sees none. The price is that two events that depend on each other cannot be
+  taken in one frame: a press and its release are taken one to a frame, as is
+  every change of the primary button, and a Tab only before any key has been
+  taken, so that what happened first is seen first. The frame asks for another
+  if events were left.
+- The layout functions of 0010 are called with =dynamic-extent= closures over
+  the boxes, as the retained variant calls them. The boxes are reused from frame
+  to frame, and so are the hit and rectangle records, so a frame that changes
+  nothing is meant to allocate only what the application's function does (a
+  number turned into a string, a closure). That has not been measured.
+- The comparison is by a hash, so two different descriptions with the same hash
+  would draw the old frame. The hash is 62 bits, built by mixing, and nothing
+  here is a defence against someone who chooses the data.
+- Tests: 19 of its own (clicks counted once in the frame they were made in, a
+  release elsewhere not clicking, an unchanged frame drawing no text and giving
+  the same list, only the boxes that changed drawing again, the cached frame
+  hashing like one painted from nothing, fields, slider, choice, list box,
+  canvas, the keyboard and the wheel) and the 7GUIs acceptance tests of 0013 for
+  all seven tasks, which hold it to the other variants' behaviour. Not measured
+  yet: what any of it costs next to the others.
+
+* Decision
+Options 2, 4 and 6. =variants/cl-immediate= has hash, box, ui, widgets, layout,
+paint and the variant. The application is a function of no arguments that calls
+the widgets (=column=, =row=, =stack=, =padding=, =panel=, =center= as macros
+that open and close a box around their body; =label=, =button=, =text-field=,
+=slider=, =choice=, =list-box=, =progress=, =canvas= and =scrim= as functions).
+Each box is given its key as it is opened. State that must outlive a frame (a
+caret, a scroll position) is kept by the key, and what the application holds
+(text, number, selection) is passed in each time and is what the widget shows. A
+widget returns what happened to it. Where things are comes from the last
+presented frame: the boxes that take the pointer, in the order they were drawn,
+are noted with their places, and the pointer is over the topmost. =hit-target=
+and =lookup-target= answer from those records. The function's boxes get their
+hashes before anything is laid out. If the hash of what decides the layout is
+that of the last presented frame, the places are restored from it; if the hash
+of what decides the look is too, its list is copied; if not, each box appends
+the commands it kept for its key if its own hash is unchanged, or paints. A
+canvas calls the application's painter on every build into a list of its own and
+hashes the list, so the cost of a canvas is the painter's and the comparison,
+and what it saves is the copy. Two things differ from 0009. An event that no
+widget took is dropped at the end of the frame it was given to (a key with
+nothing to receive it), where 0009 says a variant keeps it; keeping it would
+give a key typed with no field to the field the person clicks next. And a press
+on nothing takes the keyboard from a box that it was given to by a press (a
+field), and not from a button that it reached by Tab, as in the retained
+variant.
+
+* Consequences
+- Easier: nothing in the library knows what the application is; a new widget is
+  a function; the application is a function of its variables and reads like the
+  tasks do.
+- Harder: every frame with input costs the application's function twice at
+  least, and the function's own work (formatting, building lists) is done for
+  every frame whether or not anything changed, which the cache cannot skip.
+  Widgets that use input must take it in the order they are described, so the
+  order is part of the interface's behaviour (two buttons that overlap).
+- Harder: input is a frame behind by design (hit-testing the last presented
+  frame), so a click on a widget that appeared in the same frame is not seen
+  until the next.
+- Gives up: unconsumed events. A key typed when nothing can take it is lost.
+- Not decided: whether the settle loop's cap of three builds is enough for a
+  larger interface (each build of a frame takes one chain of consequences); the
+  measurements will say.
