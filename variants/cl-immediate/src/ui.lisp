@@ -20,7 +20,8 @@
                 #:wheel-event
                 #:wheel-event-x
                 #:wheel-event-y
-                #:wheel-event-lines
+                #:make-axis-lock
+                #:lock-wheel
                 #:key-event
                 #:key-event-kind
                 #:key-event-logical-key
@@ -146,6 +147,8 @@
   (keys '() :type list)
   (wheel-dx 0f0 :type single-float)
   (wheel-dy 0f0 :type single-float)
+  ;; Which way the trackpad gesture in progress is going, so that a swipe goes one way.
+  (wheel-lock (make-axis-lock))
   ;; Events that have arrived and not been looked at yet, oldest first.
   (queue '() :type list)
   ;; The widget the pointer is over, the one a press began on, the one with the keyboard.
@@ -331,7 +334,7 @@ were left."
            ;; A wheel acts where the pointer is, which it says.
            (setf (ui-pointer-x ui) (float (wheel-event-x event) 1f0)
                  (ui-pointer-y ui) (float (wheel-event-y event) 1f0))
-           (multiple-value-bind (dx dy) (wheel-event-lines event)
+           (multiple-value-bind (dx dy) (lock-wheel (ui-wheel-lock ui) event)
              (incf (ui-wheel-dx ui) (float dx 1f0))
              (incf (ui-wheel-dy ui) (float dy 1f0))))
           (key-event

@@ -159,7 +159,8 @@ FIRST-COLUMN, FIRST-ROW."
 
 (d:define-acceptance a-trackpad-scrolls-the-grid-by-the-points-a-row-and-a-column-take :cells
   ;; A row is 24 points and a column 80: 48 points down are two rows, 240 across three columns.
-  (d:scroll-points driver :grid :dy -48 :dx -240)
+  (d:scroll-points driver :grid :dy -48)
+  (d:scroll-points driver :grid :dx -240)
   (enter driver 3 2 "moved" :first-column 3 :first-row 2)
   (assert-equal "moved" (cell-text driver 3 2 :first-column 3 :first-row 2))
   (assert-equal "D3" (d:text-in driver :cell-name))
@@ -168,6 +169,22 @@ FIRST-COLUMN, FIRST-ROW."
   (assert-equal "moved" (cell-text driver 3 2 :first-column 3 :first-row 2))
   (d:scroll-points driver :grid :dy 12)
   (assert-equal "moved" (cell-text driver 3 2 :first-column 3 :first-row 1)))
+
+(d:define-acceptance a-swipe-across-with-a-drift-down-moves-the-grid-across-only :cells
+  ;; The way a trackpad really goes: ten steps of 24 across and 5 down, which unlocked would
+  ;; be 3 columns and 2 rows. The gesture is across, so the rows stay.
+  (d:swipe-points driver :grid (loop :repeat 10 :collect (list -24 -5)))
+  (enter driver 3 0 "across" :first-column 3 :first-row 0)
+  ;; The cell clicked was D0 only if the grid is at column 3 and row 0: Return selected D1.
+  (assert-equal "D1" (d:text-in driver :cell-name))
+  (assert-equal "across" (cell-text driver 3 0 :first-column 3 :first-row 0)))
+
+(d:define-acceptance a-swipe-down-with-a-drift-across-moves-the-grid-down-only :cells
+  ;; Ten steps of 24 down and 12 across: 10 rows, and 120 points across (1.5 columns) lost.
+  (d:swipe-points driver :grid (loop :repeat 10 :collect (list -12 -24)))
+  (enter driver 0 10 "down" :first-column 0 :first-row 10)
+  (assert-equal "A11" (d:text-in driver :cell-name))
+  (assert-equal "down" (cell-text driver 0 10 :first-column 0 :first-row 10)))
 
 (d:define-acceptance a-scrolled-grid-selects-the-cell-under-the-pointer :cells
   (d:scroll driver :grid -10)

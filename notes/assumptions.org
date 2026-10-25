@@ -61,10 +61,14 @@ Entry format:
   direction expected: 0017 works for it. During vertical swipes many events also carry a
   =dx= of +-1 or 2 points (finger drift). The CRUD list ignores =dx=; the cells grid reads it
   and has no axis locking, so a long vertical swipe may move its columns a little (0.3 of a
-  column for 24 points). Not checked: the cells grid with the wheel or trackpad in any
-  variant, and the retained and reactive CRUD list.
-- *Check.* =make 7guis VARIANT=immediate TASK=crud LOG=1= (and cells): scroll with the wheel
-  and the trackpad and read the printed deltas; a notch should move the list by as many rows
+  column for 24 points). On the cells grid (=LOG=1=, 2026-10-26) the trackpad moved the
+  grid diagonally: a calm swipe across carried =dy= of about a fifth of =dx= (=dx -26,
+  dy -5=); a flick was clean. Fixed by 0018, which locks a gesture to one axis; tried so far
+  only with Micah's swipes replayed as made-up events. Not checked: the same swipes on the
+  trackpad after 0018, the wheel on the grid, and the retained and reactive CRUD list.
+- *Check.* =make 7guis VARIANT=immediate TASK=cells LOG=1= (and crud): swipe across calmly,
+  swipe down with a little drift, and flick, and see that the grid moves along one axis; scroll
+  with the wheel and the trackpad and read the printed deltas; a notch should move the list by as many rows
   as the printed lines, a trackpad by a row for each 24 points. The direction should be the
   one your system's scrolling gives for the same gesture elsewhere.
 - *If false.* The sign: change it in =pointer-wheel= of the list box and of the grid

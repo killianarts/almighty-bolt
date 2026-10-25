@@ -1,0 +1,57 @@
+#+TITLE: 0018 — A trackpad gesture goes along one axis
+#+DATE: 2026-10-26
+- Status :: accepted (made in answer to Micah's report on 2026-10-26; record not yet reviewed)
+
+* Context
+On the cells grid Micah's trackpad scrolled diagonally. A swipe meant to go
+across carried about a fifth of its length down (=dx -26, dy -5= an event), and
+one meant to go down carried a little across. The grid read both. A flick was
+clean (=dy 0=), a calm swipe was not. 0017 made the unit right, and said nothing
+about the axes.
+
+* Options
+1. The cells app drops the smaller axis of each event.
+2. The core offers a small state machine that locks a gesture to its main axis,
+   and the variants use it where wheel events come in, so that every view that
+   scrolls gets it.
+3. The same, using the platform's gesture phases (=phase= and =momentumPhase= of
+   the NSEvent) to know when a gesture begins and ends.
+
+* Evidence
+- Option 1 drops the drift of a single event, which is not the drift of a
+  gesture: the events of Micah's calm swipe had a ratio that varied from 1 to
+  0.15, and the first ones were nearly diagonal (=-3, -3=). Choosing for each
+  event would flicker.
+- Option 3 needs two new fields on the wheel event, in every platform's
+  translation, and the replay format. The events already carry timestamps, from
+  which a pause can be seen.
+- Option 2 is deterministic from the events, so a replay locks as the original
+  did.
+- Micah's logs: events 8 to 16 ms apart during a gesture, momentum included,
+  with no pause of more than a few frames until it stops.
+- A 45 degree movement has no main axis. It is given to down, as a tie.
+- Tested: the swipes from Micah's log, a pause ending a gesture, the axis
+  staying through momentum, a wheel's lines passing through untouched, and, in
+  all three variants, the grid moving across only for a swipe across with drift,
+  and down only for a swipe down with drift. With the lock taken out, those six
+  tests fail.
+
+* Decision
+Option 2. =lock-wheel= (=core/src/wheel-lock.lisp=) takes a lock and a wheel
+event and returns the scroll in lines as =wheel-event-lines= does. For a
+trackpad's precise events it adds up the points moved along each axis from the
+start of the gesture, locks the gesture to the larger axis as soon as it has 4
+points, uses the one that has gone further until then, and gives the other axis
+as zero. A gesture is the events that follow each other with no pause of 150 ms.
+A wheel's events, in lines, are not touched. The retained variant (and so the
+reactive) keeps a lock in the variant, and the immediate one in its input.
+
+* Consequences
+- Easier: a swipe goes one way in every scrolling view, and a view that only
+  scrolls down cannot be nudged sideways by drift, nor the grid up and down.
+- Harder: no gesture is diagonal, in a view that could use it (a map). Changing
+  direction without lifting the fingers or pausing is ignored on the other axis.
+  Two gestures less than 150 ms apart (a flick down and at once a swipe across)
+  share the first one's axis; with the phases that could not happen.
+- Not checked: how 4 points and 150 ms feel under a finger; Micah's trackpad is
+  the test.

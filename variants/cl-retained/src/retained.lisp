@@ -19,7 +19,8 @@
                 #:wheel-event
                 #:wheel-event-x
                 #:wheel-event-y
-                #:wheel-event-lines
+                #:make-axis-lock
+                #:lock-wheel
                 #:key-event
                 #:key-event-kind
                 #:key-event-logical-key
@@ -91,7 +92,9 @@
    (caching :initarg :caching :initform t :reader retained-variant-caching)
    (laid-out-width :initform -1f0 :type single-float :accessor laid-out-width)
    (laid-out-height :initform -1f0 :type single-float :accessor laid-out-height)
-   (session :initform (make-session) :reader retained-variant-session))
+   (session :initform (make-session) :reader retained-variant-session)
+   ;; Which way the trackpad gesture in progress is going, so that a swipe goes one way.
+   (wheel-lock :initform (make-axis-lock) :reader retained-variant-wheel-lock))
   (:documentation "A variant that keeps a tree of nodes."))
 
 (defun make-retained-variant (root &key (caching t))
@@ -236,7 +239,7 @@ as they are needed and no longer."
   (let ((session (retained-variant-session variant))
         (x (float (wheel-event-x event) 1f0))
         (y (float (wheel-event-y event) 1f0)))
-    (multiple-value-bind (dx dy) (wheel-event-lines event)
+    (multiple-value-bind (dx dy) (lock-wheel (retained-variant-wheel-lock variant) event)
       (loop :for node = (interactive-at (retained-variant-root variant) x y)
               :then (node-parent node)
             :while node

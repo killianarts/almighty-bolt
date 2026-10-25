@@ -11,6 +11,7 @@
   '(:almighty-bolt-core/clock
     :almighty-bolt-core/ring
     :almighty-bolt-core/event
+    :almighty-bolt-core/wheel-lock
     :almighty-bolt-core/text-edit
     :almighty-bolt-core/display-list
     :almighty-bolt-core/variant

@@ -21,6 +21,7 @@
            #:press-key
            #:scroll
            #:scroll-points
+           #:swipe-points
            #:text-in
            #:text-within
            #:screen-text
@@ -43,7 +44,9 @@
   variant
   context
   clock
-  list)
+  list
+  ;; How many trackpad gestures have been made, so that each starts a second after the last.
+  (gestures 0))
 
 (defmacro define-acceptance (name task &body body)
   "Define a test for each variant that has an app for TASK (those loaded when this is
@@ -175,12 +178,22 @@ control ID."
     (deliver driver (core:make-wheel-event :timestamp 0 :x (float x 1d0) :y (float y 1d0)
                                            :dx 0d0 :dy (float dy 1d0)))))
 
-(defun scroll-points (driver id &key (dx 0) (dy 0))
-  "Scroll a trackpad by DX across and DY down, in points, over the middle of the control ID."
+(defun swipe-points (driver id steps)
+  "Swipe a trackpad over the middle of the control ID: STEPS are lists (dx dy), in points,
+delivered 10 ms apart as one gesture, which starts a second after the one before."
   (multiple-value-bind (x y) (centre driver id)
-    (deliver driver (core:make-wheel-event :timestamp 0 :x (float x 1d0) :y (float y 1d0)
-                                           :dx (float dx 1d0) :dy (float dy 1d0)
-                                           :precise-p t))))
+    (let ((start (* 1000000000 (incf (driver-gestures driver)))))
+      (loop :for (dx dy) :in steps
+            :for i :from 0
+            :do (deliver driver (core:make-wheel-event :timestamp (+ start (* i 10000000))
+                                                       :x (float x 1d0) :y (float y 1d0)
+                                                       :dx (float dx 1d0) :dy (float dy 1d0)
+                                                       :precise-p t))))))
+
+(defun scroll-points (driver id &key (dx 0) (dy 0))
+  "Scroll a trackpad by DX across and DY down, in points, in one event, as a gesture of its
+own."
+  (swipe-points driver id (list (list dx dy))))
 
 (defun glyph-string (list &optional (test (constantly t)))
   "The characters of the glyph commands of LIST that TEST (given x and y) accepts, in the
