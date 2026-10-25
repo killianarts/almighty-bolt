@@ -1,0 +1,47 @@
+(defpackage #:almighty-bolt-7guis/t/timer
+  (:use #:cl #:lisp-unit2)
+  (:local-nicknames (#:m #:almighty-bolt-7guis/timer/model)))
+
+(in-package #:almighty-bolt-7guis/t/timer)
+
+(define-test a-timer-starts-running-and-empty ()
+  (let ((timer (m:make-timer)))
+    (assert-eql 0d0 (m:timer-elapsed timer))
+    (assert-true (m:timer-running-p timer))
+    (assert-eql 0d0 (m:timer-fraction timer))))
+
+(define-test time-passing-fills-the-gauge-until-the-duration ()
+  (let ((timer (m:make-timer :duration 10d0)))
+    (setf timer (m:timer-advance timer 2.5d0))
+    (assert-eql 2.5d0 (m:timer-elapsed timer))
+    (assert-eql 0.25d0 (m:timer-fraction timer))
+    (setf timer (m:timer-advance timer 100d0))
+    (assert-eql 10d0 (m:timer-elapsed timer))
+    (assert-eql 1d0 (m:timer-fraction timer))
+    (assert-false (m:timer-running-p timer))))
+
+(define-test a-stopped-timer-does-not-change ()
+  (let ((timer (m:make-timer :duration 5d0 :elapsed 5d0)))
+    (assert-true (eq timer (m:timer-advance timer 1d0)))))
+
+(define-test resetting-starts-again ()
+  (let ((timer (m:timer-reset (m:make-timer :duration 5d0 :elapsed 5d0))))
+    (assert-eql 0d0 (m:timer-elapsed timer))
+    (assert-true (m:timer-running-p timer))
+    (assert-true (eq timer (m:timer-reset timer)))))
+
+(define-test lowering-the-duration-stops-it-and-raising-it-starts-it-again ()
+  (let ((timer (m:make-timer :duration 10d0 :elapsed 6d0)))
+    (let ((shorter (m:timer-with-duration timer 4d0)))
+      (assert-false (m:timer-running-p shorter))
+      (assert-eql 1d0 (m:timer-fraction shorter))
+      (assert-eql 6d0 (m:timer-elapsed shorter))
+      (let ((longer (m:timer-with-duration shorter 20d0)))
+        (assert-true (m:timer-running-p longer))
+        (assert-eql 0.3d0 (m:timer-fraction longer))))))
+
+(define-test seconds-are-shown-to-a-tenth ()
+  (assert-equal "0.0s" (m:format-seconds 0d0))
+  (assert-equal "3.4s" (m:format-seconds 3.44d0))
+  (assert-equal "3.5s" (m:format-seconds 3.46d0))
+  (assert-equal "12.0s" (m:format-seconds 12d0)))

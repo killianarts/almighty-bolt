@@ -1,0 +1,57 @@
+(defpackage #:almighty-bolt-7guis/t/circles
+  (:use #:cl #:lisp-unit2)
+  (:local-nicknames (#:m #:almighty-bolt-7guis/circles/model)))
+
+(in-package #:almighty-bolt-7guis/t/circles)
+
+(defun centres (drawing)
+  (mapcar (lambda (c) (list (m:circle-x c) (m:circle-y c) (m:circle-diameter c)))
+          (m:drawing-circles drawing)))
+
+(define-test a-drawing-starts-empty-and-cannot-undo ()
+  (let ((drawing (m:make-drawing)))
+    (assert-equal '() (m:drawing-circles drawing))
+    (assert-false (m:drawing-can-undo-p drawing))
+    (assert-false (m:drawing-can-redo-p drawing))
+    (assert-true (eq drawing (m:drawing-undo drawing)))
+    (assert-true (eq drawing (m:drawing-redo drawing)))))
+
+(define-test adding-a-circle-can-be-undone-and-redone ()
+  (let* ((one (m:drawing-add (m:make-drawing) 10 20))
+         (two (m:drawing-add one 50 60)))
+    (assert-equal '((10 20 40) (50 60 40)) (centres two))
+    (let ((undone (m:drawing-undo two)))
+      (assert-equal '((10 20 40)) (centres undone))
+      (assert-true (m:drawing-can-redo-p undone))
+      (assert-equal '((10 20 40) (50 60 40)) (centres (m:drawing-redo undone))))
+    (assert-equal '() (centres (m:drawing-undo (m:drawing-undo two))))))
+
+(define-test a-change-after-an-undo-ends-the-future ()
+  (let* ((two (m:drawing-add (m:drawing-add (m:make-drawing) 1 1) 2 2))
+         (undone (m:drawing-undo two))
+         (other (m:drawing-add undone 9 9)))
+    (assert-false (m:drawing-can-redo-p other))
+    (assert-equal '((1 1 40) (9 9 40)) (centres other))
+    (assert-equal '((1 1 40)) (centres (m:drawing-undo other)))))
+
+(define-test resizing-is-one-change-that-can-be-undone ()
+  (let* ((drawing (m:drawing-add (m:make-drawing) 10 10))
+         (id (m:circle-id (first (m:drawing-circles drawing))))
+         (bigger (m:drawing-resize drawing id 80)))
+    (assert-equal '((10 10 80)) (centres bigger))
+    (assert-equal '((10 10 40)) (centres (m:drawing-undo bigger)))
+    ;; The same diameter is not a change.
+    (assert-true (eq drawing (m:drawing-resize drawing id 40)))
+    (assert-true (eq drawing (m:drawing-resize drawing 99 80)))))
+
+(define-test the-circle-at-a-point-is-the-one-whose-centre-is-nearest ()
+  (let* ((drawing (m:drawing-add (m:drawing-add (m:make-drawing) 100 100 60) 130 100 60))
+         (first-id (m:circle-id (first (m:drawing-circles drawing))))
+         (second-id (m:circle-id (second (m:drawing-circles drawing)))))
+    (assert-eql first-id (m:circle-id (m:drawing-circle-at drawing 105 100)))
+    (assert-eql second-id (m:circle-id (m:drawing-circle-at drawing 125 100)))
+    (assert-eql first-id (m:circle-id (m:drawing-circle-at drawing 80 100)))
+    (assert-false (m:drawing-circle-at drawing 300 300))
+    ;; The edge counts as inside.
+    (assert-true (m:drawing-circle-at drawing 70 100))
+    (assert-false (m:drawing-circle-at drawing 69 100))))
