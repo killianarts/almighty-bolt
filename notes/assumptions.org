@@ -49,12 +49,14 @@ Entry format:
   software smooths its scrolling, gives precise deltas in points, which =wheel-event-lines=
   divides by 24 (0017). The grid scrolls across by 0.3 of a column to a line.
 - *Why not checked.* No trackpad or wheel here.
-- *Evidence so far (2026-10-26, still OPEN).* Before 0017, with a mouse wheel (Micah's, with
-  the maker's software installed, which may report smooth, precise deltas) the immediate
-  CRUD list scrolled by several rows to a notch, not one: precise deltas were being read as
-  rows. 0017 converts them; the tests do it with made-up events. Not known: what Micah's
-  mouse sends (=LOG=1= now prints each wheel event's =dx=, =dy= and lines or points), whether
-  one notch is one row now, the direction on the grid, and the trackpad.
+- *Evidence so far (2026-10-26, still OPEN).* Micah's mouse (with the maker's software)
+  scrolled the immediate CRUD list by several rows to a notch. The first guess, that it sent
+  precise deltas in points which were read as rows, was wrong: the =LOG=1= output shows every
+  event =in lines= with =dy= of 3.82 or -3.82, so a notch moves 3 or 4 rows (the 0.82 is
+  carried to the next). 3.82 lines a notch is what macOS gives for that mouse and its
+  scrolling-speed setting; the list does what the platform says. 0017 (points to lines) does
+  not apply to this mouse and has been tried only with made-up events. Not known: the
+  trackpad, whether the direction is the one wanted, and the grid.
 - *Check.* =make 7guis VARIANT=immediate TASK=crud LOG=1= (and cells): scroll with the wheel
   and the trackpad and read the printed deltas; a notch should move the list by as many rows
   as the printed lines, a trackpad by a row for each 24 points. The direction should be the
