@@ -1,0 +1,60 @@
+#+TITLE: The autonomous run: how it is tracked
+#+DATE: 2026-10-25
+
+Micah gave one goal on 2026-10-25: finish the three variants (retained, reactive
+hybrid, immediate + cache), each with all seven 7GUIs tasks. While it runs,
+decisions that would wait for Micah are made and recorded instead, tests that
+cannot be run here are assumed to pass, and Micah reviews all of it afterwards. This
+file says how that is kept traceable, so that when an assumption turns out false,
+the changes that rested on it can be found.
+
+* The rules
+1. Work is on the branch =phase-2=. Nothing is pushed.
+2. =human-verified/1= is the last point Micah ran and saw. Every later commit is
+   unreviewed.
+3. A commit is made after each decision record, each widget family, each task and
+   each variant milestone, and only when =make test= passes. A test that cannot be
+   run here (it needs a person, a real keyboard or pointer, or a display that is
+   being looked at) is not a reason to wait: assume it passes, and write the
+   assumption down (below).
+4. Every commit message ends with trailers (made by =scripts/auto-commit.sh=):
+   - =Assumes: A-007 A-011= when the commit rests on unverified assumptions, the
+     inherited ones included. A commit that builds on code that rests on A-007 lists
+     A-007 too.
+   - =Decision: 0012= for the records it makes or uses.
+   - =Tests: make test passes= or =Tests: blocked, see A-0nn=.
+5. Decision records made without Micah have the status
+   =accepted (autonomous, unreviewed)=, and are listed under "Review queue" below.
+   Micah can change any of them; a record that is changed is superseded by a new one,
+   as always.
+6. At each milestone an annotated tag =auto/NN-name= is made, so that
+   =git diff auto/02..auto/03= shows one stage of the work.
+7. Pictures: what the variants draw is looked at in off-screen snapshots
+   (=scripts/snapshot=), which use the real renderer and the real text engine. They
+   are the same pixels as a window's, without its chrome, so a layout or a colour
+   that is wrong shows in them. They cannot show how a real pointer or keyboard
+   behaves in a real window.
+
+* Finding the changes that rest on an assumption
+- =notes/assumptions.org= is the ledger: each assumption has an id, what was assumed,
+  why it could not be checked, how Micah can check it, and what to redo if it is false.
+- =scripts/assumption-impact.sh A-007= lists the commits whose messages name A-007,
+  the files they touched, and the later commits that touched those files (which may
+  have built on them without naming it). Revert or redo from the first of them.
+- =git log --grep='Assumes:.*A-007'= is the plain form.
+
+* What "finished" means for a variant
+- Its widgets are a library that the seven tasks use and that has its own tests.
+- All seven 7GUIs tasks run in it (the counter, the temperature converter, the
+  flight booker, the timer, CRUD, the circle drawer and cells), each with tests that
+  drive it with synthetic events and check its state, and a snapshot that has been
+  looked at.
+- It runs in a window (=make 7guis VARIANT=... TASK=...=).
+- The core's rules hold: nothing allocates per frame after warm-up, idle means asleep.
+- Its devlog entry says what was hard, what was not, and what it cost in lines.
+
+* Progress
+(Newest last. Each line is a commit or a tag.)
+
+* Review queue
+(Decision records made without Micah, newest last.)

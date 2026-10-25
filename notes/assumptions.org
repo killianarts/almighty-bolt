@@ -1,0 +1,24 @@
+#+TITLE: Assumptions made during the autonomous run
+#+DATE: 2026-10-25
+
+Each entry is something that was taken to be true because it could not be checked
+while Micah was away. Status is OPEN until Micah has checked it, then VERIFIED or
+FALSE. See =notes/autonomous-run.org= for how commits name them and
+=scripts/assumption-impact.sh= for finding what rests on one.
+
+Entry format:
+- *Statement.* What was assumed.
+- *Why not checked.* What stopped it being tested here.
+- *Check.* Exactly what Micah can run or look at to settle it.
+- *If false.* What to redo.
+
+* A-001 [OPEN] Snapshots show what a window shows
+- *Statement.* A variant drawn into an off-screen texture by =scripts/snapshot= has
+  the same pixels as the same variant in a window, apart from the window's own chrome,
+  at the same size and scale.
+- *Why not checked.* There is no way to look at a window from here, and the one run
+  that compared them (the Counter, 2026-10-25) was Micah's, by eye.
+- *Check.* Run =make 7guis VARIANT=retained TASK=counter= (or any other task) and
+  compare the window with =design/screenshots/= pictures when they exist.
+- *If false.* Every visual judgement made from a snapshot is suspect: re-look at each
+  task in a window.
