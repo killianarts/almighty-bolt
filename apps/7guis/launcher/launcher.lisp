@@ -88,12 +88,26 @@
   (finish-output))
 
 (defclass recording-mixin ()
-  ((recorder :initform nil :accessor mixin-recorder))
-  (:documentation "Notes the events for a replay script, before the variant handles them."))
+  ((recorder :initform nil :accessor mixin-recorder)
+   (path :initform nil :accessor mixin-path))
+  (:documentation "Notes the events for a replay script, before the variant handles them, and
+keeps the script in a file."))
+
+(defun saves-script-p (event)
+  "True for the events after which the script is written: a press or a release, a key, text.
+A window that closes ends the process from AppKit without returning to Lisp, so the script is
+written as the session goes and not when it ends; the moves and the wheel in between wait for
+the next of these."
+  (typecase event
+    (pointer-event (member (pointer-event-kind event) '(:down :up)))
+    (key-event t)
+    (t nil)))
 
 (defmethod handle-event :before ((variant recording-mixin) event)
   (when (mixin-recorder variant)
-    (record-event (mixin-recorder variant) variant event)))
+    (record-event (mixin-recorder variant) variant event)
+    (when (saves-script-p event)
+      (save-script (recorder-script (mixin-recorder variant)) (mixin-path variant)))))
 
 (defun with-mixins (variant &rest mixins)
   "VARIANT, changed into an instance of a subclass of its class that has the MIXINS."
@@ -120,7 +134,7 @@
 
 (defun run (variant task &key log smoke record)
   "Open the app of TASK in VARIANT (keywords) in a window, and run until it is closed. With
-RECORD, a pathname, the events are written to it as a replay script when the window closes."
+RECORD, a pathname, the events are written to it as a replay script as they come."
   (let ((app (or (find-app variant task)
                  (error "There is no ~(~a~) app for ~(~a~)." variant task)))
         (recorder nil))
@@ -135,14 +149,11 @@ RECORD, a pathname, the events are written to it as a replay script when the win
               recorder (make-recorder :header (list :variant variant :app task
                                                     :width (app-width app)
                                                     :height (app-height app)))
-              (mixin-recorder object) recorder)
-        (format t "~&~a: what you do is recorded to ~a when the window is closed.~%"
+              (mixin-recorder object) recorder
+              (mixin-path object) record)
+        (save-script (recorder-script recorder) record)
+        (format t "~&~a: what you do is recorded to ~a as you go (after each press, release and key).~%"
                 (app-title app) record)
         (finish-output))
-      (unwind-protect
-           (run-variant object :title (app-title app) :width (app-width app)
-                               :height (app-height app) :driver (and smoke #'smoke-check))
-        (when recorder
-          (save-script (recorder-script recorder) record)
-          (format t "~&Wrote ~a.~%" record)
-          (finish-output))))))
+      (run-variant object :title (app-title app) :width (app-width app)
+                          :height (app-height app) :driver (and smoke #'smoke-check)))))

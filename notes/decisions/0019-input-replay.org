@@ -60,9 +60,11 @@ control the variant does not show is an error. =script-with-checkpoints= and
 =freeze-checkpoints= make a golden script from a run. =recorder= notes the
 events a variant is given, with the time since the first, and writes a pointer
 or wheel event over a control with an id as a place in that control. The
-launcher takes =RECORD=path= to write a script when a window closes, and =make
-replay SCRIPT=path= plays one, in another variant with =VARIANT=, or freezes it
-with =FREEZE=path= after playing it twice.
+launcher takes =RECORD=path= to write a script as the session goes, after each
+press, release and key (closing the window ends the process from AppKit without
+returning to Lisp, so there is no end at which to write it), and =make replay
+SCRIPT=path= plays one, in another variant with =VARIANT=, or freezes it with
+=FREEZE=path= after playing it twice.
 
 * Consequences
 - Easier: one script drives every variant; a script can be edited by hand; the

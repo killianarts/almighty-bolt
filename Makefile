@@ -84,8 +84,8 @@ snapshots:
 
 # A 7GUIs task of a variant in a window: make 7guis VARIANT=retained TASK=counter
 # LOG=1 prints the presses, releases and keys that reach it and what is under the
-# pointer. RECORD=session.script writes what you do as a replay script when the window is
-# closed (make replay SCRIPT=session.script plays it back). 7guis-smoke opens it, draws,
+# pointer. RECORD=session.script writes what you do as a replay script, after each press,
+# release and key (make replay SCRIPT=session.script plays it back). 7guis-smoke opens it, draws,
 # waits and reports, with nobody at the window.
 7guis:
 	VARIANT=$(VARIANT) TASK=$(TASK) LOG=$(LOG) RECORD=$(RECORD) $(SBCL_APP) $(REGISTRY) --load apps/7guis/run.lisp
