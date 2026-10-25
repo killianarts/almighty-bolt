@@ -94,6 +94,18 @@ Entry format:
   wakeups with =top -l 3 -s 10 -pid <pid> -stats pid,command,idlew= (as for the other
   variants); scroll the CRUD list and the cells grid with the pointer still over them;
   Tab round the flight booker and the CRUD form.
+- *Evidence so far (2026-10-26, still OPEN).* Idle wakeups, from =top -l 3 -s 10 -pid <pid>
+  -stats pid,command,idlew= with the window open and the pointer not touched, three samples
+  of 10 s each (a trailing =+= is top's own mark; what it means was not looked up):
+  | App                                              | Samples 1, 2, 3 |
+  |--------------------------------------------------+-----------------|
+  | immediate app Micah had open (task not recorded) | 1, 2+, 3+       |
+  | retained Counter (baseline), started by Claude   | 0, 1+, 3+       |
+  | immediate Counter, started by Claude             | 1, 1, 1         |
+  An earlier immediate Counter run by Claude showed 0 in its last sample. All are 0 to 3 a
+  sample, and the retained variant, which does nothing when idle, shows the same, so the few
+  wakeups are the host's or the runtime's and not the immediate variant's. Not yet checked:
+  hover, press and the wheel in a window, and wakeups with the pointer moving over a box.
 - *If false.* Wakeups: look at the value =enqueue-event= returns for the events it is
   given (=ui.lisp=). A wheel that does nothing: the place in =wheel-event= may be in
   another coordinate system than the pointer's.
