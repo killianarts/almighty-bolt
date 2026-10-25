@@ -129,7 +129,7 @@
   (moves nil))
 
 (defstruct (ui (:constructor make-ui ()))
-  (boxes (make-array 128 :adjustable t :fill-pointer 0))
+  (boxes (make-array 128 :initial-element nil) :type simple-vector)
   (count 0 :type fixnum)
   (parent nil)
   (root nil)
@@ -184,9 +184,13 @@
   (let ((boxes (ui-boxes ui))
         (count (ui-count ui)))
     (when (>= count (length boxes))
-      (vector-push-extend (make-box) boxes))
+      (let ((bigger (make-array (* 2 (length boxes)) :initial-element nil)))
+        (replace bigger boxes)
+        (setf (ui-boxes ui) bigger
+              boxes bigger)))
     (incf (ui-count ui))
-    (aref boxes count)))
+    (or (svref boxes count)
+        (setf (svref boxes count) (make-box)))))
 
 (defun open-box (ui kind &key id)
   "Start a box of KIND inside the one that is open. Its key is made from its parent's and

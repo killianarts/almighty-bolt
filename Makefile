@@ -1,4 +1,4 @@
-.PHONY: deps shim test spike-a spike-b spike-c spike-d spike-e bench-metal bench-text bench-null bench-retained 7guis 7guis-smoke clean
+.PHONY: deps shim test spike-a spike-b spike-c spike-d spike-e bench-metal bench-text bench-null bench-retained bench-compare 7guis 7guis-smoke clean
 
 # ASDF looks only in this tree (project and vendored/), never in ~/common-lisp/.
 SBCL = sbcl --noinform --non-interactive --no-sysinit --no-userinit
@@ -73,6 +73,10 @@ bench-null:
 # What painting costs the retained variant, with and without the caches in its nodes.
 bench-retained:
 	$(SBCL) $(REGISTRY) --load variants/cl-retained/run-measure.lisp
+
+# What a frame costs in each of the three variants on the same screen.
+bench-compare:
+	$(SBCL) $(REGISTRY) --load bench/run.lisp
 
 # A 7GUIs task of a variant in a window: make 7guis VARIANT=retained TASK=counter
 # LOG=1 prints the presses, releases and keys that reach it and what is under the

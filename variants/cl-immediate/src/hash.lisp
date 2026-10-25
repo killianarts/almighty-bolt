@@ -23,13 +23,15 @@
     (setf h (ldb (byte 64 0) (* h 1099511628211)))
     (ldb (byte 62 0) (logxor h (ash h -29)))))
 
+(declaim (inline hash-of))
 (defun hash-of (object)
   "A fixnum for OBJECT: numbers and characters by value, strings by their characters, T and
-NIL as themselves, and anything else by SXHASH."
+NIL as themselves, and anything else by SXHASH. Inline, so that a call on a slot of a known
+type is the hash of that type and no dispatch."
   (typecase object
     (null 0)
     ((eql t) 1)
     (fixnum object)
-    (single-float (sxhash object))
-    (string (sxhash object))
+    (single-float #+sbcl (sb-kernel:single-float-bits object)
+                  #-sbcl (sxhash object))
     (t (sxhash object))))

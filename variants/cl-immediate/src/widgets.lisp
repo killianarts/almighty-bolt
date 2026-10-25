@@ -135,9 +135,13 @@
 (defun ui-font (context)
   (context-font context +font-name+ +font-size+))
 
-(defun hash-numbers (hash &rest numbers)
-  (dolist (number numbers hash)
-    (setf hash (mix hash (hash-of number)))))
+(defmacro hash-numbers (hash &rest numbers)
+  "HASH with each of NUMBERS folded into it, in order. A macro, so that it makes no list."
+  (let ((h (gensym "HASH")))
+    `(let ((,h ,hash))
+       ,@(loop :for number :in numbers
+               :collect `(setf ,h (mix ,h (hash-of ,number))))
+       ,h)))
 
 ;;; --- the look of a box from the pointer and keyboard ---
 
