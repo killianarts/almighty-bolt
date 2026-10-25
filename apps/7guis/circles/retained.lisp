@@ -1,11 +1,9 @@
 (defpackage #:almighty-bolt-7guis/circles/retained
   (:use #:cl)
-  (:import-from #:almighty-bolt-core
-                #:push-rect
-                #:push-rounded-rect
-                #:pack-color)
   (:import-from #:almighty-bolt-7guis/common/registry
                 #:register-app)
+  (:import-from #:almighty-bolt-7guis/circles/paint
+                #:paint-circles)
   (:import-from #:almighty-bolt-7guis/circles/model
                 #:make-drawing
                 #:drawing-circles
@@ -49,34 +47,19 @@
 ;;; change; and the dialog is a layer of the tree that is hidden until a circle is asked
 ;;; to be adjusted.
 
-(defparameter +canvas-color+ (pack-color 30 33 46))
-(defparameter +outline-color+ (pack-color 150 200 255))
-(defparameter +hot-color+ (pack-color 110 116 140))
-
 (defun make-circles ()
   (let ((drawing (make-drawing))
         ;; The circle under the pointer, which is the one that is grey, and the circle
         ;; being adjusted and the diameter the slider has given it so far.
         (hot nil) (adjusting nil) (preview 0)
         (undo nil) (redo nil) (canvas nil) (overlay nil) (diameter-slider nil))
-    (labels ((diameter-of (circle)
-               (if (eql (circle-id circle) adjusting) preview (circle-diameter circle)))
-             (refresh ()
+    (labels ((refresh ()
                (setf (node-enabled undo) (drawing-can-undo-p drawing)
                      (node-enabled redo) (drawing-can-redo-p drawing))
                (canvas-invalidate canvas))
              (paint (source context list x y width height)
                (declare (ignore source context))
-               (push-rect list x y width height +canvas-color+)
-               (dolist (circle (drawing-circles drawing))
-                 (let* ((d (float (diameter-of circle) 1f0))
-                        (r (/ d 2))
-                        (left (+ x (circle-x circle) (- r)))
-                        (top (+ y (circle-y circle) (- r))))
-                   (push-rounded-rect list left top d d r +outline-color+)
-                   (push-rounded-rect list (+ left 1.5f0) (+ top 1.5f0) (- d 3f0) (- d 3f0)
-                                      (- r 1.5f0)
-                                      (if (eql (circle-id circle) hot) +hot-color+ +canvas-color+)))))
+               (paint-circles list x y width height drawing hot adjusting preview))
              (hover (source x y)
                (declare (ignore source))
                (let ((circle (drawing-circle-at drawing x y)))

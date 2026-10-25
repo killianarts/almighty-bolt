@@ -67,3 +67,4 @@ the changes that rested on it can be found.
 - 0012 Keys and the editing of one line of text (A-002, A-003).
 - 0013 The 7GUIs apps: what is shared, and where they differ from the task.
 - 0014 Clipping in the display list (renderer scissor stretches).
+- 0015 The reactive variant: views over signals, on retained nodes.

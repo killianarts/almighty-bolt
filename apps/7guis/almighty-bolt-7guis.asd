@@ -5,13 +5,14 @@
   :maintainer "Micah Killian <micah@almightylisp.com>"
   :license "MIT"
   :serial t
+  :depends-on ("almighty-bolt-core")
   :components ((:module "common" :components ((:file "numbers") (:file "registry")))
                (:module "temperature" :components ((:file "model")))
                (:module "flight" :components ((:file "model")))
                (:module "timer" :components ((:file "model")))
                (:module "crud" :components ((:file "model")))
-               (:module "circles" :components ((:file "model")))
-               (:module "cells" :components ((:file "model") (:file "geometry"))))
+               (:module "circles" :components ((:file "model") (:file "paint")))
+               (:module "cells" :components ((:file "model") (:file "geometry") (:file "paint"))))
   :in-order-to ((test-op (test-op "almighty-bolt-7guis/tests"))))
 
 (defsystem "almighty-bolt-7guis/tests"

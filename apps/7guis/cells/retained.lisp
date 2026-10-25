@@ -29,6 +29,8 @@
                 #:+key-delete-forward+)
   (:import-from #:almighty-bolt-7guis/common/registry
                 #:register-app)
+  (:import-from #:almighty-bolt-7guis/cells/paint
+                #:paint-grid)
   (:import-from #:almighty-bolt-7guis/cells/model
                 #:+columns+
                 #:+rows+
@@ -72,19 +74,6 @@
 ;;; is one canvas widget that draws them and handles its own events; and two labels above
 ;;; it show the selected cell's name and what it holds. After each change the handlers
 ;;; update the labels and say that the canvas must draw again.
-
-(defparameter +background+ (pack-color 30 33 46))
-(defparameter +header-color+ (pack-color 48 53 74))
-(defparameter +cell-color+ (pack-color 38 42 58))
-(defparameter +edit-color+ (pack-color 20 22 32))
-(defparameter +text-color+ (pack-color 232 234 242))
-(defparameter +dim-color+ (pack-color 150 156 176))
-(defparameter +accent-color+ (pack-color 150 200 255))
-(defparameter +error-color+ (pack-color 255 140 140))
-(defparameter +selection-color+ (pack-color 72 104 200 160))
-(defparameter +caret-color+ (pack-color 240 242 250))
-
-(defconstant +padding+ 6)
 
 (defun make-cells ()
   (let ((sheet (make-sheet))
@@ -172,106 +161,10 @@
                           (when edited
                             (start-editing new))
                           edited))))))
-             (draw-text (context list font string x y width color &key right)
-               ;; The start of STRING that fits in WIDTH, at X, with its baseline at Y.
-               (let* ((end (context-index-at-x context font string width))
-                      (end (loop :while (and (plusp end)
-                                             (> (context-caret-x context font string end) width))
-                                 :do (decf end)
-                                 :finally (return end)))
-                      (shown (subseq string 0 end)))
-                 (context-push-text context list font shown
-                                    (if right
-                                        (+ x (- width (context-measure context font shown)))
-                                        x)
-                                    y color)))
              (paint (source context list x y width height)
                (declare (ignore source))
-               (let ((font (context-font context "Helvetica" 14)))
-                 (multiple-value-bind (text-width ascent descent) (context-measure context font "Hg")
-                   (declare (ignore text-width))
-                   (let ((baseline-offset (+ (/ (- +cell-height+ (+ ascent descent)) 2) ascent)))
-                     (push-rect list x y width height +background+)
-                     ;; The cells that show.
-                     (loop :for column :from first-column
-                             :below (min +columns+ (+ first-column +visible-columns+))
-                           :do (loop :for row :from first-row
-                                       :below (min +rows+ (+ first-row +visible-rows+))
-                                     :do (let ((left (+ x (cell-left column first-column)))
-                                               (top (+ y (cell-top row first-row)))
-                                               (selected (and (= column selected-column)
-                                                              (= row selected-row))))
-                                           (push-rect list (+ left 1) (+ top 1)
-                                                      (- +cell-width+ 1) (- +cell-height+ 1)
-                                                      (if (and selected editing)
-                                                          +edit-color+
-                                                          +cell-color+))
-                                           (unless (and selected editing)
-                                             (let ((display (sheet-display sheet column row)))
-                                               (when (plusp (length display))
-                                                 (let ((value (sheet-value sheet column row)))
-                                                   (draw-text context list font display
-                                                              (+ left +padding+)
-                                                              (+ top baseline-offset)
-                                                              (- +cell-width+ (* 2 +padding+))
-                                                              (cond ((keywordp value) +error-color+)
-                                                                    (t +text-color+))
-                                                              :right (numberp value))))))
-                                           (when selected
-                                             (let ((edge (if editing +accent-color+ +accent-color+)))
-                                               (push-rect list left top +cell-width+ 2 edge)
-                                               (push-rect list left (+ top +cell-height+ -2)
-                                                          +cell-width+ 2 edge)
-                                               (push-rect list left top 2 +cell-height+ edge)
-                                               (push-rect list (+ left +cell-width+ -2) top 2
-                                                          +cell-height+ edge)))
-                                           (when (and selected editing)
-                                             (let* ((string (text-state-string editing))
-                                                    (caret (text-state-caret editing))
-                                                    (text-left (+ left +padding+)))
-                                               (when (text-state-selection-p editing)
-                                                 (let ((a (context-caret-x context font string
-                                                                           (text-state-selection-start editing)))
-                                                       (b (context-caret-x context font string
-                                                                           (text-state-selection-end editing))))
-                                                   (push-rect list (+ text-left a) (+ top 3)
-                                                              (- b a) (- +cell-height+ 6)
-                                                              +selection-color+)))
-                                               (context-push-text context list font string text-left
-                                                                  (+ top baseline-offset) +text-color+)
-                                               (push-rect list
-                                                          (+ text-left (context-caret-x context font string caret))
-                                                          (+ top 4) 1.5f0 (- +cell-height+ 8)
-                                                          +caret-color+))))))
-                     ;; The headers, over the cells' edges.
-                     (push-rect list x y +header-width+ +header-height+ +header-color+)
-                     (loop :for column :from first-column
-                             :below (min +columns+ (+ first-column +visible-columns+))
-                           :do (let ((left (+ x (cell-left column first-column))))
-                                 (push-rect list (+ left 1) y (- +cell-width+ 1) +header-height+
-                                            +header-color+)
-                                 (let ((letter (column-name column)))
-                                   (context-push-text context list font letter
-                                                      (+ left (/ (- +cell-width+
-                                                                    (context-measure context font letter))
-                                                                 2))
-                                                      (+ y baseline-offset)
-                                                      (if (= column selected-column)
-                                                          +accent-color+
-                                                          +dim-color+)))))
-                     (loop :for row :from first-row
-                             :below (min +rows+ (+ first-row +visible-rows+))
-                           :do (let ((top (+ y (cell-top row first-row)))
-                                     (number (princ-to-string row)))
-                                 (push-rect list x (+ top 1) +header-width+ (- +cell-height+ 1)
-                                            +header-color+)
-                                 (context-push-text context list font number
-                                                    (+ x (- +header-width+ +padding+
-                                                            (context-measure context font number)))
-                                                    (+ top baseline-offset)
-                                                    (if (= row selected-row)
-                                                        +accent-color+
-                                                        +dim-color+)))))))))
+               (paint-grid context list x y width height sheet selected-column selected-row
+                           first-column first-row editing)))
       (setf name (label "A0" :id :cell-name)
             contents (label "" :id :formula)
             grid (canvas :id :grid :width +grid-width+ :height +grid-height+ :focusable t
