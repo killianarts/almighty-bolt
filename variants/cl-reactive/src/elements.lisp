@@ -9,6 +9,8 @@
                 #:view-props
                 #:view-children
                 #:view-prop)
+  (:import-from #:almighty-bolt-variant-retained/theme
+                #:+text-color+)
   (:import-from #:almighty-bolt-variant-retained/node
                 #:node-id
                 #:node-flex
@@ -261,10 +263,8 @@ false, having changed nothing, if it cannot be done (the node must be made again
         (:label
          (unless (string= (label-text node) (p :text))
            (setf (label-text node) (p :text)))
-         (when (and (p :color) (not (eql (p :color) (getf old :color))))
-           (setf (label-color node) (p :color)))
-         (when (and (null (p :color)) (getf old :color))
-           (return-from update-node nil)))
+         (unless (eql (p :color) (getf old :color))
+           (setf (label-color node) (or (p :color) +text-color+))))
         (:button
          (unless (string= (button-text node) (p :text))
            (setf (button-text node) (p :text))))

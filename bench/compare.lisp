@@ -33,6 +33,7 @@
 ;;; application that holds its data would, and skips what it can by comparison (0016).
 
 (defconstant +ink+ #xFF8040FF)
+(defconstant +plain+ #xE8EAF2FF)
 
 (defun row-text (i)
   (format nil "Row ~d: the quick brown fox jumps over the lazy dog" i))
@@ -55,7 +56,7 @@
             (lambda (what)
               (setf toggle (not toggle))
               (ecase what
-                (:color (setf (rw:label-color target) (if toggle +ink+ #xE8EAF2FF)))
+                (:color (setf (rw:label-color target) (if toggle +ink+ +plain+)))
                 (:text (setf (rw:label-text target) (if toggle other original))))))))
 
 (defun reactive-screen (rows)
@@ -63,7 +64,7 @@
          (original (row-text middle))
          (other (substitute #\X #\o original))
          (text (sig:make-signal original))
-         (color (sig:make-signal nil))
+         (color (sig:make-signal +plain+))
          (toggle nil))
     (values (reactive:make-reactive-variant
              (lambda ()
@@ -81,7 +82,7 @@
             (lambda (what)
               (setf toggle (not toggle))
               (ecase what
-                (:color (setf (sig:value color) (if toggle +ink+ nil)))
+                (:color (setf (sig:value color) (if toggle +ink+ +plain+)))
                 (:text (setf (sig:value text) (if toggle other original))))))))
 
 (defun immediate-screen (rows)
@@ -90,7 +91,7 @@
          (original (svref strings middle))
          (other (substitute #\X #\o original))
          (text original)
-         (color nil)
+         (color +plain+)
          (toggle nil))
     (values (immediate:make-immediate-variant
              (lambda ()
@@ -104,7 +105,7 @@
             (lambda (what)
               (setf toggle (not toggle))
               (ecase what
-                (:color (setf color (if toggle +ink+ nil)))
+                (:color (setf color (if toggle +ink+ +plain+)))
                 (:text (setf text (if toggle other original))))))))
 
 (defun time-frames (variant context list frames mutate)
