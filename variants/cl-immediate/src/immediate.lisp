@@ -45,6 +45,8 @@
                 #:ui-consumed
                 #:ui-rects
                 #:ui-id-rects
+                #:ui-rect-pool
+                #:ui-rect-count
                 #:ui-hits
                 #:ui-hit-count
                 #:ui-tab-pending
@@ -137,19 +139,29 @@ each folded with those of its children, which come later in the order the boxes 
 
 ;;; --- remembering where things are ---
 
+(defun next-rect (ui)
+  "A record for a place, from the pool."
+  (let ((pool (ui-rect-pool ui))
+        (index (ui-rect-count ui)))
+    (when (>= index (length pool))
+      (vector-push-extend (make-rect) pool))
+    (incf (ui-rect-count ui))
+    (aref pool index)))
+
 (defun remember-geometry (ui)
   "Note where each box that has an id or takes the pointer is in the window, and which of
 them take it, in the order they are drawn, for the next frame; and save every box's place."
   (clrhash (ui-rects ui))
   (clrhash (ui-id-rects ui))
-  (setf (ui-hit-count ui) 0)
+  (setf (ui-hit-count ui) 0
+        (ui-rect-count ui) 0)
   (let ((boxes (ui-boxes ui))
         (count (ui-count ui)))
     (labels ((walk (box x y)
                (let ((x (+ x (box-x box)))
                      (y (+ y (box-y box))))
                  (when (or (box-id box) (box-interactive box))
-                   (let ((rect (make-rect)))
+                   (let ((rect (next-rect ui)))
                      (setf (rect-x rect) x (rect-y rect) y
                            (rect-w rect) (box-w box) (rect-h rect) (box-h box))
                      (setf (gethash (box-key box) (ui-rects ui)) rect)

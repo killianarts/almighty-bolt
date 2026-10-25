@@ -85,8 +85,10 @@ Entry format:
   where the events say it is, in the window's points, which is where the last presented
   frame's boxes are; a wheel event carries the place of the pointer.
 - *Why not checked.* The tests call =handle-event= and =frame= with a fake context; no
-  window or trackpad here. The ones that would show it are the idle wakeups under =top=
-  and the hover looks.
+  trackpad here. =make 7guis-smoke VARIANT=immediate= opened each app in a window and saw one
+  frame drawn and none in the next 1.5 s (the timer draws at the display rate while it
+  runs, as intended), which is not the same as the wakeups under =top=. Not checked: those
+  wakeups, the hover and press looks, and the wheel in a window.
 - *Check.* =make 7guis VARIANT=immediate TASK=counter= (and the others): hover a button
   and press it (it must look hovered, then pressed); leave it still and look at the
   wakeups with =top -l 3 -s 10 -pid <pid> -stats pid,command,idlew= (as for the other

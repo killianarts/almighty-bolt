@@ -37,6 +37,8 @@
            #:ui-parent
            #:ui-count
            #:ui-boxes
+           #:ui-rect-pool
+           #:ui-rect-count
            #:ui-hot
            #:ui-active
            #:ui-focus
@@ -162,6 +164,10 @@
   ;; painted for it.
   (states (make-hash-table))
   (rects (make-hash-table))
+  ;; The records that RECTS and ID-RECTS refer to: the first RECT-COUNT of the pool, kept and
+  ;; reused from layout to layout.
+  (rect-pool (make-array 32 :adjustable t :fill-pointer 0))
+  (rect-count 0 :type fixnum)
   (id-rects (make-hash-table :test 'equal))
   (paint-cache (make-hash-table))
   ;; The boxes of the last presented frame that take the pointer, in the order drawn: the

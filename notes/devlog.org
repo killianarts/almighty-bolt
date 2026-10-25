@@ -1100,20 +1100,21 @@ Microseconds a frame and bytes consed a frame, mean of 200 frames, one run of
 =make bench-compare= (the bytes of the retained and reactive columns are zero or 328):
 | Rows | Frame            | Retained | Reactive | Immediate |
 |------+------------------+----------+----------+-----------|
-|   10 | nothing changes  |      2.6 |      2.7 |       4.3 |
-|   10 | one colour       |      4.7 |      5.0 |       9.1 |
-|   10 | one text         |      6.6 |      6.9 |      12.7 |
-|  100 | nothing changes  |     26.2 |     25.5 |      40.6 |
-|  100 | one colour       |     28.6 |     28.1 |      70.1 |
-|  100 | one text         |     46.9 |     46.3 |     105.5 |
-| 1000 | nothing changes  |    271.9 |    277.6 |     410.5 |
-| 1000 | one colour       |    282.9 |    273.5 |     713.0 |
-| 1000 | one text         |    458.2 |    455.4 |   1,052.4 |
+|   10 | nothing changes  |      2.6 |      2.6 |       4.3 |
+|   10 | one colour       |      4.6 |      4.9 |       9.1 |
+|   10 | one text         |      6.6 |      7.0 |      12.8 |
+|  100 | nothing changes  |     26.3 |     25.7 |      41.0 |
+|  100 | one colour       |     28.2 |     28.2 |      70.3 |
+|  100 | one text         |     46.5 |     46.4 |     105.6 |
+| 1000 | nothing changes  |    271.4 |    262.5 |     408.5 |
+| 1000 | one colour       |    266.7 |    258.8 |     697.6 |
+| 1000 | one text         |    442.7 |    435.5 |   1,043.5 |
 The reactive variant consed 328 bytes in a frame in which a signal changed (the
-description of one label) and nothing otherwise. The immediate variant consed nothing in
-frames that changed nothing or one colour and 48 KB (1000 rows) for a text change, which is
-laying out and measuring text again; the application's own consing is not in it, because
-its strings are made once.
+description of one label) and nothing otherwise. The retained and immediate variants
+consed nothing in any of the nine cells, so the core's rule that nothing allocates per
+frame after warm-up holds for the immediate variant's own work in these frames; the
+application's consing is not in it, because the strings of the rows are made once. The
+host's =context-font= and =context-measure= cons nothing either (10,000 calls each).
 ** What I learned
 - The immediate variant costs about 1.5 times the retained one with nothing changed, and
   2 to 3 times when something changed: it must run the function, make and hash about 3,000
@@ -1122,14 +1123,18 @@ its strings are made once.
   an append each. A retained tree already knows what changed. The comparison is what makes
   it as cheap as it is; without it every frame would pay the painting, about 3 ms at 1,000
   rows (the retained "no caches" column of 0011).
-- Two things in the first version of the library were found by measuring and not by the
+- Three things in the first version of the library were found by measuring and not by the
   tests: a =&rest= list made for every box (1.15 MB consed a frame at 1,000 rows, and
-  874 us), and a vector with a fill pointer for the boxes. With =hash-numbers= a macro,
-  =hash-of= inline and a simple vector, 874 us became 410 us and 1.15 MB nothing.
-- The acceptance tests found three defects the unit tests did not: a wheel event did not
-  move the pointer (so a scroll with the pointer still did nothing), a press on nothing did
-  not take the keyboard from a field, and a slider dragged under a label that shows its
-  value did not build the frame again.
+  874 us), a vector with a fill pointer for the boxes, and a fresh record for the place of
+  every box that takes the pointer each time the layout ran (48 KB in the text-change
+  frame at 1,000 rows, which I first put down to measuring text; the host's text calls
+  cons nothing). With =hash-numbers= a macro, =hash-of= inline, a simple vector and a pool
+  for the places, 874 us became 410 us and 1.15 MB nothing.
+- The acceptance tests found two defects the unit tests did not: a wheel event did not
+  move the pointer (so a scroll with the pointer still did nothing), and a press on nothing
+  did not take the keyboard from a field. A third, a slider dragged under a label that shows
+  its value not building the frame again, I found by reading the settle loop, and a test
+  of it was never written.
 - Layout: the three callbacks of 0010 were written once, over a vector of boxes, in 164
   lines, and no core-owned box tree was needed. That is one piece of evidence for H6 and
   not the layout spike.
