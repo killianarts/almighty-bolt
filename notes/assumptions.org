@@ -55,8 +55,14 @@ Entry format:
   event =in lines= with =dy= of 3.82 or -3.82, so a notch moves 3 or 4 rows (the 0.82 is
   carried to the next). 3.82 lines a notch is what macOS gives for that mouse and its
   scrolling-speed setting; the list does what the platform says. 0017 (points to lines) does
-  not apply to this mouse and has been tried only with made-up events. Not known: the
-  trackpad, whether the direction is the one wanted, and the grid.
+  not apply to this mouse. Micah says the list moves the way they expect.
+  The trackpad (same run, immediate CRUD, =LOG=1=) sends every event =in points=, whole
+  numbers of 1 to 5 an event, and a slow movement scrolls the list a row at a time, in the
+  direction expected: 0017 works for it. During vertical swipes many events also carry a
+  =dx= of +-1 or 2 points (finger drift). The CRUD list ignores =dx=; the cells grid reads it
+  and has no axis locking, so a long vertical swipe may move its columns a little (0.3 of a
+  column for 24 points). Not checked: the cells grid with the wheel or trackpad in any
+  variant, and the retained and reactive CRUD list.
 - *Check.* =make 7guis VARIANT=immediate TASK=crud LOG=1= (and cells): scroll with the wheel
   and the trackpad and read the printed deltas; a notch should move the list by as many rows
   as the printed lines, a trackpad by a row for each 24 points. The direction should be the
