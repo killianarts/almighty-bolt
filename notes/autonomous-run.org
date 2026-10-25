@@ -105,5 +105,8 @@ each variant). Nothing is pushed.
 Where the apps differ from the 7GUIs text, and are the same in all three variants (0013): a
 choice of two (radio-like) instead of a combo box; the circle's dialog opens on a
 right-click; the timer animates at the display's rate while it runs; no clipboard and no
-input methods. A focusable canvas (the cells grid) takes every key typed while it has the
-keyboard, so a Command key chord reaches the grid and not the app's menu.
+input methods.
+
+Where the immediate variant differs from the others: a focusable canvas (the cells grid)
+takes every key it is given, including ones the app does not use, where the retained and
+reactive canvases let the app say which it took. What no widget takes in a frame is dropped.
