@@ -1160,13 +1160,13 @@ Micah ran the apps in windows with =LOG=1= and answered the ledger. What came of
   software), which is right to follow. The trackpad sends points, which the lists read as
   rows before 0017 and now as 24 to a row. On the cells grid a calm swipe across moved the
   grid diagonally (=dy= about a fifth of =dx=), so a gesture is locked to its main axis now
-  (=core/src/wheel-lock.lisp=). The log of wheel events came from Micah's request to see what
-  the mouse sends, and it settled all of this in one run each.
+  (=core/src/wheel-lock.lisp=). The wheel events printed by =LOG=1= (added for this) settled
+  each of these in one run.
 - A bug in the cells grid, found by looking: while typing in a cell, text longer than the cell
   was drawn at the cell and covered by the cells drawn after it. The cell being typed in is
   now drawn on top, as wide as its text needs, and scrolls to keep the caret in view at the
   edge of the grid. The acceptance tests had never typed more than a cell holds.
-- What the checks showed about the checking: three of the new tests passed on the code they
-  were meant to test (the swipe tests, which read the cell relative to the screen, and a
-  mutation run showed it); they read the selected cell's name now. A test that cannot fail is
-  worth finding out by taking the fix out.
+- What the checks showed about the checking: two of the new tests (the swipe tests, six runs
+  over the three variants) passed with the fix taken out, because they read a cell relative
+  to the screen; they read the selected cell's name now. A test that cannot fail is worth
+  finding out by taking the fix out, which is how this was found.
