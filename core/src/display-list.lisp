@@ -7,6 +7,8 @@
            #:display-list-full
            #:display-list-full-capacity
            #:clear-display-list
+           #:replace-display-list
+           #:append-display-list
            #:+command-rect+
            #:+command-rounded-rect+
            #:+command-glyph+
@@ -89,6 +91,26 @@ the glyph atlas, and the colour is the colour of the text.")
   (setf (display-list-count display-list) 0)
   display-list)
 
+(defun replace-display-list (target source)
+  "Make TARGET hold the same commands as SOURCE and return TARGET. SOURCE is not
+changed. Copies the arrays and allocates nothing. Signals DISPLAY-LIST-FULL, before
+changing TARGET, if SOURCE holds more commands than TARGET has room for."
+  (declare (type display-list target source))
+  (let ((count (display-list-count source)))
+    (when (> count (display-list-capacity target))
+      (error 'display-list-full :capacity (display-list-capacity target)))
+    (unless (eq target source)
+      (replace (display-list-kinds target) (display-list-kinds source) :end2 count)
+      (replace (display-list-xs target) (display-list-xs source) :end2 count)
+      (replace (display-list-ys target) (display-list-ys source) :end2 count)
+      (replace (display-list-widths target) (display-list-widths source) :end2 count)
+      (replace (display-list-heights target) (display-list-heights source) :end2 count)
+      (replace (display-list-parameters target) (display-list-parameters source)
+               :end2 count)
+      (replace (display-list-colors target) (display-list-colors source) :end2 count)
+      (setf (display-list-count target) count))
+    target))
+
 (declaim (inline push-command))
 (defun push-command (display-list kind x y width height parameter color)
   (declare (type display-list display-list)
@@ -120,6 +142,40 @@ the glyph atlas, and the colour is the colour of the text.")
   "Append the glyph at ATLAS-INDEX in the glyph atlas, with its bitmap's top left
 at X, Y and its size WIDTH by HEIGHT (all in points). Returns its index."
   (push-command display-list +command-glyph+ x y width height atlas-index color))
+
+(defun append-display-list (target source &optional (dx 0f0) (dy 0f0))
+  "Append the commands of SOURCE to TARGET, each moved DX across and DY down, and return
+TARGET. SOURCE is not changed. Copies the arrays and allocates nothing. Signals
+DISPLAY-LIST-FULL, before changing TARGET, if TARGET has not room for all of them.
+SOURCE may be TARGET, which doubles it."
+  (declare (type display-list target source)
+           (type single-float dx dy)
+           (optimize speed))
+  (let ((count (display-list-count source))
+        (start (display-list-count target)))
+    (declare (type fixnum count start))
+    (when (> (+ start count) (display-list-capacity target))
+      (error 'display-list-full :capacity (display-list-capacity target)))
+    (replace (display-list-kinds target) (display-list-kinds source)
+             :start1 start :end2 count)
+    (replace (display-list-widths target) (display-list-widths source)
+             :start1 start :end2 count)
+    (replace (display-list-heights target) (display-list-heights source)
+             :start1 start :end2 count)
+    (replace (display-list-parameters target) (display-list-parameters source)
+             :start1 start :end2 count)
+    (replace (display-list-colors target) (display-list-colors source)
+             :start1 start :end2 count)
+    ;; Only the positions change on the way.
+    (let ((target-xs (display-list-xs target))
+          (source-xs (display-list-xs source))
+          (target-ys (display-list-ys target))
+          (source-ys (display-list-ys source)))
+      (dotimes (i count)
+        (setf (aref target-xs (+ start i)) (+ (aref source-xs i) dx)
+              (aref target-ys (+ start i)) (+ (aref source-ys i) dy))))
+    (setf (display-list-count target) (+ start count))
+    target))
 
 (defmacro define-command-accessor (name array-accessor)
   `(progn

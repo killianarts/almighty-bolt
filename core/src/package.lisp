@@ -1,8 +1,8 @@
 ;;;; The public face of the core: the seams a variant and a host share, gathered in one
-;;;; package. It re-exports the portable modules (clock, frame ring, events and
-;;;; display list) and is never imported by them. The platform, text and renderer
-;;;; modules stay under their own packages until the variant contract settles what a
-;;;; variant may reach.
+;;;; package. It re-exports the portable modules (clock, frame ring, events, display
+;;;; list, the variant contract and layout) and is never imported by them. A variant imports
+;;;; only this package; the platform, text and renderer modules stay under their own
+;;;; packages (decision record 0009).
 
 (defpackage #:almighty-bolt-core
   (:use #:cl)
@@ -32,6 +32,11 @@
                 #:frame-bytes-consed-before
                 #:frame-bytes-consed-after
                 #:frame-bytes-consed
+                #:frame-build-ns
+                #:frame-drawable-wait-ns
+                #:frame-encode-ns
+                #:frame-builds
+                #:frame-capped-p
                 #:map-frames)
   (:import-from #:almighty-bolt-core/event
                 #:event
@@ -92,6 +97,8 @@
                 #:display-list-full
                 #:display-list-full-capacity
                 #:clear-display-list
+                #:replace-display-list
+                #:append-display-list
                 #:+command-rect+
                 #:+command-rounded-rect+
                 #:+command-glyph+
@@ -108,6 +115,58 @@
                 #:display-list-radius
                 #:display-list-color
                 #:display-list-hash)
+  (:import-from #:almighty-bolt-core/variant
+                #:variant
+                #:handle-event
+                #:frame
+                #:hit-target
+                #:lookup-target
+                #:accessibility-tree
+                #:context
+                #:make-context
+                #:context-width
+                #:context-height
+                #:context-scale
+                #:context-frame-number
+                #:context-build-number
+                #:context-frame-requested
+                #:context-requester
+                #:context-now-ns
+                #:request-frame
+                #:take-frame-request
+                #:deliver-event
+                #:no-text-support
+                #:no-text-support-operation
+                #:context-font
+                #:context-measure
+                #:context-break-lines
+                #:context-caret-x
+                #:context-index-at-x
+                #:context-caret-rect
+                #:context-push-text)
+  (:import-from #:almighty-bolt-core/settle
+                #:+max-builds+
+                #:settle-frame
+                #:settle-cap-reached
+                #:settle-cap-reached-frame-number)
+  (:import-from #:almighty-bolt-core/layout/constraints
+                #:+unbounded+
+                #:unbounded-p
+                #:valid-constraints-p
+                #:constrain
+                #:constrain-size
+                #:loosen-constraints
+                #:tighten-constraints
+                #:deflate-constraints)
+  (:import-from #:almighty-bolt-core/layout/box
+                #:layout-padding
+                #:layout-sized
+                #:layout-align)
+  (:import-from #:almighty-bolt-core/layout/flex
+                #:layout-flex
+                #:with-layout-scratch
+                #:unbounded-flex
+                #:unbounded-flex-axis)
   (:export
            #:nanoseconds
            #:now-ns
@@ -133,6 +192,11 @@
            #:frame-bytes-consed-before
            #:frame-bytes-consed-after
            #:frame-bytes-consed
+           #:frame-build-ns
+           #:frame-drawable-wait-ns
+           #:frame-encode-ns
+           #:frame-builds
+           #:frame-capped-p
            #:map-frames
            #:event
            #:event-timestamp
@@ -191,6 +255,8 @@
            #:display-list-full
            #:display-list-full-capacity
            #:clear-display-list
+           #:replace-display-list
+           #:append-display-list
            #:+command-rect+
            #:+command-rounded-rect+
            #:+command-glyph+
@@ -206,6 +272,53 @@
            #:display-list-parameter
            #:display-list-radius
            #:display-list-color
-           #:display-list-hash))
+           #:display-list-hash
+           #:variant
+           #:handle-event
+           #:frame
+           #:hit-target
+           #:lookup-target
+           #:accessibility-tree
+           #:context
+           #:make-context
+           #:context-width
+           #:context-height
+           #:context-scale
+           #:context-frame-number
+           #:context-build-number
+           #:context-frame-requested
+           #:context-requester
+           #:context-now-ns
+           #:request-frame
+           #:take-frame-request
+           #:deliver-event
+           #:no-text-support
+           #:no-text-support-operation
+           #:context-font
+           #:context-measure
+           #:context-break-lines
+           #:context-caret-x
+           #:context-index-at-x
+           #:context-caret-rect
+           #:context-push-text
+           #:+max-builds+
+           #:settle-frame
+           #:settle-cap-reached
+           #:settle-cap-reached-frame-number
+           #:+unbounded+
+           #:unbounded-p
+           #:valid-constraints-p
+           #:constrain
+           #:constrain-size
+           #:loosen-constraints
+           #:tighten-constraints
+           #:deflate-constraints
+           #:layout-padding
+           #:layout-sized
+           #:layout-align
+           #:layout-flex
+           #:with-layout-scratch
+           #:unbounded-flex
+           #:unbounded-flex-axis))
 
 (in-package #:almighty-bolt-core)

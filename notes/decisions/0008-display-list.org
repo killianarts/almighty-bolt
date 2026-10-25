@@ -1,0 +1,84 @@
+#+TITLE: 0008 — Display list
+#+DATE: 2026-10-25
+- Status :: accepted
+
+* Context
+The display list is the boundary between a variant and a renderer: a variant
+appends drawing commands to it, and each renderer (Metal now, Direct3D 11 and
+Vulkan later) reads them. The charter's rules for the core say anything a
+variant needs beyond the variant contract is changed through a decision record,
+and the shape of the display list is part of that contract. The Phase 1 status
+entry in the devlog left two questions about it open, and a third that looks
+like one of them but is not:
+1. What numbers does a command hold: single floats or fixed point?
+2. Is text one command per glyph, or one per run of glyphs? The charter's list
+   of commands says "glyph run"; the code has one command per glyph.
+3. Are layout numbers (the sizes and positions a variant computes before it
+   writes commands) floats or fixed point? This is the layout spike's question
+   (H6, [[file:0004-layout.org][0004]]), not the display list's.
+
+* Options
+For the numbers in a command:
+1. Single floats.
+2. Fixed point (integers in a fraction of a point).
+
+For text:
+1. One command per glyph.
+2. One command per glyph run.
+
+* Evidence
+Devlog entries of 2026-10-24 and the code in =core/src/display-list.lisp=.
+- Pure-Lisp seams: building a display list and recording a frame allocated
+  nothing over 2 million commands, because a typed array of single floats is a
+  block of raw numbers. The only allocation found was in hashing, and folding the
+  hash to 62 bits (a fixnum) removed it.
+- Spike C: the renderer copies each command into a 32-byte record of floats and
+  integers and draws all of them in one instanced draw. A command in the list
+  takes 25 bytes (one byte of kind, five floats, one packed colour). The shader
+  takes floats, so the copy needs no conversion.
+- Spike D: making a glyph command for a glyph already in the atlas takes 47 ns
+  and allocates nothing. A frame of 97, 969 and 4,841 glyphs encodes and draws in
+  12, 17 and 32 us, and takes the GPU 44, 34 and 23 us. Metrics and positions
+  are single floats, which SBCL keeps unboxed, so measuring allocates nothing.
+- Nothing has been measured on fixed point, and nothing has been tested across
+  machines. The replay check hashes the exact bits of every field, so two
+  frames match only if the variant computes bit-identical floats. That holds on
+  one machine and one Lisp implementation; whether it holds across CPUs and Lisp
+  implementations is untested.
+- Not measured: a text-heavy screen. The largest frame above has 4,841 glyphs,
+  which at 47 ns each is about 0.23 ms of command making (arithmetic, not a
+  measurement).
+
+* Decision
+The display list holds single floats, in points from the top left, and a line of
+text becomes one command per glyph. Layout numbers are not decided here.
+
+Also written down, as the code has them:
+- A command has a kind, a rectangle (x, y, width, height), a packed 32-bit RGBA
+  colour with red in the high byte, and one kind-specific number, the parameter:
+  a corner radius for a rounded rectangle, an atlas index for a glyph.
+- The kinds so far are a filled rectangle, a filled rounded rectangle and a glyph.
+- The list is preallocated and reused every frame. Its capacity is fixed when it
+  is made (65,536 commands by default), and adding one beyond it is an error.
+- The replay hash covers the exact bits of every field and is a fixnum.
+
+Not decided yet: borders, shadows, lines and paths, images, clips, transforms,
+and the damage rectangle. Each is added when a variant or an app needs it, and
+the charter's list of commands stands as the plan for them.
+
+* Consequences
+- Easier: the renderer copies the numbers it is given; building a list
+  allocates nothing; the one instanced draw handles shapes and glyphs together;
+  a command for each glyph lets the hash, and later damage tracking, see single
+  glyphs.
+- Harder: a text-heavy frame is many commands, 25 bytes each in the list and 32
+  in the instance buffer, and a frame of more than 65,536 shapes and glyphs is an
+  error unless the capacity is raised. Replay equality depends on bit-identical
+  float arithmetic.
+- Gives up: exact integer coordinates, and the charter's "glyph run" command,
+  which the charter now names as a glyph.
+- Revisit if: replay hashes differ between machines or Lisp implementations
+  (then compare quantised values, or move the list to fixed point); or a
+  text-heavy stress app spends a visible share of its frame making glyph commands
+  (about 20,000 glyphs a frame would be roughly 1 ms at 47 ns each, again
+  arithmetic), when a command for a run becomes worth building.

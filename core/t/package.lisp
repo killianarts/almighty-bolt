@@ -11,7 +11,12 @@
   '(:almighty-bolt-core/clock
     :almighty-bolt-core/ring
     :almighty-bolt-core/event
-    :almighty-bolt-core/display-list))
+    :almighty-bolt-core/display-list
+    :almighty-bolt-core/variant
+    :almighty-bolt-core/settle
+    :almighty-bolt-core/layout/constraints
+    :almighty-bolt-core/layout/box
+    :almighty-bolt-core/layout/flex))
 
 (defun external-symbols (package)
   (let ((symbols '()))

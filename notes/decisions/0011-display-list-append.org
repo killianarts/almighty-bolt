@@ -1,0 +1,90 @@
+#+TITLE: 0011 — Appending one display list to another
+#+DATE: 2026-10-25
+- Status :: proposed
+
+* Context
+The retained variant keeps what a node painted, so that a node that has not
+changed is not painted again. Its commands are kept in a display list of the
+node's own, relative to the node, and each frame they are copied into the
+frame's list, moved to where the node is now. The host clears the frame's list
+before each build (0009), so the copy happens every frame, and its cost is the
+floor of a retained frame. The display list has one operation to copy a list
+whole (=replace-display-list=, added under 0009), and nothing that moves or
+appends. Does the copy belong in the core?
+
+This record stays /proposed/ until it is accepted. The operation is already in
+=core/src/display-list.lisp=, as =replace-display-list= was under 0009, so that
+the numbers below are of the real thing.
+
+* Options
+1. The variant copies command by command with the core's accessors and its
+   =push-rect=, =push-rounded-rect= and =push-glyph=.
+2. The core offers =append-display-list=, which copies the arrays and adds the
+   move to the positions.
+3. A command that starts a group of commands drawn relative to a point, which
+   the renderer applies, so that a node's list is referred to and never copied.
+
+* Evidence
+- Measured on SBCL 2.6.3, arm64, 2026-10-25 (=make bench-retained=): the
+  retained variant's frame with the real text engine and glyph atlas, on a
+  column of rows each a line of text and a button, one colour changed a frame.
+  The frame is the build phase: layout, painting and the settle loop. The
+  figures are microseconds a frame; Copy is copying the finished list, which is
+  all the null variant does.
+
+  | Rows | Commands | No caches | Option 1 | Option 2 |  Copy |
+  |------+----------+-----------+----------+----------+-------|
+  |   10 |      431 |      29.6 |     12.9 |      4.6 |   0.9 |
+  |  100 |    4,391 |     313.5 |    100.9 |     28.7 |   8.2 |
+  | 1000 |   44,891 |   2,840.9 |  1,198.4 |    265.6 |  83.8 |
+
+  All three columns come from one run of =make bench-retained=, which replaces
+  the core's operation with the command-at-a-time copy for the middle one.
+  Painting from nothing costs about 63 ns a command, option 1 about 27 ns and
+  option 2 about 6 ns, which includes walking the tree (about 4,000 nodes in the
+  last row). The copy of a finished list is 1.9 ns a command. With nothing
+  changed the frame costs the same as with a colour changed, to within a few
+  microseconds; a text change adds laying out the tree again (about 160 us in
+  the last row). No frame allocated in any of them.
+- Option 2 needs a core operation of about thirty lines, with tests: that it
+  moves every kind of command, appends after what is there, signals the
+  full-list error before changing anything, can append a list to itself, and
+  allocates nothing.
+- Option 3 is what a retained renderer with layers does, and it would take the
+  copy out of the frame altogether. It changes the command set of 0008 (a
+  command that opens a group, and one that closes it), the renderer, the hash
+  that replay uses, and every consumer of the list. Nothing here needs it yet.
+- Moving text has a catch. The text drawing puts each glyph on a whole device
+  pixel, from the glyph's position in the window, so a list that holds text and
+  is moved by a part of a pixel comes out on different pixels from the same text
+  painted where it ends up. The first version of the retained variant's caches
+  did this, and with the real text engine its output hashed differently from
+  painting from nothing (the fake text of the other tests has whole-number
+  positions and did not show it). The variant now paints a node that can be
+  cached at the nearest whole pixel, with or without a cache, and the two agree.
+- Not measured: option 2 on another implementation, and a real window's frame,
+  in which the build is a small part (the null variant's whole frame is 130 to
+  155 us of the core's own cost).
+
+* Decision
+Option 2. =append-display-list (target source &optional dx dy)= appends the
+commands of SOURCE to TARGET, each moved DX across and DY down, returns TARGET,
+allocates nothing, and signals =display-list-full=, before it changes TARGET, if
+the commands do not fit. It is exported by =almighty-bolt-core/display-list= and
+the umbrella package. The retained variant uses it to replay what a node kept.
+
+* Consequences
+- Easier: a node's painted commands are kept and replayed at a tenth of the
+  cost of painting them again, with the copy written once, with its tests, in
+  the core. Any other variant that keeps commands (the reactive one, and the
+  immediate one with a cache) gets the same operation.
+- Harder: the display list's interface has a second operation to keep in step
+  with its fields, as =replace-display-list= and the hash are. A new field means
+  changing all three. A caller that moves a list with text in it must move it by
+  whole pixels at the glyph atlas's scale, or the glyphs are not on the pixels
+  they were drawn for.
+- Gives up: nothing now. If the copy is ever too much, option 3 is still open,
+  and this operation is what it would replace.
+- To check before accepting: that an operation on the display list belongs in
+  the core and not in the variant, which is the question the variant-side
+  numbers answer: it is four to five times slower there.

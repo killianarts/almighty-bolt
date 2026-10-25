@@ -464,3 +464,544 @@ warnings. Decision records 0006 (source layout) and 0007 (AppKit access).
 - =vendored/= (44 MB, mostly lisp-unit2 and its dependencies) is not committed,
   as in almighty-toki. =make deps= clones cl-nextstep at the commit Spike A was
   measured with, applies the input patch, and runs vend for the rest.
+
+* 2026-10-25 — Spike B from a terminal of Micah's own
+** Goal
+See what an agent-launched process cannot: keyboard focus and scale-change
+events, and the numbers in a window that is on screen and in front. Two runs of
+=make spike-b= by Micah. In the second the window was dragged larger and smaller
+while the script ran.
+** What I measured
+- Focus: the window reported one focus event, and the application was active
+  with the window key. First time seen. Scale-change events: none (0 in both
+  runs; the scale stayed 2.0, and a change needs a second display or a resolution
+  change).
+- Allocation: 0 bytes in the draw path over every draw the ring holds (4096
+  slots; about 400 draws in the second run). That includes the draws the
+  live resize caused. The whole-run figure of 65,728 bytes is one region of
+  =get-bytes-consed=, so it says "under 64 KB", no more.
+- Time in the draw callback: 11,759 us mean (20,356 us max) in the first run and
+  624 us mean (3,246 us max) in the second, 19 times apart. The runs from
+  windows I launched gave 0.22 to 0.30 ms. Request to draw: 16.67 ms and
+  16.66 ms mean, a refresh in both.
+- Resize: 271 reshape callbacks while the window was dragged, and 102 draws in
+  the script's "2 s of stillness", because the drag happened then. That check is
+  void for the second run; the first run, untouched, drew 0 times.
+- Input: the pointer position logged after the scripted events was
+  (118.88, 165.07), so real pointer motion reaches Lisp, with fractional
+  coordinates.
+** What I learned
+- The draw callback time is not a stable number. Identical code gave 19 times
+  different means in two runs in front. The callback asks the view for its
+  drawable, and that call can block until the display has one free; I suspect
+  that wait; the follow-up below times it. No callback time should be quoted as
+  the core's cost until the wait is taken out.
+- Live resize draws without our asking. AppKit calls the view's draw for a
+  resized view even though the view is paused, so the variant contract has to
+  count a resize as a reason for a frame, not as a violation of "frames only on
+  request". I have not confirmed that AppKit, rather than our code, is the
+  caller.
+- This settles the focus part of the Platform bullet in the Phase 1 status entry
+  above. Scale changes are still unobserved.
+** Follow-up: the request for the drawable, timed apart
+Spike B now times the request for the drawable (=currentRenderPassDescriptor=
+and =currentDrawable=) apart from encoding and committing, and prints both. Two
+runs from my own shell, windows I launched:
+- Run 1: callback 192 us mean. Drawable 81 us mean, over 1 ms in 2 of 302 draws.
+  Encoding and committing 110 us mean.
+- Run 2: callback 5,350 us mean. Drawable 5,253 us mean, over 1 ms in 153 of 302
+  draws. Encoding and committing 95 us mean.
+Encoding and committing stayed near 100 us; all of the spread is in the request
+for the drawable. So the callback's variable time is the wait for the OS to hand
+over something to draw into, and not work the core does. Why the wait is
+sometimes there and sometimes not, I do not know. The draw path still allocated
+0 bytes with the timers in. Still to do: the same split on the renderer path
+(Spikes C to E), and the =null= variant reports this wait apart from its own work.
+** Follow-up: three runs in Micah's terminal with the timers
+(A fourth block in the paste was the earlier run again, with no timer lines.)
+| Run | Callback (us) | Drawable (us) | Draws over 1 ms | Encode and commit (us) |
+|-----+---------------+---------------+-----------------+------------------------|
+| 1   |         1,622 |         1,471 |       248 of 302 |                    149 |
+| 2   |           247 |            99 |         2 of 302 |                    145 |
+| 3   |           196 |            84 |         2 of 302 |                    110 |
+- Encoding and committing is 110 to 149 us in these runs and 95 to 110 us in
+  mine: steady. The request for the drawable is the part that moves, from 84 us
+  to 5,253 us, and in the slow runs most draws wait (248 of 302; 153 of 302).
+- The fast runs all show 2 draws over 1 ms, and the encode step 1. That looks
+  like the first frames warming up; the statistics do not say which draws they
+  were.
+- Every timed run drew 0 times in the 2 s of stillness. Micah's last two runs had
+  the mouse moving in the window and were both fast; the hands-off run was slow
+  (248 of 302). My two runs (I do not know where the pointer was) were one fast
+  and one slow. So hands-off: two slow, one fast; mouse moving: two fast. That
+  suggests the display or the window server idles a window nothing touches, but
+  five runs cannot say, and I have not tested it.
+- The earlier 11,759 us mean in front was very likely the slow mode at its worst.
+  I have no timing of its parts, so that is a reading, not a measurement.
+- So for this spike the core's own cost is the encode step, about 0.1 to 0.15 ms
+  for a clear. The drawable wait belongs to the OS and the display, and varies
+  between runs for a reason I have not found.
+
+* 2026-10-25 — The variant contract, step 1: the portable part and the settle loop
+** Goal
+Turn the portable half of decision 0009 (proposed) into code: the generic
+functions, the context, requesting frames, delivering events, the text
+operations a host supplies, and the loop that builds a frame until it settles.
+Test it with no window, no GPU and a virtual clock.
+** What I did
+- Wrote =core/src/variant.lisp= (the five generic functions with their defaults,
+  the =variant= base class, the =context= structure, =request-frame=,
+  =take-frame-request=, =deliver-event=, and seven text operations on the context
+  that signal =no-text-support= until a host supplies them) and
+  =core/src/settle.lisp= (=settle-frame=, a cap of three builds, and a
+  =settle-cap-reached= warning that carries the frame number).
+- Registered both in the system and the umbrella package, and added them to the
+  umbrella test's list of modules. The new tests are =t/variant.lisp= (15 tests)
+  and =t/settle.lisp= (9 tests).
+- Not done yet: the ring's phase fields, the display-list copy, the macOS host
+  and the =null= variant (steps 2 to 4).
+** What I measured
+- Delivering 5,000,000 events through the generic function =handle-event=, each
+  followed by a frame request, consed 0 bytes after warm-up.
+- Settling 1,000,000 frames of a variant that takes two builds a frame and
+  appends 20 commands a build (2,000,000 calls of the generic function =frame=)
+  consed 0 bytes, at about 270 ns a build.
+- The whole suite passes: 24 new tests, none failing, no compiler warnings.
+** What I learned
+- Calling =frame= and =handle-event= through generic functions costs nothing in
+  allocation on SBCL, so the contract stays generic functions and not a
+  structure of functions. This was one of the checks 0009 listed. Other Lisp
+  implementations are not measured.
+- The default requester makes "many requests before a frame make one frame"
+  true by being a flag; the host's requester will replace it. What a host does
+  when the request comes from the main thread inside a frame is step 3.
+- The portable part needed no change to 0009's text. The text operations are
+  where I expect the first variants to ask for changes.
+** Next
+Step 2: the ring gains phase fields (build, drawable wait, encode, builds, cap
+hit) and the display list gains an allocation-free copy.
+
+* 2026-10-25 — The variant contract, step 2: ring phases and a display-list copy
+** Goal
+Give the frame ring room for the phases 0009 wants timed apart, and give the
+display list an allocation-free copy, so that the =null= variant can replay a
+fixed list and report what a frame cost.
+** What I did
+- =core/src/ring.lisp=: a record grows from four words to eight. The new words
+  hold the build time, the drawable wait, the encode time, and the build count
+  with a flag for hitting the settle cap (they share a word). =record-frame= takes
+  the new values as optional arguments, so existing callers are unchanged and
+  read the phases as zero. New readers: =frame-build-ns=,
+  =frame-drawable-wait-ns=, =frame-encode-ns=, =frame-builds=, =frame-capped-p=.
+  =map-frames= still gives the first four words.
+- =core/src/display-list.lisp=: =replace-display-list= copies every field of
+  every command from one list into another and sets the count. It signals
+  =display-list-full= before changing anything if the source does not fit, and
+  does nothing for a list copied onto itself.
+- Both are re-exported by the umbrella package. 12 new tests: 5 for the ring (the
+  phases, their absence, the count and the flag not disturbing each other,
+  overwriting, no allocation) and 7 for the copy.
+** What I measured
+- Recording a frame with all its phases: about 4 ns, 0 bytes.
+- Copying a display list: 0.20 us for 100 commands, 1.93 us for 1,000 and 9.40 us
+  for 5,000, which is about 1.9 ns a command (25 bytes a command, so about
+  13 GB/s), 0 bytes. A 4,096-record ring is now 256 KB.
+** What I learned
+- The copy is cheap enough that the =null= variant's own cost will not hide the
+  core's: a text-heavy frame of 5,000 glyphs costs it 9 us, against 32 us for
+  the renderer to encode and draw the same frame (Spike D).
+- The name =copy-display-list= was taken by the structure's own copier, so the
+  operation is called =replace-display-list=, after =replace=.
+** Next
+Step 3: the macOS host, which owns the window, the view and the renderer, calls
+=settle-frame= from the draw callback, times the phases into the ring, supplies
+the text operations, and decides what =request-frame= does on the main thread.
+
+* 2026-10-25 — The variant contract, steps 3 and 4: the macOS host and the null variant
+** Goal
+Run the contract in a window: a host that owns the window, the view and the
+renderer and draws a frame whenever the view draws, and the =null= baseline
+variant that replays a fixed list, so that the core's own cost can be read off.
+** What I did
+- =core/src/platform/macos/host.lisp=. =make-host= makes the renderer, display
+  list, ring and a context whose text operations are answered by Core Text and the
+  glyph atlas (fonts are kept by name and size, so the same font is the same
+  object). =run-frame= is the frame sequence of 0009: size and scale into the
+  context, =settle-frame=, wait for the last frame and get the drawable, encode and
+  present, then one ring record with the phases. =run-variant= opens the window and
+  wires its callbacks to the host, with an optional driver thread.
+- =request-frame= from a variant while a frame is being made sets a flag, and the
+  host asks the view to draw once the frame is presented; at other times it asks at
+  once. A mutex guards the flag and the "drawing" state so that a request from
+  another thread as a frame ends is not lost. The wait for the previous frame's
+  GPU work is counted with the wait for the drawable.
+- =variants/null/= (its own system, =almighty-bolt-variant-null=): the variant
+  (it needs only the umbrella package; it builds its list from the first frame's
+  size through the context, then copies it), =measure.lisp= (the window run and
+  its report) and =make bench-null=. =make test= now runs both systems.
+- Tests: 13 for the host (headless, into an off-screen texture) and 6 for the null
+  variant.
+** What I measured
+- Without a window, 20,000 frames of two builds each (50 shapes and a 12-glyph
+  line a build): 0 bytes consed, about 6 us to build and 13 us to encode a frame.
+  (The wait there, 343 us, is the GPU finishing the last frame in a loop that
+  paces nothing.)
+- In a window, from a shell the agent started, 300 requested frames: all drawn,
+  16.6 ms from request to draw, nothing drawn in 2 s of stillness, 0 bytes consed.
+  Mean per frame: build 14 us, wait 44 us (1 frame of 300 over 1 ms), encode
+  122 us; the core's own cost is about 136 us. 221 commands, 264 us of GPU time.
+- A request made from inside a draw, after the frame is presented, was honoured:
+  101 frames asked for in a chain were drawn in 1.67 s.
+** What I learned
+- The check 0009 listed about =setNeedsDisplay:= inside a draw callback came out
+  well here. It is one run in a window nobody was using; the wait varied between
+  runs in Spike B, so Micah's own terminal is the run that matters.
+- The copy of 221 commands should take about 0.4 us (1.9 ns a command), yet the
+  build phase averaged 14 us. The rest is the host's work inside that phase (the
+  clock, the mutex, the context, =get-bytes-consed=, clearing the list, the generic
+  call). I have not split it further. It is core cost, and it shows up in the
+  baseline, which is what the baseline is for.
+- Nothing in the contract needed to change to run the null variant. The text
+  operations were exercised by building its scene through the context.
+** Next
+Micah runs =make bench-null= from a terminal of Micah's own, a few times, once moving the
+mouse, and reads 0009. Then the charter's wording follows the accepted record.
+** Follow-up: the wake function, and a second run
+- A review of the host found that asking for the next frame at the end of an
+  animating frame went through =request-draw=, which makes a closure to hand to the
+  main thread on every call. The ring records the frame before that call, and the
+  bench summed allocation only over frames that did not animate, so neither could
+  have seen it. The host now has a =wake= function, made once in =run-variant=,
+  that sends =setNeedsDisplay:= directly. It is used on the main thread, whether
+  at the end of a frame or in answer to an event. =request-draw= is left for
+  requests from other threads. Two tests count wakes and allocation over 5,000
+  animating frames (one in the host's tests, one for the null variant); the bench
+  now also prints the bytes consed over the animation.
+- Second window run, same machine and setup: 300 of 300 frames drawn, 16.6 ms from
+  request to draw, 0 draws in 2 s of stillness. Mean per frame: build 16 us, wait
+  52 us (1 of 300 over 1 ms), encode 139 us, so the core's own cost is 155 us
+  (136 us in the first run). 101 chained frames drawn in 1.66 s; 0 bytes consed
+  while they were.
+- The wait the ring records is the previous frame's GPU work and then the
+  drawable, not the drawable alone; the ring's comments and 0009 now say so.
+** Follow-up: three runs from Micah's terminal
+- =make bench-null= from Micah's own terminal: twice with the mouse still, once
+  moving over the window. All three drew 300 of 300 frames and nothing in 2 s
+  of stillness, built every frame once, hit the cap never, and consed 0 bytes
+  in the draw path and over 101 chained frames (1.66 to 1.68 s). The core's own
+  cost was 155, 131 and 141 us; the GPU's, 263 to 266 us.
+- The wait: 1,035 us (186 of 300 frames over 1 ms), 13,843 us (263 of 300, 34 ms
+  at most) and 76 us (2 of 300). The two runs from a shell I started were 44 and
+  52 us. Every run took 16.6 to 16.8 ms from request to draw, so the wait moves
+  the time. In the fast runs it passed before the draw callback began (16.4 ms
+  from request to start of frame, by subtraction); in the 13.8 ms run the frame
+  began about 2.8 ms after the request and the main thread sat in the wait for
+  the rest.
+- Events: 2 and 1 reached the variant with the mouse still, 429 with it moving.
+  Each phase of that run drew exactly the frames it was asked for. The counter
+  does not say what kinds the 429 were.
+- What I learned: the core's own cost holds still (131 to 155 us over five runs)
+  while the wait does not (44 us to 13.8 ms), which is why the ring keeps them
+  apart. The slow runs were the two mouse-still runs in Micah's terminal, but
+  the agent's mouse-still runs were fast, so stillness alone does not explain
+  it, and five runs cannot separate the terminal, the focus and the mouse. I
+  have not chased the cause: the contract does not depend on it.
+- The consequence that matters: the wait is inside the draw callback, on the
+  main thread, so in a slow run an event would wait for the end of the wait
+  (delivery time was not measured). 0009 now says so, and that accepting it
+  fixes step 3's order, so moving the wait would need a new record.
+- The screenshot of the window shows the scene as built: title, eight shapes,
+  the paragraph broken into two lines, and the monospaced line.
+- Next: Micah reads 0009 and accepts it or says what to change.
+
+* 2026-10-25 — 0009 accepted, and the charter follows it
+** What I did
+- Micah accepted 0009 as written, which is option (a) in the review of the three
+  runs: step 3 of the frame sequence, with the drawable wait inside the main-thread
+  draw callback, is fixed, and moving it would need a new record. Status set to
+  accepted.
+- The charter now says what 0009 decided: the sketch of the contract (=handle-event=
+  returns T if a frame is wanted; =hit-target= takes =x y= and answers for the last
+  presented frame; =lookup-target= returns four values), the context, events
+  delivered on arrival and not queued, who owns what, the event loop sentence, the
+  narrowed instrumentation scope and the three phases the host records.
+- Roadmap: the variant contract and the =null= baseline variant are ticked, with
+  the numbers. The Direct3D 11 and Vulkan backends moved from Phase 1 to Phase 6,
+  as one item for Windows and Linux (windowing, backend and text stack), since the
+  experiment measures on macOS only. Micah can move it.
+** Next
+Phase 2 starts with the input primitives (stable ids, hit testing, focus), which
+get their own record when the first variants show what they need, then the first
+real variant. The contract's open question, whether it is enough for a real
+variant, is answered there.
+
+* 2026-10-25 — Order of the variants
+- Micah chose the order: retained, then reactive hybrid (the Flutter model), then
+  immediate mode (the charter's immediate + cache). The charter's Phase 2 had them
+  as retained, immediate, reactive; the roadmap now has one box each, in the new
+  order.
+- Windows and Linux ports wait until much later, and the clock's use of a
+  macOS-only call (=clock_gettime_nsec_np=) is left until then.
+
+* 2026-10-25 — Layout: constraints, padding, align, sized box and flex
+** What I did
+- Wrote the first set of Flutter-style layout functions (0004) as three portable
+  files under =core/src/layout/=: =constraints= (four single-floats in, four out:
+  =constrain=, =deflate-constraints=, =tighten-constraints=, =loosen-constraints=),
+  =box= (=layout-padding=, =layout-sized=, =layout-align=, each returning the box's
+  width and height and the child's x and y) and =flex= (=layout-flex=, a row or a
+  column with a gap, a flex factor for each child, five main alignments and four
+  cross alignments). They import only =cl= and the umbrella re-exports them. A
+  variant gives them a =measure= function, and for a flex a =place= function and
+  a =flex-of= function; the functions know nothing of what a child is.
+- Tests under =core/t/layout/=: the numbers of each function; a property test of
+  3,000 random cases (constraints, children, options) that checks every size is
+  within its constraints, every child is measured once and placed once, and every
+  child gets valid constraints; and a small retained tree that calls the functions
+  as a variant will, with a counter laid out by hand. Float traps stay on in them.
+- Wrote 0010 (proposed): the shape, the options and the numbers.
+** What I measured
+- A tree of 38 nodes (a column of six rows, with padding and one flexing child
+  in each) lays out in 1.2 us, about 31 ns a node, and consed 0 bytes over
+  100,000 layouts. A leaf is 4.4 ns, padding around one 32 ns, a row of three 90 ns.
+- A row of 256 children consed 0 bytes a layout, 257 consed 4,130 and 300
+  consed 4,821.
+** What I learned
+- SBCL 2.6.3 on arm64 ignores =dynamic-extent= for =make-array= of single-floats,
+  bytes and doubles, with a constant size too, and honours it for lists, simple
+  vectors and closures. The first flex consed 32 to 48 bytes a layout from its
+  scratch vector until I made it a simple vector, which holds single-floats
+  without allocating. The allocation test found it, and nothing I read in the
+  compiler's notes did, so the zero-allocation tests matter here.
+- A box with no child still places the nothing: =layout-align= with no child gives
+  an offset in the middle of the box. That is right, and I wrote the test the
+  other way first.
+- An unbounded maximum is =most-positive-single-float=, so the code must ask
+  before it does arithmetic on one. Tests run with float traps on, where a window
+  runs with them off, so a NaN would show only in a window; none of the code makes
+  one.
+** Next
+Micah reads 0010 and accepts it or says what to change. Then the retained variant:
+its node tree, the Counter on it, and the input primitives it shows we need. The
+charter and the roadmap are not touched until 0010 is accepted.
+** Follow-up: why the stack, and a buffer that does not need it
+- Micah asked why SBCL ignores =dynamic-extent= for the vector of floats, and why
+  the flex could not avoid allocating past 256 children. The first is deliberate.
+  =src/compiler/generic/vm-ir2tran.lisp= in SBCL 2.6.3 lets only vectors of =t=
+  and fixnums go on the stack where the control stack is not scanned
+  conservatively, with the comment that unboxed data cannot be put there unless
+  it is scavenged conservatively. The 256 was my own limit, to keep the stack
+  small, and the heap above it was the cliff.
+- The flex now keeps its children's sizes in a buffer of single-floats that every
+  flex reuses, as a stack with two floats for a child. It grows to the largest
+  flex once and then allocates nothing: rows of 300 and of 10,000 children consed
+  0 bytes in 200 layouts after the first. It no longer depends on the compiler,
+  and it is no slower (a row of three 84 ns against 90, the 38-node tree 1,130 ns
+  against 1,185). The cost is shared state, so threads that lay out together
+  bind their own with =with-layout-scratch=. Tests: a flex that grows the buffer
+  inside another gives the same sizes as with a large enough buffer, and four
+  threads with their own buffers agree with a single thread.
+- 0010 now says this; it is still proposed.
+
+* 2026-10-25 — 0010 accepted
+- Micah accepted 0010 (the layout API) as it stood after the buffer change. The
+  charter's Layout section now points to it and says what the first set is, and
+  Phase 2 has a ticked box for the shared layout functions.
+- Next: the retained variant, which is where hit testing, focus and the text
+  leaf's use of =context-measure= get their first real user.
+
+* 2026-10-25 — The retained variant, first step: the Counter
+** What I did
+- Started =variants/cl-retained/= (system =almighty-bolt-variant-retained=). It
+  imports only the umbrella package, except =window.lisp= (Darwin only), which runs
+  it in a window.
+  - =node.lisp=: a node is a structure with an id, a parent, a vector of children,
+    a flex factor, and its place and size from the last layout. Layout, painting,
+    "interactive", "focusable" and "activate" are generic functions on it.
+  - =widgets.lisp=: label, button (a label inside padding), padding, row and
+    column. Constructors take children first, then options:
+    =(row number button :gap 16 :cross-align :center)=. Rows, columns, padding and
+    buttons lay out through the 0010 functions, with =dynamic-extent= closures.
+  - =retained.lisp=: the variant. A frame lays the tree out if something that can
+    change sizes changed (or the window did), and then repaints all of it. It
+    returns NIL, so it always settles in one build.
+  - =counter.lisp=: the 7GUIs Counter. =make retained-counter= opens it;
+    =make retained-counter-check= has a thread click it and print what happened.
+- 13 tests of the widgets (44 assertions) and 22 of the variant's frames and events
+  (71), both with a fake context (8 points a character, 10 above the baseline, 4
+  below) so that they run on any platform, and 5 through the macOS host (10): real
+  text, one click through the host, and allocation. All pass, and so does the rest
+  of =make test=.
+** What I measured
+- The window check, from a shell the agent started, delivering events through the
+  host on the main thread: a click (move, press, release) asks for one frame per
+  event; the number goes from 0 to 1; a press dragged off the button and released
+  elsewhere does not click; a move inside the button, and moves over empty space,
+  ask for no frame; a second of idle draws none.
+- Repainting the unchanged Counter for 5,000 frames, and 50,000 hover events over and
+  off the button, each stayed under the tests' 300 KB bound (a few regions). A click
+  and the frame it causes cost about 0.3 to 0.7 KB of Lisp heap: the new number
+  string, and the shaping of a line for it, whose arrays are on the Lisp heap. I did
+  not split the two.
+** What hit testing and focus turned out to need
+These stay in the variant for now. The core gets them, with a record, when a second
+variant wants the same code.
+- Hit testing: a walk of the last layout's geometry, children last-first, in each
+  node's own coordinates; then up to the nearest /interactive/ node (a click on a
+  button's text is the button's) or the nearest node with an /id/ (=hit-target=). A
+  rectangle by id (=lookup-target=) needs a node's place in the window, which is
+  the sum of its places in its parents.
+- A pointer state machine: the node under the pointer (hover), the node a press
+  started on (pressed), a click only when the primary button goes up over the node
+  that was pressed, the pressed look gone while the pointer is off the node and back
+  when it returns. Only the primary button counts.
+- "Did anything visible change" has to be known by =handle-event=, because its answer
+  is the host's reason to draw. Every mutation marks the tree (=touch=), and an
+  event reports the mark. A hover that does not change the look asks for nothing,
+  which is what keeps a still window asleep while the mouse moves over it.
+- Focus: an order (the order the tree is painted), a current node, wrap-around, a
+  focusable test, a look (a ring behind the button), and Space and Return to
+  activate. Tab and Shift-Tab are =logical-key= #\Tab, with the shift bit.
+- Setters never lay out. A changed label keeps its old size until the next frame,
+  so a hit test between the change and the frame still answers for the geometry
+  that was last presented, as 0009 says.
+** What I did not find out
+- Keys have never been seen in a window, so the focus code is tested only with
+  synthetic key events. The pointer is the same: events delivered through the host
+  prove the path from an event to a frame, and not that the positions AppKit gives
+  are the ones the layout uses. Only a real click does.
+- A handler runs inside =handle-event=. An error in one would unwind into the host's
+  event path, which has no handler for it.
+- =handle-event= is not given the context, so a variant cannot ask for a frame
+  from a timer or another thread until a frame has given it one. The Timer task
+  will have to keep the context from =frame=.
+- Every frame repaints the whole tree. Keeping the commands of nodes that did not
+  change is the next thing to try, and is where a retained variant should differ
+  from the others. Nothing has been timed against the =null= variant yet.
+- The text engine keeps a shaped line for every distinct string it has been asked
+  for, for as long as the font lives (=get-line=), and nothing calls
+  =clear-line-cache=. The Counter makes a new string for each number, so it grows
+  with the clicks. It is no problem for a Counter and would be for an app that shows
+  many different strings.
+** What the first real variant says about 0009 and 0010
+Both records left a question for this variant: is the contract enough, and is the
+layout API comfortable to write against?
+- 0009, the contract: enough for the Counter. =frame= (lay out, paint, return NIL),
+  =handle-event= (return true if something visible changed), =hit-target= and
+  =lookup-target= all had a natural implementation, and the context's text
+  operations were all a label and a button needed. Two things were missing:
+  - =handle-event= is not given the context, so a variant cannot ask for a frame
+    from a timer or another thread until a frame has given it a context to keep.
+    The Timer task will have to do that, and I think the contract should offer it:
+    the host could hand the variant its context when it is made.
+  - An error in a handler unwinds into the host's event path, which does not catch
+    it. A host that wants a window to survive its apps' bugs needs to decide what
+    happens there.
+- 0010, the layout API: usable, with friction.
+  - Each container's =layout-node= needed two or three =dynamic-extent= local
+    functions (=measure=, =place=, =flex-of=), about fifteen lines each. A method on
+    a node would have been shorter, which 0010 already said it gives up.
+  - The layout functions declare single-floats, and passing the integer 14 for a
+    button's padding failed as a type error when the tree was first laid out, not
+    when it was built. The next author will hit the same thing in any widget, and
+    constructors should convert, as =padding= and =label= do.
+  - Nothing needed a layout the first set lacks. A stack (a focus ring behind a
+    button is two rectangles, not a layout) and a grid will come with the
+    Temperature converter and Cells.
+** Next
+Micah runs =make retained-counter= from a terminal of their own, clicks the
+button, presses and drags off the button before letting go, and presses Tab,
+Shift-Tab, Space and Return, then pastes what it prints. Each press and release
+prints its position and what is under it (a press on the button should print
+=:count-button=, one elsewhere NIL), and each key prints what the window delivered,
+so that if Tab shows no ring we can tell whether the key never arrived or the focus
+code is wrong.
+** Follow-up: Micah's run in a window
+- The pointer is right. Presses at (110.4, 43.8), (106.0, 45.3), (91.2, 53.0) and
+  (116.2, 42.6) printed =:COUNT-BUTTON=, and the button is at 57.8 to 125.8 across
+  and 25.5 to 54.5 down, in a window 360 by 160. Releases at x 169, 222.7 and 295
+  printed NIL. The y values of 42 to 53 in a window 160 high are the top-left
+  origin, which the view's =isFlipped= arranges, so AppKit's positions are the
+  layout's. Presses dragged off the button and released away are in the log; what
+  the number did is not.
+- Keys arrive in a window, which was unverified: Tab is physical key 48, Space 49 and
+  Return 36, each with its character as the logical key.
+- Shift-Tab arrives as the logical key #\Em, which is U+0019, AppKit's back-tab
+  character, with physical key 48 and the shift bit. The variant tested for #\Tab,
+  so Shift-Tab would not have moved the focus backward, which one button could not
+  show. The fix is in the core, since the core owns the translation of the
+  platform's events (0009): =logical-key= in =ns-event.lisp= makes U+0019 the Tab
+  key, and a variant sees Tab with the shift modifier. Three tests.
+- The self-check now sends Tab, the space bar and Return as well: the label went
+  from "1" to "3", one frame for each key.
+- What the log cannot show, and Micah has not said: whether the focus ring appeared
+  after Tab, and what the look of the button did while it was pressed.
+
+* 2026-10-25 — The retained variant: paint caching
+** What I did
+- Nodes can be /cacheable/: a node that is keeps the commands it painted in a display
+  list of its own, relative to its top left, and replays them, moved, into the
+  frame's list until it changes. Labels and buttons are cacheable (a button's label
+  is painted into the button's cache, so it is not); rows, columns and padding are
+  walked every frame and keep nothing. An =:around= method on =paint-node= does it,
+  so the widgets' own painting methods did not change.
+- What makes a node paint again: =touch= (every setter and every look change goes
+  through it) marks the nearest cacheable node at or above it; a layout that changes a
+  node's size marks that node; a layout that only moves a node marks what paints its
+  parent, and not the node, because its commands are relative. A cache too small for
+  what is painted into it is replaced by one twice the size, as the tree is first
+  painted.
+- =make-retained-variant= takes =:caching=, true by default. =(setf label-color)= is a
+  real setter now. A label's size is read-only, since its font and metrics are found
+  from it and kept.
+- Replaying needed an operation the display list lacks: append a list to another,
+  moved. I first wrote it in the variant, a command at a time, with the core's public
+  accessors, and then in the core as =append-display-list=, which copies the arrays
+  and adds the move to the positions. Decision record 0011 (proposed) has the options
+  and the numbers. The core's tests: it moves every kind of command, appends after what
+  is there, signals the full-list error before changing anything, can append a list to
+  itself, and allocates nothing.
+- 8 tests of when a node paints again, counting paints: a clean frame paints nothing;
+  a colour paints only that node; a hover paints the button and its label and not the
+  number; a node that only moves is replayed in its new place; a window that changes
+  size and not the layout paints nothing; and after a series of hovers, presses, clicks
+  and Tab, what the caches give has the same hash as painting from nothing.
+** What I measured
+=make bench-retained= times the variant's frame (layout, painting, settle) with the
+real text engine and no window or GPU. A column of rows, each a line of text and a
+button, 200 frames, in microseconds a frame; caching off, on with the copy in the
+variant, and on with the copy in the core:
+- 10 rows (431 commands): 29.6, 12.9, 4.6. Copying the finished list: 0.9.
+- 100 rows (4,391): 313.5, 100.9, 28.7. Copy: 8.2.
+- 1,000 rows (44,891 commands, 4,001 nodes): 2,840.9, 1,198.4, 265.6. Copy: 83.8.
+  (All three columns are one run of =make bench-retained=; the middle column
+  swaps the core's operation for the copy a command at a time, while it runs.)
+- With nothing changed the frame costs the same as with a colour changed. A text
+  change adds laying out the whole tree again, about 160 us at 4,001 nodes.
+- Nothing allocated in any scenario, and painting a node again into its cache for
+  5,000 frames in the macOS host stayed under the tests' bound.
+** What I learned
+- The cache itself is not the win. With the copy in the variant, caching was 2.4
+  times faster at 1,000 rows; with the core's copy it was 10.7 times. Painting from
+  nothing costs about 63 ns a command, the variant's copy 27, the core's 6, and the
+  floor of copying a finished list is 1.9. Where a retained variant keeps its
+  commands decides whether retention pays.
+- What is left, at 1,000 rows, is walking 4,001 nodes and copying 44,891 commands; I
+  did not split the 256 us between them. Skipping clean subtrees, which would need a
+  flag on every ancestor and caches on containers, would take the walk away, and the
+  copying would remain.
+- Layout is not retained: a text change lays out every node. A relayout boundary is the
+  analogous step, and has not been tried.
+- The first version of the caches was wrong with real text, and no test of mine
+  could see it. The text drawing puts each glyph on a whole device pixel from its
+  position in the window, and a cache is painted at the node's top left and moved, so
+  at a fractional position (the button was at 57.8) the glyphs landed on other
+  pixels than the same text painted where it is. The fake context's whole-number
+  positions hid it. A test that painted the Counter through the real text engine with
+  and without caches, and compared hashes, failed before and passes after. The fix is
+  that a node that can be cached is painted at the nearest whole device pixel, with or
+  without a cache, so the cache is moved by whole pixels. It is a consequence of
+  text snapping that 0011 now says.
+- A cached node holds glyph atlas indices. The atlas never evicts, so they stay valid,
+  and the atlas's scale is fixed for the life of the renderer; if either changes, the
+  caches must be dropped.

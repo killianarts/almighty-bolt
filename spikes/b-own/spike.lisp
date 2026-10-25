@@ -48,8 +48,37 @@
   (sb-alien:alien-funcall
    (sb-alien:extern-alien "MTLCreateSystemDefaultDevice" (function sb-alien:unsigned-long))))
 
+;;; How long a part of the draw callback took, over all the draws: the total,
+;;; the longest, how many were timed, and how many took over a millisecond. Four
+;;; fixnums in one array, so noting a span allocates nothing.
+
+(defconstant +slow-span-ns+ 1000000)
+
+(defun make-span-stats ()
+  (make-array 4 :element-type 'fixnum :initial-element 0))
+
+(declaim (inline note-span))
+(defun note-span (stats ns)
+  (declare (type (simple-array fixnum (4)) stats) (type fixnum ns))
+  (incf (aref stats 0) ns)
+  (when (> ns (aref stats 1))
+    (setf (aref stats 1) ns))
+  (incf (aref stats 2))
+  (when (> ns +slow-span-ns+)
+    (incf (aref stats 3))))
+
+(defun report-span (label stats)
+  (destructuring-bind (total longest count slow) (coerce stats 'list)
+    (when (plusp count)
+      (format t "~36a mean ~,1f us, max ~,1f us, over 1 ms in ~d of ~d draws~%"
+              label (/ total count 1000.0) (/ longest 1000.0) slow count))))
+
 (defclass b-rig ()
   ((ring :initform (ring:make-frame-ring :capacity 4096) :reader b-rig-ring)
+   ;; The draw callback in two parts: asking the view for its drawable, which can
+   ;; wait for the display, and encoding and committing the frame.
+   (drawable-spans :initform (make-span-stats) :reader b-rig-drawable-spans)
+   (encode-spans :initform (make-span-stats) :reader b-rig-encode-spans)
    (counters :initform (acceptance:make-counters) :reader b-rig-counters)
    (input :initform (acceptance:make-input-log) :reader b-rig-input)
    (window :accessor b-rig-window)
@@ -66,17 +95,22 @@
 ;;; The callbacks, all on the main thread
 
 (defun clear-frame (rig view)
-  "The simplest frame: begin a pass that clears to the view's clear colour, and present."
+  "The simplest frame: begin a pass that clears to the view's clear colour, and present.
+The time to get the drawable and the time to encode and commit are noted apart."
   (let* ((object (metal-view-object view))
+         (asked (clock:now-ns))
          (descriptor (msg-send :id object "currentRenderPassDescriptor"))
-         (drawable (msg-send :id object "currentDrawable")))
+         (drawable (msg-send :id object "currentDrawable"))
+         (got (clock:now-ns)))
+    (note-span (b-rig-drawable-spans rig) (- got asked))
     (unless (or (zerop descriptor) (zerop drawable))
       (let* ((buffer (msg-send :id (b-rig-queue rig) "commandBuffer"))
              (encoder (msg-send :id buffer "renderCommandEncoderWithDescriptor:"
                                 (:id descriptor))))
         (msg-send :void encoder "endEncoding")
         (msg-send :void buffer "presentDrawable:" (:id drawable))
-        (msg-send :void buffer "commit")))))
+        (msg-send :void buffer "commit")))
+    (note-span (b-rig-encode-spans rig) (- (clock:now-ns) got))))
 
 (defun draw (rig view)
   (ring:with-recorded-frame ((b-rig-ring rig))
@@ -168,6 +202,8 @@
             (msg-send :double (almighty-bolt-core/platform/macos/window::window-object
                                (b-rig-window rig))
                       "backingScaleFactor"))
+    (report-span "getting the drawable (all draws):" (b-rig-drawable-spans rig))
+    (report-span "encoding and committing:" (b-rig-encode-spans rig))
     (format t "NSProcessInfo uptime vs core clock: ~,3f ms apart~%"
             (/ (abs (- (* uptime 1d9) (clock:now-ns))) 1d6))
     (when more (funcall more rig))))

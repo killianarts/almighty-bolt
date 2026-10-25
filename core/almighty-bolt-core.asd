@@ -1,6 +1,6 @@
 (defsystem "almighty-bolt-core"
   :version "0.0.1"
-  :description "Shared core for the almighty-bolt GUI experiment: clock, instrumentation, events and display list"
+  :description "Shared core for the almighty-bolt GUI experiment: clock, instrumentation, events, display list and layout"
   :author "Micah Killian"
   :maintainer "Micah Killian <micah@almightylisp.com>"
   :license "MIT"
@@ -11,6 +11,14 @@
                (:file "ring")
                (:file "event")
                (:file "display-list")
+               (:file "variant")
+               (:file "settle")
+               (:module "layout"
+                :serial t
+                :components
+                ((:file "constraints")
+                 (:file "box")
+                 (:file "flex")))
                (:module "platform"
                 :serial t
                 :if-feature :darwin
@@ -45,6 +53,13 @@
                    (:file "rect-pipeline")
                    (:file "renderer")
                    (:file "draw-text")))))
+               ;; The host joins the platform, the text engine and the renderer,
+               ;; so it loads after all three.
+               (:module "host"
+                :pathname "platform/macos"
+                :if-feature :darwin
+                :components
+                ((:file "host")))
                (:file "package"))
   :in-order-to ((test-op (test-op "almighty-bolt-core/tests"))))
 
@@ -60,6 +75,15 @@
                  (:file "ring")
                  (:file "event")
                  (:file "display-list")
+                 (:file "variant")
+                 (:file "settle")
+                 (:module "layout"
+                  :serial t
+                  :components
+                  ((:file "constraints")
+                   (:file "box")
+                   (:file "flex")
+                   (:file "tree")))
                  (:file "package")
                  (:module "platform"
                   :serial t
@@ -68,7 +92,9 @@
                   ((:module "macos"
                     :serial t
                     :components
-                    ((:file "objc")))))
+                    ((:file "objc")
+                     (:file "ns-event")
+                     (:file "host")))))
                  (:module "text"
                   :serial t
                   :if-feature :darwin
@@ -92,8 +118,16 @@
                                                       :almighty-bolt-core/t/ring
                                                       :almighty-bolt-core/t/event
                                                       :almighty-bolt-core/t/display-list
+                                                      :almighty-bolt-core/t/variant
+                                                      :almighty-bolt-core/t/settle
+                                                      :almighty-bolt-core/t/layout/constraints
+                                                      :almighty-bolt-core/t/layout/box
+                                                      :almighty-bolt-core/t/layout/flex
+                                                      :almighty-bolt-core/t/layout/tree
                                                       :almighty-bolt-core/t/package
                                                       #+darwin :almighty-bolt-core/t/platform/macos/objc
+                                                      #+darwin :almighty-bolt-core/t/platform/macos/ns-event
+                                                      #+darwin :almighty-bolt-core/t/platform/macos/host
                                                       #+darwin :almighty-bolt-core/t/text/line
                                                       #+darwin :almighty-bolt-core/t/text/glyph-raster
                                                       #+darwin :almighty-bolt-core/t/render/metal/renderer

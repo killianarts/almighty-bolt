@@ -1,0 +1,161 @@
+#+TITLE: 0010 — Layout API
+#+DATE: 2026-10-25
+- Status :: accepted
+
+* Context
+Decision 0004 chose Flutter-style layout: constraints go down, sizes come up,
+the parent places its children, and the layout is a set of pure functions that
+each variant calls from its own structure. It did not say what those functions
+take and return, and the retained variant, the first to be built, needs them
+now. The questions:
+1. How do the functions reach a variant's children, when each variant keeps them
+   differently (a widget tree, an element tree, boxes made every frame)?
+2. How are constraints passed, given the rule that the core allocates nothing
+   per frame and that every byte consed is the variant's?
+3. What is in the first set, and what waits?
+
+This record stays /proposed/ until a variant has used the functions. The tests
+call them as a retained variant will, but a test is not a variant.
+
+* Options
+For how the functions reach children:
+1. Functions that take the constraints as numbers, and functions to call for
+   each child: one to measure it, one to place it, one for its flex factor. The
+   function knows nothing about what a child is.
+2. A generic function =layout= on the variant's own nodes, which the core
+   defines and every variant's node class implements.
+3. A tree of boxes that the core owns, which a variant fills in each frame and
+   the core lays out (the way RAD Debugger's UI core works, and the box tree
+   0004 considers for the immediate variant).
+
+For how constraints are passed:
+1. Four single-floats, as arguments and as values.
+2. A =box-constraints= structure, made for each child.
+
+* Evidence
+- Flutter's =RenderFlex=, =RenderPadding=, =RenderPositionedBox= and
+  =RenderConstrainedBox= are the algorithms, and =BoxConstraints= is the
+  constraints with their =deflate=, =tighten=, =loosen= and =enforce=. The
+  functions follow them, without text direction, baselines or intrinsic sizes.
+- Option 3 of the first question is the choice that suits an immediate-mode
+  variant with a per-frame tree (H6). It makes the core own a node type, which
+  is policy, and could give that variant less code to write than the others,
+  which would tilt a comparison of code sizes. Option 2 makes every variant's
+  node class inherit from a core class, and then a generic function call stands
+  for each child.
+- Measured on SBCL 2.6.3, arm64, 2026-10-25, with the functions as written and a
+  small retained tree (=core/t/layout/tree.lisp=) that calls them with closures
+  made at each call and kept on the stack:
+  | Tree                              | Nodes | Time        | Bytes consed |
+  |-----------------------------------+-------+-------------+--------------|
+  | one leaf                          |     1 |      4.4 ns |            0 |
+  | padding around a leaf             |     2 |     31.6 ns |            0 |
+  | a row of three leaves             |     4 |     84.4 ns |            0 |
+  | a row with a flexing child        |     4 |     98.9 ns |            0 |
+  | a column of six rows with padding |    38 |  1,130.1 ns |            0 |
+  The last is about 30 ns a node, and consed 0 bytes over 100,000 layouts (the
+  test allows 300 KB, a few regions). It is one machine.
+- A first version kept each flex's sizes in a vector of single-floats declared
+  =dynamic-extent=, and consed 32 to 48 bytes in each flex. The reason is in
+  SBCL's source (2.6.3, =src/compiler/generic/vm-ir2tran.lisp=): where the
+  control stack is not scanned conservatively, only vectors of =t= and of
+  fixnums go on it, because "can't put unboxed data on the stack unless we
+  scavenge it conservatively". That is deliberate, and it fits what I measured
+  on arm64: lists, closures and simple vectors went on the stack, and vectors
+  of single-floats, bytes and doubles did not, whatever their size. I did not
+  run it on a platform with a conservative stack, such as x86-64, where the
+  restriction does not apply.
+- A second version used a simple vector, which does go on the stack and holds
+  single-floats without allocating, and took the heap above 256 children so as
+  not to use much of the stack. A row of 257 children consed 4,130 bytes a
+  layout and one of 300 consed 4,821.
+- The version in this record keeps the sizes in a buffer of single-floats that
+  every flex reuses, as a stack of two floats a child. It grows to the largest
+  flex it has served and then never allocates. A row of 300 children and one of
+  10,000 consed 0 bytes in each of 200 layouts after the first, and the layout
+  of a flex inside the =measure= of another, which grows the buffer while the
+  outer one waits, gives the same sizes as with a buffer that was large enough.
+  It does not depend on the compiler, and it is no slower than the stack
+  (84 against 90 ns for a row of three, 1,130 against 1,185 ns for the tree).
+- Tests: 3,000 random cases of constraints, children and options, run with float
+  traps on, check that the size is within the constraints, that each child is
+  measured once and placed once, and that every child gets valid constraints.
+  The rest check the numbers of each function, an example counter laid out by
+  hand (a 132 by 40 root, the label centred on the button's row), an error for
+  a flexing child with no upper limit to share, a flex that grows the buffer
+  inside another, and four threads that each bind their own buffer.
+- Not measured: a variant's use of the functions. Whether three callbacks are a
+  comfortable way to write a layout, and whether an immediate-mode variant can
+  call them without a node tree, is H6, which the layout spike tests later.
+
+* Decision
+Option 1 for children and option 1 for constraints.
+
+*Files.* Three portable files that import only =cl=, re-exported by the umbrella
+package: =core/src/layout/constraints.lisp=, =box.lisp= and =flex.lisp=. They
+know nothing of the clock, the context or the text code. A variant's leaf calls
+=context-measure= to give a text run its size.
+
+*Constraints* are four single-floats, in points: the minimum and maximum width,
+the minimum and maximum height, always in that order, as four arguments and four
+values. An unbounded maximum is =+unbounded+=, which is
+=most-positive-single-float=, not an infinity, so that no arithmetic reaches a
+NaN; the code asks =unbounded-p= before it computes with a maximum. The
+functions are =constrain=, =constrain-size=, =loosen-constraints=,
+=tighten-constraints=, =deflate-constraints= and =valid-constraints-p=.
+
+*One child.* =layout-padding=, =layout-sized= and =layout-align= take the
+constraints, a =measure= function (or NIL for no child) and options, and return
+four values: the width and height of the box, and the x and y of the child in
+it. =measure= takes the constraints the child may use and returns its width and
+height. It is called once.
+
+*Many children.* =layout-flex= lays out a row or a column. It takes the axis,
+the constraints, the number of children, =measure= (called as =(i min-w max-w
+min-h max-h)=), =place= (called as =(i x y)=), and the options =flex-of= (a
+function of the index that returns a flex factor and whether the child must fill
+its share), =main-align=, =cross-align=, =main-size= and =gap=. It measures the
+children that do not flex first, shares what is left among those that do, and
+then places them all. It returns the width and height. A flexing child on an
+axis with no upper limit signals =unbounded-flex=. A variant stores the sizes it
+is given and the places it is told, wherever it likes.
+
+*Calling.* The functions allocate nothing after warm-up, whatever the number of
+children: a flex keeps its children's sizes in a buffer that all flexes in the
+thread reuse, and the buffer grows, once, to the largest flex laid out. That is
+the charter's rule that the core allocates nothing per frame after warm-up. The
+buffer is shared, so two threads that lay out at the same time must each bind
+their own with =with-layout-scratch=; frames are made on one thread (0009), so a
+variant normally does nothing. A variant makes the functions it hands to the
+layout at the call and declares them =dynamic-extent=, as the example in
+=core/t/layout/tree.lisp= does. A variant that makes them with =lambda= on the
+heap pays for it in its own allocation, which is where it belongs.
+
+*In the first set:* constraints, padding, sized box, align, and flex with a gap,
+all the main alignments and the cross alignments =:start=, =:end=, =:center= and
+=:stretch=. These are what the Counter and the Temperature converter need. *Left
+out until a variant needs it:* a stack, a grid, a wrap, baseline alignment,
+intrinsic sizes, text direction, scrolling and viewports, extra minimum and
+maximum constraints on a child, and rounding to pixels.
+
+* Consequences
+- Easier: the three variants call the same functions, so layout does not change
+  their code sizes or their allocation; the core owns no node type; the layout
+  is tested with no window and no GPU.
+- Harder: a variant writes up to three small functions at each flex, which is
+  more code than a method on a node; nothing is cached, so a call lays out
+  everything under it, and deciding when to skip a subtree (a retained variant's
+  cached sizes, an immediate variant's comparison) is that variant's policy and
+  part of what the experiment measures.
+- Shared state: the buffer is a special variable, so the functions are pure in
+  what they return and not in what they use, and two threads laying out at once
+  without their own buffers would corrupt each other's sizes. The first layout
+  of a flex larger than any before it allocates, which is warm-up.
+- Portable: nothing depends on the compiler putting anything on the stack, and
+  a vector of single-floats holds them unboxed. Other Lisp implementations are
+  not measured.
+- Gives up: a core-owned box tree. If the layout spike finds that the immediate
+  variant needs one, it can be a further module beside these, as 0004 allows.
+- To check before accepting: whether the shape is comfortable to write against,
+  which only the retained variant can say, and, later, the immediate one (H6).
+  Accepting this commits to the shape; changing it takes a new record.

@@ -1,6 +1,6 @@
 #+TITLE: 0007 — How we reach AppKit
 #+DATE: 2026-10-24
-- Status :: proposed
+- Status :: accepted
 
 * Context
 [[file:0001-platform.org][0001]] chose native windowing and said AppKit "is reached through the Objective-C

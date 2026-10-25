@@ -16,7 +16,8 @@
                 #:make-key-event)
   (:export #:pointer-event-from-ns-event
            #:wheel-event-from-ns-event
-           #:key-event-from-ns-event))
+           #:key-event-from-ns-event
+           #:logical-key))
 
 (in-package #:almighty-bolt-core/platform/macos/ns-event)
 
@@ -74,6 +75,17 @@ not counting sleep, which is the base of the core clock."
      :precise-p (msg-send :bool ns-event "hasPreciseScrollingDeltas")
      :modifiers (modifiers-from-flags (msg-send :ulong ns-event "modifierFlags")))))
 
+(defun logical-key (text)
+  "The logical key of a key event whose characters are TEXT: its first character, or
+NIL if it has none. AppKit reports Shift-Tab as U+0019, its back-tab character. That
+is the Tab key with the shift modifier, so that is what it is made here, and a variant
+does not need to know AppKit's name for it."
+  (when (plusp (length text))
+    (let ((character (char text 0)))
+      (if (= (char-code character) #x19)
+          #\Tab
+          character))))
+
 (defun key-event-from-ns-event (ns-event kind)
   "A key event of KIND (:down or :up) for NS-EVENT."
   (let* ((characters (msg-send :id ns-event "characters"))
@@ -82,6 +94,6 @@ not counting sleep, which is the base of the core clock."
      :timestamp (event-time-ns ns-event)
      :kind kind
      :physical-key (msg-send :ushort ns-event "keyCode")
-     :logical-key (if (plusp (length text)) (char text 0) nil)
+     :logical-key (logical-key text)
      :modifiers (modifiers-from-flags (msg-send :ulong ns-event "modifierFlags"))
      :repeat-p (msg-send :bool ns-event "isARepeat"))))

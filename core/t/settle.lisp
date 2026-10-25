@@ -1,0 +1,134 @@
+(defpackage #:almighty-bolt-core/t/settle
+  (:use #:cl #:lisp-unit2)
+  (:local-nicknames (#:variant #:almighty-bolt-core/variant)
+                    (#:settle #:almighty-bolt-core/settle)
+                    (#:dl #:almighty-bolt-core/display-list)))
+
+(in-package #:almighty-bolt-core/t/settle)
+
+;;; A variant that answers each build from a script: true (state changed) or false
+;;; (settled). When the script runs out it repeats its last answer. Each build
+;;; appends one rectangle whose x is the build number.
+
+(defclass scripted-variant (variant:variant)
+  ((script :initarg :script :accessor script)
+   (builds :initform 0 :accessor builds)
+   (build-numbers :initform '() :accessor build-numbers)))
+
+(defmethod variant:frame ((variant scripted-variant) context list)
+  (incf (builds variant))
+  (push (variant:context-build-number context) (build-numbers variant))
+  (dl:push-rect list (variant:context-build-number context) 0 10 10 #xFF0000FF)
+  (let ((script (script variant)))
+    (if (rest script)
+        (pop (script variant))
+        (first script))))
+
+(defun run-settle (script &key (frame-number 7))
+  "Settle one frame of a variant with SCRIPT. Returns the variant, the display list,
+the number of builds, whether the cap was reached, and the warnings signalled."
+  (let ((variant (make-instance 'scripted-variant :script script))
+        (context (variant:make-context))
+        (list (dl:make-display-list :capacity 16))
+        (warnings '()))
+    (setf (variant:context-frame-number context) frame-number)
+    (multiple-value-bind (builds capped)
+        (handler-bind ((warning (lambda (condition)
+                                  (push condition warnings)
+                                  (muffle-warning condition))))
+          (settle:settle-frame variant context list))
+      (values variant list builds capped (reverse warnings)))))
+
+;;; --- settling ---
+
+(define-test a-frame-that-changes-nothing-settles-in-one-build ()
+  (multiple-value-bind (variant list builds capped warnings) (run-settle '(nil))
+    (assert-eql 1 builds)
+    (assert-false capped)
+    (assert-eql 1 (builds variant))
+    (assert-eql 1 (dl:display-list-count list))
+    (assert-equal '() warnings)))
+
+(define-test a-frame-that-changed-state-is-built-again ()
+  (multiple-value-bind (variant list builds capped) (run-settle '(t nil))
+    (assert-eql 2 builds)
+    (assert-false capped)
+    (assert-eql 2 (builds variant))
+    (assert-eql 1 (dl:display-list-count list))))
+
+(define-test the-third-build-may-be-the-one-that-settles ()
+  (multiple-value-bind (variant list builds capped warnings) (run-settle '(t t nil))
+    (assert-eql 3 builds)
+    (assert-false capped)
+    (assert-eql 3 (builds variant))
+    (assert-eql 1 (dl:display-list-count list))
+    (assert-equal '() warnings)))
+
+(define-test the-cap-is-three-builds ()
+  (assert-eql 3 settle:+max-builds+))
+
+(define-test a-frame-that-never-settles-stops-at-the-cap-and-warns ()
+  (multiple-value-bind (variant list builds capped warnings) (run-settle '(t) :frame-number 42)
+    (assert-eql 3 builds)
+    (assert-true capped)
+    (assert-eql 3 (builds variant))
+    (assert-eql 1 (length warnings))
+    (assert-true (typep (first warnings) 'settle:settle-cap-reached))
+    (assert-eql 42 (settle:settle-cap-reached-frame-number (first warnings)))
+    (assert-true (search "42" (princ-to-string (first warnings))))
+    ;; The last build is what is left to present.
+    (assert-eql 1 (dl:display-list-count list))
+    (assert-eql 3f0 (dl:display-list-x list 0))))
+
+;;; --- what each build sees ---
+
+(define-test the-list-is-cleared-before-every-build ()
+  (multiple-value-bind (variant list) (run-settle '(t t nil))
+    (declare (ignore variant))
+    ;; Three builds each added a rectangle, but only the last one is there.
+    (assert-eql 1 (dl:display-list-count list))
+    (assert-eql 3f0 (dl:display-list-x list 0))))
+
+(define-test each-build-is-numbered-from-one ()
+  (let ((variant (run-settle '(t t nil))))
+    (assert-equal '(1 2 3) (reverse (build-numbers variant)))))
+
+(define-test an-error-in-a-build-reaches-the-caller ()
+  (let ((variant (make-instance 'variant:variant))
+        (context (variant:make-context))
+        (list (dl:make-display-list :capacity 4)))
+    ;; A bare variant has no FRAME of its own.
+    (assert-error 'error (settle:settle-frame variant context list))))
+
+;;; --- no allocation ---
+
+(defclass busy-variant (variant:variant)
+  ((n :initform 0 :type fixnum :accessor n)))
+
+(defmethod variant:frame ((variant busy-variant) context list)
+  (declare (ignore context))
+  (dotimes (i 20)
+    (dl:push-rect list i 0 10 10 #xFF0000FF))
+  ;; True on every other call, so every frame takes two builds.
+  (oddp (incf (n variant))))
+
+(defun settle-many (variant context list count)
+  "Compiled with this file, because lisp-unit2 evaluates test bodies under a
+debugging policy that allocates."
+  (declare (type fixnum count))
+  (let ((builds 0))
+    (declare (type fixnum builds))
+    (dotimes (i count builds)
+      (incf (variant:context-frame-number context))
+      (incf builds (settle:settle-frame variant context list)))))
+
+(define-test settling-frames-allocates-nothing-after-warm-up ()
+  (let ((variant (make-instance 'busy-variant))
+        (context (variant:make-context))
+        (list (dl:make-display-list :capacity 64)))
+    (settle-many variant context list 1000)         ; warm up the dispatch
+    (let ((before (sb-ext:get-bytes-consed)))
+      (assert-eql 200000 (settle-many variant context list 100000))
+      ;; 200,000 builds. Sixteen bytes a build would be 3.2 MB.
+      (let ((delta (- (sb-ext:get-bytes-consed) before)))
+        (assert-true (< delta 500000) delta)))))

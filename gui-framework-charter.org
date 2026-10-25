@@ -133,23 +133,41 @@ instrumentation are added when their triggers are reached (see the roadmap).
   replace with a virtual clock.
 - *Baseline variant.* A =null= variant that replays a fixed, precomputed
   display list measures the core's own cost. Variant results are reported
-  relative to it.
+  relative to it. It lives in =variants/null/=, and =make bench-null= reports
+  the core's own cost in a window.
 
 *** Variant contract
 The whole interface a variant implements, sketched in Lisp:
 
 #+begin_src lisp
-(defgeneric handle-event (variant event))        ; returns T if a redraw is needed
+(defgeneric handle-event (variant event))        ; returns T if a frame is wanted
 (defgeneric frame (variant context display-list)) ; build, lay out, record drawing;
                                                   ; returns T if app state changed
-(defgeneric hit-target (variant point))          ; stable id under a point, or NIL
-(defgeneric lookup-target (variant test-id))     ; rectangle for a test id (replay)
+(defgeneric hit-target (variant x y))            ; stable id at a point of the last
+                                                  ; presented frame, or NIL
+(defgeneric lookup-target (variant test-id))     ; x, y, width, height of a test id,
+                                                  ; or NIL (replay)
 (defgeneric accessibility-tree (variant))        ; for H3; may start as a stub
 #+end_src
 
-=context= gives access to text measurement, the clock, the window's size and
-scale, and the frame's instrumentation scope. A variant asks for a frame by
-calling =request-frame=; it never runs its own loop.
+The answers, with the evidence, are in [[file:notes/decisions/0009-variant-contract.org][decision record 0009]]. =context= is one
+structure that the host updates in place. It gives access to the size of the
+drawing area in points, the scale, the frame number, the number of the build
+within the frame, the clock, and the text operations (fonts, measuring, line
+breaking, caret positions, and appending a shaped line). A variant asks for a
+frame by calling =request-frame=, from any thread; it never runs its own loop.
+The frame ring belongs to the host, and variants write their own phases to it
+only once Phase 3 defines them. A variant imports only the umbrella package.
+
+*Events.* Events reach =handle-event= as the platform delivers them, one at a
+time, in order, on the main thread. The core does not queue them. The core owns
+the translation, the order, the thread, frame scheduling, and recording and
+replay; the variant owns what an event means. A retained or reactive variant
+acts in =handle-event=. An immediate-mode variant keeps its own list of events,
+appends in =handle-event= and returns T, and has its widgets remove the events
+they handle while =frame= runs, so that a settle build does not handle one
+twice. Hit testing and focus primitives are not decided yet; they are the first
+item of Phase 2.
 
 *Settled frames.* A frame is /settled/ when its build changed no app state.
 A variant may change state during a build: an immediate-mode button that
@@ -178,8 +196,12 @@ screen readers, tests or agents.
   for HiDPI. One window first; several windows are deferred.
 - *Event loop.* Runs on the main thread (a macOS requirement; on macOS AppKit owns
   the loop itself and the core owns frame scheduling). Waits for OS
-  events, timers or a frame request, then: drain events → =handle-event= for
-  each → if a redraw is needed, =frame= → submit → present at vsync.
+  events, timers or a frame request. Each event goes to =handle-event= as it
+  arrives. A frame is built when the view's draw callback runs, which the host
+  asks for when =handle-event= returns T or a variant calls =request-frame=:
+  =frame= (settled) → wait for the display → encode → present. The wait for
+  the drawable is inside the callback on the main thread, and in a slow run it
+  took most of a refresh (0009).
 - *Frame scheduling.* Frames happen only on request. Animations request the
   next frame themselves, so an animating app ticks at the display rate and a
   still app does not tick at all.
@@ -218,8 +240,10 @@ screen readers, tests or agents.
 *** Rendering backend
 - *Display list as the boundary.* Variants never call the GPU. They append
   commands to a flat, preallocated display list: filled rectangle, rounded
-  rectangle, border, shadow, line/path, glyph run, image, push/pop clip,
-  push/pop transform. The backend consumes the list. Every backend renders
+  rectangle, border, shadow, line/path, glyph, image, push/pop clip,
+  push/pop transform. A line of text is one glyph command for each glyph, and
+  the numbers are single floats ([[file:notes/decisions/0008-display-list.org][decision record 0008]]). The backend consumes
+  the list. Every backend renders
   the same list, so the variants cannot differ in how they draw, only in
   how they decide what to draw.
 - *GPU path.* Batches commands by pipeline, draws glyphs from a cached atlas,
@@ -283,7 +307,9 @@ screen readers, tests or agents.
 *** Instrumentation
 - *Phases.* Each frame is split into phases: events, build/update, layout,
   record, submit, present. Each phase records wall time, bytes consed
-  (=sb-ext:get-bytes-consed=) and GC time.
+  (=sb-ext:get-bytes-consed=) and GC time. The host records three so far: the
+  build, the wait for the display (the previous frame's GPU work, then the
+  drawable) and the encoding. Phases a variant defines come in Phase 3.
 - *Storage.* Samples go into a preallocated ring buffer of fixed-size
   records, so measuring does not allocate and does not disturb what it
   measures.
@@ -356,6 +382,13 @@ go down, sizes come up, parents position children) written as pure functions
 that each variant calls from its own structure. If a variant cannot use it
 naturally, that is evidence about the approach and goes in the devlog; making
 layout per-variant then becomes its own hypothesis.
+
+The functions are in =core/src/layout/= ([[file:notes/decisions/0010-layout-api.org][decision record 0010]]). Constraints are four
+single-floats, and a variant gives each function a =measure= function for its
+child (and, for a flex, =place= and =flex-of= functions), so the core owns no
+node type. The first set is padding, a sized box, align and flex (a row or a
+column). Stack, grid, wrap, baseline alignment, intrinsic sizes and scrolling
+wait until a variant needs them. After warm-up the functions allocate nothing.
 
 *Front ends.* Every variant reaches the shared protocol its own way:
 - /Retained and reactive/: nodes persist, so they hold their sizes, dirty
@@ -713,13 +746,18 @@ The experimental phase ends when:
   with Core Text; deferred items are in the devlog entry for Spike D.
 - [X] Input event structs, core clock and minimal instrumentation (consing
   counter, frame ring buffer)
-- [ ] The =null= baseline variant, once the variant contract exists
-- [ ] Direct3D 11 (Windows) and Vulkan (Linux) backends
+- [X] The variant contract ([[file:notes/decisions/0009-variant-contract.org][0009]]) and the =null= baseline variant. In a window the
+  core costs about 130 to 155 us a frame and allocates nothing; the wait for
+  the display varied from 44 us to 13.8 ms between runs.
 
 ** TODO Phase 2: Common Lisp variants
+- [X] Shared layout functions: constraints, padding, sized box, align and flex
+  ([[file:notes/decisions/0010-layout-api.org][0010]]). They allocate nothing after warm-up; 38 nodes take 1.1 us.
 - [ ] Input primitives (stable ids, hit testing, focus) and input replay, as
   the first variants need them
-- [ ] Retained, immediate + cache, reactive hybrid
+- [ ] Retained (=cl-retained=)
+- [ ] Reactive hybrid, the Flutter model (=cl-reactive=)
+- [ ] Immediate + cache (=cl-immediate=)
 - [ ] Layout spike across front ends (H6)
 - [ ] All 7GUIs tasks in each
 
@@ -745,6 +783,9 @@ The experimental phase ends when:
 - [ ] Stable API and versioning policy for each library
 - [ ] Full IME and accessibility plan, then implementation (OS bridges on
   top of the semantic tree that already serves the machine interface)
+- [ ] Windows and Linux: Win32 with Direct3D 11, Wayland and X11 with Vulkan,
+  and their text stacks ([[file:notes/decisions/0001-platform.org][0001]], [[file:notes/decisions/0002-gpu-api.org][0002]], [[file:notes/decisions/0003-text-engine.org][0003]]). The experiment measures on
+  macOS only; the contract and the display list are what keep this port open
 - [ ] Documentation and examples gallery for each library
 - [ ] Build the dogfood app
 - [ ] First public release of each library

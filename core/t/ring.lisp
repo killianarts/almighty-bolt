@@ -66,6 +66,57 @@
 (define-test the-capacity-must-be-positive ()
   (assert-error 'type-error (ring:make-frame-ring :capacity 0)))
 
+;;; --- the phases of a frame ---
+
+(define-test a-record-without-phases-reads-them-as-zero ()
+  (let ((frame-ring (ring:make-frame-ring :capacity 4)))
+    (ring:record-frame frame-ring 10 20 100 150)
+    (assert-eql 0 (ring:frame-build-ns frame-ring 0))
+    (assert-eql 0 (ring:frame-drawable-wait-ns frame-ring 0))
+    (assert-eql 0 (ring:frame-encode-ns frame-ring 0))
+    (assert-eql 0 (ring:frame-builds frame-ring 0))
+    (assert-false (ring:frame-capped-p frame-ring 0))))
+
+(define-test the-phases-come-back-with-the-record ()
+  (let ((frame-ring (ring:make-frame-ring :capacity 4)))
+    (ring:record-frame frame-ring 10 90 100 150 40 30 10 2 nil)
+    (ring:record-frame frame-ring 100 190 150 150 50 25 15 3 t)
+    (assert-eql 40 (ring:frame-build-ns frame-ring 0))
+    (assert-eql 30 (ring:frame-drawable-wait-ns frame-ring 0))
+    (assert-eql 10 (ring:frame-encode-ns frame-ring 0))
+    (assert-eql 2 (ring:frame-builds frame-ring 0))
+    (assert-false (ring:frame-capped-p frame-ring 0))
+    (assert-eql 50 (ring:frame-build-ns frame-ring 1))
+    (assert-eql 25 (ring:frame-drawable-wait-ns frame-ring 1))
+    (assert-eql 15 (ring:frame-encode-ns frame-ring 1))
+    (assert-eql 3 (ring:frame-builds frame-ring 1))
+    (assert-true (ring:frame-capped-p frame-ring 1))
+    ;; The four words of the old record are unchanged.
+    (assert-equal '((10 90 100 150) (100 190 150 150)) (collect-frames frame-ring))))
+
+(define-test the-build-count-and-the-cap-flag-do-not-disturb-each-other ()
+  (let ((frame-ring (ring:make-frame-ring :capacity 4)))
+    (ring:record-frame frame-ring 0 1 0 0 0 0 0 (1- (expt 2 32)) nil)
+    (ring:record-frame frame-ring 0 1 0 0 0 0 0 (1- (expt 2 32)) t)
+    (ring:record-frame frame-ring 0 1 0 0 0 0 0 0 t)
+    (assert-eql (1- (expt 2 32)) (ring:frame-builds frame-ring 0))
+    (assert-false (ring:frame-capped-p frame-ring 0))
+    (assert-eql (1- (expt 2 32)) (ring:frame-builds frame-ring 1))
+    (assert-true (ring:frame-capped-p frame-ring 1))
+    (assert-eql 0 (ring:frame-builds frame-ring 2))
+    (assert-true (ring:frame-capped-p frame-ring 2))))
+
+(define-test an-overwritten-record-takes-its-phases-with-it ()
+  (let ((frame-ring (ring:make-frame-ring :capacity 2)))
+    (ring:record-frame frame-ring 1 2 0 0 11 12 13 1 nil)
+    (ring:record-frame frame-ring 3 4 0 0 21 22 23 2 nil)
+    (ring:record-frame frame-ring 5 6 0 0 31 32 33 3 t)
+    (assert-eql 2 (ring:frame-ring-count frame-ring))
+    (assert-eql 21 (ring:frame-build-ns frame-ring 0))
+    (assert-eql 31 (ring:frame-build-ns frame-ring 1))
+    (assert-eql 33 (ring:frame-encode-ns frame-ring 1))
+    (assert-true (ring:frame-capped-p frame-ring 1))))
+
 ;;; --- recording a frame around code ---
 
 (define-test with-recorded-frame-times-and-counts-the-body ()
@@ -94,6 +145,13 @@
     (assert-eql 5250 (ring:frame-end-ns frame-ring 0))))
 
 ;;; --- no allocation ---
+
+(define-test recording-phases-does-not-allocate ()
+  (let ((frame-ring (ring:make-frame-ring :capacity 1024))
+        (before (sb-ext:get-bytes-consed)))
+    (dotimes (i 500000)
+      (ring:record-frame frame-ring i (+ i 100) 100 200 40 30 10 2 (evenp i)))
+    (assert-true (< (- (sb-ext:get-bytes-consed) before) 1000000))))
 
 (define-test recording-does-not-allocate ()
   (let ((frame-ring (ring:make-frame-ring :capacity 1024))
