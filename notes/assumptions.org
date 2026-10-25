@@ -104,8 +104,15 @@ Entry format:
   | immediate Counter, started by Claude             | 1, 1, 1         |
   An earlier immediate Counter run by Claude showed 0 in its last sample. All are 0 to 3 a
   sample, and the retained variant, which does nothing when idle, shows the same, so the few
-  wakeups are the host's or the runtime's and not the immediate variant's. Not yet checked:
-  hover, press and the wheel in a window, and wakeups with the pointer moving over a box.
+  wakeups are the host's or the runtime's and not the immediate variant's.
+  With the immediate Counter in a window, Micah watched its CPU in Activity Monitor: it rose
+  while hovering, pressing and scrolling the wheel, and dropped back when they stopped; about
+  2% with constant wheel scrolling. Frames were not counted, so this says the cost is small
+  and that it ends, not which gestures draw a frame. (A wheel over a box that takes the
+  pointer, such as the Counter's button, asks for a frame although no widget uses it; the
+  retained variant asks only when something scrolled. Not changed.) Not yet checked: that
+  the hovered and pressed looks are right in the window, and the wheel in the immediate CRUD
+  list and cells grid (the Counter does nothing with it).
 - *If false.* Wakeups: look at the value =enqueue-event= returns for the events it is
   given (=ui.lisp=). A wheel that does nothing: the place in =wheel-event= may be in
   another coordinate system than the pointer's.
