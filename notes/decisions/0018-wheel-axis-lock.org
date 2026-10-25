@@ -19,16 +19,17 @@ about the axes.
 
 * Evidence
 - Option 1 drops the drift of a single event, which is not the drift of a
-  gesture: the events of Micah's calm swipe had a ratio that varied from 1 to
-  0.15, and the first ones were nearly diagonal (=-3, -3=). Choosing for each
+  gesture: the events of Micah's calm swipe had a ratio of down to across that
+  varied from 1 to about 0.2, and the first ones were nearly diagonal (=-3, -3=). Choosing for each
   event would flicker.
 - Option 3 needs two new fields on the wheel event, in every platform's
   translation, and the replay format. The events already carry timestamps, from
   which a pause can be seen.
 - Option 2 is deterministic from the events, so a replay locks as the original
   did.
-- Micah's logs: events 8 to 16 ms apart during a gesture, momentum included,
-  with no pause of more than a few frames until it stops.
+- The 150 ms pause is a guess. Micah's logs have no timestamps, so the gaps between
+  events were not measured. A trackpad sends an event about every frame, and the
+  momentum after a flick continues the stream, which is what the rule relies on.
 - A 45 degree movement has no main axis. It is given to down, as a tie.
 - Tested: the swipes from Micah's log, a pause ending a gesture, the axis
   staying through momentum, a wheel's lines passing through untouched, and, in
