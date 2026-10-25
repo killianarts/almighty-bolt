@@ -87,6 +87,13 @@
                 #:+font-name+
                 #:+font-size+)
   (:export #:label
+           #:paragraph
+           #:paragraph-state
+           #:paragraph-state-text
+           #:paragraph-state-lines
+           #:paragraph-state-wrapped-at
+           #:paragraph-state-generation
+           #:set-paragraph-lines
            #:button
            #:text-field
            #:slider
@@ -230,6 +237,37 @@ the box a press began on), 3 disabled, and 4 more if it has the keyboard."
           (box-color box) (or color 0)
           (box-flex box) (float flex 1f0))
     (close-box *ui*)
+    nil))
+
+;;; A paragraph is text broken into lines to the width it is given, so its height depends on
+;;; its width: layout works the lines out (they go in a state kept by the box's key, which is
+;;; there when layout is skipped for a frame that is the same) and painting draws them.
+
+(defstruct (paragraph-state (:constructor make-paragraph-state ()))
+  (text "" :type string)
+  (wrapped-at -1f0 :type single-float)
+  (lines '() :type list)
+  (generation 0 :type fixnum))
+
+(defun set-paragraph-lines (state text wrapped-at lines)
+  "Note the LINES that TEXT breaks into at WRAPPED-AT; a new generation says that the lines
+are not the ones that were drawn before."
+  (setf (paragraph-state-text state) text
+        (paragraph-state-wrapped-at state) wrapped-at
+        (paragraph-state-lines state) lines)
+  (incf (paragraph-state-generation state))
+  state)
+
+(defun paragraph (text &key id (size 15) color (flex 0))
+  "TEXT broken into lines to the width it is given, SIZE points high."
+  (let* ((ui *ui*)
+         (box (open-box ui :paragraph :id id)))
+    (setf (box-text box) text
+          (box-size box) size
+          (box-color box) (or color 0)
+          (box-flex box) (float flex 1f0)
+          (box-data box) (state-of ui (box-key box) #'make-paragraph-state))
+    (close-box ui)
     nil))
 
 (defun progress (fraction &key id (width 200) (flex 0))

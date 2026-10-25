@@ -6,6 +6,7 @@
   (:export #:driver
            #:driver-variant
            #:driver-list
+           #:resize
            #:define-acceptance
            #:available-variants
            #:start
@@ -95,6 +96,12 @@ frame's list. A frame that changed state is built again, up to the limit."
     (dotimes (i frames)
       (core:settle-frame (driver-variant driver) (driver-context driver) (driver-list driver)))
     (driver-list driver)))
+
+(defun resize (driver width height)
+  "Make the window WIDTH by HEIGHT points, as the host does when it is resized, and draw."
+  (setf (core:context-width (driver-context driver)) (float width 1f0)
+        (core:context-height (driver-context driver)) (float height 1f0))
+  (redraw driver))
 
 (defun advance-time (driver seconds &key (frames 1))
   "Let SECONDS pass and draw FRAMES frames, the first after the time has passed."

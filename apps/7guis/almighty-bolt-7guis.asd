@@ -12,7 +12,8 @@
                (:module "timer" :components ((:file "model")))
                (:module "crud" :components ((:file "model")))
                (:module "circles" :components ((:file "model") (:file "paint")))
-               (:module "cells" :components ((:file "model") (:file "geometry") (:file "paint"))))
+               (:module "cells" :components ((:file "model") (:file "geometry") (:file "paint")))
+               (:module "layout" :components ((:file "text"))))
   :in-order-to ((test-op (test-op "almighty-bolt-7guis/tests"))))
 
 (defsystem "almighty-bolt-7guis/tests"
@@ -56,7 +57,8 @@
                (:module "timer" :components ((:file "retained")))
                (:module "crud" :components ((:file "retained")))
                (:module "circles" :components ((:file "retained")))
-               (:module "cells" :components ((:file "retained")))))
+               (:module "cells" :components ((:file "retained")))
+               (:module "layout" :components ((:file "retained")))))
 
 (defsystem "almighty-bolt-7guis/launcher"
   :description "Open a task of a variant in a window"
@@ -83,7 +85,8 @@
                                (:file "crud")
                                (:file "circles")
                                (:file "cells")
-                               (:file "replay"))))))
+                               (:file "replay")
+                               (:file "layout"))))))
   :perform (test-op (o s)
                     (let* ((results
                              (loop :for package :in '(:almighty-bolt-7guis/t/acceptance/counter
@@ -93,7 +96,8 @@
                                                       :almighty-bolt-7guis/t/acceptance/crud
                                                       :almighty-bolt-7guis/t/acceptance/circles
                                                       :almighty-bolt-7guis/t/acceptance/cells
-                                                      :almighty-bolt-7guis/t/acceptance/replay)
+                                                      :almighty-bolt-7guis/t/acceptance/replay
+                                                      :almighty-bolt-7guis/t/acceptance/layout)
                                    :collect (uiop:symbol-call :lisp-unit2 :run-tests
                                                               :package package)))
                            (bad (loop :for db :in results
@@ -114,7 +118,8 @@
                (:module "timer" :components ((:file "immediate")))
                (:module "crud" :components ((:file "immediate")))
                (:module "circles" :components ((:file "immediate")))
-               (:module "cells" :components ((:file "immediate")))))
+               (:module "cells" :components ((:file "immediate")))
+               (:module "layout" :components ((:file "immediate")))))
 
 (defsystem "almighty-bolt-7guis/reactive"
   :description "The seven 7GUIs tasks in the reactive variant"
@@ -126,4 +131,5 @@
                (:module "timer" :components ((:file "reactive")))
                (:module "crud" :components ((:file "reactive")))
                (:module "circles" :components ((:file "reactive")))
-               (:module "cells" :components ((:file "reactive")))))
+               (:module "cells" :components ((:file "reactive")))
+               (:module "layout" :components ((:file "reactive")))))

@@ -1243,3 +1243,23 @@ checkpoint; for cells retained and reactive agree and immediate differs, with th
   frame count); taking the fix out, or counting by hand, is what finds them.
 ** Not done
 Recording in a window (=RECORD=) is untried; replay in a window; checkpoints other than hashes.
+
+* 2026-10-26 — The layout spike (H6)
+** What I did
+A paragraph widget in each variant (0020, proposed), the spike screen of =apps/7guis/layout= (a
+nested split and wrapped text) in each, acceptance tests, and =make bench-layout=.
+** What I measured
+With the real text engine: a frame at a new width 431 us (retained), 432 (reactive), 441
+(immediate); at the same width 1.7, 1.9, 3.0 us; one build in every frame at 311 widths; the same
+display list in all three at every width.
+** What I learned
+- The spike's value was the planning: making the window resizable showed that the immediate
+  variant did not look at the window when it decided to skip layout. A test of a resized centred
+  label failed at once (176 where 376 was right), and a second one for a box a flex had made
+  wider failed with the first fix alone.
+- A committed state was one I had not tested. I took the size check out of the paint cache to see
+  the new test fail, put the file back with =cp=, and the compiled file, which had the same
+  timestamp to the second, was not rebuilt; =make test= failed and my command chain, which used
+  =;= and not =&&=, committed and pushed anyway. The source was right and the next full run passed.
+  Commit only after the exit status of the tests.
+- The text engine dominates a frame that needs layout, so the variants cannot be told apart by it.

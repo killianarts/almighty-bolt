@@ -3,6 +3,7 @@
   (:import-from #:almighty-bolt-core
                 #:context-font
                 #:context-measure
+                #:context-break-lines
                 #:context-push-text
                 #:push-rect
                 #:push-rounded-rect
@@ -10,6 +11,7 @@
                 #:layout-flex
                 #:layout-align
                 #:constrain
+                #:unbounded-p
                 #:key-event-kind
                 #:key-event-logical-key)
   (:import-from #:almighty-bolt-variant-retained/theme
@@ -51,6 +53,10 @@
                 #:key-input)
   (:export #:label
            #:label-p
+           #:paragraph
+           #:paragraph-p
+           #:paragraph-text
+           #:paragraph-color
            #:label-text
            #:label-color
            #:label-size
@@ -153,6 +159,86 @@ values. Nodes are never keywords, so the first keyword starts the options."
   (measure-label label context)
   (context-push-text context list (label-font label) (label-%text label)
                      x (+ y (label-ascent label)) (label-%color label))
+  nil)
+
+;;; --- a paragraph: text broken into lines to the width it is given ---
+
+;;; Its height depends on its width, which is the case that a parent cannot size before it has
+;;; told the child how wide it may be: the constraints go down, the size comes up (0004).
+
+(defstruct (paragraph (:include node) (:constructor %make-paragraph))
+  (%text "" :type string)
+  (size 15 :type real :read-only t)
+  (%color +text-color+)
+  (font nil)
+  ;; What was worked out for the width in WRAPPED-AT: the lines as (start end) pairs, the
+  ;; widest of them and the height of a line.
+  (wrapped-at -1f0 :type single-float)
+  (lines '() :type list)
+  (text-width 0f0 :type single-float)
+  (ascent 0f0 :type single-float)
+  (line-height 0f0 :type single-float))
+
+(defun paragraph (text &key id (size 15) (color +text-color+) (flex 0) (cacheable t))
+  "TEXT broken into lines to the width it is given, SIZE points high."
+  (%make-paragraph :%text text :id id :size size :%color color :flex (float flex 1f0)
+                   :cacheable cacheable))
+
+(defun paragraph-text (paragraph)
+  (paragraph-%text paragraph))
+
+(defun (setf paragraph-text) (text paragraph)
+  (setf (paragraph-%text paragraph) text
+        (paragraph-wrapped-at paragraph) -1f0)
+  (touch paragraph t)
+  text)
+
+(defun paragraph-color (paragraph)
+  (paragraph-%color paragraph))
+
+(defun (setf paragraph-color) (color paragraph)
+  (setf (paragraph-%color paragraph) color)
+  (touch paragraph nil)
+  color)
+
+(defun break-paragraph (paragraph context width)
+  "Make sure PARAGRAPH is broken into lines for WIDTH."
+  (unless (= (paragraph-wrapped-at paragraph) width)
+    (unless (paragraph-font paragraph)
+      (setf (paragraph-font paragraph)
+            (context-font context +font-name+ (paragraph-size paragraph))))
+    (let ((font (paragraph-font paragraph))
+          (text (paragraph-%text paragraph)))
+      (multiple-value-bind (w ascent descent) (context-measure context font "Hg")
+        (declare (ignore w))
+        (setf (paragraph-ascent paragraph) (float ascent 1f0)
+              (paragraph-line-height paragraph) (float (+ ascent descent) 1f0)))
+      (let ((lines (context-break-lines context font text width))
+            (widest 0f0))
+        (loop :for (start end) :in lines
+              :do (setf widest (max widest (float (context-measure context font
+                                                                   (subseq text start end))
+                                                  1f0))))
+        (setf (paragraph-lines paragraph) lines
+              (paragraph-text-width paragraph) widest
+              (paragraph-wrapped-at paragraph) width)))))
+
+(defmethod layout-node ((paragraph paragraph) context min-w max-w min-h max-h)
+  (break-paragraph paragraph context (if (unbounded-p max-w) 100000f0 max-w))
+  (set-size paragraph
+            (constrain (paragraph-text-width paragraph) min-w max-w)
+            (constrain (* (length (paragraph-lines paragraph)) (paragraph-line-height paragraph))
+                       min-h max-h))
+  (values (node-w paragraph) (node-h paragraph)))
+
+(defmethod paint-node ((paragraph paragraph) context list x y)
+  (let ((text (paragraph-%text paragraph)))
+    (loop :for (start end) :in (paragraph-lines paragraph)
+          :for line :from 0
+          :do (context-push-text context list (paragraph-font paragraph) (subseq text start end)
+                                 x (+ y (* line (paragraph-line-height paragraph))
+                                      (paragraph-ascent paragraph))
+                                 (paragraph-%color paragraph))))
   nil)
 
 ;;; --- space around a child ---

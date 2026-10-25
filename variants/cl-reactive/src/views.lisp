@@ -8,6 +8,7 @@
            #:view-children
            #:view-prop
            #:label
+           #:paragraph
            #:button
            #:padding
            #:panel
@@ -55,6 +56,10 @@
 (defun label (text &key id (size 15) color (flex 0) (visible t) (enabled t) key)
   (make-view :label (list* :text text :size size :color color
                            (commons id flex visible enabled key))))
+
+(defun paragraph (text &key id (size 15) color (flex 0) (visible t) (enabled t) key)
+  (make-view :paragraph (list* :text text :size size :color color
+                               (commons id flex visible enabled key))))
 
 (defun button (text &key id on-click (flex 0) (visible t) (enabled t) key)
   (make-view :button (list* :text text :on-click on-click

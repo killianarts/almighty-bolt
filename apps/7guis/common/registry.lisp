@@ -20,7 +20,7 @@
 ;;; that the launcher and the acceptance tests can run any of them by name without
 ;;; knowing which variant it is.
 
-(defparameter +tasks+ '(:counter :temperature :flight :timer :crud :circles :cells))
+(defparameter +tasks+ '(:counter :temperature :flight :timer :crud :circles :cells :layout))
 (defparameter +variants+ '(:retained :reactive :immediate))
 
 (defstruct (app (:constructor make-app (variant task constructor width height title)))
@@ -37,7 +37,7 @@
   "Record that VARIANT has an app for TASK, made by calling CONSTRUCTOR, which runs in a
 window WIDTH by HEIGHT points."
   (check-type variant (member :retained :reactive :immediate))
-  (check-type task (member :counter :temperature :flight :timer :crud :circles :cells))
+  (check-type task (member :counter :temperature :flight :timer :crud :circles :cells :layout))
   (setf *apps* (remove-if (lambda (app) (and (eq (app-variant app) variant) (eq (app-task app) task)))
                           *apps*))
   (push (make-app variant task constructor width height

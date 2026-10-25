@@ -3,6 +3,7 @@
   (:import-from #:almighty-bolt-core
                 #:context-font
                 #:context-measure
+                #:context-break-lines
                 #:layout-padding
                 #:layout-flex
                 #:layout-align
@@ -32,6 +33,10 @@
                 #:box-h)
   (:import-from #:almighty-bolt-variant-immediate/widgets
                 #:ui-font
+                #:paragraph-state-text
+                #:paragraph-state-lines
+                #:paragraph-state-wrapped-at
+                #:set-paragraph-lines
                 #:choice-state-lefts
                 #:choice-state-widths
                 #:+row-height+
@@ -72,6 +77,26 @@ them in the boxes, and return the width and height."
          (set-box box
                   (constrain (float width 1f0) min-w max-w)
                   (constrain (float (+ ascent descent) 1f0) min-h max-h)))))
+    (:paragraph
+     (let* ((state (box-data box))
+            (text (box-text box))
+            (font (context-font context +font-name+ (box-size box)))
+            (wrap (if (< max-w +unbounded+) max-w 100000f0)))
+       ;; Broken again only if the text or the width is not what the lines were made for.
+       (unless (and (= (paragraph-state-wrapped-at state) wrap)
+                    (string= (paragraph-state-text state) text))
+         (set-paragraph-lines state text wrap (context-break-lines context font text wrap)))
+       (multiple-value-bind (width ascent descent) (context-measure context font "Hg")
+         (declare (ignore width))
+         (let ((widest 0f0))
+           (loop :for (start end) :in (paragraph-state-lines state)
+                 :do (setf widest (max widest (float (context-measure context font
+                                                                      (subseq text start end))
+                                                     1f0))))
+           (set-box box (constrain widest min-w max-w)
+                    (constrain (* (length (paragraph-state-lines state))
+                                  (float (+ ascent descent) 1f0))
+                               min-h max-h))))))
     (:button
      (let ((font (ui-font context)))
        (multiple-value-bind (width ascent descent) (context-measure context font (box-text box))

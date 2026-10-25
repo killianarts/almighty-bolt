@@ -44,6 +44,9 @@
                 #:ui-paint-cache)
   (:import-from #:almighty-bolt-variant-immediate/widgets
                 #:ui-font
+                #:paragraph-state-text
+                #:paragraph-state-lines
+                #:paragraph-state-generation
                 #:field-state-state
                 #:field-state-view-start
                 #:choice-state-lefts
@@ -85,6 +88,8 @@
 
 (defstruct (entry (:constructor make-entry ()))
   (hash -1 :type fixnum)
+  ;; What layout made of the box besides its size (the lines of a paragraph).
+  (salt 0 :type fixnum)
   ;; The size of the box when the fragment was drawn: a box that a flex has made wider is not
   ;; the box that was drawn, though it has the same hash.
   (width -1f0 :type single-float)
@@ -129,6 +134,18 @@
       (declare (ignore width descent))
       (context-push-text context list font (box-text box) x (+ y ascent)
                          (if (zerop (box-color box)) +text-color+ (box-color box))))))
+
+(defun draw-paragraph (box context list x y)
+  (let* ((state (box-data box))
+         (text (paragraph-state-text state))
+         (font (context-font context +font-name+ (box-size box))))
+    (multiple-value-bind (width ascent descent) (context-measure context font "Hg")
+      (declare (ignore width))
+      (loop :for (start end) :in (paragraph-state-lines state)
+            :for line :from 0
+            :do (context-push-text context list font (subseq text start end) x
+                                   (+ y (* line (+ ascent descent)) ascent)
+                                   (if (zerop (box-color box)) +text-color+ (box-color box)))))))
 
 (defun draw-button (box context list x y)
   (let ((w (box-w box)) (h (box-h box)))
@@ -259,6 +276,7 @@
 (defun draw-leaf (box context list x y)
   (ecase (box-kind box)
     (:label (draw-label box context list x y))
+    (:paragraph (draw-paragraph box context list x y))
     (:button (draw-button box context list x y))
     (:text-field (draw-text-field box context list x y))
     (:slider (draw-slider box list x y))
@@ -275,8 +293,12 @@ kept, and otherwise afresh, which is then kept."
          (hash (box-paint-hash box))
          (entry (or (gethash key (ui-paint-cache ui))
                     (setf (gethash key (ui-paint-cache ui)) (make-entry))))
+         (salt (if (eq (box-kind box) :paragraph)
+                   (paragraph-state-generation (box-data box))
+                   0))
          (fragment (entry-fragment entry)))
     (unless (and (= (entry-hash entry) hash)
+                 (= (entry-salt entry) salt)
                  (= (entry-width entry) (box-w box))
                  (= (entry-height entry) (box-h box)))
       (loop
@@ -287,6 +309,7 @@ kept, and otherwise afresh, which is then kept."
             (setf fragment (make-display-list :capacity (* 2 (display-list-capacity fragment)))
                   (entry-fragment entry) fragment))))
       (setf (entry-hash entry) hash
+            (entry-salt entry) salt
             (entry-width entry) (box-w box)
             (entry-height entry) (box-h box)))
     (let ((scale (context-scale context)))
@@ -297,7 +320,7 @@ kept, and otherwise afresh, which is then kept."
   (let ((x (+ x (box-x box)))
         (y (+ y (box-y box))))
     (ecase (box-kind box)
-      ((:label :button :text-field :slider :progress :choice :list-box)
+      ((:label :paragraph :button :text-field :slider :progress :choice :list-box)
        (paint-cached ui box context list x y))
       (:canvas
        (let ((scale (context-scale context))

@@ -23,6 +23,9 @@
                 #:label
                 #:label-text
                 #:label-color
+                #:paragraph
+                #:paragraph-text
+                #:paragraph-color
                 #:button
                 #:button-text
                 #:padding
@@ -131,6 +134,8 @@ state says even if the handler did not change it."
              (ecase (view-type view)
                (:label (apply #'label (p :text) :id id :size (p :size) :flex flex
                               (and (p :color) (list :color (p :color)))))
+               (:paragraph (apply #'paragraph (p :text) :id id :size (p :size) :flex flex
+                                  (and (p :color) (list :color (p :color)))))
                (:button (button (p :text) :id id :flex flex
                                           :on-click (handler element :on-click)))
                (:padding (padding (label "") :id id :flex flex
@@ -221,6 +226,7 @@ changed."
 
 (defparameter +structure+
   '((:label :size)
+    (:paragraph :size)
     (:padding :left :top :right :bottom)
     (:panel :left :top :right :bottom :color :radius)
     (:row :gap :main-align :cross-align :fill)
@@ -265,6 +271,11 @@ false, having changed nothing, if it cannot be done (the node must be made again
            (setf (label-text node) (p :text)))
          (unless (eql (p :color) (getf old :color))
            (setf (label-color node) (or (p :color) +text-color+))))
+        (:paragraph
+         (unless (string= (paragraph-text node) (p :text))
+           (setf (paragraph-text node) (p :text)))
+         (unless (eql (p :color) (getf old :color))
+           (setf (paragraph-color node) (or (p :color) +text-color+))))
         (:button
          (unless (string= (button-text node) (p :text))
            (setf (button-text node) (p :text))))
