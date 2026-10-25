@@ -91,7 +91,7 @@ Entry format:
 - *If false.* The window, or the translation of AppKit's events, is wrong somewhere the
   tests cannot see: start from the log.
 
-* A-006 [OPEN] Metal scissor rectangles behave as the offscreen tests show in a window
+* A-006 [VERIFIED] Metal scissor rectangles behave as the offscreen tests show in a window
 - *Statement.* Clips (0014) render in a window's drawable as they do into the offscreen
   texture the tests read back: same pipeline, same encoder calls.
 - *Why not checked.* The tests read back an off-screen texture; the circle drawer's clipping
@@ -99,6 +99,11 @@ Entry format:
 - *Check.* Draw circles of 200 near the edge of the canvas in =make 7guis VARIANT=retained
   TASK=circles= (right-click a circle, drag the slider up): they must stop at the canvas
   edge.
+- *Evidence (2026-10-26, VERIFIED by Micah).* The immediate circle drawer in a window, with
+  large circles at the right and bottom edges, the left edge and the top right corner: each
+  stops at the canvas edge and nothing is drawn over the padding or the buttons (Micah's
+  screenshot, =images/19.png= of the session). Only the immediate variant was run for this; the
+  retained and reactive drawers append the same clip commands to the same renderer.
 - *If false.* The scissor rectangle may have to be in the drawable's pixels at its real
   size, not the points times the scale given to the host: see =copy-commands=.
 
