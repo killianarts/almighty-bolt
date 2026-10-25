@@ -73,3 +73,37 @@ the changes that rested on it can be found.
 - 0014 Clipping in the display list (renderer scissor stretches).
 - 0015 The reactive variant: views over signals, on retained nodes.
 - 0016 The immediate variant: a function called every frame, cached by comparison (A-007).
+
+* Morning checklist
+State when the run stopped: branch =phase-2=, tags =auto/01-retained-complete=,
+=auto/02-reactive-complete=, =auto/03-immediate-complete=, =auto/04-handoff=. All three
+variants have all seven tasks; =make test= passes (the acceptance tests run each task in
+each variant). Nothing is pushed.
+
+1. Run =make test= once yourself (it opens windows for the host and renderer tests).
+2. In a window, for each of =VARIANT= retained, reactive, immediate and each =TASK=
+   counter, temperature, flight, timer, crud, circles, cells:
+   =make 7guis VARIANT=... TASK=...=. What to try is what the file for the task in
+   =apps/7guis/t/acceptance/= tests. Specific things the ledger asks for:
+   - A-002, A-003: Tab, Shift+Tab, Return, Backspace, the arrows, forward Delete and
+     typing in the fields; =LOG=1= prints each key with its character code.
+   - A-004: scroll the CRUD list and the cells grid, with a trackpad and a wheel; the
+     direction should match the other apps on the Mac.
+   - A-005: the apps look and behave in the window as in the snapshots; text is wider
+     than the tests' fake 8 points a character, so look for clipped messages.
+   - A-006: the circle drawer: right-click a circle, drag the slider up; circles of 200 stop
+     at the canvas edge.
+   - A-007: leave an immediate app alone and look at its wakeups with
+     =top -l 3 -s 10 -pid <pid> -stats pid,command,idlew=; hover and press its buttons.
+3. When one fails, =scripts/assumption-impact.sh A-00n= lists the commits that rest on it.
+4. Decisions to accept, change or supersede: 0012 to 0016 (the review queue below). 0016
+   differs from 0009 in two places (it drops what no widget took, and a press on nothing
+   takes the keyboard from a field); say whether that is a change to 0009.
+5. Numbers: =make bench-compare= (the three variants on the same screen) and
+   =make bench-retained= (what the retained caches are worth). Both are in the devlog.
+
+Where the apps differ from the 7GUIs text, and are the same in all three variants (0013): a
+choice of two (radio-like) instead of a combo box; the circle's dialog opens on a
+right-click; the timer animates at the display's rate while it runs; no clipboard and no
+input methods. A focusable canvas (the cells grid) takes every key typed while it has the
+keyboard, so a Command key chord reaches the grid and not the app's menu.
