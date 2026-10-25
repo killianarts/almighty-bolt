@@ -22,3 +22,22 @@ Entry format:
   compare the window with =design/screenshots/= pictures when they exist.
 - *If false.* Every visual judgement made from a snapshot is suspect: re-look at each
   task in a window.
+
+* A-002 [OPEN] AppKit's characters for the named keys are the documented ones
+- *Statement.* In a window, the arrow keys, forward delete, Home, End and Page Up and
+  Down arrive as =characters= U+F700 to U+F703, U+F728, U+F729, U+F72B, U+F72C and
+  U+F72D; the Delete key arrives as U+007F; Escape as U+001B. Only Tab, Space, Return
+  and Shift-Tab have been seen (2026-10-25).
+- *Why not checked.* Keys cannot be pressed here.
+- *Check.* Run any text field task and press each of those keys; the logged variant
+  (=make 7guis ... LOG=1=) prints each key down with its character code.
+- *If false.* Fix =logical-key= in =core/src/platform/macos/ns-event.lisp= and the
+  constants in =core/src/event.lisp=; nothing else knows the codes.
+
+* A-003 [OPEN] A printable key's character is the text to insert
+- *Statement.* For a key without Command or Control held, the first character of the
+  event's =characters= is what typing that key means, including Shift and Option
+  characters. Dead keys and input methods are not supported.
+- *Why not checked.* Needs a keyboard; composed input needs a second input source.
+- *Check.* Type letters, digits, punctuation and shifted letters in a text field.
+- *If false.* A real text-input path (NSTextInputClient) is needed, which is Phase 6.

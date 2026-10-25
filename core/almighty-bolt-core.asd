@@ -10,6 +10,7 @@
   :components ((:file "clock")
                (:file "ring")
                (:file "event")
+               (:file "text-edit")
                (:file "display-list")
                (:file "variant")
                (:file "settle")
@@ -74,6 +75,7 @@
                 ((:file "clock")
                  (:file "ring")
                  (:file "event")
+                 (:file "text-edit")
                  (:file "display-list")
                  (:file "variant")
                  (:file "settle")
@@ -117,6 +119,7 @@
                              (loop :for package :in '(:almighty-bolt-core/t/clock
                                                       :almighty-bolt-core/t/ring
                                                       :almighty-bolt-core/t/event
+                                                      :almighty-bolt-core/t/text-edit
                                                       :almighty-bolt-core/t/display-list
                                                       :almighty-bolt-core/t/variant
                                                       :almighty-bolt-core/t/settle

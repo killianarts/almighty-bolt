@@ -55,6 +55,9 @@ the changes that rested on it can be found.
 
 * Progress
 (Newest last. Each line is a commit or a tag.)
+- Protocol, ledger and snapshot tool (commit 8c27843).
+- 0012: keys and text editing (core: =+key-*+= constants, =text-edit=).
 
 * Review queue
 (Decision records made without Micah, newest last.)
+- 0012 Keys and the editing of one line of text (A-002, A-003).

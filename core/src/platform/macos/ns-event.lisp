@@ -77,14 +77,17 @@ not counting sleep, which is the base of the core clock."
 
 (defun logical-key (text)
   "The logical key of a key event whose characters are TEXT: its first character, or
-NIL if it has none. AppKit reports Shift-Tab as U+0019, its back-tab character. That
-is the Tab key with the shift modifier, so that is what it is made here, and a variant
-does not need to know AppKit's name for it."
+NIL if it has none. A few keys are not what AppKit calls them, and a variant should
+not need to know AppKit's names: Shift-Tab is U+0019, its back-tab character, and is
+the Tab key with the shift modifier; the Delete key, which deletes backwards, is
+U+007F and is #\Backspace; and the Enter key of the keypad is U+0003 and is Return."
   (when (plusp (length text))
     (let ((character (char text 0)))
-      (if (= (char-code character) #x19)
-          #\Tab
-          character))))
+      (case (char-code character)
+        (#x19 #\Tab)
+        (#x7F #\Backspace)
+        (#x03 #\Return)
+        (t character)))))
 
 (defun key-event-from-ns-event (ns-event kind)
   "A key event of KIND (:down or :up) for NS-EVENT."

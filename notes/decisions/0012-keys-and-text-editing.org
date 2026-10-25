@@ -1,0 +1,66 @@
+#+TITLE: 0012 — Keys and the editing of one line of text
+#+DATE: 2026-10-26
+- Status :: accepted (autonomous, unreviewed)
+
+* Context
+The seven 7GUIs tasks need text fields: the temperature converter, the flight booker,
+CRUD and the cells all take typed text. Three variants will each need a text field, and
+what a field does with a key (insert, delete, move the caret, select) is plumbing and
+not the UI approach being compared, so differing implementations would only add noise to
+the comparison of code size and behaviour. Two things are missing: names for the keys
+that make no character (the arrows, forward delete, Home and End), and a model of an
+edited line.
+
+* Options
+For naming keys that make no character:
+1. Change the event's =logical-key= to a keyword for those keys.
+2. Keep =logical-key= a character and use the characters AppKit gives these keys,
+   which are in the Unicode private use area, as constants.
+
+For where editing lives:
+1. Each variant's text field edits its own string.
+2. The core has a model of an edited line, as values, which every field uses.
+
+* Evidence
+- AppKit documents the function-key characters (NSUpArrowFunctionKey is U+F700,
+  NSLeftArrowFunctionKey U+F702, NSDeleteFunctionKey U+F728, NSHomeFunctionKey U+F729,
+  NSEndFunctionKey U+F72B). The Counter's log (2026-10-25) showed Tab, Space and Return
+  arriving with their own characters.
+- The type of =logical-key= is =(or null character)= in 0008's neighbours and in the tests
+  of the platform's translation; option 1 changes every consumer of a key event.
+- The user's preference, recorded earlier, is immutable models read-only and compared
+  by identity. A =text-state= with read-only slots fits the three variants: retained
+  keeps it in a node, reactive in a signal, immediate in a table.
+
+* Decision
+Option 2 for keys: =+key-up+=, =+key-down+=, =+key-left+=, =+key-right+=,
+=+key-home+=, =+key-end+=, =+key-page-up+=, =+key-page-down+= and =+key-delete-forward+=
+are the characters that AppKit gives them, and a port gives the same ones. The other keys
+have ordinary characters: =#\Backspace=, =#\Tab=, =#\Return=, =#\Escape= and =#\Space=.
+The macOS translation turns AppKit's DEL (the Delete key) into =#\Backspace=, its ETX
+(the keypad's Enter) into =#\Return=, and its back-tab (Shift-Tab) into =#\Tab=, with
+the shift modifier as it arrives.
+
+Option 2 for editing: =core/src/text-edit.lisp= holds a =text-state= (a string, a caret
+and an anchor, read-only) and operations that return a new one, or the same one if
+nothing happened: =text-insert=, =text-delete-backward=, =text-delete-forward=,
+=text-move= (by character or word, extending the selection or not), =text-select-all=,
+=text-place-caret= and =text-replace=. =edit-text= applies a key event: typing a printable
+character, Backspace, forward delete, the arrows with Shift to select and Option to
+move by a word, Home, End, Command-A, and Command with an arrow to go to an end. It
+returns a second value, true if the key was an editing key, so that Tab, Return and
+Escape, which mean what the field says, are left to it.
+
+Not decided here: the clipboard (Command-C and V, which no 7GUIs task needs), input
+methods and dead keys (so a key's =characters= is the text, which is wrong for
+composed input), and double-click and drag selection (a field places the caret on a
+click and extends it with Shift and the arrows).
+
+* Consequences
+- Easier: one tested editor under three fields, so that a difference between the
+  variants' fields is a difference in how they hold and show a state.
+- Harder: nothing in the variants can edit text except through =edit-text=, so a
+  behaviour it lacks (undo of typing, word delete) is added here for all three.
+- Gives up: composed input (IME), which the charter defers to Phase 6.
+- Depends on assumptions A-002 (the keys arrive with these characters) and A-003 (a
+  printable key's character is the text to insert), in =notes/assumptions.org=.

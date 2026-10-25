@@ -41,6 +41,15 @@
   (:import-from #:almighty-bolt-core/event
                 #:event
                 #:event-timestamp
+                #:+key-up+
+                #:+key-down+
+                #:+key-left+
+                #:+key-right+
+                #:+key-home+
+                #:+key-end+
+                #:+key-page-up+
+                #:+key-page-down+
+                #:+key-delete-forward+
                 #:+modifier-shift+
                 #:+modifier-control+
                 #:+modifier-alt+
@@ -89,6 +98,25 @@
                 #:focus-event
                 #:make-focus-event
                 #:focus-event-focused-p)
+  (:import-from #:almighty-bolt-core/text-edit
+                #:text-state
+                #:make-text-state
+                #:text-state-string
+                #:text-state-caret
+                #:text-state-anchor
+                #:text-state-selection-start
+                #:text-state-selection-end
+                #:text-state-selection-p
+                #:text-state-selected-string
+                #:text-state=
+                #:text-insert
+                #:text-delete-backward
+                #:text-delete-forward
+                #:text-move
+                #:text-select-all
+                #:text-place-caret
+                #:text-replace
+                #:edit-text)
   (:import-from #:almighty-bolt-core/display-list
                 #:display-list
                 #:make-display-list
@@ -200,6 +228,15 @@
            #:map-frames
            #:event
            #:event-timestamp
+           #:+key-up+
+           #:+key-down+
+           #:+key-left+
+           #:+key-right+
+           #:+key-home+
+           #:+key-end+
+           #:+key-page-up+
+           #:+key-page-down+
+           #:+key-delete-forward+
            #:+modifier-shift+
            #:+modifier-control+
            #:+modifier-alt+
@@ -248,6 +285,24 @@
            #:focus-event
            #:make-focus-event
            #:focus-event-focused-p
+           #:text-state
+           #:make-text-state
+           #:text-state-string
+           #:text-state-caret
+           #:text-state-anchor
+           #:text-state-selection-start
+           #:text-state-selection-end
+           #:text-state-selection-p
+           #:text-state-selected-string
+           #:text-state=
+           #:text-insert
+           #:text-delete-backward
+           #:text-delete-forward
+           #:text-move
+           #:text-select-all
+           #:text-place-caret
+           #:text-replace
+           #:edit-text
            #:display-list
            #:make-display-list
            #:display-list-capacity

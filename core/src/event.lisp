@@ -4,6 +4,15 @@
                 #:nanoseconds)
   (:export #:event
            #:event-timestamp
+           #:+key-up+
+           #:+key-down+
+           #:+key-left+
+           #:+key-right+
+           #:+key-home+
+           #:+key-end+
+           #:+key-page-up+
+           #:+key-page-down+
+           #:+key-delete-forward+
            #:+modifier-shift+
            #:+modifier-control+
            #:+modifier-alt+
@@ -65,6 +74,22 @@
 
 (defun required (name)
   (error "~s is required." name))
+
+;;; Keys that make no character have no character of their own, so a key event names
+;;; them with the characters that AppKit gives them, which are in the Unicode private
+;;; use area (NSUpArrowFunctionKey and the rest), and a port gives the same ones. The
+;;; other keys a variant needs have characters: #\Backspace, #\Tab, #\Return, #\Escape
+;;; and #\Space.
+
+(defconstant +key-up+ (code-char #xF700))
+(defconstant +key-down+ (code-char #xF701))
+(defconstant +key-left+ (code-char #xF702))
+(defconstant +key-right+ (code-char #xF703))
+(defconstant +key-delete-forward+ (code-char #xF728))
+(defconstant +key-home+ (code-char #xF729))
+(defconstant +key-end+ (code-char #xF72B))
+(defconstant +key-page-up+ (code-char #xF72C))
+(defconstant +key-page-down+ (code-char #xF72D))
 
 ;;; Modifier keys are a small bit set of our own; the platform layer maps the
 ;;; operating system's flags onto it.
