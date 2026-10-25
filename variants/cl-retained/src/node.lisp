@@ -30,6 +30,7 @@
            #:session-context
            #:session-hover
            #:session-pressed
+           #:session-click-count
            #:session-focus
            #:session-tickers
            #:refresh-look
@@ -336,6 +337,9 @@ context of the last frame, and functions to run at the start of each frame (TICK
   (context nil)
   (hover nil)
   (pressed nil)
+  ;; How many clicks in a row the press being handled is (1 for a single click, 2 for the
+  ;; second of a double click), as the platform counts them.
+  (click-count 1 :type fixnum)
   (focus nil)
   (tickers '() :type list))
 

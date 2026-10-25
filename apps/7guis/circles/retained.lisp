@@ -72,8 +72,8 @@
                (when hot
                  (setf hot nil)
                  (canvas-invalidate canvas)))
-             (press (source x y button)
-               (declare (ignore source))
+             (press (source x y button click-count)
+               (declare (ignore source click-count))
                (let ((circle (drawing-circle-at drawing x y)))
                  (cond ((and (eql button 0) (null circle))
                         (setf drawing (drawing-add drawing x y))

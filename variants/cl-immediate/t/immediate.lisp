@@ -293,7 +293,7 @@
       (pointer variant :down (+ x 30) (+ y 40) :button 0 :buttons 1) (build variant)
       (pointer variant :up (+ x 30) (+ y 40) :button 0) (build variant)
       (assert-equalp '(:move :press :release) (reverse (mapcar #'first events)))
-      (assert-equalp '(:press 30.0 40.0 0) (find :press events :key #'first)))
+      (assert-equalp '(:press 30.0 40.0 0 1) (find :press events :key #'first)))
     ;; The drawing is inside a clip.
     (let ((kinds (loop :for index :below (core:display-list-count *list*)
                        :collect (core:display-list-kind *list* index))))

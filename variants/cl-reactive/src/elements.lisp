@@ -169,10 +169,10 @@ state says even if the handler did not change it."
                                    (when (box-paint box)
                                      (funcall (box-paint box) (box-data box) canvas context list
                                               x y w h)))
-                          :on-press (lambda (canvas x y button)
+                          :on-press (lambda (canvas x y button click-count)
                                       (declare (ignore canvas))
                                       (when (box-on-press box)
-                                        (funcall (box-on-press box) x y button)))
+                                        (funcall (box-on-press box) x y button click-count)))
                           :on-move (lambda (canvas x y)
                                      (declare (ignore canvas))
                                      (when (box-on-move box) (funcall (box-on-move box) x y)))

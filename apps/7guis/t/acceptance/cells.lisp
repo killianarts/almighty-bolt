@@ -112,6 +112,47 @@ FIRST-COLUMN, FIRST-ROW."
   (d:press-key driver #\Return)
   (assert-equal "abcd" (cell-text driver 0 0)))
 
+(defun double-click-cell (driver column row &key (first-column 0) (first-row 0))
+  (destructuring-bind (grid-x grid-y grid-width grid-height) (d:rectangle driver :grid)
+    (destructuring-bind (x y width height) (cell-rectangle driver column row first-column first-row)
+      (d:double-click-at driver :grid (/ (- (+ x (/ width 2)) grid-x) grid-width)
+                         (/ (- (+ y (/ height 2)) grid-y) grid-height)))))
+
+(d:define-acceptance double-clicking-a-cell-edits-what-it-holds :cells
+  ;; The 7GUIs task: "Double-clicking a cell C lets the user change C's formula."
+  (enter driver 2 3 "abc")
+  (assert-equal "abc" (cell-text driver 2 3))
+  (double-click-cell driver 2 3)
+  (assert-equal "C3" (d:text-in driver :cell-name))
+  (assert-equal "abc" (d:text-in driver :formula))
+  (d:type-text driver "d")
+  (assert-equal "abcd" (d:text-in driver :formula))
+  (d:press-key driver #\Return)
+  (assert-equal "abcd" (cell-text driver 2 3)))
+
+(d:define-acceptance a-double-click-on-another-cell-finishes-the-first-and-edits-the-second :cells
+  (enter driver 0 0 "one")
+  (enter driver 1 0 "two")
+  (click-cell driver 0 0)
+  (d:type-text driver "x")                ; typing over A0, not finished
+  (double-click-cell driver 1 0)
+  (assert-equal "x" (cell-text driver 0 0))
+  (assert-equal "B0" (d:text-in driver :cell-name))
+  (assert-equal "two" (d:text-in driver :formula))
+  (d:press-key driver core:+key-left+)
+  (d:type-text driver "!")
+  (d:press-key driver #\Return)
+  (assert-equal "tw!o" (cell-text driver 1 0)))
+
+(d:define-acceptance a-single-click-only-selects :cells
+  (enter driver 0 0 "one")
+  (click-cell driver 0 0)
+  (assert-equal "A0" (d:text-in driver :cell-name))
+  (assert-equal "one" (d:text-in driver :formula))
+  ;; Not editing: a key that types starts a new text instead of adding to it.
+  (d:type-text driver "z")
+  (assert-equal "z" (d:text-in driver :formula)))
+
 (d:define-acceptance the-text-being-typed-can-be-edited-with-the-usual-keys :cells
   (click-cell driver 0 0)
   (d:type-text driver "abcd")

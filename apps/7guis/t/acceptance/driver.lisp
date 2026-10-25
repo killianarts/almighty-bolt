@@ -13,6 +13,7 @@
            #:rectangle
            #:click
            #:click-at
+           #:double-click-at
            #:right-click
            #:press-at
            #:drag-to
@@ -122,9 +123,10 @@ has nothing going on does not."
   ;; shows what an event that asked for nothing left on the screen.
   (redraw driver))
 
-(defun pointer (driver kind x y &key button (buttons 0))
+(defun pointer (driver kind x y &key button (buttons 0) (click-count 0))
   (deliver driver (core:make-pointer-event :timestamp 0 :kind kind :x (float x 1d0)
-                                           :y (float y 1d0) :button button :buttons buttons)))
+                                           :y (float y 1d0) :button button :buttons buttons
+                                           :click-count click-count)))
 
 (defun centre (driver id)
   (destructuring-bind (x y width height) (rectangle driver id)
@@ -139,6 +141,18 @@ control ID."
       (pointer driver :move px py)
       (pointer driver :down px py :button button :buttons (if (zerop button) 1 2))
       (pointer driver :up px py :button button))))
+
+(defun double-click-at (driver id fx fy)
+  "Click twice in a row at the fraction FX, FY of the way across and down the control ID, the
+second press counted by the platform as the second click."
+  (destructuring-bind (x y width height) (rectangle driver id)
+    (let ((px (+ x (* fx width)))
+          (py (+ y (* fy height))))
+      (pointer driver :move px py)
+      (pointer driver :down px py :button 0 :buttons 1 :click-count 1)
+      (pointer driver :up px py :button 0 :click-count 1)
+      (pointer driver :down px py :button 0 :buttons 1 :click-count 2)
+      (pointer driver :up px py :button 0 :click-count 2))))
 
 (defun click (driver id)
   "Click in the middle of the control ID."

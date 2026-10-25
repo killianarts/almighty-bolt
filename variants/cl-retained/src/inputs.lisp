@@ -66,7 +66,8 @@
                 #:pointer-release
                 #:pointer-wheel
                 #:key-input
-                #:session-context)
+                #:session-context
+                #:session-click-count)
   (:export #:text-field
            #:text-field-p
            #:text-field-state
@@ -659,9 +660,8 @@ The canvas keeps what PAINT drew until CANVAS-INVALIDATE says it changed."
     (push-unclip list)))
 
 (defmethod pointer-press ((canvas canvas) session x y button)
-  (declare (ignore session))
   (when (canvas-on-press canvas)
-    (funcall (canvas-on-press canvas) canvas x y button)))
+    (funcall (canvas-on-press canvas) canvas x y button (session-click-count session))))
 
 (defmethod pointer-move ((canvas canvas) session x y)
   (declare (ignore session))

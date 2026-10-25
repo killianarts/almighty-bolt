@@ -17,6 +17,7 @@
                 #:pointer-event-x
                 #:pointer-event-y
                 #:pointer-event-button
+                #:pointer-event-click-count
                 #:wheel-event
                 #:wheel-event-x
                 #:wheel-event-y
@@ -46,6 +47,7 @@
            #:ui-pointer-y
            #:ui-down
            #:ui-pressed
+           #:ui-click-count
            #:ui-released
            #:ui-secondary-pressed
            #:ui-moved
@@ -141,6 +143,8 @@
   (pointer-y -1000f0 :type single-float)
   (down nil)
   (pressed nil)
+  ;; How many clicks in a row the press is, as the platform counts them.
+  (click-count 1 :type fixnum)
   (released nil)
   (secondary-pressed nil)
   (moved nil)
@@ -324,7 +328,8 @@ were left."
                              (ui-secondary-pressed ui) t))
                       (changed-button (return))
                       (t (setf (ui-pointer-x ui) x (ui-pointer-y ui) y
-                               (ui-down ui) t (ui-pressed ui) t changed-button t))))
+                               (ui-down ui) t (ui-pressed ui) t changed-button t
+                               (ui-click-count ui) (max 1 (pointer-event-click-count event))))))
                (:up
                 (cond ((not (eql (pointer-event-button event) 0)))
                       (changed-button (return))

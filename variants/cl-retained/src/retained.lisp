@@ -16,6 +16,7 @@
                 #:pointer-event-x
                 #:pointer-event-y
                 #:pointer-event-button
+                #:pointer-event-click-count
                 #:wheel-event
                 #:wheel-event-x
                 #:wheel-event-y
@@ -44,6 +45,7 @@
                 #:session-context
                 #:session-hover
                 #:session-pressed
+                #:session-click-count
                 #:session-focus
                 #:session-tickers
                 #:refresh-look
@@ -210,6 +212,7 @@ as they are needed and no longer."
              (pointer-drag pressed session local-x local-y)))))
       (:leave (set-hover session nil))
       (:down
+       (setf (session-click-count session) (max 1 (pointer-event-click-count event)))
        (cond
          ((not (eql button 0))
           (when target (press session target x y button)))

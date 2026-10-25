@@ -1170,3 +1170,23 @@ Micah ran the apps in windows with =LOG=1= and answered the ledger. What came of
   over the three variants) passed with the fix taken out, because they read a cell relative
   to the screen; they read the selected cell's name now. A test that cannot fail is worth
   finding out by taking the fix out, which is how this was found.
+
+* 2026-10-26 — Double-clicking a cell edits it
+Micah could overwrite a cell but not change what was in it, and a double click did nothing.
+The 7GUIs task says "Double-clicking a cell C lets the user change C's formula", so it was
+in scope and the cells app had left it out: it had Return to edit what a cell holds, and
+typing over it, and 0013 does not list the omission as a deviation. The acceptance tests had
+Return and no double click, which is why nothing noticed.
+- The platform already counts clicks (=pointer-event-click-count=). A canvas's press now
+  carries it: the retained session keeps the count of the press being handled, the canvas
+  calls =on-press= with =(canvas x y button click-count)=, the reactive wrapper passes it on,
+  and the immediate canvas's event is =(:press x y button click-count)=. The circle drawer
+  ignores it; the cells grid selects the cell and, from the second click, edits what it holds.
+- Tests: the driver has =double-click-at=; three acceptance tests in all three variants (a
+  double click edits what the cell holds, one on another cell finishes the first and edits
+  the second, a single click only selects). With the second click not counted as a double,
+  the first two fail.
+- Seen on the way, not changed: the sheet formats numbers with two decimals from a double, so
+  1234123412341234 is shown as =1234123412341233.92= and cut to its first eight digits in a
+  cell, which misstates the number, and 0.000012345 is shown as 0. That is the shared model's
+  =sheet-display=.

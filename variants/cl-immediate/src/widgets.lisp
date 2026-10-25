@@ -43,6 +43,7 @@
                 #:ui-pointer-y
                 #:ui-down
                 #:ui-pressed
+                #:ui-click-count
                 #:ui-released
                 #:ui-moved
                 #:ui-keys
@@ -541,7 +542,7 @@ NIL) marked. Returns the index now and whether the person changed it this frame.
   "An area of WIDTH by HEIGHT. PAINTER is called every frame with the list to append to, the
 context, and the width and height, and draws from the top left of the area, which it clips
 to; if what it draws is what it drew last frame, nothing more is done for it. Returns the
-events for the canvas, oldest first: (:press x y button), (:move x y), (:drag x y),
+events for the canvas, oldest first: (:press x y button click-count), (:move x y), (:drag x y),
 (:release x y inside-p), (:key event), (:wheel dx dy) and (:exit), with points in the canvas."
   (let* ((ui *ui*)
          (box (open-box ui :canvas :id id))
@@ -563,9 +564,9 @@ events for the canvas, oldest first: (:press x y button), (:move x y), (:drag x 
           (consume-press ui)
           (setf (ui-active ui) key)
           (when focusable (focus-by-click ui key))
-          (push (list :press x y 0) events))
+          (push (list :press x y 0 (ui-click-count ui)) events))
         (when (and hot (consume-secondary-press ui))
-          (push (list :press x y 1) events))
+          (push (list :press x y 1 1) events))
         (when (and (ui-moved ui) (or hot (= (ui-active ui) key)))
           (setf (ui-moved ui) nil
                 (ui-consumed ui) t)
