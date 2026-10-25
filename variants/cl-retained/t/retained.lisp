@@ -2,7 +2,7 @@
   (:use #:cl #:lisp-unit2)
   (:local-nicknames (#:w #:almighty-bolt-variant-retained/widgets)
                     (#:n #:almighty-bolt-variant-retained/node)
-                    (#:counter #:almighty-bolt-variant-retained/counter)
+                    (#:counter #:almighty-bolt-variant-retained/t/counter)
                     (#:retained #:almighty-bolt-variant-retained/retained)
                     (#:fake #:almighty-bolt-variant-support/fake-context)
                     (#:core #:almighty-bolt-core)))

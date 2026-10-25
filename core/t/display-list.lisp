@@ -221,6 +221,42 @@
     (dl:append-display-list target source)
     (assert-eql 3 (dl:display-list-count target))))
 
+;;; --- clips ---
+
+(define-test clip-commands-are-commands-with-their-own-kinds ()
+  (let ((list (dl:make-display-list :capacity 8)))
+    (assert-eql 0 (dl:push-clip list 1 2 30 40))
+    (assert-eql 1 (dl:push-rect list 1 2 3 4 (red)))
+    (assert-eql 2 (dl:push-unclip list))
+    (assert-eql 3 (dl:display-list-count list))
+    (assert-eql dl:+command-clip+ (dl:display-list-kind list 0))
+    (assert-eql dl:+command-unclip+ (dl:display-list-kind list 2))
+    (assert-eql 30f0 (dl:display-list-width list 0))
+    (assert-eql 40f0 (dl:display-list-height list 0))))
+
+(define-test the-hash-sees-a-clip ()
+  (flet ((scene (clip)
+           (let ((list (dl:make-display-list :capacity 8)))
+             (when clip (dl:push-clip list 0 0 10 10))
+             (dl:push-rect list 1 2 3 4 (red))
+             (when clip (dl:push-unclip list))
+             (dl:display-list-hash list))))
+    (assert-true (/= (scene t) (scene nil)))
+    (assert-eql (scene t) (scene t))))
+
+(define-test appending-moves-a-clip-with-the-rest ()
+  (let ((source (dl:make-display-list :capacity 8))
+        (target (dl:make-display-list :capacity 8)))
+    (dl:push-clip source 5 6 7 8)
+    (dl:push-rect source 1 1 1 1 (red))
+    (dl:push-unclip source)
+    (dl:append-display-list target source 100f0 200f0)
+    (assert-eql dl:+command-clip+ (dl:display-list-kind target 0))
+    (assert-eql 105f0 (dl:display-list-x target 0))
+    (assert-eql 206f0 (dl:display-list-y target 0))
+    (assert-eql 7f0 (dl:display-list-width target 0))
+    (assert-eql dl:+command-unclip+ (dl:display-list-kind target 2))))
+
 ;;; --- no allocation ---
 
 (defun clear-and-append (target source)

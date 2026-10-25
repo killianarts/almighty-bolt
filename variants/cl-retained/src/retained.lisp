@@ -55,6 +55,8 @@
                 #:focusable-p
                 #:node-focus-on-click-p
                 #:pointer-press
+                #:pointer-move
+                #:pointer-exit
                 #:pointer-drag
                 #:pointer-release
                 #:pointer-wheel
@@ -175,7 +177,9 @@ as they are needed and no longer."
     (unless (eq old node)
       (setf (session-hover session) node)
       (refresh-look session old)
-      (refresh-look session node))))
+      (refresh-look session node)
+      (when old
+        (pointer-exit old session)))))
 
 (defun local-point (node x y)
   "The point X, Y of the window in NODE's own coordinates."
@@ -195,6 +199,9 @@ as they are needed and no longer."
     (ecase (pointer-event-kind event)
       ((:move :enter)
        (set-hover session target)
+       (when target
+         (multiple-value-bind (local-x local-y) (local-point target x y)
+           (pointer-move target session local-x local-y)))
        (let ((pressed (session-pressed session)))
          (when pressed
            (multiple-value-bind (local-x local-y) (local-point pressed x y)

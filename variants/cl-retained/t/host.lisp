@@ -7,7 +7,7 @@
                     (#:renderer #:almighty-bolt-core/render/metal/renderer)
                     (#:w #:almighty-bolt-variant-retained/widgets)
                     (#:n #:almighty-bolt-variant-retained/node)
-                    (#:counter #:almighty-bolt-variant-retained/counter)
+                    (#:counter #:almighty-bolt-variant-retained/t/counter)
                     (#:retained #:almighty-bolt-variant-retained/retained)
                     (#:core #:almighty-bolt-core)))
 

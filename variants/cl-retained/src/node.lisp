@@ -37,6 +37,8 @@
            #:interactive-p
            #:focusable-p
            #:pointer-press
+           #:pointer-move
+           #:pointer-exit
            #:pointer-drag
            #:pointer-release
            #:pointer-wheel
@@ -280,6 +282,18 @@ to, wherever the pointer goes.")
     (declare (ignore session x y button))
     nil))
 
+(defgeneric pointer-move (node session x y)
+  (:documentation "The pointer moved to X, Y over NODE, the node it is over.")
+  (:method ((node node) session x y)
+    (declare (ignore session x y))
+    nil))
+
+(defgeneric pointer-exit (node session)
+  (:documentation "The pointer is no longer over NODE.")
+  (:method ((node node) session)
+    (declare (ignore session))
+    nil))
+
 (defgeneric pointer-drag (node session x y)
   (:documentation "The pointer moved to X, Y with the primary button down, after it went
 down on NODE; the point may be outside it.")
@@ -371,13 +385,22 @@ first."
                     (return-from node-at hit))))
       node)))
 
-(defun interactive-at (root x y)
-  "The node that pointer events at X, Y are for: the deepest node under the point
-that is interactive, or the nearest interactive node above it. NIL if none."
-  (loop :for node = (node-at root x y) :then (node-parent node)
-        :while node
-        :when (interactive-p node)
-          :return node))
+(defun interactive-at (node x y)
+  "The node that pointer events at the point X, Y (in NODE's own coordinates) are for: the
+topmost interactive node whose area holds it, looking at later children first, and then
+at a node only if none of its children is. A shown node that is on top and not
+interactive does not hide an interactive one under it. NIL if there is none."
+  (declare (type single-float x y))
+  (when (and (node-visible node)
+             (<= 0f0 x) (< x (node-w node)) (<= 0f0 y) (< y (node-h node)))
+    (let ((children (node-children node)))
+      (loop :for i :from (1- (length children)) :downto 0
+            :do (let* ((child (svref children i))
+                       (hit (interactive-at child (- x (node-x child)) (- y (node-y child)))))
+                  (when hit
+                    (return-from interactive-at hit))))
+      (when (interactive-p node)
+        node))))
 
 (defun map-nodes (function root)
   "Call FUNCTION with ROOT and every node under it, parents before children."

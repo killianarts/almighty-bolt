@@ -12,8 +12,6 @@
                (:file "widgets")
                (:file "inputs")
                (:file "retained")
-               (:file "counter")
-               (:file "window" :if-feature :darwin)
                (:file "measure" :if-feature :darwin))
   :in-order-to ((test-op (test-op "almighty-bolt-variant-retained/tests"))))
 
@@ -23,7 +21,8 @@
   :components ((:module "t"
                 :serial t
                 :components
-                ((:file "widgets")
+                ((:file "counter")
+                 (:file "widgets")
                  (:file "inputs")
                  (:file "containers")
                  (:file "retained")

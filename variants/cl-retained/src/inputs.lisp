@@ -8,6 +8,8 @@
                 #:context-push-text
                 #:push-rect
                 #:push-rounded-rect
+                #:push-clip
+                #:push-unclip
                 #:constrain
                 #:make-text-state
                 #:text-state-string
@@ -58,6 +60,8 @@
                 #:node-focusable-p
                 #:node-focus-on-click-p
                 #:pointer-press
+                #:pointer-move
+                #:pointer-exit
                 #:pointer-drag
                 #:pointer-release
                 #:pointer-wheel
@@ -609,23 +613,27 @@ and the list stays scrolled as far as it can. Calls no handler."
   (height 200f0 :type single-float)
   (paint nil :type (or null function))
   (on-press nil :type (or null function))
+  (on-move nil :type (or null function))
+  (on-exit nil :type (or null function))
   (on-drag nil :type (or null function))
   (on-release nil :type (or null function))
   (on-key nil :type (or null function))
   (on-wheel nil :type (or null function))
   (focusable nil :type boolean))
 
-(defun canvas (&key id (width 300) (height 200) paint on-press on-drag on-release on-key
-                 on-wheel focusable (flex 0))
+(defun canvas (&key id (width 300) (height 200) paint on-press on-move on-exit on-drag
+                 on-release on-key on-wheel focusable (flex 0))
   "An area of WIDTH by HEIGHT points that the app draws and handles events for. PAINT is
 called with the canvas, the context, the display list and the top left and size of the
 area, and appends commands. ON-PRESS and ON-DRAG are called with the canvas and a point in
-the canvas, and ON-PRESS with the button as well (0 for the primary one); ON-RELEASE with
-the canvas, a point and whether the pointer is over it; ON-KEY with the canvas and the key
+the canvas, and ON-PRESS with the button as well (0 for the primary one); ON-MOVE with
+the canvas and a point as the pointer moves over it, and ON-EXIT with the canvas when it
+leaves; ON-RELEASE with the canvas, a point and whether the pointer is over it; ON-KEY with the canvas and the key
 event (returning true if it used the key); ON-WHEEL with the canvas and the movement.
 The canvas keeps what PAINT drew until CANVAS-INVALIDATE says it changed."
   (%make-canvas :id id :width (float width 1f0) :height (float height 1f0) :paint paint
-                :on-press on-press :on-drag on-drag :on-release on-release :on-key on-key
+                :on-press on-press :on-move on-move :on-exit on-exit :on-drag on-drag
+                :on-release on-release :on-key on-key
                 :on-wheel on-wheel :focusable (and focusable t) :flex (float flex 1f0)
                 :cacheable t))
 
@@ -645,12 +653,25 @@ The canvas keeps what PAINT drew until CANVAS-INVALIDATE says it changed."
 
 (defmethod paint-node ((canvas canvas) context list x y)
   (when (canvas-paint canvas)
-    (funcall (canvas-paint canvas) canvas context list x y (node-w canvas) (node-h canvas))))
+    ;; What the app draws is kept inside the canvas.
+    (push-clip list x y (node-w canvas) (node-h canvas))
+    (funcall (canvas-paint canvas) canvas context list x y (node-w canvas) (node-h canvas))
+    (push-unclip list)))
 
 (defmethod pointer-press ((canvas canvas) session x y button)
   (declare (ignore session))
   (when (canvas-on-press canvas)
     (funcall (canvas-on-press canvas) canvas x y button)))
+
+(defmethod pointer-move ((canvas canvas) session x y)
+  (declare (ignore session))
+  (when (canvas-on-move canvas)
+    (funcall (canvas-on-move canvas) canvas x y)))
+
+(defmethod pointer-exit ((canvas canvas) session)
+  (declare (ignore session))
+  (when (canvas-on-exit canvas)
+    (funcall (canvas-on-exit canvas) canvas)))
 
 (defmethod pointer-drag ((canvas canvas) session x y)
   (declare (ignore session))

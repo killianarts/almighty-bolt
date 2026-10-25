@@ -57,7 +57,13 @@ the changes that rested on it can be found.
 (Newest last. Each line is a commit or a tag.)
 - Protocol, ledger and snapshot tool (commit 8c27843).
 - 0012: keys and text editing (core: =+key-*+= constants, =text-edit=).
+- 0013: the 7GUIs models (=apps/7guis/*/model.lisp=), with tests.
+- Retained widgets (text field, slider, choice, list box, canvas, containers, tickers).
+- Variant-agnostic acceptance tests (=apps/7guis/t/acceptance=) and the launcher
+  (=make 7guis=); all seven retained apps; 0014 clipping.
 
 * Review queue
 (Decision records made without Micah, newest last.)
 - 0012 Keys and the editing of one line of text (A-002, A-003).
+- 0013 The 7GUIs apps: what is shared, and where they differ from the task.
+- 0014 Clipping in the display list (renderer scissor stretches).

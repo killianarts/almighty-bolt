@@ -1,4 +1,4 @@
-(defpackage #:almighty-bolt-variant-retained/counter
+(defpackage #:almighty-bolt-variant-retained/t/counter
   (:use #:cl)
   (:import-from #:almighty-bolt-variant-retained/widgets
                 #:label
@@ -10,7 +10,7 @@
                 #:make-retained-variant)
   (:export #:make-counter))
 
-(in-package #:almighty-bolt-variant-retained/counter)
+(in-package #:almighty-bolt-variant-retained/t/counter)
 
 ;;; The first of the 7GUIs tasks: a number and a button that adds one to it. It is
 ;;; the smallest app that needs state, an event and a change of layout (the number

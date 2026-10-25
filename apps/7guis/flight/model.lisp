@@ -68,6 +68,5 @@ valid return date that is not before it."
 (defun booking-message (kind start-text return-text)
   "What the task says when the flight is booked."
   (ecase kind
-    (:one-way (format nil "You have booked a one-way flight on ~a." start-text))
-    (:return (format nil "You have booked a return flight on ~a, returning on ~a."
-                     start-text return-text))))
+    (:one-way (format nil "Booked a one-way flight on ~a." start-text))
+    (:return (format nil "Booked a return flight, ~a to ~a." start-text return-text))))

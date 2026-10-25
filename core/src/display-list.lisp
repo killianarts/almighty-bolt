@@ -12,6 +12,10 @@
            #:+command-rect+
            #:+command-rounded-rect+
            #:+command-glyph+
+           #:+command-clip+
+           #:+command-unclip+
+           #:push-clip
+           #:push-unclip
            #:pack-color
            #:push-rect
            #:push-rounded-rect
@@ -46,6 +50,12 @@
 (defconstant +command-glyph+ 2
   "One glyph: the rectangle is where its bitmap goes, the parameter is its index in
 the glyph atlas, and the colour is the colour of the text.")
+
+(defconstant +command-clip+ 3
+  "Start clipping what follows to the rectangle, inside the clip that is already on.
+Nothing is drawn by it; it counts as a command and takes a place in the list.")
+(defconstant +command-unclip+ 4
+  "End the innermost clip that was started. Its rectangle is not used.")
 
 (deftype color () '(unsigned-byte 32))
 
@@ -176,6 +186,15 @@ SOURCE may be TARGET, which doubles it."
               (aref target-ys (+ start i)) (+ (aref source-ys i) dy))))
     (setf (display-list-count target) (+ start count))
     target))
+
+(defun push-clip (display-list x y width height)
+  "Append a command that clips everything after it, up to the matching PUSH-UNCLIP, to the
+rectangle X, Y, WIDTH by HEIGHT (and to every clip it is inside). Returns its index."
+  (push-command display-list +command-clip+ x y width height 0 0))
+
+(defun push-unclip (display-list)
+  "Append a command that ends the innermost clip. Returns its index."
+  (push-command display-list +command-unclip+ 0 0 0 0 0 0))
 
 (defmacro define-command-accessor (name array-accessor)
   `(progn

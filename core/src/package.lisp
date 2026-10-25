@@ -130,6 +130,10 @@
                 #:+command-rect+
                 #:+command-rounded-rect+
                 #:+command-glyph+
+                #:+command-clip+
+                #:+command-unclip+
+                #:push-clip
+                #:push-unclip
                 #:pack-color
                 #:push-rect
                 #:push-rounded-rect
@@ -315,6 +319,10 @@
            #:+command-rect+
            #:+command-rounded-rect+
            #:+command-glyph+
+           #:+command-clip+
+           #:+command-unclip+
+           #:push-clip
+           #:push-unclip
            #:pack-color
            #:push-rect
            #:push-rounded-rect

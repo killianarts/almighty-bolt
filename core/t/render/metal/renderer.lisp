@@ -249,3 +249,79 @@ its pixels."
           ;; 10,000 frames of 200 commands. Allocating 32 bytes a frame would be
           ;; 320 KB, and a region is about 64 KB, so allow 300 KB.
           (assert-true (< delta 300000) delta))))))
+
+;;; --- clipping ---
+
+(define-test a-clip-keeps-what-is-drawn-inside-it-and-stretches-after-it-are-drawn-in-order ()
+  ;; A red rectangle across the top is drawn first; then, clipped to a box, a blue one
+  ;; that is larger than the box; then, after the clip, a green one.
+  (with-metal (device renderer)
+    (let ((list (dl:make-display-list :capacity 16)))
+      (dl:push-rect list 0 0 100 10 (dl:pack-color 255 0 0))
+      (dl:push-clip list 20 20 30 30)
+      (dl:push-rect list 0 15 100 60 (dl:pack-color 0 0 255))
+      (dl:push-unclip list)
+      (dl:push-rect list 60 60 20 20 (dl:pack-color 0 255 0))
+      (let ((pixels (render-scene device renderer list 100 100 1)))
+        (assert-equal +red+ (pixel pixels 100 5 5))
+        ;; The blue is only inside the box.
+        (assert-equal +blue+ (pixel pixels 100 25 25))
+        (assert-equal +blue+ (pixel pixels 100 49 49))
+        (assert-equal +background+ (pixel pixels 100 19 25))
+        (assert-equal +background+ (pixel pixels 100 25 19))
+        (assert-equal +background+ (pixel pixels 100 50 25))
+        (assert-equal +background+ (pixel pixels 100 25 50))
+        (assert-equal +background+ (pixel pixels 100 90 30))
+        ;; After the clip, drawing is unclipped again, and in the right place.
+        (assert-equal '(0 255 0 255) (pixel pixels 100 70 70))))))
+
+(define-test clips-inside-clips-are-the-overlap-and-an-end-restores-the-outer-one ()
+  (with-metal (device renderer)
+    (let ((list (dl:make-display-list :capacity 16)))
+      (dl:push-clip list 10 10 40 40)
+      (dl:push-clip list 30 30 40 40)
+      (dl:push-rect list 0 0 100 100 (dl:pack-color 255 0 0))
+      (dl:push-unclip list)
+      (dl:push-rect list 0 0 100 100 (dl:pack-color 0 0 255))
+      (dl:push-unclip list)
+      (let ((pixels (render-scene device renderer list 100 100 1)))
+        ;; Red where the two boxes overlap (30 to 49), then blue over the first box
+        ;; (10 to 49) which hides it, and nothing outside the first box.
+        (assert-equal +blue+ (pixel pixels 100 35 35))
+        (assert-equal +blue+ (pixel pixels 100 15 15))
+        (assert-equal +background+ (pixel pixels 100 55 55))
+        (assert-equal +background+ (pixel pixels 100 5 5))))))
+
+(define-test a-clip-is-in-points-and-scales-with-the-display ()
+  (with-metal (device renderer)
+    (let ((list (dl:make-display-list :capacity 8)))
+      (dl:push-clip list 10 10 20 20)
+      (dl:push-rect list 0 0 100 100 (dl:pack-color 255 0 0))
+      (dl:push-unclip list)
+      (let ((pixels (render-scene device renderer list 50 50 2)))
+        (assert-equal +background+ (pixel pixels 100 19 30))
+        (assert-equal +red+ (pixel pixels 100 20 30))
+        (assert-equal +red+ (pixel pixels 100 59 30))
+        (assert-equal +background+ (pixel pixels 100 60 30))))))
+
+(define-test a-clip-outside-the-target-or-of-no-area-draws-nothing ()
+  (with-metal (device renderer)
+    (let ((list (dl:make-display-list :capacity 16)))
+      (dl:push-clip list 200 200 50 50)
+      (dl:push-rect list 0 0 100 100 (dl:pack-color 255 0 0))
+      (dl:push-unclip list)
+      (dl:push-clip list 10 10 0 0)
+      (dl:push-rect list 0 0 100 100 (dl:pack-color 255 0 0))
+      (dl:push-unclip list)
+      (dl:push-rect list 90 90 5 5 (dl:pack-color 0 0 255))
+      (let ((pixels (render-scene device renderer list 100 100 1)))
+        (assert-equal +background+ (pixel pixels 100 50 50))
+        (assert-equal +blue+ (pixel pixels 100 92 92))))))
+
+(define-test an-unmatched-end-of-clip-is-ignored ()
+  (with-metal (device renderer)
+    (let ((list (dl:make-display-list :capacity 8)))
+      (dl:push-unclip list)
+      (dl:push-rect list 10 10 20 20 (dl:pack-color 255 0 0))
+      (let ((pixels (render-scene device renderer list 50 50 1)))
+        (assert-equal +red+ (pixel pixels 50 15 15))))))

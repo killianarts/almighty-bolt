@@ -1,4 +1,4 @@
-.PHONY: deps shim test spike-a spike-b spike-c spike-d spike-e bench-metal bench-text bench-null bench-retained retained-counter retained-counter-check clean
+.PHONY: deps shim test spike-a spike-b spike-c spike-d spike-e bench-metal bench-text bench-null bench-retained 7guis 7guis-smoke clean
 
 # ASDF looks only in this tree (project and vendored/), never in ~/common-lisp/.
 SBCL = sbcl --noinform --non-interactive --no-sysinit --no-userinit
@@ -30,6 +30,7 @@ test:
 	$(SBCL) $(REGISTRY) --eval '(asdf:test-system "almighty-bolt-variant-null")'
 	$(SBCL) $(REGISTRY) --eval '(asdf:test-system "almighty-bolt-variant-retained")'
 	$(SBCL) $(REGISTRY) --eval '(asdf:test-system "almighty-bolt-7guis")'
+	$(SBCL) $(REGISTRY) --eval '(asdf:test-system "almighty-bolt-7guis/acceptance")'
 
 # Build cl-nextstep's C library, which only Spike A uses (the dylib is not committed).
 shim: vendored/cl-nextstep
@@ -71,14 +72,14 @@ bench-null:
 bench-retained:
 	$(SBCL) $(REGISTRY) --load variants/cl-retained/run-measure.lisp
 
-# The retained variant's Counter in a window: click the button yourself. Try a press
-# that you drag off the button before you let go. The check target has a thread click
-# it instead and print what happened, which does not test real mouse events.
-retained-counter:
-	$(SBCL_APP) $(REGISTRY) --load variants/cl-retained/run-counter.lisp
+# A 7GUIs task of a variant in a window: make 7guis VARIANT=retained TASK=counter
+# LOG=1 prints the presses, releases and keys that reach it and what is under the
+# pointer. 7guis-smoke opens it, draws, waits and reports, with nobody at the window.
+7guis:
+	VARIANT=$(VARIANT) TASK=$(TASK) LOG=$(LOG) $(SBCL_APP) $(REGISTRY) --load apps/7guis/run.lisp
 
-retained-counter-check:
-	RETAINED_CHECK=1 $(SBCL_APP) $(REGISTRY) --load variants/cl-retained/run-counter.lisp
+7guis-smoke:
+	SMOKE=1 VARIANT=$(VARIANT) TASK=$(TASK) $(SBCL_APP) $(REGISTRY) --load apps/7guis/run.lisp
 
 # Spike E: 2000 requested frames of text (about 35 s), then a window left alone for 10 s.
 spike-e:

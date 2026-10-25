@@ -39,7 +39,7 @@
   (assert-false (m:return-date-enabled-p :one-way)))
 
 (define-test the-booking-says-what-was-booked ()
-  (assert-equal "You have booked a one-way flight on 27.04.2014."
+  (assert-equal "Booked a one-way flight on 27.04.2014."
                 (m:booking-message :one-way "27.04.2014" "ignored"))
-  (assert-equal "You have booked a return flight on 27.04.2014, returning on 30.04.2014."
+  (assert-equal "Booked a return flight, 27.04.2014 to 30.04.2014."
                 (m:booking-message :return "27.04.2014" "30.04.2014")))

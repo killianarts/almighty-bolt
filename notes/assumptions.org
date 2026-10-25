@@ -51,3 +51,28 @@ Entry format:
 - *Check.* Scroll the CRUD list and the cells grid with the trackpad and a wheel.
 - *If false.* Change the sign in =pointer-wheel= of the list box and of the grid, and
   scale precise deltas by the row height (=wheel-event-precise-p=).
+
+* A-005 [OPEN] The apps behave in a real window as the acceptance tests drive them
+- *Statement.* A person using a task of a variant in a window sees what the acceptance
+  tests see: they drive each app with the same pointer and key events a window delivers,
+  through the fake context, whose text is 8 points a character. The real text engine
+  has other widths, so a layout that fits with the fake one might not (a long message, a
+  field that is too narrow).
+- *Why not checked.* Windows cannot be used from here. Snapshots with the real text engine
+  were looked at for the retained Counter, temperature, flight, CRUD, circles and cells.
+  =make 7guis-smoke= opened each retained app in a window and saw it idle.
+- *Check.* =make 7guis VARIANT=retained TASK=...= for each task; try the things in
+  =apps/7guis/t/acceptance/<task>.lisp=. =LOG=1= prints the events that arrive.
+- *If false.* The window, or the translation of AppKit's events, is wrong somewhere the
+  tests cannot see: start from the log.
+
+* A-006 [OPEN] Metal scissor rectangles behave as the offscreen tests show in a window
+- *Statement.* Clips (0014) render in a window's drawable as they do into the offscreen
+  texture the tests read back: same pipeline, same encoder calls.
+- *Why not checked.* The tests read back an off-screen texture; the circle drawer's clipping
+  has not been seen in a window.
+- *Check.* Draw circles of 200 near the edge of the canvas in =make 7guis VARIANT=retained
+  TASK=circles= (right-click a circle, drag the slider up): they must stop at the canvas
+  edge.
+- *If false.* The scissor rectangle may have to be in the drawable's pixels at its real
+  size, not the points times the scale given to the host: see =copy-commands=.

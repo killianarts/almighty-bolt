@@ -5,7 +5,13 @@
   (:import-from #:almighty-bolt-core/platform/macos/objc
                 #:with-masked-float-traps
                 #:with-autorelease-pool)
+  (:import-from #:almighty-bolt-core
+                #:lookup-target
+                #:make-pointer-event
+                #:make-key-event
+                #:now-ns)
   (:import-from #:almighty-bolt-core/platform/macos/host
+                #:host-variant
                 #:make-host
                 #:host-acquire
                 #:host-renderer
@@ -26,7 +32,10 @@
   (:export #:with-snapshot-host
            #:draw-frame
            #:write-snapshot
-           #:deliver))
+           #:deliver
+           #:click-control
+           #:type-string
+           #:key-press))
 
 (in-package #:almighty-bolt-snapshot/snapshot)
 
@@ -70,3 +79,24 @@ WIDTH by HEIGHT points at SCALE pixels a point."
 (defun deliver (host event)
   "Offer EVENT to the host's variant, as the window would."
   (host-deliver-event host event))
+
+(defun click-control (host id &key (fx 0.5) (fy 0.5))
+  "Click the control ID of HOST's variant, at the fraction FX, FY across and down it, and
+draw the frame that follows."
+  (multiple-value-bind (x y width height) (lookup-target (host-variant host) id)
+    (unless x (error "The app shows no control ~s." id))
+    (let ((px (float (+ x (* fx width)) 1d0))
+          (py (float (+ y (* fy height)) 1d0)))
+      (dolist (step '((:move nil 0) (:down 0 1) (:up 0 0)))
+        (deliver host (make-pointer-event :timestamp (now-ns) :kind (first step) :x px :y py
+                                          :button (second step) :buttons (third step)))
+        (draw-frame host)))))
+
+(defun key-press (host character &key (modifiers 0))
+  (deliver host (make-key-event :timestamp (now-ns) :kind :down :logical-key character
+                                :modifiers modifiers))
+  (draw-frame host))
+
+(defun type-string (host string)
+  (loop :for character :across string
+        :do (key-press host character)))
