@@ -1135,8 +1135,9 @@ its strings are made once.
   not the layout spike.
 - Idle: the smoke run of each app in a window drew one frame and none in the next 1.5 s,
   except the timer, which draws at the display rate while it runs.
-- The settle cap of three builds was enough for every task; the longest chain is a click
-  that changes what enables a button, which is two builds.
+- The settle cap of three builds was never reached: over all the acceptance tests of the
+  three variants, 2,003 frames took one build and 691 took two (all of them the immediate
+  variant's frames that took input), and none took three.
 ** What I could not check
 A-007: the idle wakeups under =top=, hover and press looks and the wheel in a real window.
 ** Next
