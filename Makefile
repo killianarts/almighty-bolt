@@ -1,4 +1,4 @@
-.PHONY: deps shim test spike-a spike-b spike-c spike-d spike-e bench-metal bench-text clean
+.PHONY: deps shim test spike-a spike-b spike-c spike-d spike-e bench-metal bench-text bench-null bench-retained retained-counter retained-counter-check clean
 
 # ASDF looks only in this tree (project and vendored/), never in ~/common-lisp/.
 SBCL = sbcl --noinform --non-interactive --no-sysinit --no-userinit
@@ -27,6 +27,8 @@ deps: vendored/cl-nextstep
 
 test:
 	$(SBCL) $(REGISTRY) --eval '(asdf:test-system "almighty-bolt-core")'
+	$(SBCL) $(REGISTRY) --eval '(asdf:test-system "almighty-bolt-variant-null")'
+	$(SBCL) $(REGISTRY) --eval '(asdf:test-system "almighty-bolt-variant-retained")'
 
 # Build cl-nextstep's C library, which only Spike A uses (the dylib is not committed).
 shim: vendored/cl-nextstep
@@ -58,6 +60,24 @@ spike-d:
 
 bench-text:
 	$(SBCL_APP) $(REGISTRY) --load spikes/d-text/bench.lisp
+
+# The null variant in a window: the core's own cost. Run it from a terminal of your
+# own and leave the window alone while it runs.
+bench-null:
+	$(SBCL_APP) $(REGISTRY) --load variants/null/run.lisp
+
+# What painting costs the retained variant, with and without the caches in its nodes.
+bench-retained:
+	$(SBCL) $(REGISTRY) --load variants/cl-retained/run-measure.lisp
+
+# The retained variant's Counter in a window: click the button yourself. Try a press
+# that you drag off the button before you let go. The check target has a thread click
+# it instead and print what happened, which does not test real mouse events.
+retained-counter:
+	$(SBCL_APP) $(REGISTRY) --load variants/cl-retained/run-counter.lisp
+
+retained-counter-check:
+	RETAINED_CHECK=1 $(SBCL_APP) $(REGISTRY) --load variants/cl-retained/run-counter.lisp
 
 # Spike E: 2000 requested frames of text (about 35 s), then a window left alone for 10 s.
 spike-e:
