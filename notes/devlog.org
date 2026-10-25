@@ -1005,3 +1005,140 @@ variant, and on with the copy in the core:
 - A cached node holds glyph atlas indices. The atlas never evicts, so they stay valid,
   and the atlas's scale is fixed for the life of the renderer; if either changes, the
   caches must be dropped.
+
+* 2026-10-26 — Autonomous run: the retained variant, all seven tasks
+Written during the run Micah set up before leaving, so nothing here has been looked at by
+them. =notes/autonomous-run.org= says what to check in the morning; the ledger
+(=notes/assumptions.org=) says what I assumed because I could not run it.
+** What I did
+- Widgets the tasks need: a one-line text field (caret, selection, drag, a view that
+  scrolls to keep the caret in sight), slider, choice, list box with a wheel, a canvas the
+  application draws on and gets events from, panel, centre, stack and scrim, and tickers
+  for the timer. Keys and one line of editing went into the core (0012).
+- The seven tasks (0013): their logic is shared as values, with its own tests
+  (=apps/7guis/*/model.lisp=); each variant writes only the screen. Acceptance tests drive
+  an app by id with pointer and key events and read what it drew, so the same file holds
+  every variant to the same behaviour.
+- Clipping (0014): the circle drawer's dialog and canvas need it, so the display list got
+  clip and unclip commands and the renderer draws a clipped range with a scissor rectangle.
+- =make 7guis VARIANT=retained TASK=...= opens a task in a window, with =LOG=1= to print
+  what arrives; =scripts/snapshot= draws a variant with the real text engine into a PNG.
+** What it cost
+Retained library 2,123 lines (node, widgets, inputs, retained, measure, theme), its tests
+1,464; the seven apps 633 lines (counter 33, temperature 42, flight 68, timer 85, CRUD
+105, circles 120, cells 180); shared models 596; shared painters and geometry 222;
+acceptance tests 915.
+** What was hard
+- Hit testing and focus: the topmost node that takes the pointer, not the deepest, or a
+  scrim behind a centred dialog is never hit. Pressing on nothing takes the keyboard from a
+  field and not from a button that was reached by Tab.
+- Clips reach the renderer as scissor stretches of one instanced draw, which the
+  off-screen tests read back and a window has not been seen to do (A-006).
+- The cells grid: it is a canvas whose painter and events the app owns, and a keystroke
+  while typing must not lose the selection.
+** What was not
+Layout (0010) and the paint cache (0011) were used as they were; the Counter, temperature
+converter and flight booker were each less than an hour of the work.
+** What I could not check
+A-001 to A-006 in the ledger: that a window shows what the snapshots show, the key
+characters AppKit gives, the sign and units of the wheel, the apps in a real window and the
+scissor in a window.
+
+* 2026-10-26 — Autonomous run: the reactive variant, all seven tasks
+** What I did
+- 0015: the reactive variant is a library on top of the retained nodes. Signals (a value
+  that tells its readers, unless it is EQL to what it was), computed values and observers;
+  views (descriptions: =label=, =button=, =row= and so on, and =component=, a part of the
+  screen described by a function); and a reconciler that keeps an element for each view,
+  with its retained node, and on a change describes only the component that read the signal,
+  changes the nodes that differ in place, matches children by kind and =:key=, and makes a
+  new node when something a node is made with (a gap, a width) differs.
+- Inputs are controlled: a field shows what the view says, so a keystroke goes to the
+  handler and the component is described again, which puts back what the handler refused.
+- All seven tasks, passing the acceptance tests that the retained ones pass.
+** What it cost
+Library 799 lines on top of the retained one's 2,123 (signals 134, views 147, elements 401,
+reactive 117); tests 482; the seven apps 599 lines (counter 36, temperature 47, flight 71,
+timer 80, CRUD 97, circles 98, cells 170).
+** What was hard
+- A button's label is a child the button makes, so describing a button's children removed
+  it: only the container kinds take their children from the view now.
+- What a node shows is compared with the node and not with the last view, or a field the
+  person has typed in would not be put back.
+- A label whose colour went from set to unset made a new node (and so laid out the whole
+  tree), which showed up only when I compared frame times; it is set to the default on the
+  same node now.
+** What was not
+Nothing about layout, painting, caching, hit testing or focus: they are the retained
+variant's, so the two share the same bugs and the same speed (below).
+** What I could not check
+The same ledger entries as the retained apps, since the windows, keys and wheel are the
+same code.
+
+* 2026-10-26 — Autonomous run: the immediate variant, all seven tasks, and the three compared
+** What I did
+- 0016: the interface is a function called every build; boxes are made in a pool that is
+  reused, each with a key from its parent's key and its id (or its place); widgets take the
+  frame's input a part at a time and say what happened by returning it; a build that took
+  input is built again by the settle loop (0009), and only the last is laid out and drawn.
+  Hit testing is against the last presented frame.
+- The cache: each box has a hash of what decides its layout and one of what decides its
+  look, folded with its children's. A frame whose hashes are those of the last presented
+  one takes its places and its commands from it. Otherwise a box appends what it kept for
+  its key if its own hash is unchanged. A canvas hashes what the application drew.
+- All seven tasks, and 19 tests of its own.
+- =make bench-compare=: the same column of rows in the three variants, with the real text
+  engine, no window and no GPU.
+** What it cost
+Library 2,005 lines (hash 37, box 124, ui 414, widgets 667, layout 164, paint 312, variant
+287), which is a whole stack except the theme and the core's layout functions; tests 363;
+the seven apps 524 lines (counter 29, temperature 45, flight 62, timer 66, CRUD 84,
+circles 95, cells 143), the fewest of the three. (The retained and reactive apps need the
+retained library, 2,123 lines, and the reactive ones another 799.)
+** What I measured
+Microseconds a frame and bytes consed a frame, mean of 200 frames, one run of
+=make bench-compare= (the bytes of the retained and reactive columns are zero or 328):
+| Rows | Frame            | Retained | Reactive | Immediate |
+|------+------------------+----------+----------+-----------|
+|   10 | nothing changes  |      2.6 |      2.7 |       4.3 |
+|   10 | one colour       |      4.7 |      5.0 |       9.1 |
+|   10 | one text         |      6.6 |      6.9 |      12.7 |
+|  100 | nothing changes  |     26.2 |     25.5 |      40.6 |
+|  100 | one colour       |     28.6 |     28.1 |      70.1 |
+|  100 | one text         |     46.9 |     46.3 |     105.5 |
+| 1000 | nothing changes  |    271.9 |    277.6 |     410.5 |
+| 1000 | one colour       |    282.9 |    273.5 |     713.0 |
+| 1000 | one text         |    458.2 |    455.4 |   1,052.4 |
+The reactive variant consed 328 bytes in a frame in which a signal changed (the
+description of one label) and nothing otherwise. The immediate variant consed nothing in
+frames that changed nothing or one colour and 48 KB (1000 rows) for a text change, which is
+laying out and measuring text again; the application's own consing is not in it, because
+its strings are made once.
+** What I learned
+- The immediate variant costs about 1.5 times the retained one with nothing changed, and
+  2 to 3 times when something changed: it must run the function, make and hash about 3,000
+  boxes and compare, even when it then copies the whole last list, and a changed look
+  means walking all of them and appending 2,000 kept fragments, a hash-table lookup and
+  an append each. A retained tree already knows what changed. The comparison is what makes
+  it as cheap as it is; without it every frame would pay the painting, about 3 ms at 1,000
+  rows (the retained "no caches" column of 0011).
+- Two things in the first version of the library were found by measuring and not by the
+  tests: a =&rest= list made for every box (1.15 MB consed a frame at 1,000 rows, and
+  874 us), and a vector with a fill pointer for the boxes. With =hash-numbers= a macro,
+  =hash-of= inline and a simple vector, 874 us became 410 us and 1.15 MB nothing.
+- The acceptance tests found three defects the unit tests did not: a wheel event did not
+  move the pointer (so a scroll with the pointer still did nothing), a press on nothing did
+  not take the keyboard from a field, and a slider dragged under a label that shows its
+  value did not build the frame again.
+- Layout: the three callbacks of 0010 were written once, over a vector of boxes, in 164
+  lines, and no core-owned box tree was needed. That is one piece of evidence for H6 and
+  not the layout spike.
+- Idle: the smoke run of each app in a window drew one frame and none in the next 1.5 s,
+  except the timer, which draws at the display rate while it runs.
+- The settle cap of three builds was enough for every task; the longest chain is a click
+  that changes what enables a button, which is two builds.
+** What I could not check
+A-007: the idle wakeups under =top=, hover and press looks and the wheel in a real window.
+** Next
+The comparison needs more than one screen: a scenario that changes a lot at once, the code
+for changing an app (H3, H5), and the rubric. Those are Phase 3.

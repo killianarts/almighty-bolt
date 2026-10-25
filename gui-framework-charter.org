@@ -755,11 +755,11 @@ The experimental phase ends when:
   ([[file:notes/decisions/0010-layout-api.org][0010]]). They allocate nothing after warm-up; 38 nodes take 1.1 us.
 - [ ] Input primitives (stable ids, hit testing, focus) and input replay, as
   the first variants need them
-- [ ] Retained (=cl-retained=)
-- [ ] Reactive hybrid, the Flutter model (=cl-reactive=)
-- [ ] Immediate + cache (=cl-immediate=)
+- [X] Retained (=cl-retained=) (autonomous run, unreviewed: tag =auto/01-retained-complete=)
+- [X] Reactive hybrid, the Flutter model (=cl-reactive=) (0015; tag =auto/02-reactive-complete=)
+- [X] Immediate + cache (=cl-immediate=) (0016; tag =auto/03-immediate-complete=)
 - [ ] Layout spike across front ends (H6)
-- [ ] All 7GUIs tasks in each
+- [X] All 7GUIs tasks in each (the acceptance tests pass for all three; not seen in windows)
 
 ** TODO Phase 3: Benchmarks and stress apps
 - [ ] Full instrumentation (phases, trace output, settle statistics)
