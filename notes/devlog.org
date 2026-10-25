@@ -292,8 +292,11 @@ read-back), =rect-pipeline= (the shaders and the pipeline) and =renderer=.
   by coverage and blended source-over.
 - A frame copies the display list into one shared buffer, encodes one instanced
   draw and commits. At most one frame is in flight: a frame first waits for the
-  last. Several in flight need a completion handler, which is an Objective-C
-  block, so they wait until something needs them.
+  last, because the one instance buffer is reused. Several in flight would need
+  several buffers and a way to know when each is free again. A completion
+  handler (an Objective-C block) is the usual way; waiting on the command
+  buffer that last used each buffer should also work. Neither is built or
+  tried, so they wait until something needs them.
 - 11 tests with a Mac's GPU and no window: exact pixels worked out by hand (a
   rectangle edge on the pixel boundary at one and at two pixels a point, a
   corner cut away, a half-covered pixel, translucent colours over the background
@@ -448,8 +451,9 @@ warnings. Decision records 0006 (source layout) and 0007 (AppKit access).
   floats, which SBCL keeps unboxed.)
 - Text: eviction for the line cache and the atlas; colour glyphs (emoji are flat
   silhouettes now); glyphs between pixels; an atlas per screen scale.
-- Renderer: more than one frame in flight (needs a completion handler, so an
-  Objective-C block); blending in linear light or as stored.
+- Renderer: more than one frame in flight (needs several buffers and a signal
+  for when each is free, usually an Objective-C block); blending in linear
+  light or as stored.
 - Platform: keyboard focus and scale-change events could not be seen from an
   agent-launched process (it is never activated by macOS). Run =make spike-b= in
   a terminal of your own to see them; an app bundle is the usual remedy. No IME

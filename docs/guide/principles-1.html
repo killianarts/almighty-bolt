@@ -1,0 +1,765 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Principles 1: What Is True</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;600;700&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:ital,wght@0,400;0,600;1,400&display=swap">
+<style>
+/* Layout: one reading column with full-width figures that scroll sideways on a phone.
+   Colour code used in every diagram: teal = Lisp code and data in the core, blue = macOS
+   (AppKit, Core Text), amber = the GPU, red = trouble. */
+:root {
+  --bg: #f1f4f6;
+  --surface: #ffffff;
+  --ink: #15222c;
+  --ink-2: #51636f;
+  --line: #d3dbe1;
+  --lisp: #0e7468;
+  --lisp-soft: #d7efeb;
+  --os: #3a55c4;
+  --os-soft: #dfe5fa;
+  --gpu: #a4620a;
+  --gpu-soft: #f8e6c8;
+  --bad: #b42318;
+  --bad-soft: #f9d9d4;
+  --code-bg: #e8edf1;
+  --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --body: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d151b; --surface: #15212a; --ink: #e5edf2; --ink-2: #93a6b3; --line: #2a3b47;
+    --lisp: #44c7b5; --lisp-soft: #123a37; --os: #93a8ff; --os-soft: #1c2650;
+    --gpu: #f0b050; --gpu-soft: #43300f; --bad: #ff8c7c; --bad-soft: #4a1f1a;
+    --code-bg: #101b22; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d151b; --surface: #15212a; --ink: #e5edf2; --ink-2: #93a6b3; --line: #2a3b47;
+  --lisp: #44c7b5; --lisp-soft: #123a37; --os: #93a8ff; --os-soft: #1c2650;
+  --gpu: #f0b050; --gpu-soft: #43300f; --bad: #ff8c7c; --bad-soft: #4a1f1a;
+  --code-bg: #101b22; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink);
+  font: 400 17px/1.65 var(--body);
+  padding-block: 40px 96px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 980px; margin: 0 auto; }
+.prose { max-width: 68ch; }
+.prose p, .prose ul, .prose ol { margin: 0 0 1em; }
+.prose li { margin-bottom: .4em; }
+h1, h2, h3 { font-family: var(--display); line-height: 1.15; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(34px, 6vw, 56px); font-weight: 700; letter-spacing: -0.015em; }
+h2 { font-size: clamp(26px, 4vw, 36px); font-weight: 650; letter-spacing: -0.01em; }
+h3 { font-size: 21px; font-weight: 600; margin: 40px 0 10px; }
+a { color: var(--os); }
+code, .mono { font-family: var(--mono); font-size: .86em; }
+code { background: var(--code-bg); padding: .08em .35em; border-radius: 3px; }
+.eyebrow {
+  font: 500 12px/1 var(--mono); text-transform: uppercase; letter-spacing: .12em;
+  color: var(--ink-2); margin: 0 0 14px;
+}
+.lede { font-size: 21px; line-height: 1.55; color: var(--ink); max-width: 56ch; margin: 22px 0 0; }
+header.top { padding-bottom: 36px; border-bottom: 2px solid var(--ink); }
+nav.contents { margin-top: 28px; display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px 24px; }
+nav.contents a { font: 500 15px/1.35 var(--display); text-decoration: none; color: var(--ink); border-top: 1px solid var(--line); padding-top: 8px; }
+nav.contents a span { display: block; font: 400 12px var(--mono); color: var(--ink-2); letter-spacing: .06em; text-transform: uppercase; }
+nav.contents a:hover { border-top-color: var(--ink); }
+section { padding-top: 64px; }
+section > h2 { margin-bottom: 18px; }
+.part-head { border-top: 2px solid var(--ink); padding-top: 22px; }
+
+figure { margin: 30px 0; }
+figcaption { font: 400 14px/1.5 var(--display); color: var(--ink-2); margin-top: 8px; max-width: 80ch; }
+.figscroll { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 4px; }
+svg.fig { display: block; width: 100%; height: auto; min-width: 680px; }
+svg.fig { font-family: var(--display); }
+svg text { fill: var(--ink); }
+.lbl { font-size: 14px; font-weight: 600; }
+.sub { font-size: 12px; font-weight: 400; fill: var(--ink-2) !important; }
+.m { font-family: var(--mono) !important; font-size: 12px; }
+.mm { font-family: var(--mono) !important; font-size: 11px; fill: var(--ink-2) !important; }
+.big { font-size: 15px; font-weight: 600; }
+.cap { font-size: 12px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; fill: var(--ink-2) !important; }
+.b-lisp { fill: var(--lisp-soft); stroke: var(--lisp); stroke-width: 1.5; }
+.b-os   { fill: var(--os-soft);   stroke: var(--os);   stroke-width: 1.5; }
+.b-gpu  { fill: var(--gpu-soft);  stroke: var(--gpu);  stroke-width: 1.5; }
+.b-bad  { fill: var(--bad-soft);  stroke: var(--bad);  stroke-width: 1.5; }
+.b-plain { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+.b-code { fill: var(--code-bg); stroke: var(--line); stroke-width: 1; }
+.arrow { fill: none; stroke: var(--ink-2); stroke-width: 1.6; }
+.arrow.dash { stroke-dasharray: 5 4; }
+.guide { fill: none; stroke: var(--ink-2); stroke-width: 1; stroke-dasharray: 4 4; }
+.hl { fill: none; stroke: var(--ink); stroke-width: 2.2; }
+.ahead { fill: var(--ink-2); }
+.c-geo { fill: var(--lisp-soft); stroke: var(--lisp); stroke-width: 1; }
+.c-kind { fill: var(--gpu-soft); stroke: var(--gpu); stroke-width: 1; }
+.c-col { fill: var(--os-soft); stroke: var(--os); stroke-width: 1; }
+.c-pad { fill: var(--code-bg); stroke: var(--line); stroke-width: 1; }
+.px { stroke: var(--line); stroke-width: 1; }
+
+aside.term {
+  background: var(--surface); border: 1px solid var(--line); padding: 14px 18px; margin: 22px 0; max-width: 68ch;
+  font-size: 16px; line-height: 1.55;
+}
+aside.term .tag { font: 500 11px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--ink-2); display: block; margin-bottom: 6px; }
+aside.term p { margin: 0 0 .6em; }
+aside.term p:last-child { margin: 0; }
+pre {
+  background: var(--code-bg); color: var(--ink); padding: 14px 16px; margin: 20px 0;
+  overflow-x: auto; font: 400 13px/1.55 var(--mono); border-radius: 3px; max-width: 100%;
+}
+pre code { background: none; padding: 0; font-size: inherit; }
+.pre-label { font: 500 12px var(--mono); color: var(--ink-2); margin: 22px 0 -12px; letter-spacing: .04em; }
+
+table.t { border-collapse: collapse; width: 100%; margin: 20px 0; font-size: 15px; background: var(--surface); }
+table.t th, table.t td { border: 1px solid var(--line); padding: 8px 12px; text-align: left; vertical-align: top; }
+table.t th { font: 600 13px var(--display); background: var(--code-bg); }
+.tablescroll { overflow-x: auto; max-width: 100%; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+.widget { background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 16px; margin: 30px 0; }
+.widget h4 { font: 600 16px var(--display); margin: 0 0 4px; }
+.widget p.hint { font: 400 14px/1.5 var(--display); color: var(--ink-2); margin: 0 0 12px; max-width: 70ch; }
+.widget label { font: 500 13px var(--display); display: block; margin-bottom: 4px; }
+.widget input[type=range] { width: min(100%, 520px); accent-color: var(--lisp); }
+.widget input[type=text] { font: 400 18px var(--mono); padding: 6px 10px; width: min(100%, 360px); background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 3px; }
+.widget button {
+  font: 600 14px var(--display); padding: 7px 14px; margin: 4px 8px 4px 0; cursor: pointer;
+  background: var(--ink); color: var(--bg); border: 0; border-radius: 3px;
+}
+.widget button.alt { background: transparent; color: var(--ink); border: 1px solid var(--ink-2); }
+.widget button:focus-visible, .widget input:focus-visible, summary:focus-visible, a:focus-visible { outline: 3px solid var(--os); outline-offset: 2px; }
+.readout { font: 400 13px/1.7 var(--mono); }
+table.u { border-collapse: collapse; margin: 10px 0; font-family: var(--mono); font-size: 14px; }
+table.u td { border: 1px solid var(--line); padding: 5px 10px; text-align: center; min-width: 42px; }
+table.u tr.a td { background: var(--lisp-soft); }
+table.u tr.b td { background: var(--surface); font-size: 18px; }
+table.u tr.c td { background: var(--os-soft); }
+table.u td.wide { background: var(--gpu-soft); }
+.tablescroll.u { padding-bottom: 4px; }
+
+details.check { border-top: 1px solid var(--line); padding: 10px 0; max-width: 68ch; }
+details.check summary { cursor: pointer; font: 500 16px/1.45 var(--display); }
+details.check p { margin: 8px 0 0; font-size: 16px; }
+.checks { margin-top: 36px; }
+.checks h3 { margin-top: 0; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 22px; font: 400 13px var(--display); color: var(--ink-2); margin-top: 8px; }
+.legend i { display: inline-block; width: 12px; height: 12px; margin-right: 6px; vertical-align: -1px; border: 1.5px solid; }
+.legend .l { background: var(--lisp-soft); border-color: var(--lisp); }
+.legend .o { background: var(--os-soft); border-color: var(--os); }
+.legend .g { background: var(--gpu-soft); border-color: var(--gpu); }
+.legend .r { background: var(--bad-soft); border-color: var(--bad); }
+ol.trace { padding-left: 1.4em; }
+ol.trace li { padding-left: .3em; }
+.cols2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px 32px; max-width: 100%; }
+.cols2 > div { min-width: 0; }
+footer { margin-top: 72px; border-top: 2px solid var(--ink); padding-top: 18px; font: 400 14px/1.6 var(--display); color: var(--ink-2); max-width: 70ch; }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+
+/* ---- Principles ---- */
+.part-head > h2 { margin-bottom: 18px; }
+.eyebrow { line-height: 1.5; }
+code, pre, .mono { font-variant-ligatures: none; }
+.aims { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px 36px; margin-top: 26px; max-width: 900px; }
+.aims p { margin: 0; font-size: 16px; line-height: 1.55; border-top: 1px solid var(--line); padding-top: 8px; }
+
+.pmap { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; margin: 26px 0 8px; }
+.pgroup { background: var(--surface); border: 1px solid var(--line); border-top: 3px solid var(--ink); padding: 12px 14px 8px; min-width: 0; }
+.pgroup h4 { font: 600 12px/1.3 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2); margin: 0 0 6px; }
+.pgroup ol { list-style: none; margin: 0; padding: 0; }
+.pgroup li { margin: 0; }
+.pgroup a { display: grid; grid-template-columns: 2.1em minmax(0, 1fr); padding: 7px 0; border-top: 1px solid var(--line); text-decoration: none; color: var(--ink); font: 500 15px/1.35 var(--display); }
+.pgroup li:first-child a { border-top: 0; }
+.pgroup a b { font: 500 13px/1.6 var(--mono); color: var(--lisp); }
+.pgroup a:hover span { text-decoration: underline; }
+
+article.principle { margin-top: 60px; padding-top: 20px; border-top: 2px solid var(--ink); }
+article.principle > .pnum { font: 500 12px/1 var(--mono); text-transform: uppercase; letter-spacing: .12em; color: var(--ink-2); margin: 0 0 10px; }
+article.principle > h3 { margin: 0 0 10px; font-size: clamp(25px, 3.6vw, 32px); }
+.statement { font: italic 400 20px/1.5 var(--body); max-width: 58ch; margin: 0 0 22px; }
+dl.pf { display: grid; grid-template-columns: 9rem minmax(0, 1fr); gap: 14px 24px; max-width: 80ch; margin: 0 0 8px; }
+dl.pf dt { font: 600 12px/1.5 var(--display); text-transform: uppercase; letter-spacing: .08em; color: var(--ink-2); padding-top: 4px; }
+dl.pf dd { margin: 0; min-width: 0; }
+dl.pf dd p { margin: 0 0 .75em; }
+dl.pf dd ul { margin: 0 0 .75em; padding-left: 1.2em; }
+dl.pf dd li { margin-bottom: .45em; }
+dl.pf dd > :last-child { margin-bottom: 0; }
+@media (max-width: 640px) {
+  dl.pf { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  dl.pf dd { margin-bottom: 16px; }
+}
+a.pt { font: 500 .78em var(--mono); background: var(--lisp-soft); color: var(--lisp); padding: .06em .4em; border-radius: 3px; text-decoration: none; white-space: nowrap; }
+a.pt:hover { text-decoration: underline; }
+aside.pw { border-left: 4px solid var(--lisp); }
+.matrix td { font-size: 14px; line-height: 1.4; min-width: 130px; }
+.matrix td:first-child, .matrix th:first-child { min-width: 170px; }
+.matrix td.none { color: var(--ink-2); }
+.derived { font: 400 14px/1.5 var(--display); color: var(--ink-2); max-width: 80ch; margin: 6px 0 0; }
+.quiz details.check { max-width: 78ch; }
+.quiz pre { margin: 8px 0 4px; font-size: 12.5px; }
+
+/* ---- Series ---- */
+nav.series { display: flex; flex-wrap: wrap; gap: 4px 6px; margin: 0 0 28px; font: 500 13px/1.3 var(--mono); }
+nav.series a { color: var(--ink-2); text-decoration: none; padding: 5px 9px; border: 1px solid var(--line); border-radius: 3px; background: var(--surface); }
+nav.series a:hover { border-color: var(--ink-2); color: var(--ink); }
+nav.series a[aria-current="page"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+nav.pager { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin-top: 64px; padding-top: 18px; border-top: 2px solid var(--ink); }
+nav.pager a { display: block; text-decoration: none; color: var(--ink); border: 1px solid var(--line); background: var(--surface); padding: 12px 16px; font: 500 17px/1.35 var(--display); }
+nav.pager a span { display: block; font: 400 12px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); margin-bottom: 2px; }
+nav.pager a:hover { border-color: var(--ink-2); }
+nav.pager a[rel="next"] { text-align: right; }
+
+.pagelist { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 14px; margin: 26px 0 8px; }
+a.pcard { display: block; text-decoration: none; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-top: 3px solid var(--ink); padding: 14px 16px; font: 400 15px/1.5 var(--display); }
+a.pcard:hover { border-color: var(--ink-2); border-top-color: var(--ink); }
+a.pcard .pk { display: block; font: 500 12px/1.3 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); margin-bottom: 6px; }
+a.pcard b { display: block; font: 600 19px/1.25 var(--display); margin-bottom: 4px; }
+aside.term + aside.term { margin-top: -6px; }
+header.top + aside.term { margin-top: 28px; }
+header.top + section { padding-top: 40px; }
+header.top + section > .part-head:first-child { border-top: 0; padding-top: 0; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" class="ahead"/>
+    </marker>
+  </defs>
+</svg>
+<div class="wrap">
+<nav class="series" aria-label="The guide">
+<a href="index.html">Index</a>
+<a href="core-1.html">Core 1: the shape</a>
+<a href="core-2.html">Core 2: the pixels</a>
+<a href="principles-1.html" aria-current="page">Principles 1: what is true</a>
+<a href="principles-2.html">Principles 2: what to do</a>
+<a href="trainers-kit.html">Trainer&#x27;s kit</a>
+</nav>
+<header class="top">
+  <p class="eyebrow">Almighty Bolt &middot; the ideas, 1 of 2</p>
+  <h1>Principles of fast software, 1: what is true</h1>
+  <p class="lede">The goal and the machine. Two principles say what to optimise for and how to know you got there. Three say what hardware is really like. Each is shown in a GUI core, and each reaches well outside it.</p>
+</header>
+<aside class="term">
+  <span class="tag">Before you start</span>
+  <p>Every principle is shown in the code of one small program, a <strong>GUI core</strong>: the layer that turns a list of shapes into pixels on a screen. It must produce a finished picture, a <strong>frame</strong>, every 16.7 milliseconds (60 a second). You do not have to read the code. The notes headed <em>In the core</em> point to it, and the <a href="core-1.html">Core pages</a> explain it when you want it.</p>
+  <p>Two words come up constantly. To <strong>allocate</strong> is to ask the language runtime for a fresh piece of memory. In languages such as Lisp, Java and Go, a <strong>garbage collector</strong> later finds memory nobody uses and frees it, and the program may have to pause while it works. A <strong>pointer</strong> is a number that holds an <strong>address</strong>, the position of something in the computer's memory.</p>
+  <p>The notes headed <em>Elsewhere</em> describe well-known practice in other fields. They are general knowledge, not measurements from this project.</p>
+</aside>
+<section id="principles">
+  <div class="part-head">
+    <p class="eyebrow">The ideas</p>
+    <h2>Twelve principles of fast software</h2>
+  </div>
+  <div class="prose">
+    <p>A <strong>rule</strong> says what to do. A <strong>principle</strong> says why it works, and so also says when it stops working. "Never allocate during a frame" is a rule. "When a deadline is fixed, the worst case decides" is a principle. It explains the rule, it predicts that a batch job does not need the rule, and it points to other places that do, such as an audio callback or a web request with a hard timeout.</p>
+    <p>The twelve principles, on this page and the next, were chosen for <strong>reach</strong>, David Deutsch's word for how far an explanation extends beyond the case it was first made for. Each one still holds if you change the language, the hardware or the kind of program. Each has four notes: why it is true, how the core shows it, what it costs and where it stops applying, and where else it appears.</p>
+    <p>No principle is free. Each buys something with something else, usually memory, simplicity or flexibility. A principle taught without its cost turns back into a rule, which is how people end up preallocating everything or caching everything without asking whether it helps.</p>
+
+    <h3>How the twelve fit together</h3>
+    <p>They are not a flat list. The first two say what you are optimising for and how you will know you got there. The next three are facts about machines. Five strategies follow from those facts. The last two are about organising a project so that the strategies can be applied now and changed later.</p>
+  </div>
+
+  <nav class="pmap" aria-label="The twelve principles">
+    <div class="pgroup">
+      <h4>What you optimise for</h4>
+      <ol>
+        <li><a href="#p1"><b>1</b><span>Judge by the worst case</span></a></li>
+        <li><a href="#p2"><b>2</b><span>Measure, and make it repeatable</span></a></li>
+      </ol>
+    </div>
+    <div class="pgroup">
+      <h4>What machines are like</h4>
+      <ol>
+        <li><a href="#p3"><b>3</b><span>Everything is bits and a convention</span></a></li>
+        <li><a href="#p4"><b>4</b><span>Arrange data for its reader</span></a></li>
+        <li><a href="#p5"><b>5</b><span>Wide hardware needs uniform work</span></a></li>
+      </ol>
+    </div>
+    <div class="pgroup">
+      <h4>Strategies that follow</h4>
+      <ol>
+        <li><a href="principles-2.html#p6"><b>6</b><span>Pay once, use many times</span></a></li>
+        <li><a href="principles-2.html#p7"><b>7</b><span>Do nothing when nothing changes</span></a></li>
+        <li><a href="principles-2.html#p8"><b>8</b><span>Cross boundaries rarely, in bulk</span></a></li>
+        <li><a href="principles-2.html#p9"><b>9</b><span>Bound everything</span></a></li>
+        <li><a href="principles-2.html#p10"><b>10</b><span>Reuse needs an owner</span></a></li>
+      </ol>
+    </div>
+    <div class="pgroup">
+      <h4>How to build it</h4>
+      <ol>
+        <li><a href="principles-2.html#p11"><b>11</b><span>Keep a narrow boundary of plain data</span></a></li>
+        <li><a href="principles-2.html#p12"><b>12</b><span>Start simple, and list what you skipped</span></a></li>
+      </ol>
+    </div>
+  </nav>
+
+  
+<!-- ---------------------------------------- P1 -->
+  <article class="principle" id="p1">
+    <p class="pnum">Principle 1 &middot; what you optimise for</p>
+    <h3>Judge by the worst case</h3>
+    <p class="statement">When there is a deadline, the slowest moment decides how the software feels. The average does not.</p>
+    <dl class="pf">
+      <dt>Why it is true</dt>
+      <dd>
+        <p>A person watching a screen does not experience an average frame. They see every frame. If one misses its deadline (16.7 ms at 60 Hz) the old picture stays up for another refresh and the eye catches the hitch. Frames that all take 8 ms feel smoother than frames that take 2 ms except for an occasional 40 ms one, even though the second set has the better average.</p>
+        <p>This is the difference between <strong>throughput</strong> (how much work is done per second) and <strong>latency</strong> (how long one piece of work takes), and between the average and the <strong>tail</strong>, the slowest few in a thousand. A deadline makes the tail the thing to manage.</p>
+        <p>It explains why a garbage collector is a good trade in one program and a poor one in another. In SBCL (the Lisp compiler used here), making a small object is often little more than moving a pointer, so allocation is cheap on average. The expense arrives later, when the collector runs, and while it runs the program is stopped. For a batch job that only has to finish eventually, that is a fair price. For a frame, one stop in the wrong place is a missed deadline.</p>
+      </dd>
+      <dt>In the core</dt>
+      <dd>
+        <p>The core's first rule, that a frame allocates nothing, is this principle in practice.</p>
+        <ul>
+          <li>The display list, the instance buffer and the frame ring are made once, so drawing creates no garbage (<a href="core-1.html#display-list">Part 1</a>).</li>
+          <li>Nothing in a frame grows. A full display list signals an error instead of being enlarged (<a class="pt" href="principles-2.html#p9">P9</a>).</li>
+          <li>At most one frame is in flight, so the GPU cannot fall far behind (<a href="core-2.html#renderer">Part 4</a>).</li>
+          <li>The frame ring, a fixed-size circular log (<a href="core-1.html#ring">what is a ring?</a>), keeps the start, end and bytes consed (Lisp's word for allocated) of each of the last 4,096 frames, so one slow frame shows up and is not averaged away (<a href="core-1.html#window">Part 3</a>).</li>
+          <li>Even bookkeeping obeys it. The hash of a frame is trimmed to 62 bits so that the result stays a fixnum and does not allocate (<a class="pt" href="#p3">P3</a>).</li>
+        </ul>
+        <p>The project's charter gives a second reason for the same rule. If the core allocates nothing during a frame, every byte consed in a frame belongs to the GUI library being tested, and the experiment stays honest (<a class="pt" href="#p2">P2</a>).</p>
+      </dd>
+      <dt>Cost and limits</dt>
+      <dd>
+        <p>Reusing storage means holding memory in reserve and accepting hard limits (<a class="pt" href="principles-2.html#p6">P6</a>, <a class="pt" href="principles-2.html#p9">P9</a>). Code in the frame path has to use typed arrays and declared types, which is less convenient than ordinary Lisp. And the principle only applies where a deadline exists. A build tool or a data job should usually take the collector's convenience and judge by total time.</p>
+      </dd>
+      <dt>Elsewhere</dt>
+      <dd>
+        <ul>
+          <li><strong>Web services.</strong> Judged by the 95th or 99th percentile response time. A page that usually takes 100 ms and sometimes 3 s is judged by the 3 s, and a request that waits on many servers is as slow as the slowest reply.</li>
+          <li><strong>Audio.</strong> Code that runs inside an audio callback avoids allocating and waiting, because one late buffer is an audible click.</li>
+          <li><strong>Runtimes.</strong> Low-pause garbage collectors, such as Java's ZGC and Shenandoah, exist because a pause is tail latency.</li>
+        </ul>
+      </dd>
+    </dl>
+
+      <figure>
+    <div class="figscroll">
+    <svg class="fig" viewBox="0 0 900 230" role="img" aria-label="Three frames on a timeline. The first two finish before their deadline. In the third a garbage collection pause pushes the work past the deadline.">
+      <text class="cap" x="40" y="22">Illustration: three frames at 60 frames per second</text>
+      <path class="guide" d="M40 44 V140 M300 44 V140 M560 44 V140 M820 44 V140"/>
+      <text class="sub" x="170" y="60" text-anchor="middle">frame 1</text>
+      <text class="sub" x="430" y="60" text-anchor="middle">frame 2</text>
+      <text class="sub" x="690" y="60" text-anchor="middle">frame 3</text>
+      <rect class="b-lisp" x="40" y="78" width="60" height="32"/>
+      <rect class="b-lisp" x="300" y="78" width="70" height="32"/>
+      <rect class="b-lisp" x="560" y="78" width="60" height="32"/>
+      <rect class="b-bad" x="620" y="78" width="260" height="32"/>
+      <text class="sub" x="750" y="99" text-anchor="middle" style="fill:var(--bad) !important">garbage collection pause</text>
+      <text class="sub" x="70" y="132" text-anchor="middle">ready early</text>
+      <text class="sub" x="335" y="132" text-anchor="middle">ready early</text>
+      <path class="arrow" marker-end="url(#ah)" d="M880 114 V150 H826"/>
+      <text class="lbl" x="560" y="164" style="fill:var(--bad) !important">deadline missed</text>
+      <text class="sub" x="880" y="182" text-anchor="end">the old picture stays up for another refresh, and the user sees a hitch</text>
+      <path class="arrow" d="M40 206 H830"/>
+      <g class="sub"><text x="40" y="222" text-anchor="middle">0 ms</text><text x="300" y="222" text-anchor="middle">16.7</text><text x="560" y="222" text-anchor="middle">33.3</text><text x="820" y="222" text-anchor="middle">50 ms</text></g>
+    </svg>
+    </div>
+    <figcaption>The widths are for illustration. The point is that work which usually fits comfortably can still miss a deadline if it triggers a pause. The core's tests count the bytes consed over many frames to check that it does not.</figcaption>
+  </figure>
+
+    <div class="widget" id="ft-widget">
+      <h4>Try it: the average hides the hitch</h4>
+      <p class="hint">A simulation with invented numbers, not a measurement. Each bar is one frame. Frames normally take 2 to 3.5 ms. Now and then a garbage collection lands inside a frame and adds a pause.</p>
+      <label for="ft-p">Chance that a frame contains a collection: <span id="ft-p-val" class="mono">3</span> %</label>
+      <input id="ft-p" type="range" min="0" max="10" step="0.5" value="3">
+      <label for="ft-len" style="margin-top:10px">Length of one pause: <span id="ft-len-val" class="mono">20</span> ms</label>
+      <input id="ft-len" type="range" min="2" max="30" step="1" value="20">
+      <div style="margin-top:8px"><button id="ft-again" class="alt" type="button">New random frames</button></div>
+      <div class="figscroll" style="margin-top:10px; border:0; background:transparent">
+        <svg id="ft-svg" class="fig" viewBox="0 0 900 232" style="min-width:680px" role="img" aria-label="Bars for 120 frames. Most are short. A few are tall and cross the 16.7 millisecond deadline line."></svg>
+      </div>
+      <p class="readout" id="ft-read"></p>
+    </div>
+  </article>
+
+  
+<!-- ---------------------------------------- P2 -->
+  <article class="principle" id="p2">
+    <p class="pnum">Principle 2 &middot; what you optimise for</p>
+    <h3>Measure, and make it repeatable</h3>
+    <p class="statement">You can only improve what you can measure, and you can only measure what you can repeat.</p>
+    <dl class="pf">
+      <dt>Why it is true</dt>
+      <dd>
+        <p>Intuition about speed is unreliable. The cost of an operation depends on the hardware, the runtime and the data, and none of them is visible in the code. So a claim such as "this frame allocates nothing" is a guess until a test exists that could show it false.</p>
+        <p>Measurement also needs repeatability. If a run depends on the real clock, on a person's mouse and on whatever else the machine is doing, two runs differ and you cannot tell whether a change helped. The remedy is to make time and input ordinary values that a test can supply.</p>
+        <p>Instruments have errors too. A test that cannot fail proves nothing.</p>
+      </dd>
+      <dt>In the core</dt>
+      <dd>
+        <ul>
+          <li>The clock, the frame ring and the event structs were written first, before any window existed, so that every later experiment recorded with the same instruments (<a href="core-1.html#window">Part 3</a>).</li>
+          <li>All time comes from one function, <code>now-ns</code>, through a variable that a test can point at a virtual clock.</li>
+          <li>The frame ring records start time, end time and bytes consed for each frame without allocating, so measuring does not disturb what it measures.</li>
+          <li>Tests make a million callbacks or draw ten thousand frames and then check the total bytes consed. A frame can be hashed (<a href="core-1.html#display-list">Part 1</a>), and the renderer can draw into an off-screen texture to be compared with a stored image (<a href="core-2.html#renderer">Part 4</a>), so correctness is checked with nobody looking.</li>
+          <li>The two options for reaching AppKit were built and compared on the same acceptance script before one was chosen. The helper library allocated about 700 bytes a frame and the direct bindings allocated none, which was one of the facts in decision record 0007 (<a href="core-1.html#objc">Part 2</a>).</li>
+          <li>Two errors in the instruments themselves were found and written into the code. SBCL's byte counter advances in chunks of roughly 64 KB, so one frame reads as zero or as a whole chunk, and only totals over many frames mean anything. And the test framework compiles test bodies under a policy that allocates, so the loops being measured live in separately compiled helper functions.</li>
+        </ul>
+      </dd>
+      <dt>Cost and limits</dt>
+      <dd>
+        <p>Instruments take work before any feature is visible, and they need maintenance. A measurement is a claim about one machine: every number in these pages comes from an arm64 Mac. And measuring can mislead when the thing measured is not what you think it is, as the two instrument errors above show.</p>
+      </dd>
+      <dt>Elsewhere</dt>
+      <dd>
+        <ul>
+          <li><strong>Performance engineering.</strong> Profilers and benchmarks run before and after every change, and are repeated because one run is noise.</li>
+          <li><strong>Web services.</strong> Recorded production traffic is replayed against a new version before release.</li>
+          <li><strong>Testing.</strong> A flaky test is a measurement that cannot be repeated. Some databases, FoundationDB among them, are tested by simulating a whole cluster with a fake clock and network, so that any failure can be replayed exactly.</li>
+        </ul>
+      </dd>
+    </dl>
+  </article>
+
+  
+<!-- ---------------------------------------- P3 -->
+  <article class="principle" id="p3">
+    <p class="pnum">Principle 3 &middot; what machines are like</p>
+    <h3>Everything is bits and a convention</h3>
+    <p class="statement">Memory holds only bits. Types, colours, strings and function arguments are agreements about how to read them.</p>
+    <dl class="pf">
+      <dt>Why it is true</dt>
+      <dd>
+        <p>The 32-bit word <code>3F800000</code> is the number 1.0 if read as a single-float, the integer 1,065,353,216 if read as an unsigned integer, and the colour (63, 128, 0) with no opacity if read as red, green, blue and alpha. Nothing in the bits says which reading is right. The hardware does not know. Software agrees in advance.</p>
+        <p>When two components share bytes they must share the convention. For function calls it is called the <strong>ABI</strong> (application binary interface), for files a format, for a network a protocol. When conventions differ you get either a conversion, which costs time, or a silent bug, such as the UTF-16 index error in <a href="core-2.html#text">Part 5</a>.</p>
+        <p>This also explains <strong>boxing</strong>, which is behind the core's first rule. The same number can live as raw bits (in a register, one of the CPU's few named storage slots, or in an array of numbers) or as a pointer to a small cell on the heap, the pool of memory the runtime hands out, holding a header and then the bits. Generic code uses the second form, and making that cell is an allocation. Knowing which form a value has tells you whether using it costs anything.</p>
+      </dd>
+      <dt>In the core</dt>
+      <dd>
+        <ul>
+          <li>Values stay in their cheap form. Single-floats and small integers are <em>immediate</em>, stored directly in a machine word, the 64 bits the CPU handles at once. Doubles are boxed. So the display list uses arrays of single-floats, and its hash is cut to 62 bits to stay a fixnum (<a href="core-1.html#display-list">Part 1</a>).</li>
+          <li>Apple's objects, classes and selectors are plain 64-bit integers. A rectangle is passed as four separate doubles because that is exactly how the arm64 convention passes a struct of four doubles, in registers <code>d0</code> to <code>d3</code> (<a href="core-1.html#objc">Part 2</a>).</li>
+          <li>The Lisp renderer and the shader agree on a 32-byte instance: which offset holds x, which holds the colour. A colour is one word with red in the high byte. Colours reach the blender premultiplied by alpha, which is a convention about what the numbers mean (<a href="core-2.html#renderer">Part 4</a>).</li>
+          <li>Core Text counts UTF-16 units and Lisp counts characters, so indices are converted where they cross (<a href="core-2.html#text">Part 5</a>). Y grows downward in the core and upward in Metal's clip space, so the vertex shader flips it.</li>
+        </ul>
+      </dd>
+      <dt>Cost and limits</dt>
+      <dd>
+        <p>Conventions fail silently. A wrong type-encoding string can crash the process, and two sides that disagree about a struct's layout produce garbage with no error. The register rule was verified on arm64 only. Packing several values into one word, as the colour does, saves space but means the parts cannot be named without unpacking.</p>
+      </dd>
+      <dt>Elsewhere</dt>
+      <dd>
+        <ul>
+          <li><strong>Text.</strong> A page served in one encoding and read as another turns into garbled characters.</li>
+          <li><strong>Networks and files.</strong> Two machines must agree on byte order and field layout before a number can cross between them. A file format is a written-down convention.</li>
+          <li><strong>Databases.</strong> A column's type fixes how its bytes are read, and changing the type can mean rewriting every row.</li>
+        </ul>
+      </dd>
+    </dl>
+
+      <figure>
+    <div class="figscroll">
+    <svg class="fig" viewBox="0 0 900 250" role="img" aria-label="Boxed double-float: a variable points to a 16-byte heap cell. Single-floats in a typed array sit side by side with no per-value cell.">
+      <text class="cap" x="20" y="28">A boxed double-float: allocates</text>
+      <rect class="b-plain" x="20" y="70" width="110" height="46" rx="3"/>
+      <text class="m" x="75" y="98" text-anchor="middle">variable x</text>
+      <path class="arrow" marker-end="url(#ah)" d="M130 93 H210"/>
+      <rect class="b-bad" x="212" y="70" width="70" height="46"/>
+      <text class="m" x="247" y="98" text-anchor="middle">header</text>
+      <rect class="b-bad" x="282" y="70" width="110" height="46"/>
+      <text class="m" x="337" y="98" text-anchor="middle">3.5d0</text>
+      <text class="sub" x="20" y="150">A new 16-byte cell in the heap every time a double is</text>
+      <text class="sub" x="20" y="168">passed around generically. The collector must find it</text>
+      <text class="sub" x="20" y="186">and free it later.</text>
+
+      <text class="cap" x="470" y="28">A typed array of single-floats: does not</text>
+      <g id="floatrow"></g>
+      <text class="sub" x="470" y="150">The numbers sit side by side in one block made once.</text>
+      <text class="sub" x="470" y="168">Reading or storing one creates no garbage.</text>
+    </svg>
+    </div>
+    <figcaption>Why the code is full of <code>single-float</code> and <code>(simple-array single-float (*))</code>. A single-float fits in a Lisp machine word directly (Lisp calls this <em>immediate</em>), so it never needs a cell of its own. A double-float usually does.</figcaption>
+  </figure>
+
+    <div class="widget" id="bits-widget">
+      <h4>Try it: one 32-bit word, five readings</h4>
+      <p class="hint">Type a word in hexadecimal, or press a button. Each row is a convention applied to the same bits.</p>
+      <label for="bits-in">Word in hexadecimal (up to 8 digits)</label>
+      <input id="bits-in" type="text" value="3F800000" maxlength="8" autocomplete="off" spellcheck="false">
+      <div style="margin-top:8px">
+        <button type="button" data-w="3F800000">1.0 as a float</button>
+        <button type="button" data-w="FF8040FF">orange, from <a href="core-1.html#display-list">Part 1</a></button>
+        <button type="button" data-w="48656C6C">the letters "Hell"</button>
+        <button type="button" data-w="FFFFFFFF">all ones</button>
+      </div>
+      <div class="tablescroll"><table class="t" id="bits-tab"></table></div>
+    </div>
+  </article>
+
+  
+<!-- ---------------------------------------- P4 -->
+  <article class="principle" id="p4">
+    <p class="pnum">Principle 4 &middot; what machines are like</p>
+    <h3>Arrange data for its reader</h3>
+    <p class="statement">Where data sits, and how it is arranged, often matters more than the arithmetic done on it.</p>
+    <dl class="pf">
+      <dt>Why it is true</dt>
+      <dd>
+        <p>A processor can do arithmetic much faster than it can fetch a value from main memory. To hide the gap it keeps recently used memory in small, fast <strong>caches</strong>, and it fetches memory in blocks called <strong>cache lines</strong> (128 bytes on this Mac). If the values a loop needs sit next to each other, one fetch brings in many of them. If they are scattered, each costs its own fetch.</p>
+        <p>So the best arrangement depends on who reads the data and how. A loop that sums every x wants all the x values together. A GPU shader that draws one rectangle wants all of that rectangle's fields together. No single arrangement is best for both. The answer is to give each reader the arrangement it needs and to convert where the data changes hands.</p>
+        <p>The same thinking chooses the structure for each job: match it to the operation you do most.</p>
+      </dd>
+      <dt>In the core</dt>
+      <dd>
+        <ul>
+          <li>In Lisp the display list is a <strong>struct of arrays</strong>, one typed array per field. An array of single-floats is a block of raw numbers with no header per value, so filling it makes no garbage (<a href="core-1.html#display-list">Part 1</a>).</li>
+          <li>For the GPU, <code>copy-commands</code> writes an <strong>array of structs</strong>: a 32-byte record per command with all its fields side by side, because the shader handles one command at a time (<a href="core-2.html#renderer">Part 4</a>). The figure below shows the change of shape.</li>
+          <li>Structures follow the operation. Adding a command is a counter and some array writes. Finding a shaped line is a hash table keyed by string. Keeping the last 4,096 frames is a <a href="core-1.html#ring">ring</a>. Placing a glyph in the atlas is a cursor along a shelf. Finding the Lisp object behind an Objective-C <code>self</code> is an index into a vector.</li>
+          <li>The instance buffer is in shared storage, memory that both the CPU and the GPU can read, so there is no separate upload step. All glyph bitmaps live in one atlas texture, so a frame binds one texture instead of thousands.</li>
+        </ul>
+        <p>The reshaping is cheap. In the devlog's table, encoding and committing a frame grows from about 12 &#181;s at 1,000 commands to about 47 &#181;s at 10,000. The copy is the only step that depends on the count, so it costs roughly 4 ns a command. That figure is calculated from the table, not measured separately.</p>
+      </dd>
+      <dt>Cost and limits</dt>
+      <dd>
+        <p>Each layout favours one reader and taxes the others. The core could skip the copy by building the display list directly in the GPU's format. It does not, because every part that builds a display list would then depend on the renderer's layout and could not be tested without a GPU (<a class="pt" href="principles-2.html#p11">P11</a>). A layout chosen for speed is also harder to read and to change than a list of objects, and it needs type declarations to stay fast.</p>
+      </dd>
+      <dt>Elsewhere</dt>
+      <dd>
+        <ul>
+          <li><strong>Databases.</strong> A column store keeps each column together, a struct of arrays, and scans one column quickly. A row store keeps whole records together, an array of structs, and fetches one record quickly. An index is a second arrangement of the same data for a different question.</li>
+          <li><strong>Games.</strong> Data-oriented design, as in entity-component systems, keeps each kind of component in its own array so that one system can sweep through it quickly.</li>
+          <li><strong>Numerical code.</strong> Arrays are stored row by row or column by column, and a loop that walks them in the other order can be many times slower.</li>
+        </ul>
+      </dd>
+    </dl>
+
+    <figure>
+      <div class="figscroll">
+      <svg class="fig" viewBox="0 0 900 232" role="img" aria-label="Three arrays holding x, y and width for four commands, and one run of memory holding the same values grouped by command. An arrow marks copy-commands.">
+        <g id="reshape"></g>
+      </svg>
+      </div>
+      <figcaption>The same values in two arrangements. Command 1 is outlined. On the left each field is its own array. On the right the fields of each command sit together. Only three of the eight words of an instance are drawn.</figcaption>
+    </figure>
+  </article>
+
+  
+<!-- ---------------------------------------- P5 -->
+  <article class="principle" id="p5">
+    <p class="pnum">Principle 5 &middot; what machines are like</p>
+    <h3>Wide hardware needs uniform work</h3>
+    <p class="statement">To go fast on hardware that does thousands of things at once, give it thousands of the same thing to do.</p>
+    <dl class="pf">
+      <dt>Why it is true</dt>
+      <dd>
+        <p>A GPU is thousands of simple workers that share a program. Groups of them run the same instruction at the same moment on different data. They are fast when every worker has the same kind of work, and slow when workers in a group need different instructions, because the group then does both in turn. A CPU's SIMD instructions work the same way on a smaller scale.</p>
+        <p>So variety should live in data, not in code. A different shape is a different row of numbers, not a different program.</p>
+      </dd>
+      <dt>In the core</dt>
+      <dd>
+        <p>A GPU draws triangles. The core draws every shape as a <strong>quad</strong>, a rectangle made of two triangles, and the GPU runs a small program called the fragment shader once for each pixel the quad covers. A <strong>draw call</strong> is one command asking the GPU to draw a batch of shapes.</p>
+        <ul>
+          <li>Every command, whether a rectangle, a rounded rectangle or a letter, is one quad (two triangles) drawn by the same pipeline. A rectangle is a rounded rectangle with radius zero.</li>
+          <li>The command's <code>kind</code> is a field. The fragment shader branches on it, and because the kind is constant across a quad, every pixel of one quad takes the same branch (<a href="core-2.html#renderer">Part 4</a>).</li>
+          <li>That uniformity is what allows the whole frame to be one draw call (<a class="pt" href="principles-2.html#p8">P8</a>).</li>
+        </ul>
+      </dd>
+      <dt>Cost and limits</dt>
+      <dd>
+        <p>The general path costs more than a special one would: a plain rectangle runs the rounded-box formula with a radius of zero. A shape that does not fit the quad-and-distance model, such as a shadow or a gradient, needs a new kind, a bigger record and more shader code. And the principle only helps where there really are many similar items. One large, unique piece of work gains nothing.</p>
+      </dd>
+      <dt>Elsewhere</dt>
+      <dd>
+        <ul>
+          <li><strong>Image, audio and video code.</strong> SIMD instructions apply one operation to a whole run of values at once.</li>
+          <li><strong>Databases.</strong> Vectorised query engines process a column in batches instead of one row at a time.</li>
+          <li><strong>Machine learning.</strong> Work is batched into large matrix multiplications, and sequences are padded to equal length so that a batch is uniform.</li>
+        </ul>
+      </dd>
+    </dl>
+  </article>
+
+  
+</section>
+<nav class="pager" aria-label="Previous and next page">
+<a rel="prev" href="core-2.html"><span>Previous</span>Core 2: the pixels</a>
+<a rel="next" href="principles-2.html"><span>Next</span>Principles 2: what to do</a>
+</nav>
+<footer>
+  Written from the source in <code>core/src</code>, the project's charter, decision records, devlog and tests as they stand now. Measured numbers come from the devlog and tests, on an arm64 Mac. Figures described as calculated come from simple arithmetic on them. The frame-time demo uses invented numbers. Diagrams marked "illustration" show the idea, not measured proportions. Pixel values in the bitmap figure are drawn by hand. Examples from outside this project describe well-known practice and are not measurements.
+</footer>
+</div>
+<script>
+
+(function () {
+  var NS = "http://www.w3.org/2000/svg";
+  function el(tag, attrs, parent) {
+    var e = document.createElementNS(NS, tag);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+  function txt(parent, x, y, str, cls, anchor) {
+    var t = el("text", { x: x, y: y, "class": cls || "m", "text-anchor": anchor || "middle" }, parent);
+    t.textContent = str;
+    return t;
+  }
+  function clamp(v, lo, hi) { return Math.min(hi, Math.max(lo, v)); }
+
+  /* ---- floats in a typed array ---- */
+  (function () {
+    var g = document.getElementById("floatrow");
+    if (!g) return;
+    var vals = ["1.5", "20.0", "0.25", "7.0", "3.5", "9.0"];
+    for (var i = 0; i < vals.length; i++) {
+      el("rect", { x: 470 + i * 70, y: 70, width: 70, height: 46, "class": "c-geo" }, g);
+      txt(g, 470 + i * 70 + 35, 98, vals[i], "m");
+    }
+  })();
+
+  /* ---- frame times: the average hides the hitch ---- */
+  (function () {
+    var svg = document.getElementById("ft-svg"), sp = document.getElementById("ft-p"), sl = document.getElementById("ft-len"),
+        vp = document.getElementById("ft-p-val"), vl = document.getElementById("ft-len-val"),
+        again = document.getElementById("ft-again"), read = document.getElementById("ft-read");
+    if (!svg || !sp || !sl) return;
+    var N = 120, seed = 777, ra = [], rb = [], rc = [];
+    function rnd() {
+      seed = (seed + 0x6D2B79F5) | 0;
+      var t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    }
+    function roll() {
+      var i;
+      ra = []; rb = []; rc = [];
+      for (i = 0; i < N; i++) { ra.push(rnd()); rb.push(rnd()); rc.push(rnd()); }
+    }
+    function draw() {
+      var p = parseFloat(sp.value) / 100, len = parseFloat(sl.value), i;
+      vp.textContent = sp.value;
+      vl.textContent = sl.value;
+      while (svg.firstChild) svg.removeChild(svg.firstChild);
+      var ox = 56, oy = 196, top = 20, maxMs = 45, k = (oy - top) / maxMs, pitch = 6;
+      var sum = 0, worst = 0, late = 0, ms = [];
+      for (i = 0; i < N; i++) {
+        var t = 2 + 1.5 * ra[i] + (rb[i] < p ? len * (0.8 + 0.4 * rc[i]) : 0);
+        ms.push(t);
+        sum += t;
+        if (t > worst) worst = t;
+        if (t > 16.7) late++;
+      }
+      var mean = sum / N;
+      el("path", { "class": "guide", d: "M" + ox + " " + oy + " H" + (ox + N * pitch) }, svg);
+      txt(svg, ox - 8, oy + 4, "0", "mm", "end");
+      txt(svg, ox - 8, oy - 20 * k + 4, "20", "mm", "end");
+      txt(svg, ox - 8, oy - 40 * k + 4, "40 ms", "mm", "end");
+      for (i = 0; i < N; i++) {
+        var h = Math.min(ms[i], maxMs) * k;
+        el("rect", { x: ox + i * pitch, y: oy - h, width: 5, height: h, fill: ms[i] > 16.7 ? "var(--bad)" : "var(--lisp)" }, svg);
+      }
+      var dy = oy - 16.7 * k, my = oy - mean * k;
+      el("path", { d: "M" + ox + " " + dy + " H" + (ox + N * pitch), stroke: "var(--bad)", "stroke-width": 1.5, "stroke-dasharray": "5 4" }, svg);
+      txt(svg, ox + N * pitch + 8, dy + 4, "deadline 16.7", "mm", "start");
+      el("path", { d: "M" + ox + " " + my + " H" + (ox + N * pitch), stroke: "var(--ink)", "stroke-width": 1.5 }, svg);
+      txt(svg, ox + N * pitch + 8, my + 4, "average " + mean.toFixed(1), "mm", "start");
+      txt(svg, ox + N * pitch / 2, oy + 28, "120 frames in a row, about two seconds at 60 Hz", "sub");
+      read.innerHTML =
+        "Average frame: " + mean.toFixed(1) + " ms. Slowest frame: " + worst.toFixed(1) + " ms. " +
+        "Frames past the deadline: " + late + " of " + N + ".<br>" +
+        (late === 0
+          ? "Every frame made its deadline."
+          : "The average is " + (mean < 16.7 ? "well inside" : "over") + " the 16.7 ms budget, yet " + late +
+            (late === 1 ? " frame was" : " frames were") + " late, and each late frame is a visible hitch.");
+    }
+    sp.addEventListener("input", draw);
+    sl.addEventListener("input", draw);
+    again.addEventListener("click", function () { seed = (seed * 31 + 17) | 0; roll(); draw(); });
+    roll();
+    draw();
+  })();
+
+  /* ---- one 32-bit word, five readings ---- */
+  (function () {
+    var input = document.getElementById("bits-in"), tab = document.getElementById("bits-tab"), wrap = document.getElementById("bits-widget");
+    if (!input || !tab || !wrap) return;
+    function row(label, value, swatch) {
+      var tr = document.createElement("tr"), th = document.createElement("th"), td = document.createElement("td");
+      th.textContent = label;
+      if (swatch) {
+        var sw = document.createElement("span");
+        sw.style.cssText = "display:inline-block;width:34px;height:16px;vertical-align:-3px;margin-right:10px;border:1px solid var(--ink-2);background:" + swatch;
+        td.appendChild(sw);
+      }
+      td.appendChild(document.createTextNode(value));
+      tr.appendChild(th);
+      tr.appendChild(td);
+      tab.appendChild(tr);
+    }
+    function render() {
+      var hex = input.value.replace(/[^0-9a-fA-F]/g, "").slice(0, 8);
+      var u = parseInt(hex || "0", 16) >>> 0;
+      var dv = new DataView(new ArrayBuffer(4));
+      dv.setUint32(0, u);
+      var f = dv.getFloat32(0), b = [dv.getUint8(0), dv.getUint8(1), dv.getUint8(2), dv.getUint8(3)], i, chars = "";
+      var fs = isNaN(f) ? "not a number" : (!isFinite(f) ? (f > 0 ? "infinity" : "negative infinity") : String(Number(f.toPrecision(8))));
+      for (i = 0; i < 4; i++) chars += (b[i] >= 32 && b[i] < 127) ? String.fromCharCode(b[i]) : "·";
+      tab.innerHTML = "";
+      row("As an unsigned integer", String(u));
+      row("As a signed integer", String(u | 0));
+      row("As a single-float", fs);
+      row("As a colour, red first", "red " + b[0] + ", green " + b[1] + ", blue " + b[2] + ", alpha " + b[3],
+          "rgba(" + b[0] + "," + b[1] + "," + b[2] + "," + (b[3] / 255).toFixed(3) + ")");
+      row("As four characters", "“" + chars + "”");
+    }
+    input.addEventListener("input", render);
+    var buttons = wrap.querySelectorAll("button[data-w]");
+    for (var i = 0; i < buttons.length; i++) {
+      buttons[i].addEventListener("click", function () { input.value = this.getAttribute("data-w"); render(); });
+    }
+    render();
+  })();
+
+  /* ---- one array per field, then one record per command ---- */
+  (function () {
+    var g = document.getElementById("reshape");
+    if (!g) return;
+    var names = ["x", "y", "w"], r, c;
+    txt(g, 20, 24, "In Lisp: one array per field", "cap", "start");
+    for (r = 0; r < 3; r++) {
+      var y0 = 62 + r * 36;
+      txt(g, 100, y0 + 19, names[r] + "s", "m", "end");
+      for (c = 0; c < 4; c++) {
+        el("rect", { x: 110 + c * 56, y: y0, width: 56, height: 28, "class": "b-lisp" }, g);
+        txt(g, 110 + c * 56 + 28, y0 + 19, names[r] + c, "m");
+      }
+    }
+    el("rect", { x: 164, y: 57, width: 60, height: 112, "class": "hl" }, g);
+
+    txt(g, 470, 24, "For the GPU: one record per command", "cap", "start");
+    for (c = 0; c < 4; c++) {
+      for (r = 0; r < 3; r++) {
+        var x = 470 + (c * 3 + r) * 34;
+        el("rect", { x: x, y: 86, width: 34, height: 34, "class": "b-gpu" }, g);
+        txt(g, x + 17, 107, names[r] + c, "m");
+      }
+      txt(g, 470 + c * 102 + 51, 140, "command " + c, "sub");
+    }
+    el("rect", { x: 570, y: 82, width: 106, height: 42, "class": "hl" }, g);
+
+    el("path", { "class": "arrow", d: "M194 57 V46 H623 V80", "marker-end": "url(#ah)" }, g);
+    txt(g, 410, 40, "copy-commands", "m");
+    txt(g, 20, 196, "Each array is its own run of memory.", "sub", "start");
+    txt(g, 470, 196, "One run of memory. A real record is 32 bytes (eight words).", "sub", "start");
+    txt(g, 470, 214, "The shader reads one whole record per instance.", "sub", "start");
+  })();
+
+})();
+</script>
+</body>
+</html>

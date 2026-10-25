@@ -65,9 +65,9 @@ alpha), row by row from the top. Call after the GPU has finished drawing."
     ;; MTLRegion is six words (x y z, width height depth): larger than 16 bytes,
     ;; so it is passed by address.
     (sb-alien:with-alien ((region (array sb-alien:unsigned-long 6)))
-      (loop for value in (list 0 0 0 width height 1)
-            for i from 0
-            do (setf (sb-alien:deref region i) value))
+      (loop :for value :in (list 0 0 0 width height 1)
+            :for i :from 0
+            :do (setf (sb-alien:deref region i) value))
       (sb-sys:with-pinned-objects (pixels)
         (msg-send :void (offscreen-target-texture target)
                   "getBytes:bytesPerRow:fromRegion:mipmapLevel:"

@@ -88,9 +88,9 @@
            (line (line:get-line helvetica text)))
       (assert-true (close-to 0f0 (line:caret-x line 0)))
       (assert-true (close-to (line:text-line-width line) (line:caret-x line (length text)) 0.1))
-      (loop for i from 1 to (length text)
-            do (assert-true (> (line:caret-x line i) (line:caret-x line (1- i)))
-                            i)))))
+      (loop :for i :from 1 :to (length text)
+            :do (assert-true (> (line:caret-x line i) (line:caret-x line (1- i)))
+                             i)))))
 
 (define-test a-click-at-a-caret-finds-that-index ()
   (with-fonts (helvetica menlo)
@@ -142,9 +142,9 @@
       ;; They cover the string without gaps or overlap.
       (assert-eql 0 (first (first lines)))
       (assert-eql (length text) (second (car (last lines))))
-      (loop for (previous next) on lines
-            while next
-            do (assert-eql (second previous) (first next)))
+      (loop :for (previous next) :on lines
+            :while next
+            :do (assert-eql (second previous) (first next)))
       ;; And each fits, trailing space aside.
       (dolist (range lines)
         (let ((piece (string-right-trim " " (subseq text (first range) (second range)))))

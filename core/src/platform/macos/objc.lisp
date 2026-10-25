@@ -243,9 +243,9 @@ ENSURE-CLASS. An error in BODY is reported and the callback returns zero rather
 than unwinding through the system framework's frames, which Lisp cannot do
 safely (zero, or nil for void). Every argument counts as used, so a method need not declare the receiver
 and selector ignored."
-  (let ((declarations (loop while (and (consp (first body))
-                                       (eq (first (first body)) 'declare))
-                            collect (pop body))))
+  (let ((declarations (loop :while (and (consp (first body))
+                                        (eq (first (first body)) 'declare))
+                            :collect (pop body))))
     `(sb-alien:define-alien-callable ,name ,result-type ,typed-lambda-list
        ,@declarations
        ,@(mapcar #'first typed-lambda-list)
@@ -300,10 +300,10 @@ effect."
                     (find-objc-class superclass-name) name 0)))
         (when (zerop class)
           (error "Could not make the class ~s." name))
-        (loop for (ivar-name size alignment encoding) in ivars
-              do (add-ivar class ivar-name size alignment encoding))
-        (loop for (selector-name encoding callable-name) in methods
-              do (add-class-method class selector-name encoding callable-name))
+        (loop :for (ivar-name size alignment encoding) :in ivars
+              :do (add-ivar class ivar-name size alignment encoding))
+        (loop :for (selector-name encoding callable-name) :in methods
+              :do (add-class-method class selector-name encoding callable-name))
         (sb-alien:alien-funcall
          (sb-alien:extern-alien "objc_registerClassPair"
                                 (function sb-alien:void sb-alien:unsigned-long))

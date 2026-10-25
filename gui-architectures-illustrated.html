@@ -2155,12 +2155,12 @@ Object.assign(CODE, {
 'im-panel':`;;; The whole screen is one function, called every frame.
 ;;; It reads the app's data, draws, and acts on what was clicked.
 (defun reading-panel (ui app)
-  (loop for station in (app-stations app)
-        for y from 10 by 32
-        do (with-id (ui (station-name station))
-             (when (button ui :select (station-name station) 10 y 140 28
-                           :selected (eq station (app-station app)))
-               (setf (app-station app) station))))
+  (loop :for station :in (app-stations app)
+        :for y :from 10 :by 32
+        :do (with-id (ui (station-name station))
+              (when (button ui :select (station-name station) 10 y 140 28
+                            :selected (eq station (app-station app)))
+                (setf (app-station app) station))))
   (let ((reading (current-reading app)))
     (label ui "Target" 166 52)
     (label ui (princ-to-string (reading-target reading)) 228 52)
@@ -2266,8 +2266,8 @@ so clearing the field can still report (NIL)."
        (let ((*batching* t) (*pending* '()))
          (unwind-protect (progn ,@body)
            (setf *batching* nil)
-           (loop for (model . aspect) in (reverse *pending*)
-                 do (notify-dependents model aspect))))))
+           (loop :for (model . aspect) :in (reverse *pending*)
+                 :do (notify-dependents model aspect))))))
 
 (defun load-reading (reading station date actual)
   (with-batched-changes ()
@@ -2284,22 +2284,22 @@ so clearing the field can still report (NIL)."
 (defun notify-dependents (model aspect)
   ;; Deliver to live dependents, and forget the collected ones.
   (setf (dependents model)
-        (loop for pointer in (dependents model)
-              for dependent = (tg:weak-pointer-value pointer)
-              when dependent
-                collect pointer
-                and do (update dependent model aspect))))`,
+        (loop :for pointer :in (dependents model)
+              :for dependent = (tg:weak-pointer-value pointer)
+              :when dependent
+                :collect pointer
+                :and :do (update dependent model aspect))))`,
 'mit-macro':`;;; Retained: boilerplate. One spec generates the view protocol
 ;;; the presenter talks to and the fake view the tests use.
 (defmacro define-view-protocol (name &rest fields)
   (let ((fake (intern (format nil "FAKE-~A" name))))
     \`(progn
-       ,@(loop for field in fields
-               collect \`(defgeneric ,field (view))
-               collect \`(defgeneric (setf ,field) (new view)))
+       ,@(loop :for field :in fields
+               :collect \`(defgeneric ,field (view))
+               :collect \`(defgeneric (setf ,field) (new view)))
        (defclass ,fake ()
-         ,(loop for field in fields
-                collect \`(,field :initform nil :accessor ,field))))))
+         ,(loop :for field :in fields
+                :collect \`(,field :initform nil :accessor ,field))))))
 
 (define-view-protocol assessment-view
   actual-text target-text variance-text variance-color)
@@ -2509,12 +2509,12 @@ settle:`;;; A frame is settled when building it changed no app state.
 (defun run-frame (app &key (max-builds 3))
   "Build until a build changes no app state, then present that frame."
   (let ((settled nil))
-    (loop for builds from 1 to max-builds
-          for before = *state-version*
-          do (build app)  ; the + button's (incf (actual r)) bumps the version
-             (when (= before *state-version*)
-               (setf settled t)
-               (loop-finish)))
+    (loop :for builds :from 1 :to max-builds
+          :for before = *state-version*
+          :do (build app)  ; the + button's (incf (actual r)) bumps the version
+              (when (= before *state-version*)
+                (setf settled t)
+                (loop-finish)))
     ;; The first build consumed the click, so the second build's
     ;; button returns NIL and nothing changes: settled after two builds.
     (unless settled
@@ -2575,14 +2575,14 @@ Object.assign(CODE, {
 
 (defun bin-commands (commands columns rows)
   (let ((tiles (make-array (* columns rows) :initial-element '())))
-    (loop for c across commands
-          for i from 0
-          do (multiple-value-bind (x0 y0 x1 y1) (cmd-bounds c)
-               (loop for ty from (max 0 (floor y0 +tile+))
-                       to (min (1- rows) (floor (1- y1) +tile+))
-                     do (loop for tx from (max 0 (floor x0 +tile+))
-                                to (min (1- columns) (floor (1- x1) +tile+))
-                              do (push i (aref tiles (+ tx (* ty columns))))))))
+    (loop :for c :across commands
+          :for i :from 0
+          :do (multiple-value-bind (x0 y0 x1 y1) (cmd-bounds c)
+                (loop :for ty :from (max 0 (floor y0 +tile+))
+                        :to (min (1- rows) (floor (1- y1) +tile+))
+                      :do (loop :for tx :from (max 0 (floor x0 +tile+))
+                                  :to (min (1- columns) (floor (1- x1) +tile+))
+                                :do (push i (aref tiles (+ tx (* ty columns))))))))
     (map-into tiles #'reverse tiles)))
 
 ;;; Hash what a tile will be painted from, not the pixels it holds.
@@ -2602,12 +2602,12 @@ Object.assign(CODE, {
 
 (defun changed-tiles (tiles commands previous)
   "Tiles whose hash differs from last frame's. The rest keep their pixels."
-  (loop for indices across tiles
-        for tile from 0
-        for hash = (tile-hash indices commands)
-        unless (eql hash (aref previous tile))
-          collect tile
-        do (setf (aref previous tile) hash)))
+  (loop :for indices :across tiles
+        :for tile :from 0
+        :for hash = (tile-hash indices commands)
+        :unless (eql hash (aref previous tile))
+          :collect tile
+        :do (setf (aref previous tile) hash)))
 
 (defun paint-frame (painter commands)
   ;; Level one: if nothing the painter depends on changed, skip it all.
@@ -2616,7 +2616,7 @@ Object.assign(CODE, {
                                 (painter-rows painter)))
            (dirty (if (painter-cache-p painter)
                       (changed-tiles tiles commands (painter-hashes painter))
-                      (loop for tile below (length tiles) collect tile))))
+                      (loop :for tile :below (length tiles) :collect tile))))
       ;; Level two: only the changed tiles are painted.
       (dolist (tile dirty dirty)
         (paint-tile painter tile (aref tiles tile))))))`,
@@ -2628,15 +2628,15 @@ Object.assign(CODE, {
   (let ((cached   (make-painter :cache t))
         (uncached (make-painter :cache nil))
         (problems '()))
-    (loop for (events . time) in session
-          for frame from 0
-          for commands = (run-frame-headless events time)
-          do (paint-frame cached commands)
-             (paint-frame uncached commands)
-             (when (zerop (mod frame every))
-               (let ((tiles (differing-tiles (painter-image cached)
-                                             (painter-image uncached))))
-                 (when tiles (push (cons frame tiles) problems)))))
+    (loop :for (events . time) :in session
+          :for frame :from 0
+          :for commands = (run-frame-headless events time)
+          :do (paint-frame cached commands)
+              (paint-frame uncached commands)
+              (when (zerop (mod frame every))
+                (let ((tiles (differing-tiles (painter-image cached)
+                                              (painter-image uncached))))
+                  (when tiles (push (cons frame tiles) problems)))))
     (nreverse problems)))
 
 (fiveam:test cache-keeps-no-stale-pixels

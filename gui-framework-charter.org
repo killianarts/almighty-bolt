@@ -439,7 +439,7 @@ design/          design tokens, screenshots, gallery
 spikes/          throwaway programs that answer one question each
 vendored/        third-party sources, fetched with vend (see Makefile)
 scripts/         repository maintenance scripts
-docs/            release notes and the release guide
+docs/            release notes, the release guide, and guide/ (the teaching pages; open guide/index.html)
 .github/         release workflow, release categories, pull request template
 Makefile         deps, test
 #+end_example
@@ -448,7 +448,8 @@ Makefile         deps, test
 defines exactly one package, named after the project and the file (tests under
 =t/=), and each system is an ordinary =defsystem= with =:serial t= and an
 explicit =:components= list in dependency order, as in =almighty-toki=. Not
-=package-inferred-system=.
+=package-inferred-system=. Calls to =loop= write its clause words as keywords
+(=:for=, =:in=, =:do=).
 
 * Common Lisp vs. Coalton
 

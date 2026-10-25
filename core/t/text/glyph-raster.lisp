@@ -24,7 +24,7 @@
   "How many pixels of ROW (0 is the top) have any ink."
   (let ((width (raster:glyph-bitmap-width bitmap))
         (pixels (raster:glyph-bitmap-pixels bitmap)))
-    (loop for x below width count (plusp (aref pixels (+ (* row width) x))))))
+    (loop :for x :below width :count (plusp (aref pixels (+ (* row width) x))))))
 
 (define-test a-glyph-has-ink-and-an-empty-margin ()
   (with-glyph (bitmap "H" 1)
@@ -42,8 +42,8 @@
 
 (defun first-and-last-ink-rows (bitmap)
   "The first and last rows (0 is the top) that have any ink."
-  (let ((rows (loop for row below (raster:glyph-bitmap-height bitmap)
-                    when (plusp (ink-in-row bitmap row)) collect row)))
+  (let ((rows (loop :for row :below (raster:glyph-bitmap-height bitmap)
+                    :when (plusp (ink-in-row bitmap row)) :collect row)))
     (values (first rows) (car (last rows)))))
 
 (define-test the-top-of-a-glyph-is-the-first-row ()

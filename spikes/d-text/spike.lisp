@@ -62,8 +62,8 @@
 
 (defun layout-lines (font width)
   "The cached lines of +PARAGRAPH+ broken to WIDTH points."
-  (loop for (start end) in (break-lines font +paragraph+ width)
-        collect (get-line font (string-right-trim " " (subseq +paragraph+ start end)))))
+  (loop :for (start end) :in (break-lines font +paragraph+ width)
+        :collect (get-line font (string-right-trim " " (subseq +paragraph+ start end)))))
 
 (defun make-frame-function (rig view)
   (declare (ignore rig))
@@ -159,7 +159,7 @@
         (format t "~%Shaping a new string (Core Text), and finding one already shaped:~%")
         (format t "~10a ~16a ~16a ~16a~%" "length" "shape (us)" "cache hit (ns)" "hit conses (B)")
         (dolist (length '(10 100 1000))
-          (let ((strings (loop for seed below 300 collect (make-test-string length seed)))
+          (let ((strings (loop :for seed :below 300 :collect (make-test-string length seed)))
                 (n 0))
             (let ((shape-ns (time-per-call-ns 300 (lambda () (shape-line font (nth (mod n 300) strings))
                                                        (incf n))))

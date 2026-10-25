@@ -211,12 +211,12 @@ its pixels."
         (let ((pixels (render-scene device renderer (shapes-scene) width height 1))
               (worst 0))
           (dotimes (i (* width height))
-            (loop for channel from 0 below 3
-                  do (setf worst (max worst
-                                      (abs (- (aref expected (+ (* 3 i) channel))
-                                              ;; The pixels are blue, green, red; the
-                                              ;; picture is red, green, blue.
-                                              (aref pixels (+ (* 4 i) (- 2 channel)))))))))
+            (loop :for channel :from 0 :below 3
+                  :do (setf worst (max worst
+                                       (abs (- (aref expected (+ (* 3 i) channel))
+                                               ;; The pixels are blue, green, red; the
+                                               ;; picture is red, green, blue.
+                                               (aref pixels (+ (* 4 i) (- 2 channel)))))))))
           (assert-true (<= worst 3) worst))))))
 
 ;;; --- allocation ---

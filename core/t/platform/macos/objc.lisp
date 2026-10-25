@@ -139,7 +139,7 @@
     (objc:unregister-object a)
     (assert-false (objc:registered-object a))
     ;; The freed index is reused, and the table grows when it is full.
-    (let ((indices (loop repeat 200 collect (objc:register-object :x))))
+    (let ((indices (loop :repeat 200 :collect (objc:register-object :x))))
       (assert-eql 200 (length (remove-duplicates indices)))
       (assert-true (every (lambda (i) (eq :x (objc:registered-object i))) indices))
       (dolist (i indices) (objc:unregister-object i)))
@@ -195,12 +195,12 @@
 that work given to the main queue runs."
   (let ((mode (sb-alien:extern-alien "kCFRunLoopDefaultMode" sb-alien:unsigned-long))
         (deadline (+ (get-internal-real-time) (* timeout internal-time-units-per-second))))
-    (loop until (or (funcall predicate) (> (get-internal-real-time) deadline))
-          do (sb-alien:alien-funcall
-              (sb-alien:extern-alien "CFRunLoopRunInMode"
-                                     (function sb-alien:int sb-alien:unsigned-long
-                                               sb-alien:double (sb-alien:unsigned 8)))
-              mode 0.01d0 0))
+    (loop :until (or (funcall predicate) (> (get-internal-real-time) deadline))
+          :do (sb-alien:alien-funcall
+               (sb-alien:extern-alien "CFRunLoopRunInMode"
+                                      (function sb-alien:int sb-alien:unsigned-long
+                                                sb-alien:double (sb-alien:unsigned 8)))
+               mode 0.01d0 0))
     (funcall predicate)))
 
 (define-test work-given-from-another-thread-runs-on-the-main-thread ()

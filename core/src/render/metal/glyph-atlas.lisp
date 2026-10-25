@@ -97,9 +97,9 @@ rasterized at SCALE pixels a point."
   ;; An MTLRegion is six words (x y z, width height depth): larger than 16 bytes, so
   ;; it is passed by address.
   (sb-alien:with-alien ((region (array sb-alien:unsigned-long 6)))
-    (loop for value in (list x y 0 width height 1)
-          for i from 0
-          do (setf (sb-alien:deref region i) value))
+    (loop :for value :in (list x y 0 width height 1)
+          :for i :from 0
+          :do (setf (sb-alien:deref region i) value))
     (sb-sys:with-pinned-objects (pixels)
       (msg-send :void (glyph-atlas-texture atlas) "replaceRegion:mipmapLevel:withBytes:bytesPerRow:"
                 (:pointer (sb-sys:sap-int (sb-alien:alien-sap region)))

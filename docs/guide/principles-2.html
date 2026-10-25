@@ -1,0 +1,605 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Principles 2: What To Do</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;600;700&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:ital,wght@0,400;0,600;1,400&display=swap">
+<style>
+/* Layout: one reading column with full-width figures that scroll sideways on a phone.
+   Colour code used in every diagram: teal = Lisp code and data in the core, blue = macOS
+   (AppKit, Core Text), amber = the GPU, red = trouble. */
+:root {
+  --bg: #f1f4f6;
+  --surface: #ffffff;
+  --ink: #15222c;
+  --ink-2: #51636f;
+  --line: #d3dbe1;
+  --lisp: #0e7468;
+  --lisp-soft: #d7efeb;
+  --os: #3a55c4;
+  --os-soft: #dfe5fa;
+  --gpu: #a4620a;
+  --gpu-soft: #f8e6c8;
+  --bad: #b42318;
+  --bad-soft: #f9d9d4;
+  --code-bg: #e8edf1;
+  --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --body: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d151b; --surface: #15212a; --ink: #e5edf2; --ink-2: #93a6b3; --line: #2a3b47;
+    --lisp: #44c7b5; --lisp-soft: #123a37; --os: #93a8ff; --os-soft: #1c2650;
+    --gpu: #f0b050; --gpu-soft: #43300f; --bad: #ff8c7c; --bad-soft: #4a1f1a;
+    --code-bg: #101b22; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d151b; --surface: #15212a; --ink: #e5edf2; --ink-2: #93a6b3; --line: #2a3b47;
+  --lisp: #44c7b5; --lisp-soft: #123a37; --os: #93a8ff; --os-soft: #1c2650;
+  --gpu: #f0b050; --gpu-soft: #43300f; --bad: #ff8c7c; --bad-soft: #4a1f1a;
+  --code-bg: #101b22; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink);
+  font: 400 17px/1.65 var(--body);
+  padding-block: 40px 96px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 980px; margin: 0 auto; }
+.prose { max-width: 68ch; }
+.prose p, .prose ul, .prose ol { margin: 0 0 1em; }
+.prose li { margin-bottom: .4em; }
+h1, h2, h3 { font-family: var(--display); line-height: 1.15; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(34px, 6vw, 56px); font-weight: 700; letter-spacing: -0.015em; }
+h2 { font-size: clamp(26px, 4vw, 36px); font-weight: 650; letter-spacing: -0.01em; }
+h3 { font-size: 21px; font-weight: 600; margin: 40px 0 10px; }
+a { color: var(--os); }
+code, .mono { font-family: var(--mono); font-size: .86em; }
+code { background: var(--code-bg); padding: .08em .35em; border-radius: 3px; }
+.eyebrow {
+  font: 500 12px/1 var(--mono); text-transform: uppercase; letter-spacing: .12em;
+  color: var(--ink-2); margin: 0 0 14px;
+}
+.lede { font-size: 21px; line-height: 1.55; color: var(--ink); max-width: 56ch; margin: 22px 0 0; }
+header.top { padding-bottom: 36px; border-bottom: 2px solid var(--ink); }
+nav.contents { margin-top: 28px; display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px 24px; }
+nav.contents a { font: 500 15px/1.35 var(--display); text-decoration: none; color: var(--ink); border-top: 1px solid var(--line); padding-top: 8px; }
+nav.contents a span { display: block; font: 400 12px var(--mono); color: var(--ink-2); letter-spacing: .06em; text-transform: uppercase; }
+nav.contents a:hover { border-top-color: var(--ink); }
+section { padding-top: 64px; }
+section > h2 { margin-bottom: 18px; }
+.part-head { border-top: 2px solid var(--ink); padding-top: 22px; }
+
+figure { margin: 30px 0; }
+figcaption { font: 400 14px/1.5 var(--display); color: var(--ink-2); margin-top: 8px; max-width: 80ch; }
+.figscroll { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 4px; }
+svg.fig { display: block; width: 100%; height: auto; min-width: 680px; }
+svg.fig { font-family: var(--display); }
+svg text { fill: var(--ink); }
+.lbl { font-size: 14px; font-weight: 600; }
+.sub { font-size: 12px; font-weight: 400; fill: var(--ink-2) !important; }
+.m { font-family: var(--mono) !important; font-size: 12px; }
+.mm { font-family: var(--mono) !important; font-size: 11px; fill: var(--ink-2) !important; }
+.big { font-size: 15px; font-weight: 600; }
+.cap { font-size: 12px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; fill: var(--ink-2) !important; }
+.b-lisp { fill: var(--lisp-soft); stroke: var(--lisp); stroke-width: 1.5; }
+.b-os   { fill: var(--os-soft);   stroke: var(--os);   stroke-width: 1.5; }
+.b-gpu  { fill: var(--gpu-soft);  stroke: var(--gpu);  stroke-width: 1.5; }
+.b-bad  { fill: var(--bad-soft);  stroke: var(--bad);  stroke-width: 1.5; }
+.b-plain { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+.b-code { fill: var(--code-bg); stroke: var(--line); stroke-width: 1; }
+.arrow { fill: none; stroke: var(--ink-2); stroke-width: 1.6; }
+.arrow.dash { stroke-dasharray: 5 4; }
+.guide { fill: none; stroke: var(--ink-2); stroke-width: 1; stroke-dasharray: 4 4; }
+.hl { fill: none; stroke: var(--ink); stroke-width: 2.2; }
+.ahead { fill: var(--ink-2); }
+.c-geo { fill: var(--lisp-soft); stroke: var(--lisp); stroke-width: 1; }
+.c-kind { fill: var(--gpu-soft); stroke: var(--gpu); stroke-width: 1; }
+.c-col { fill: var(--os-soft); stroke: var(--os); stroke-width: 1; }
+.c-pad { fill: var(--code-bg); stroke: var(--line); stroke-width: 1; }
+.px { stroke: var(--line); stroke-width: 1; }
+
+aside.term {
+  background: var(--surface); border: 1px solid var(--line); padding: 14px 18px; margin: 22px 0; max-width: 68ch;
+  font-size: 16px; line-height: 1.55;
+}
+aside.term .tag { font: 500 11px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--ink-2); display: block; margin-bottom: 6px; }
+aside.term p { margin: 0 0 .6em; }
+aside.term p:last-child { margin: 0; }
+pre {
+  background: var(--code-bg); color: var(--ink); padding: 14px 16px; margin: 20px 0;
+  overflow-x: auto; font: 400 13px/1.55 var(--mono); border-radius: 3px; max-width: 100%;
+}
+pre code { background: none; padding: 0; font-size: inherit; }
+.pre-label { font: 500 12px var(--mono); color: var(--ink-2); margin: 22px 0 -12px; letter-spacing: .04em; }
+
+table.t { border-collapse: collapse; width: 100%; margin: 20px 0; font-size: 15px; background: var(--surface); }
+table.t th, table.t td { border: 1px solid var(--line); padding: 8px 12px; text-align: left; vertical-align: top; }
+table.t th { font: 600 13px var(--display); background: var(--code-bg); }
+.tablescroll { overflow-x: auto; max-width: 100%; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+.widget { background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 16px; margin: 30px 0; }
+.widget h4 { font: 600 16px var(--display); margin: 0 0 4px; }
+.widget p.hint { font: 400 14px/1.5 var(--display); color: var(--ink-2); margin: 0 0 12px; max-width: 70ch; }
+.widget label { font: 500 13px var(--display); display: block; margin-bottom: 4px; }
+.widget input[type=range] { width: min(100%, 520px); accent-color: var(--lisp); }
+.widget input[type=text] { font: 400 18px var(--mono); padding: 6px 10px; width: min(100%, 360px); background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 3px; }
+.widget button {
+  font: 600 14px var(--display); padding: 7px 14px; margin: 4px 8px 4px 0; cursor: pointer;
+  background: var(--ink); color: var(--bg); border: 0; border-radius: 3px;
+}
+.widget button.alt { background: transparent; color: var(--ink); border: 1px solid var(--ink-2); }
+.widget button:focus-visible, .widget input:focus-visible, summary:focus-visible, a:focus-visible { outline: 3px solid var(--os); outline-offset: 2px; }
+.readout { font: 400 13px/1.7 var(--mono); }
+table.u { border-collapse: collapse; margin: 10px 0; font-family: var(--mono); font-size: 14px; }
+table.u td { border: 1px solid var(--line); padding: 5px 10px; text-align: center; min-width: 42px; }
+table.u tr.a td { background: var(--lisp-soft); }
+table.u tr.b td { background: var(--surface); font-size: 18px; }
+table.u tr.c td { background: var(--os-soft); }
+table.u td.wide { background: var(--gpu-soft); }
+.tablescroll.u { padding-bottom: 4px; }
+
+details.check { border-top: 1px solid var(--line); padding: 10px 0; max-width: 68ch; }
+details.check summary { cursor: pointer; font: 500 16px/1.45 var(--display); }
+details.check p { margin: 8px 0 0; font-size: 16px; }
+.checks { margin-top: 36px; }
+.checks h3 { margin-top: 0; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 22px; font: 400 13px var(--display); color: var(--ink-2); margin-top: 8px; }
+.legend i { display: inline-block; width: 12px; height: 12px; margin-right: 6px; vertical-align: -1px; border: 1.5px solid; }
+.legend .l { background: var(--lisp-soft); border-color: var(--lisp); }
+.legend .o { background: var(--os-soft); border-color: var(--os); }
+.legend .g { background: var(--gpu-soft); border-color: var(--gpu); }
+.legend .r { background: var(--bad-soft); border-color: var(--bad); }
+ol.trace { padding-left: 1.4em; }
+ol.trace li { padding-left: .3em; }
+.cols2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px 32px; max-width: 100%; }
+.cols2 > div { min-width: 0; }
+footer { margin-top: 72px; border-top: 2px solid var(--ink); padding-top: 18px; font: 400 14px/1.6 var(--display); color: var(--ink-2); max-width: 70ch; }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+
+/* ---- Principles ---- */
+.part-head > h2 { margin-bottom: 18px; }
+.eyebrow { line-height: 1.5; }
+code, pre, .mono { font-variant-ligatures: none; }
+.aims { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px 36px; margin-top: 26px; max-width: 900px; }
+.aims p { margin: 0; font-size: 16px; line-height: 1.55; border-top: 1px solid var(--line); padding-top: 8px; }
+
+.pmap { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; margin: 26px 0 8px; }
+.pgroup { background: var(--surface); border: 1px solid var(--line); border-top: 3px solid var(--ink); padding: 12px 14px 8px; min-width: 0; }
+.pgroup h4 { font: 600 12px/1.3 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2); margin: 0 0 6px; }
+.pgroup ol { list-style: none; margin: 0; padding: 0; }
+.pgroup li { margin: 0; }
+.pgroup a { display: grid; grid-template-columns: 2.1em minmax(0, 1fr); padding: 7px 0; border-top: 1px solid var(--line); text-decoration: none; color: var(--ink); font: 500 15px/1.35 var(--display); }
+.pgroup li:first-child a { border-top: 0; }
+.pgroup a b { font: 500 13px/1.6 var(--mono); color: var(--lisp); }
+.pgroup a:hover span { text-decoration: underline; }
+
+article.principle { margin-top: 60px; padding-top: 20px; border-top: 2px solid var(--ink); }
+article.principle > .pnum { font: 500 12px/1 var(--mono); text-transform: uppercase; letter-spacing: .12em; color: var(--ink-2); margin: 0 0 10px; }
+article.principle > h3 { margin: 0 0 10px; font-size: clamp(25px, 3.6vw, 32px); }
+.statement { font: italic 400 20px/1.5 var(--body); max-width: 58ch; margin: 0 0 22px; }
+dl.pf { display: grid; grid-template-columns: 9rem minmax(0, 1fr); gap: 14px 24px; max-width: 80ch; margin: 0 0 8px; }
+dl.pf dt { font: 600 12px/1.5 var(--display); text-transform: uppercase; letter-spacing: .08em; color: var(--ink-2); padding-top: 4px; }
+dl.pf dd { margin: 0; min-width: 0; }
+dl.pf dd p { margin: 0 0 .75em; }
+dl.pf dd ul { margin: 0 0 .75em; padding-left: 1.2em; }
+dl.pf dd li { margin-bottom: .45em; }
+dl.pf dd > :last-child { margin-bottom: 0; }
+@media (max-width: 640px) {
+  dl.pf { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  dl.pf dd { margin-bottom: 16px; }
+}
+a.pt { font: 500 .78em var(--mono); background: var(--lisp-soft); color: var(--lisp); padding: .06em .4em; border-radius: 3px; text-decoration: none; white-space: nowrap; }
+a.pt:hover { text-decoration: underline; }
+aside.pw { border-left: 4px solid var(--lisp); }
+.matrix td { font-size: 14px; line-height: 1.4; min-width: 130px; }
+.matrix td:first-child, .matrix th:first-child { min-width: 170px; }
+.matrix td.none { color: var(--ink-2); }
+.derived { font: 400 14px/1.5 var(--display); color: var(--ink-2); max-width: 80ch; margin: 6px 0 0; }
+.quiz details.check { max-width: 78ch; }
+.quiz pre { margin: 8px 0 4px; font-size: 12.5px; }
+
+/* ---- Series ---- */
+nav.series { display: flex; flex-wrap: wrap; gap: 4px 6px; margin: 0 0 28px; font: 500 13px/1.3 var(--mono); }
+nav.series a { color: var(--ink-2); text-decoration: none; padding: 5px 9px; border: 1px solid var(--line); border-radius: 3px; background: var(--surface); }
+nav.series a:hover { border-color: var(--ink-2); color: var(--ink); }
+nav.series a[aria-current="page"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+nav.pager { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin-top: 64px; padding-top: 18px; border-top: 2px solid var(--ink); }
+nav.pager a { display: block; text-decoration: none; color: var(--ink); border: 1px solid var(--line); background: var(--surface); padding: 12px 16px; font: 500 17px/1.35 var(--display); }
+nav.pager a span { display: block; font: 400 12px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); margin-bottom: 2px; }
+nav.pager a:hover { border-color: var(--ink-2); }
+nav.pager a[rel="next"] { text-align: right; }
+
+.pagelist { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 14px; margin: 26px 0 8px; }
+a.pcard { display: block; text-decoration: none; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-top: 3px solid var(--ink); padding: 14px 16px; font: 400 15px/1.5 var(--display); }
+a.pcard:hover { border-color: var(--ink-2); border-top-color: var(--ink); }
+a.pcard .pk { display: block; font: 500 12px/1.3 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); margin-bottom: 6px; }
+a.pcard b { display: block; font: 600 19px/1.25 var(--display); margin-bottom: 4px; }
+aside.term + aside.term { margin-top: -6px; }
+header.top + aside.term { margin-top: 28px; }
+header.top + section { padding-top: 40px; }
+header.top + section > .part-head:first-child { border-top: 0; padding-top: 0; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" class="ahead"/>
+    </marker>
+  </defs>
+</svg>
+<div class="wrap">
+<nav class="series" aria-label="The guide">
+<a href="index.html">Index</a>
+<a href="core-1.html">Core 1: the shape</a>
+<a href="core-2.html">Core 2: the pixels</a>
+<a href="principles-1.html">Principles 1: what is true</a>
+<a href="principles-2.html" aria-current="page">Principles 2: what to do</a>
+<a href="trainers-kit.html">Trainer&#x27;s kit</a>
+</nav>
+<header class="top">
+  <p class="eyebrow">Almighty Bolt &middot; the ideas, 2 of 2</p>
+  <h1>Principles of fast software, 2: what to do</h1>
+  <p class="lede">Five strategies that follow from the first five principles, and two about organising a project so the strategies can be applied now and changed later.</p>
+  <nav class="contents" aria-label="On this page">
+  <a href="#p6"><span>Principle 6</span>Pay once, use many times</a>
+  <a href="#p7"><span>Principle 7</span>Do nothing when nothing changes</a>
+  <a href="#p8"><span>Principle 8</span>Cross boundaries rarely, in bulk</a>
+  <a href="#p9"><span>Principle 9</span>Bound everything</a>
+  <a href="#p10"><span>Principle 10</span>Reuse needs an owner</a>
+  <a href="#p11"><span>Principle 11</span>Keep a narrow boundary of plain data</a>
+  <a href="#p12"><span>Principle 12</span>Start simple, and list what you skipped</a>
+</nav>
+</header>
+<aside class="term">
+  <span class="tag">Before you start</span>
+  <p>These seven follow from the five on <a href="principles-1.html">Principles 1</a>, but each stands alone. The example throughout is a small <strong>GUI core</strong> that must produce a finished picture, a <strong>frame</strong>, every 16.7 milliseconds. To <strong>allocate</strong> is to ask the language runtime for fresh memory, which a <strong>garbage collector</strong> later frees, pausing the program while it works. The notes headed <em>Elsewhere</em> describe well-known practice in other fields. They are not measurements from this project, and the <a href="trainers-kit.html#glossary">glossary</a> covers any other word you need.</p>
+</aside>
+<section id="principles-2">
+  <div class="part-head">
+    <p class="eyebrow">The ideas, continued</p>
+    <h2>Strategies and practice</h2>
+  </div>
+  <div class="prose">
+    <p>The first five principles say what to optimise for and what machines are like. These seven say what to do about it: five strategies (<a class="pt" href="#p6">P6</a> to <a class="pt" href="#p10">P10</a>), then two about organising a project (<a class="pt" href="#p11">P11</a> and <a class="pt" href="#p12">P12</a>). As before, each has four notes: why it is true, how the core shows it, what it costs and where it stops applying, and where else it appears.</p>
+  </div>
+<!-- ---------------------------------------- P6 -->
+  <article class="principle" id="p6">
+    <p class="pnum">Principle 6 &middot; strategies that follow</p>
+    <h3>Pay once, use many times</h3>
+    <p class="statement">A cost matters in proportion to how often it is paid. Move expensive work to where it happens once, and reuse the result.</p>
+    <dl class="pf">
+      <dt>Why it is true</dt>
+      <dd>
+        <p>Total cost is price multiplied by count. A frame loop runs 60 or 120 times a second for hours, so anything inside it is multiplied enormously, while the same work at startup is paid once. Much of performance work is finding what is multiplied (the <strong>hot path</strong>) and moving work out of it to somewhere it happens once (the <strong>cold path</strong>).</p>
+        <p>The idea takes four forms with one logic. <em>Precompute</em>: compile the shaders at startup. <em>Preallocate</em>: make the storage once. <em>Cache</em>: keep the result of an expensive call. <em>Resolve early</em>: look a name up once and keep the answer. The core's first rule is the second form applied to memory.</p>
+        <p>The question "how often?" also covers exceptions. Make the common case cheap and the rare case correct. Each text line records, when it is made, whether its string has any character that UTF-16 writes as two units. Only then are indices converted. Ordinary text, which is nearly all text, pays nothing.</p>
+      </dd>
+      <dt>In the core</dt>
+      <dd>
+        <ul>
+          <li>The display list's arrays, the instance buffer and the frame ring are made up front (<a href="core-1.html#display-list">Part 1</a>, <a href="core-1.html#window">Part 3</a>, <a href="core-2.html#renderer">Part 4</a>).</li>
+          <li>Apple's classes and message names (selectors) are looked up with <code>load-time-value</code>, which computes a value once, when the code loads, so the compiled call holds an integer and never searches by name. <code>ensure-class</code> builds each Objective-C class once (<a href="core-1.html#objc">Part 2</a>).</li>
+          <li>The shaders are compiled at startup, which takes 46 to 50 ms cold and about 1.4 ms with the system cache warm, and the pipeline is kept (<a href="core-2.html#renderer">Part 4</a>).</li>
+          <li><code>get-line</code> keeps each shaped line. Each glyph is rasterized once into the atlas (<a href="core-2.html#text">Part 5</a>).</li>
+        </ul>
+      </dd>
+      <dt>Cost and limits</dt>
+      <dd>
+        <ul>
+          <li><strong>Memory held in reserve.</strong> At the default capacity of 65,536 commands the display list takes about 1.6 MB and the instance buffer about 2.1 MB (25 and 32 bytes a command), whether a frame draws ten commands or sixty thousand. This is why the principle is not "memory efficiency". It spends memory to buy predictable time.</li>
+          <li><strong>Stale results.</strong> A cache is right only while the world it copied stays the same. The line cache is safe because a font and a string are values that do not change, and it stores its own copy of the string it is keyed on (<a class="pt" href="#p10">P10</a>). It has no eviction, so it grows with every distinct string.</li>
+          <li><strong>Where you pay matters.</strong> "Once" is not the same as "before the frame". The core pays lazily. The first frame that shows a new string shapes it, and the first frame that needs a new glyph rasterizes it, inside that frame. The charter allows for it by saying the zero-allocation rule holds "after warm-up". A stricter design would fill the caches at load time or while idle, and the core does not yet.</li>
+          <li><strong>It needs repetition.</strong> Work that happens once anyway gains nothing from being moved.</li>
+        </ul>
+      </dd>
+      <dt>Elsewhere</dt>
+      <dd>
+        <ul>
+          <li><strong>Servers.</strong> Connection pools, prepared statements and compiled templates move set-up cost out of each request.</li>
+          <li><strong>The web.</strong> HTTP caching lets a server say that a response may be reused for a stated time.</li>
+          <li><strong>Language runtimes.</strong> Just-in-time compilers compile hot code once and reuse it. Memoising a pure function caches its answers.</li>
+        </ul>
+      </dd>
+    </dl>
+
+    <div class="tablescroll">
+    <table class="t">
+      <tr><th>Work</th><th>Cost of one</th><th>100 uses a frame, paid every frame</th><th>100 uses a frame, paid once</th></tr>
+      <tr><td>Shaping a string with Core Text, then looking it up in the cache</td><td>about 170 &#181;s, then 20 to 126 ns</td><td>100 &times; 170 &#181;s = 17,000 &#181;s, more than the whole 16,667 &#181;s budget</td><td>100 lookups = 2 to 13 &#181;s</td></tr>
+      <tr><td>Compiling the shaders</td><td>46 to 50 ms cold</td><td>nearly three frames' worth, every frame</td><td>once, at startup</td></tr>
+    </table>
+    </div>
+    <p class="derived">Costs are from the project's devlog. The multiplications are calculated from those costs, and 100 uses a frame is an example, not a measured scene.</p>
+  </article>
+
+  
+<!-- ---------------------------------------- P7 -->
+  <article class="principle" id="p7">
+    <p class="pnum">Principle 7 &middot; strategies that follow</p>
+    <h3>Do nothing when nothing changes</h3>
+    <p class="statement">The cheapest work is the work you skip. Spend effort in proportion to what changed, not to how big the thing is.</p>
+    <dl class="pf">
+      <dt>Why it is true</dt>
+      <dd>
+        <p>A window that looks the same needs no new frame. A program that wakes sixty times a second to redraw an identical picture uses power, warms the machine and competes with everything else, for no visible result. Waiting is nearly free for an operating system, because a sleeping process uses no processor time. <strong>Polling</strong>, asking again and again whether anything changed, is not free. So let the thing that knows about the change wake you: the operating system, an event, a message.</p>
+        <p>The same idea at a smaller scale says that work should grow with the size of the change, not with the size of the whole.</p>
+      </dd>
+      <dt>In the core</dt>
+      <dd>
+        <ul>
+          <li>The view is paused and draws only when <code>request-draw</code> marks it as needing a frame. Otherwise AppKit's run loop (the operating system's loop that waits for events) sleeps (<a href="core-1.html#window">Part 3</a>). The charter states it as a rule: "Idle means asleep. The core blocks in the OS when nothing is pending. It never polls, never spins, and never presents a frame nobody asked for."</li>
+          <li>Input arrives as events and is never polled for.</li>
+          <li>Measured: a still window drew nothing, and an idle window used about 1 ms of CPU in 10 seconds and allocated nothing.</li>
+          <li>Immediate mode (<a href="core-1.html#display-list">Part 1</a>) rebuilds the whole picture every time a frame is drawn. That would be wasteful if frames were continuous. Combined with drawing only on request, the rebuild happens only when something changed.</li>
+        </ul>
+      </dd>
+      <dt>Cost and limits</dt>
+      <dd>
+        <ul>
+          <li>Someone must know that something changed. If a change is missed the picture goes stale, and the bug looks like nothing happening, which is hard to find.</li>
+          <li>The core does not finish the job. When a frame is drawn the whole window is redrawn. Redrawing only the changed region, a damage rectangle, is on the <a href="core-2.html#not-finished">not-finished list</a>. And after sustained drawing an idle window sometimes shows a few wakeups (0, 7 or 26 in 10 seconds) whose cause is unknown. The principle is easy to state and hard to satisfy completely.</li>
+          <li>A game or an animation changes every frame, and the principle does not apply.</li>
+        </ul>
+      </dd>
+      <dt>Elsewhere</dt>
+      <dd>
+        <ul>
+          <li><strong>HTTP.</strong> A 304 response means nothing changed, so reuse what you have.</li>
+          <li><strong>Web interfaces.</strong> HTMX and Datastar replace one fragment of a page instead of reloading all of it. React-style libraries compare the old and new description of the interface and touch only the differences.</li>
+          <li><strong>Build tools.</strong> Incremental builds, such as <code>make</code>, rebuild only what depends on a changed file.</li>
+        </ul>
+      </dd>
+    </dl>
+  </article>
+
+  
+<!-- ---------------------------------------- P8 -->
+  <article class="principle" id="p8">
+    <p class="pnum">Principle 8 &middot; strategies that follow</p>
+    <h3>Cross boundaries rarely, in bulk</h3>
+    <p class="statement">Every crossing between systems has a fixed cost. Cross less often, and carry more each time.</p>
+    <dl class="pf">
+      <dt>Why it is true</dt>
+      <dd>
+        <p>A call across a boundary costs something before any useful work starts. The boundary may be from Lisp into Apple's code, from the CPU to the GPU, from one thread to another, or from one machine to another. Arguments are arranged, context is switched, an answer is waited for. For N crossings the cost is N times the fixed price plus the useful work, and batching pays the fixed price once. This is <a class="pt" href="#p6">P6</a> applied to the fixed part of every call.</p>
+        <p>It is a separate idea from <a class="pt" href="principles-1.html#p5">P5</a>. Uniform work is what makes a batch <em>possible</em>. This principle says why a batch is <em>wanted</em>.</p>
+      </dd>
+      <dt>In the core</dt>
+      <dd>
+        <ul>
+          <li>One draw call (one command to the GPU) for the whole frame: the same four-vertex strip drawn N times with <code>instanceCount: N</code>, instead of one call per rectangle. In the devlog, encoding and committing a frame took about 10 &#181;s for anything from 10 to 1,000 commands, and 47 &#181;s at 10,000 (<a href="core-2.html#renderer">Part 4</a>).</li>
+          <li>One copy of the display list per frame into one buffer, and one 16-byte write for the frame constants.</li>
+          <li>One texture holds every glyph, so a frame binds it once (<a href="core-2.html#text">Part 5</a>).</li>
+          <li>The crossings that cannot be avoided are made cheap. Each Lisp call into Apple's code compiles to a direct <code>objc_msgSend</code> with a fixed signature and a constant selector. A full round trip into Apple's code and back into a Lisp callback measured 23 to 28 ns (<a href="core-1.html#objc">Part 2</a>).</li>
+        </ul>
+      </dd>
+      <dt>Cost and limits</dt>
+      <dd>
+        <p>Batching needs items that can be grouped. It adds delay, because you wait to collect the batch. It needs a limit on batch size (<a class="pt" href="#p9">P9</a>). And it moves complexity into the code that gathers the batch.</p>
+      </dd>
+      <dt>Elsewhere</dt>
+      <dd>
+        <ul>
+          <li><strong>Databases.</strong> The N+1 query problem: fetching a list of rows and then running one query for each row, instead of one query for all of them. It is probably the most common avoidable cost in web applications.</li>
+          <li><strong>Operating systems.</strong> A system call costs far more than an ordinary function call, so programs read and write files through buffers instead of a byte at a time.</li>
+          <li><strong>Networks.</strong> Many small requests each pay the round-trip delay. Batch APIs, bulk inserts and larger packets all carry more per trip.</li>
+        </ul>
+      </dd>
+    </dl>
+  </article>
+
+  
+<!-- ---------------------------------------- P9 -->
+  <article class="principle" id="p9">
+    <p class="pnum">Principle 9 &middot; strategies that follow</p>
+    <h3>Bound everything</h3>
+    <p class="statement">Give every queue, buffer and cache a size you can state, and decide in advance what happens when it fills.</p>
+    <dl class="pf">
+      <dt>Why it is true</dt>
+      <dd>
+        <p>Anything without a limit will eventually be too big, and it will happen at the worst moment, under load, when memory and time are already scarce. Growth is also an allocation (<a class="pt" href="principles-1.html#p1">P1</a>). A bound turns an unpredictable failure into a predictable one, and into a number a test can check.</p>
+        <p>When a bounded thing fills there are three honest answers. <em>Fail loudly</em>, so that the problem is seen where it is caused. <em>Drop the oldest</em>, when only recent history matters. <em>Make the producer wait</em>, which is called <strong>backpressure</strong>. The choice has to be made on purpose. An unbounded queue only postpones it until the machine runs out of memory.</p>
+      </dd>
+      <dt>In the core</dt>
+      <dd>
+        <div class="tablescroll">
+        <table class="t">
+          <tr><th>Thing</th><th>Limit</th><th>When it is full</th></tr>
+          <tr><td>Display list</td><td>65,536 commands by default</td><td>signals <code>display-list-full</code>: fail loudly</td></tr>
+          <tr><td>Instance buffer</td><td>the same capacity</td><td>the copy signals an error</td></tr>
+          <tr><td><a href="core-1.html#ring">Frame ring</a></td><td>4,096 frame records</td><td>overwrites the oldest: drop the oldest</td></tr>
+          <tr><td>Glyph atlas (one image holding every letter shape)</td><td>4,096 glyphs, 1024 by 1024 pixels</td><td>signals <code>glyph-atlas-full</code>: fail loudly</td></tr>
+          <tr><td>Frames in flight (frames handed to the GPU that have not finished)</td><td>one</td><td>the next frame waits: backpressure</td></tr>
+          <tr><td>Line cache</td><td>none</td><td>grows with every distinct string: a known gap</td></tr>
+        </table>
+        </div>
+      </dd>
+      <dt>Cost and limits</dt>
+      <dd>
+        <p>You have to choose the numbers. Too small fails in front of a user, and failing loudly in the middle of a frame is harsh for a GUI, which the core accepts for now. Too large wastes the memory held in reserve (<a class="pt" href="#p6">P6</a>). And a bound is only as good as the answer chosen for the full case: an error is right for a display list and wrong for a log, where overwriting the oldest is right.</p>
+      </dd>
+      <dt>Elsewhere</dt>
+      <dd>
+        <ul>
+          <li><strong>Servers.</strong> Web servers cap request sizes and connection pools. Pagination returns a page of rows instead of all of them.</li>
+          <li><strong>Caches.</strong> An unbounded in-memory cache is the classic memory leak.</li>
+          <li><strong>Networks and logs.</strong> TCP's receive window is backpressure: a slow receiver tells the sender to wait. Linux's kernel log is a ring that drops its oldest lines.</li>
+        </ul>
+      </dd>
+    </dl>
+  </article>
+
+  
+<!-- ---------------------------------------- P10 -->
+  <article class="principle" id="p10">
+    <p class="pnum">Principle 10 &middot; strategies that follow</p>
+    <h3>Reuse needs an owner</h3>
+    <p class="statement">Whenever storage is reused, someone must be able to say who may touch it now and when it is free again.</p>
+    <dl class="pf">
+      <dt>Why it is true</dt>
+      <dd>
+        <p>A garbage collector answers "when is this memory free?" for you: when nothing refers to it. When you reuse storage yourself (<a class="pt" href="#p6">P6</a>) you take that question back. If two parties use the same storage at the same time, one sees the other's half-written data. Such bugs depend on timing, so they are rare, they vanish when you look, and they are hard to find.</p>
+        <p>There are two clean answers to "who may change this?". One is <strong>nobody</strong>: an immutable value can be shared freely because nothing can change it. The other is <strong>one party at a time</strong>, made explicit by a hand-over, a wait, a lock or confinement to a single thread.</p>
+      </dd>
+      <dt>In the core</dt>
+      <dd>
+        <ul>
+          <li><strong>A reused buffer forces a wait.</strong> The GPU reads the instance buffer while the CPU would like to write the next frame into it, so each frame first waits for the previous one to finish. That wait is the price of reusing one buffer. Overlapping frames would need several buffers and a signal for when each is free again. <a href="core-2.html#renderer">Part 4</a> explains the options, and one of them is untried.</li>
+          <li><strong>Confinement.</strong> AppKit may only be touched from the main thread (a thread is one line of execution in a program, and a program can run several at once on shared memory). Other threads do not touch it. They hand a function to the main queue (<a href="core-1.html#window">Part 3</a>).</li>
+          <li><strong>Reference counts.</strong> Each of Apple's objects keeps a tally of its owners, a reference count, and is freed when the tally reaches zero. The runtime keeps the tally where the Lisp collector cannot see it. So the core retains and releases them, uses autorelease pools, and keeps the previous command buffer alive until the next frame has waited on it. A Lisp struct that Objective-C names by index stays reachable because a table holds it (<a href="core-1.html#objc">Part 2</a>).</li>
+          <li><strong>Valid until cleared.</strong> A command's index in the display list means something only until the list is cleared for the next frame (<a href="core-1.html#display-list">Part 1</a>).</li>
+          <li><strong>Immutable values.</strong> Events are immutable structs. The shaped lines in the cache are made once and not changed afterwards, and the cache copies the string it is keyed on, so a caller who later changes the original cannot corrupt it (<a href="core-2.html#text">Part 5</a>).</li>
+        </ul>
+      </dd>
+      <dt>Cost and limits</dt>
+      <dd>
+        <p>Waiting has a cost. When a frame is heavy the CPU stalls until the GPU is done. More buffers remove the wait but add memory, add a frame of delay between an input and its picture, and need the signal. Counts, locks and hand-overs are manual discipline, and mistakes show up as crashes or corrupt pictures rather than clean errors. Immutable values avoid the problem but allocate each time something changes, which is why the core reuses buffers inside the frame and uses immutable values outside it.</p>
+      </dd>
+      <dt>Elsewhere</dt>
+      <dd>
+        <ul>
+          <li><strong>Languages.</strong> Rust's ownership rules and C++'s RAII settle the question at compile time. Go's advice is to share memory by communicating, so that one goroutine owns each piece of data at a time.</li>
+          <li><strong>Databases and the web.</strong> Two requests that update the same row race each other. Transactions, locks and version columns are the ways to say who may write.</li>
+          <li><strong>Operating systems.</strong> Virtual memory gives each process its own address space, so no other process can touch its memory.</li>
+        </ul>
+      </dd>
+    </dl>
+
+    <figure>
+      <div class="figscroll">
+      <svg class="fig" viewBox="0 0 900 400" role="img" aria-label="Two timelines. With one buffer the CPU waits for the GPU to finish reading before it fills the buffer for the next frame. With two buffers the CPU fills one while the GPU reads the other, and neither waits.">
+        <text class="cap" x="20" y="24">One buffer, heavy frames (what the core does)</text>
+        <text class="m" x="20" y="68">CPU</text>
+        <text class="m" x="20" y="128">GPU</text>
+        <rect class="b-lisp" x="130" y="48" width="60" height="30"/><text class="sub" x="160" y="67" text-anchor="middle">fill 1</text>
+        <rect x="194" y="48" width="170" height="30" fill="var(--code-bg)" stroke="var(--ink-2)" stroke-dasharray="4 3"/><text class="sub" x="279" y="67" text-anchor="middle">wait</text>
+        <rect class="b-lisp" x="368" y="48" width="60" height="30"/><text class="sub" x="398" y="67" text-anchor="middle">fill 2</text>
+        <rect x="432" y="48" width="170" height="30" fill="var(--code-bg)" stroke="var(--ink-2)" stroke-dasharray="4 3"/><text class="sub" x="517" y="67" text-anchor="middle">wait</text>
+        <rect class="b-lisp" x="606" y="48" width="60" height="30"/><text class="sub" x="636" y="67" text-anchor="middle">fill 3</text>
+        <rect class="b-gpu" x="194" y="108" width="170" height="30"/><text class="sub" x="279" y="127" text-anchor="middle">draw 1, reads the buffer</text>
+        <rect class="b-gpu" x="432" y="108" width="170" height="30"/><text class="sub" x="517" y="127" text-anchor="middle">draw 2, reads the buffer</text>
+        <rect class="b-gpu" x="670" y="108" width="170" height="30"/><text class="sub" x="755" y="127" text-anchor="middle">draw 3, reads the buffer</text>
+        <path class="arrow dash" marker-end="url(#ah)" d="M190 80 L200 106"/>
+        <path class="arrow dash" marker-end="url(#ah)" d="M428 80 L438 106"/>
+        <path class="arrow dash" marker-end="url(#ah)" d="M366 106 V82"/>
+        <path class="arrow dash" marker-end="url(#ah)" d="M604 106 V82"/>
+        <text class="sub" x="130" y="164">The CPU may not overwrite the buffer while the GPU is still reading it. For light frames the wait is zero. For heavy ones it is a stall.</text>
+
+        <text class="cap" x="20" y="214">Two buffers, A and B (not built yet)</text>
+        <text class="m" x="20" y="258">CPU</text>
+        <text class="m" x="20" y="318">GPU</text>
+        <rect class="b-lisp" x="130" y="238" width="68" height="30"/><text class="sub" x="164" y="257" text-anchor="middle">fill 1, A</text>
+        <rect class="b-lisp" x="202" y="238" width="68" height="30"/><text class="sub" x="236" y="257" text-anchor="middle">fill 2, B</text>
+        <rect x="274" y="238" width="90" height="30" fill="none" stroke="var(--ink-2)" stroke-dasharray="2 3"/><text class="sub" x="319" y="257" text-anchor="middle">free</text>
+        <rect class="b-lisp" x="368" y="238" width="68" height="30"/><text class="sub" x="402" y="257" text-anchor="middle">fill 3, A</text>
+        <rect x="440" y="238" width="88" height="30" fill="none" stroke="var(--ink-2)" stroke-dasharray="2 3"/><text class="sub" x="484" y="257" text-anchor="middle">free</text>
+        <rect class="b-lisp" x="532" y="238" width="68" height="30"/><text class="sub" x="566" y="257" text-anchor="middle">fill 4, B</text>
+        <rect class="b-gpu" x="204" y="298" width="160" height="30"/><text class="sub" x="284" y="317" text-anchor="middle">draw 1, reads A</text>
+        <rect class="b-gpu" x="368" y="298" width="160" height="30"/><text class="sub" x="448" y="317" text-anchor="middle">draw 2, reads B</text>
+        <rect class="b-gpu" x="532" y="298" width="160" height="30"/><text class="sub" x="612" y="317" text-anchor="middle">draw 3, reads A</text>
+        <path class="arrow dash" marker-end="url(#ah)" d="M198 270 L208 296"/>
+        <path class="arrow dash" marker-end="url(#ah)" d="M366 296 V272"/>
+        <path class="arrow dash" marker-end="url(#ah)" d="M530 296 V272"/>
+        <text class="sub" x="130" y="354">The CPU is free while the GPU works, and the GPU never idles. The price is a second buffer (2.1 MB more at the default capacity),</text>
+        <text class="sub" x="130" y="372">a signal that says when each buffer is free again, and a picture that can be a frame older when it reaches the screen.</text>
+      </svg>
+      </div>
+      <figcaption>Illustration of the idea. The widths are not measured. Dashed arrows show a dependency: the GPU cannot start until the CPU commits, and the CPU may not refill a buffer until the GPU has finished reading it.</figcaption>
+    </figure>
+  </article>
+
+  
+<!-- ---------------------------------------- P11 -->
+  <article class="principle" id="p11">
+    <p class="pnum">Principle 11 &middot; how to build it</p>
+    <h3>Keep a narrow boundary of plain data</h3>
+    <p class="statement">Put a small interface made of plain data between the parts, so that each part can be tested, replaced and measured alone.</p>
+    <dl class="pf">
+      <dt>Why it is true</dt>
+      <dd>
+        <p>An interface that carries <em>values</em>, such as a list of numbers, can be inspected, compared, stored, replayed and produced by anything. An interface that carries <em>behaviour</em>, such as objects with methods or callbacks into shared state, can only be exercised by running the whole thing. A narrow data boundary lets you test one side without the other, swap either side, and time each on its own.</p>
+        <p>Treating time and input as ordinary values on that boundary, instead of reading them from the world, makes a run repeatable (<a class="pt" href="principles-1.html#p2">P2</a>). A related rule is to supply mechanisms and leave policy to the caller.</p>
+      </dd>
+      <dt>In the core</dt>
+      <dd>
+        <ul>
+          <li>The display list sits between whatever decides what to draw and the renderer. The first only writes to it and the second only reads it (<a href="core-1.html#display-list">Part 1</a>). The charter makes this a rule: a variant talks to the core only through a written contract. A variant is one candidate GUI library, and the project's experiment is to build several on this one core and compare them.</li>
+          <li>The charter also says the core provides mechanisms (draw this, measure that) and never decides what to draw or when state changes. Those decisions are the experiment.</li>
+          <li>A test can build a list and hash it or compare it with no window and no GPU. A baseline variant that only replays a fixed list would measure the core's own cost. It is on the not-yet-built list.</li>
+          <li>Events are immutable structs that print and read back, so a session can be recorded and replayed. Time comes from <code>now-ns</code>, which a test can replace (<a href="core-1.html#window">Part 3</a>). The renderer can draw into an off-screen texture with no window (<a href="core-2.html#renderer">Part 4</a>).</li>
+        </ul>
+      </dd>
+      <dt>Cost and limits</dt>
+      <dd>
+        <p>A boundary must be general enough for every client, so it grows slowly. The display list has no borders, shadows, clips or transforms yet. Data that crosses it is copied or shared, with the costs in <a class="pt" href="principles-1.html#p4">P4</a>. And behaviour that does not fit a description, such as a trick that depends on the renderer's internals, cannot cross.</p>
+      </dd>
+      <dt>Elsewhere</dt>
+      <dd>
+        <ul>
+          <li><strong>The web.</strong> A server that sends HTML sends a description and lets the browser decide how to draw it. An HTTP API is a boundary made of data.</li>
+          <li><strong>Interface libraries.</strong> React and Elm describe the interface as a function of state, and that description is the data that crosses the boundary.</li>
+          <li><strong>Unix.</strong> Programs joined by pipes exchange plain text streams, so any program that reads and writes text can be swapped in.</li>
+        </ul>
+      </dd>
+    </dl>
+  </article>
+
+  
+<!-- ---------------------------------------- P12 -->
+  <article class="principle" id="p12">
+    <p class="pnum">Principle 12 &middot; how to build it</p>
+    <h3>Start simple, and list what you skipped</h3>
+    <p class="statement">Build the simplest thing that meets the measured need. Put seams where you expect to change your mind, and write down what you left out.</p>
+    <dl class="pf">
+      <dt>Why it is true</dt>
+      <dd>
+        <p>You cannot know in advance which part will be slow, and guesses are often wrong (<a class="pt" href="principles-1.html#p2">P2</a>). Complexity added early is paid for in every later change, whether or not it helped. But the simplest thing must not be a dead end. A <strong>seam</strong> is a narrow place where one piece can be replaced (<a class="pt" href="#p11">P11</a>). Put seams where you expect to be wrong, and improve one piece when a measurement says to.</p>
+        <p>The last half of the principle is the list. A simple version has limits, and a limit that nobody wrote down becomes a surprise later.</p>
+      </dd>
+      <dt>In the core</dt>
+      <dd>
+        <ul>
+          <li>The simple choices are each recorded: one frame in flight, a line cache and glyph atlas without eviction, glyphs snapped to whole pixels, a full redraw instead of a damage rectangle, and shaders compiled at run time instead of offline with a toolchain that would need full Xcode (<a href="core-2.html#renderer">Part 4</a>, <a href="core-2.html#text">Part 5</a> and the <a href="core-2.html#not-finished">not-finished list</a>).</li>
+          <li>The project keeps a devlog entry for each experiment and a decision record for each design question that an experiment settled. Limits that were left in are listed, as in the <a href="core-2.html#not-finished">not-finished list</a> that closes the tour.</li>
+          <li>Seams were placed first: the clock, the ring, the event structs and the display list were built before the window.</li>
+        </ul>
+      </dd>
+      <dt>Cost and limits</dt>
+      <dd>
+        <p>Someone has to remember the limits, which is why they are listed. Some seams are guesses and end up in the wrong place. And "simple first" has limits of its own: some decisions, such as how data is laid out (<a class="pt" href="principles-1.html#p4">P4</a>), are expensive to change later, so they deserve thought early.</p>
+      </dd>
+      <dt>Elsewhere</dt>
+      <dd>
+        <ul>
+          <li><strong>Rules of thumb.</strong> "Make it work, make it right, make it fast." Knuth's warning about premature optimisation has a second half: do not pass up the critical few per cent.</li>
+          <li><strong>Databases.</strong> Migrations that add a new column before removing the old one keep every step reversible and every version working.</li>
+          <li><strong>Engineering practice.</strong> Architecture decision records and changelogs are lists of what was chosen and what was skipped.</li>
+        </ul>
+      </dd>
+    </dl>
+  </article>
+
+  
+</section>
+<nav class="pager" aria-label="Previous and next page">
+<a rel="prev" href="principles-1.html"><span>Previous</span>Principles 1: what is true</a>
+<a rel="next" href="trainers-kit.html"><span>Next</span>Trainer&#x27;s kit</a>
+</nav>
+<footer>
+  Written from the source in <code>core/src</code>, the project's charter, decision records, devlog and tests as they stand now. Measured numbers come from the devlog and tests, on an arm64 Mac. Figures described as calculated come from simple arithmetic on them. The frame-time demo uses invented numbers. Diagrams marked "illustration" show the idea, not measured proportions. Pixel values in the bitmap figure are drawn by hand. Examples from outside this project describe well-known practice and are not measurements.
+</footer>
+</div>
+</body>
+</html>

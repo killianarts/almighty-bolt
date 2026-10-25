@@ -41,17 +41,17 @@ is (TYPE VALUE). The types are :ulong (also :pointer, for an address or a handle
 :long :int :uint :ushort :bool :double :float. A structure of two words, such as a
 CFRange, is passed as its two words, one after the other; a structure of up to four
 doubles, such as a CGPoint, as its doubles."
-  (let ((bindings (loop for (nil value) in arguments
-                        collect (list (gensym "A") value))))
+  (let ((bindings (loop :for (nil value) :in arguments
+                        :collect (list (gensym "A") value))))
     `(let ,bindings
        ,(let ((call `(sb-alien:alien-funcall
                       (sb-alien:extern-alien ,name
                                              (function ,(alien-type-for return-type)
-                                                       ,@(loop for (type) in arguments
-                                                               collect (alien-type-for type))))
-                      ,@(loop for (var) in bindings
-                              for (type) in arguments
-                              collect (if (eq type :bool) `(if ,var 1 0) var)))))
+                                                       ,@(loop :for (type) :in arguments
+                                                               :collect (alien-type-for type))))
+                      ,@(loop :for (var) :in bindings
+                              :for (type) :in arguments
+                              :collect (if (eq type :bool) `(if ,var 1 0) var)))))
           (if (eq return-type :bool) `(/= 0 ,call) call)))))
 
 (defun cf-constant (name)

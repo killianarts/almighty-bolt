@@ -37,8 +37,11 @@
 ;;; Draws a display list with Metal. A frame copies the commands into a shared
 ;;; buffer, encodes one instanced draw for all of them, and commits. At most one
 ;;; frame is in flight: a frame first waits for the one before it, which has
-;;; usually finished long ago. (Keeping several in flight needs a completion
-;;; handler, which is an Objective-C block; that waits until it is needed.)
+;;; usually finished long ago. (The wait exists because one instance buffer is
+;;; reused. Several in flight would need several buffers and a way to know
+;;; when each is free again. A completion handler, which is an Objective-C
+;;; block, is the usual way; waiting on the command buffer that last used each
+;;; buffer should also work. Neither is built or tried yet.)
 
 (defstruct (renderer (:constructor %make-renderer))
   (device 0 :type (unsigned-byte 64))

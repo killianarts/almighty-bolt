@@ -88,21 +88,21 @@
                     ;; Run every test package, then fail the build (and so
                     ;; `make test`) if any test failed or signalled an error.
                     (let* ((results
-                             (loop for package in '(:almighty-bolt-core/t/clock
-                                                    :almighty-bolt-core/t/ring
-                                                    :almighty-bolt-core/t/event
-                                                    :almighty-bolt-core/t/display-list
-                                                    :almighty-bolt-core/t/package
-                                                    #+darwin :almighty-bolt-core/t/platform/macos/objc
-                                                    #+darwin :almighty-bolt-core/t/text/line
-                                                    #+darwin :almighty-bolt-core/t/text/glyph-raster
-                                                    #+darwin :almighty-bolt-core/t/render/metal/renderer
-                                                    #+darwin :almighty-bolt-core/t/render/metal/draw-text)
-                                   collect (uiop:symbol-call :lisp-unit2 :run-tests
-                                                             :package package)))
-                           (bad (loop for db in results
-                                      append (uiop:symbol-call :lisp-unit2 :failed db)
-                                      append (uiop:symbol-call :lisp-unit2 :errors db))))
+                             (loop :for package :in '(:almighty-bolt-core/t/clock
+                                                      :almighty-bolt-core/t/ring
+                                                      :almighty-bolt-core/t/event
+                                                      :almighty-bolt-core/t/display-list
+                                                      :almighty-bolt-core/t/package
+                                                      #+darwin :almighty-bolt-core/t/platform/macos/objc
+                                                      #+darwin :almighty-bolt-core/t/text/line
+                                                      #+darwin :almighty-bolt-core/t/text/glyph-raster
+                                                      #+darwin :almighty-bolt-core/t/render/metal/renderer
+                                                      #+darwin :almighty-bolt-core/t/render/metal/draw-text)
+                                   :collect (uiop:symbol-call :lisp-unit2 :run-tests
+                                                              :package package)))
+                           (bad (loop :for db :in results
+                                      :append (uiop:symbol-call :lisp-unit2 :failed db)
+                                      :append (uiop:symbol-call :lisp-unit2 :errors db))))
                       (dolist (db results)
                         (uiop:symbol-call :lisp-unit2 :print-summary db))
                       (when bad

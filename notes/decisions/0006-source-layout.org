@@ -44,6 +44,10 @@ Option 2, as =almighty-toki= does it.
 - The system is =core/almighty-bolt-core.asd= with =:pathname "src"=, =:serial t=
   and an explicit =:components= list, nested =:module= forms for
   subdirectories. A second system, =almighty-bolt-core/tests=, covers =t/=.
+- Calls to =loop= write the loop's own words as keywords:
+  =(loop :for i :from 0 :below n :do (print i))=. Variable names and
+  expressions are ordinary code, and the equals sign in =:for x = form= stays
+  as it is.
 - The umbrella package =almighty-bolt-core= lives in =src/package.lisp=, last in
   the list, re-exports the public API, and is never imported by other files.
 - Tests use lisp-unit2. =make test= runs them and exits non-zero on a failure.

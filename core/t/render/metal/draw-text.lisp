@@ -53,8 +53,8 @@ black, or NIL if there is none."
     (and (>= right 0) (list left top right bottom))))
 
 (defun lit-count (pixels)
-  (loop for i from 0 below (length pixels) by 4
-        count (or (plusp (aref pixels i)) (plusp (aref pixels (+ i 1))) (plusp (aref pixels (+ i 2))))))
+  (loop :for i :from 0 :below (length pixels) :by 4
+        :count (or (plusp (aref pixels i)) (plusp (aref pixels (+ i 1))) (plusp (aref pixels (+ i 2))))))
 
 ;;; --- where the text lands ---
 
@@ -84,10 +84,10 @@ black, or NIL if there is none."
       (draw:push-line list (renderer:renderer-atlas renderer) (line:get-line font "HI") 10f0 40f0
                       (dl:pack-color 255 128 0))
       (let* ((pixels (render-text device renderer list 80 60))
-             (full (loop for i from 0 below (length pixels) by 4
-                         thereis (and (= 255 (aref pixels (+ i 2)))     ; red
-                                      (= 128 (aref pixels (+ i 1)))     ; green
-                                      (= 0 (aref pixels i))))))         ; blue
+             (full (loop :for i :from 0 :below (length pixels) :by 4
+                         :thereis (and (= 255 (aref pixels (+ i 2)))     ; red
+                                       (= 128 (aref pixels (+ i 1)))     ; green
+                                       (= 0 (aref pixels i))))))         ; blue
         (assert-true full)))))
 
 (define-test text-in-another-script-draws-with-a-font-that-has-it ()

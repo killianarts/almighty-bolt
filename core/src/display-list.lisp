@@ -29,8 +29,10 @@
 ;;; The boundary between a variant and the renderer: a flat list of drawing
 ;;; commands that the variant appends to and the renderer reads. It is
 ;;; preallocated and reused every frame, so building one allocates nothing.
-;;; The commands are stored as parallel arrays (one per field), which is also
-;;; the layout a GPU upload wants. Commands are added as the renderer learns to
+;;; The commands are stored as parallel arrays (one per field): an array of one
+;;; numeric type is a block of raw numbers, so filling it allocates nothing.
+;;; The GPU wants one command's fields together, so the renderer interleaves
+;;; the arrays as it copies them. Commands are added as the renderer learns to
 ;;; draw them; borders, shadows, clips and transforms come later.
 ;;;
 ;;; Every command has a rectangle (x, y, width, height, in points from the top

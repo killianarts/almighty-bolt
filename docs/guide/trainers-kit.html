@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trainer&#x27;s Kit</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;600;700&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:ital,wght@0,400;0,600;1,400&display=swap">
+<style>
+/* Layout: one reading column with full-width figures that scroll sideways on a phone.
+   Colour code used in every diagram: teal = Lisp code and data in the core, blue = macOS
+   (AppKit, Core Text), amber = the GPU, red = trouble. */
+:root {
+  --bg: #f1f4f6;
+  --surface: #ffffff;
+  --ink: #15222c;
+  --ink-2: #51636f;
+  --line: #d3dbe1;
+  --lisp: #0e7468;
+  --lisp-soft: #d7efeb;
+  --os: #3a55c4;
+  --os-soft: #dfe5fa;
+  --gpu: #a4620a;
+  --gpu-soft: #f8e6c8;
+  --bad: #b42318;
+  --bad-soft: #f9d9d4;
+  --code-bg: #e8edf1;
+  --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --body: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d151b; --surface: #15212a; --ink: #e5edf2; --ink-2: #93a6b3; --line: #2a3b47;
+    --lisp: #44c7b5; --lisp-soft: #123a37; --os: #93a8ff; --os-soft: #1c2650;
+    --gpu: #f0b050; --gpu-soft: #43300f; --bad: #ff8c7c; --bad-soft: #4a1f1a;
+    --code-bg: #101b22; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d151b; --surface: #15212a; --ink: #e5edf2; --ink-2: #93a6b3; --line: #2a3b47;
+  --lisp: #44c7b5; --lisp-soft: #123a37; --os: #93a8ff; --os-soft: #1c2650;
+  --gpu: #f0b050; --gpu-soft: #43300f; --bad: #ff8c7c; --bad-soft: #4a1f1a;
+  --code-bg: #101b22; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink);
+  font: 400 17px/1.65 var(--body);
+  padding-block: 40px 96px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 980px; margin: 0 auto; }
+.prose { max-width: 68ch; }
+.prose p, .prose ul, .prose ol { margin: 0 0 1em; }
+.prose li { margin-bottom: .4em; }
+h1, h2, h3 { font-family: var(--display); line-height: 1.15; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(34px, 6vw, 56px); font-weight: 700; letter-spacing: -0.015em; }
+h2 { font-size: clamp(26px, 4vw, 36px); font-weight: 650; letter-spacing: -0.01em; }
+h3 { font-size: 21px; font-weight: 600; margin: 40px 0 10px; }
+a { color: var(--os); }
+code, .mono { font-family: var(--mono); font-size: .86em; }
+code { background: var(--code-bg); padding: .08em .35em; border-radius: 3px; }
+.eyebrow {
+  font: 500 12px/1 var(--mono); text-transform: uppercase; letter-spacing: .12em;
+  color: var(--ink-2); margin: 0 0 14px;
+}
+.lede { font-size: 21px; line-height: 1.55; color: var(--ink); max-width: 56ch; margin: 22px 0 0; }
+header.top { padding-bottom: 36px; border-bottom: 2px solid var(--ink); }
+nav.contents { margin-top: 28px; display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px 24px; }
+nav.contents a { font: 500 15px/1.35 var(--display); text-decoration: none; color: var(--ink); border-top: 1px solid var(--line); padding-top: 8px; }
+nav.contents a span { display: block; font: 400 12px var(--mono); color: var(--ink-2); letter-spacing: .06em; text-transform: uppercase; }
+nav.contents a:hover { border-top-color: var(--ink); }
+section { padding-top: 64px; }
+section > h2 { margin-bottom: 18px; }
+.part-head { border-top: 2px solid var(--ink); padding-top: 22px; }
+
+figure { margin: 30px 0; }
+figcaption { font: 400 14px/1.5 var(--display); color: var(--ink-2); margin-top: 8px; max-width: 80ch; }
+.figscroll { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 4px; }
+svg.fig { display: block; width: 100%; height: auto; min-width: 680px; }
+svg.fig { font-family: var(--display); }
+svg text { fill: var(--ink); }
+.lbl { font-size: 14px; font-weight: 600; }
+.sub { font-size: 12px; font-weight: 400; fill: var(--ink-2) !important; }
+.m { font-family: var(--mono) !important; font-size: 12px; }
+.mm { font-family: var(--mono) !important; font-size: 11px; fill: var(--ink-2) !important; }
+.big { font-size: 15px; font-weight: 600; }
+.cap { font-size: 12px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; fill: var(--ink-2) !important; }
+.b-lisp { fill: var(--lisp-soft); stroke: var(--lisp); stroke-width: 1.5; }
+.b-os   { fill: var(--os-soft);   stroke: var(--os);   stroke-width: 1.5; }
+.b-gpu  { fill: var(--gpu-soft);  stroke: var(--gpu);  stroke-width: 1.5; }
+.b-bad  { fill: var(--bad-soft);  stroke: var(--bad);  stroke-width: 1.5; }
+.b-plain { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+.b-code { fill: var(--code-bg); stroke: var(--line); stroke-width: 1; }
+.arrow { fill: none; stroke: var(--ink-2); stroke-width: 1.6; }
+.arrow.dash { stroke-dasharray: 5 4; }
+.guide { fill: none; stroke: var(--ink-2); stroke-width: 1; stroke-dasharray: 4 4; }
+.hl { fill: none; stroke: var(--ink); stroke-width: 2.2; }
+.ahead { fill: var(--ink-2); }
+.c-geo { fill: var(--lisp-soft); stroke: var(--lisp); stroke-width: 1; }
+.c-kind { fill: var(--gpu-soft); stroke: var(--gpu); stroke-width: 1; }
+.c-col { fill: var(--os-soft); stroke: var(--os); stroke-width: 1; }
+.c-pad { fill: var(--code-bg); stroke: var(--line); stroke-width: 1; }
+.px { stroke: var(--line); stroke-width: 1; }
+
+aside.term {
+  background: var(--surface); border: 1px solid var(--line); padding: 14px 18px; margin: 22px 0; max-width: 68ch;
+  font-size: 16px; line-height: 1.55;
+}
+aside.term .tag { font: 500 11px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--ink-2); display: block; margin-bottom: 6px; }
+aside.term p { margin: 0 0 .6em; }
+aside.term p:last-child { margin: 0; }
+pre {
+  background: var(--code-bg); color: var(--ink); padding: 14px 16px; margin: 20px 0;
+  overflow-x: auto; font: 400 13px/1.55 var(--mono); border-radius: 3px; max-width: 100%;
+}
+pre code { background: none; padding: 0; font-size: inherit; }
+.pre-label { font: 500 12px var(--mono); color: var(--ink-2); margin: 22px 0 -12px; letter-spacing: .04em; }
+
+table.t { border-collapse: collapse; width: 100%; margin: 20px 0; font-size: 15px; background: var(--surface); }
+table.t th, table.t td { border: 1px solid var(--line); padding: 8px 12px; text-align: left; vertical-align: top; }
+table.t th { font: 600 13px var(--display); background: var(--code-bg); }
+.tablescroll { overflow-x: auto; max-width: 100%; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+.widget { background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 16px; margin: 30px 0; }
+.widget h4 { font: 600 16px var(--display); margin: 0 0 4px; }
+.widget p.hint { font: 400 14px/1.5 var(--display); color: var(--ink-2); margin: 0 0 12px; max-width: 70ch; }
+.widget label { font: 500 13px var(--display); display: block; margin-bottom: 4px; }
+.widget input[type=range] { width: min(100%, 520px); accent-color: var(--lisp); }
+.widget input[type=text] { font: 400 18px var(--mono); padding: 6px 10px; width: min(100%, 360px); background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 3px; }
+.widget button {
+  font: 600 14px var(--display); padding: 7px 14px; margin: 4px 8px 4px 0; cursor: pointer;
+  background: var(--ink); color: var(--bg); border: 0; border-radius: 3px;
+}
+.widget button.alt { background: transparent; color: var(--ink); border: 1px solid var(--ink-2); }
+.widget button:focus-visible, .widget input:focus-visible, summary:focus-visible, a:focus-visible { outline: 3px solid var(--os); outline-offset: 2px; }
+.readout { font: 400 13px/1.7 var(--mono); }
+table.u { border-collapse: collapse; margin: 10px 0; font-family: var(--mono); font-size: 14px; }
+table.u td { border: 1px solid var(--line); padding: 5px 10px; text-align: center; min-width: 42px; }
+table.u tr.a td { background: var(--lisp-soft); }
+table.u tr.b td { background: var(--surface); font-size: 18px; }
+table.u tr.c td { background: var(--os-soft); }
+table.u td.wide { background: var(--gpu-soft); }
+.tablescroll.u { padding-bottom: 4px; }
+
+details.check { border-top: 1px solid var(--line); padding: 10px 0; max-width: 68ch; }
+details.check summary { cursor: pointer; font: 500 16px/1.45 var(--display); }
+details.check p { margin: 8px 0 0; font-size: 16px; }
+.checks { margin-top: 36px; }
+.checks h3 { margin-top: 0; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 22px; font: 400 13px var(--display); color: var(--ink-2); margin-top: 8px; }
+.legend i { display: inline-block; width: 12px; height: 12px; margin-right: 6px; vertical-align: -1px; border: 1.5px solid; }
+.legend .l { background: var(--lisp-soft); border-color: var(--lisp); }
+.legend .o { background: var(--os-soft); border-color: var(--os); }
+.legend .g { background: var(--gpu-soft); border-color: var(--gpu); }
+.legend .r { background: var(--bad-soft); border-color: var(--bad); }
+ol.trace { padding-left: 1.4em; }
+ol.trace li { padding-left: .3em; }
+.cols2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px 32px; max-width: 100%; }
+.cols2 > div { min-width: 0; }
+footer { margin-top: 72px; border-top: 2px solid var(--ink); padding-top: 18px; font: 400 14px/1.6 var(--display); color: var(--ink-2); max-width: 70ch; }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+
+/* ---- Principles ---- */
+.part-head > h2 { margin-bottom: 18px; }
+.eyebrow { line-height: 1.5; }
+code, pre, .mono { font-variant-ligatures: none; }
+.aims { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px 36px; margin-top: 26px; max-width: 900px; }
+.aims p { margin: 0; font-size: 16px; line-height: 1.55; border-top: 1px solid var(--line); padding-top: 8px; }
+
+.pmap { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; margin: 26px 0 8px; }
+.pgroup { background: var(--surface); border: 1px solid var(--line); border-top: 3px solid var(--ink); padding: 12px 14px 8px; min-width: 0; }
+.pgroup h4 { font: 600 12px/1.3 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2); margin: 0 0 6px; }
+.pgroup ol { list-style: none; margin: 0; padding: 0; }
+.pgroup li { margin: 0; }
+.pgroup a { display: grid; grid-template-columns: 2.1em minmax(0, 1fr); padding: 7px 0; border-top: 1px solid var(--line); text-decoration: none; color: var(--ink); font: 500 15px/1.35 var(--display); }
+.pgroup li:first-child a { border-top: 0; }
+.pgroup a b { font: 500 13px/1.6 var(--mono); color: var(--lisp); }
+.pgroup a:hover span { text-decoration: underline; }
+
+article.principle { margin-top: 60px; padding-top: 20px; border-top: 2px solid var(--ink); }
+article.principle > .pnum { font: 500 12px/1 var(--mono); text-transform: uppercase; letter-spacing: .12em; color: var(--ink-2); margin: 0 0 10px; }
+article.principle > h3 { margin: 0 0 10px; font-size: clamp(25px, 3.6vw, 32px); }
+.statement { font: italic 400 20px/1.5 var(--body); max-width: 58ch; margin: 0 0 22px; }
+dl.pf { display: grid; grid-template-columns: 9rem minmax(0, 1fr); gap: 14px 24px; max-width: 80ch; margin: 0 0 8px; }
+dl.pf dt { font: 600 12px/1.5 var(--display); text-transform: uppercase; letter-spacing: .08em; color: var(--ink-2); padding-top: 4px; }
+dl.pf dd { margin: 0; min-width: 0; }
+dl.pf dd p { margin: 0 0 .75em; }
+dl.pf dd ul { margin: 0 0 .75em; padding-left: 1.2em; }
+dl.pf dd li { margin-bottom: .45em; }
+dl.pf dd > :last-child { margin-bottom: 0; }
+@media (max-width: 640px) {
+  dl.pf { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  dl.pf dd { margin-bottom: 16px; }
+}
+a.pt { font: 500 .78em var(--mono); background: var(--lisp-soft); color: var(--lisp); padding: .06em .4em; border-radius: 3px; text-decoration: none; white-space: nowrap; }
+a.pt:hover { text-decoration: underline; }
+aside.pw { border-left: 4px solid var(--lisp); }
+.matrix td { font-size: 14px; line-height: 1.4; min-width: 130px; }
+.matrix td:first-child, .matrix th:first-child { min-width: 170px; }
+.matrix td.none { color: var(--ink-2); }
+.derived { font: 400 14px/1.5 var(--display); color: var(--ink-2); max-width: 80ch; margin: 6px 0 0; }
+.quiz details.check { max-width: 78ch; }
+.quiz pre { margin: 8px 0 4px; font-size: 12.5px; }
+
+/* ---- Series ---- */
+nav.series { display: flex; flex-wrap: wrap; gap: 4px 6px; margin: 0 0 28px; font: 500 13px/1.3 var(--mono); }
+nav.series a { color: var(--ink-2); text-decoration: none; padding: 5px 9px; border: 1px solid var(--line); border-radius: 3px; background: var(--surface); }
+nav.series a:hover { border-color: var(--ink-2); color: var(--ink); }
+nav.series a[aria-current="page"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+nav.pager { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin-top: 64px; padding-top: 18px; border-top: 2px solid var(--ink); }
+nav.pager a { display: block; text-decoration: none; color: var(--ink); border: 1px solid var(--line); background: var(--surface); padding: 12px 16px; font: 500 17px/1.35 var(--display); }
+nav.pager a span { display: block; font: 400 12px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); margin-bottom: 2px; }
+nav.pager a:hover { border-color: var(--ink-2); }
+nav.pager a[rel="next"] { text-align: right; }
+
+.pagelist { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 14px; margin: 26px 0 8px; }
+a.pcard { display: block; text-decoration: none; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-top: 3px solid var(--ink); padding: 14px 16px; font: 400 15px/1.5 var(--display); }
+a.pcard:hover { border-color: var(--ink-2); border-top-color: var(--ink); }
+a.pcard .pk { display: block; font: 500 12px/1.3 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); margin-bottom: 6px; }
+a.pcard b { display: block; font: 600 19px/1.25 var(--display); margin-bottom: 4px; }
+aside.term + aside.term { margin-top: -6px; }
+header.top + aside.term { margin-top: 28px; }
+header.top + section { padding-top: 40px; }
+header.top + section > .part-head:first-child { border-top: 0; padding-top: 0; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" class="ahead"/>
+    </marker>
+  </defs>
+</svg>
+<div class="wrap">
+<nav class="series" aria-label="The guide">
+<a href="index.html">Index</a>
+<a href="core-1.html">Core 1: the shape</a>
+<a href="core-2.html">Core 2: the pixels</a>
+<a href="principles-1.html">Principles 1: what is true</a>
+<a href="principles-2.html">Principles 2: what to do</a>
+<a href="trainers-kit.html" aria-current="page">Trainer&#x27;s kit</a>
+</nav>
+<header class="top">
+  <p class="eyebrow">Almighty Bolt &middot; for trainers</p>
+  <h1>Trainer's kit</h1>
+  <p class="lede">A session plan, a "name the principle" quiz, exercises, a map of the code and a glossary. For anyone teaching the other pages.</p>
+  <nav class="contents" aria-label="On this page">
+  <a href="#plan"><span>Plan</span>Teaching this</a>
+  <a href="#quiz"><span>Quiz</span>Name the principle</a>
+  <a href="#exercises"><span>Exercises</span>Make it concrete</a>
+  <a href="#code-map"><span>Map</span>Where the code lives</a>
+  <a href="#glossary"><span>Reference</span>Glossary</a>
+</nav>
+</header>
+<section id="teaching">
+  <div class="prose">
+    <h3 id="plan">Teaching this</h3>
+    <p>Each of the five pages stands alone, which gives two sensible orders.</p>
+    <p><strong>Principles first</strong> suits a general audience, for example web developers who will never touch this code. The ideas are the point and the code is the evidence.</p>
+    <ol class="trace">
+      <li>Start from the <a href="index.html">index</a>. Read <a href="core-1.html#primer">What a GUI core does</a> aloud, and make sure everyone can say what a frame is and why 16.7 ms is the budget.</li>
+      <li>Take one principle at a time, on <a href="principles-1.html">Principles 1</a> and then <a href="principles-2.html">Principles 2</a>. Ask the group to predict a decision in the core before showing it, then show the code and the cost.</li>
+      <li>For every principle ask two questions: <em>what would make this advice wrong?</em> and <em>what does it cost?</em> The answers are under "Cost and limits". A learner who can state them has a principle. One who cannot has a rule.</li>
+      <li>Then walk the five parts of the tour, on <a href="core-1.html">Core 1</a> and <a href="core-2.html">Core 2</a>, in order, using the table on the index as the route.</li>
+    </ol>
+    <p><strong>Code first</strong> suits people who will read or change the core. Start at Core 1 and read it in order. <a href="core-1.html#display-list">Part 1</a> is a good warm-up because it needs nothing but arrays. <a href="core-1.html#objc">Part 2</a> is the hardest, and everything platform-specific stands on it. <a href="core-1.html#window">Part 3</a> puts it to use. Parts <a href="core-2.html#renderer">4</a> and <a href="core-2.html#text">5</a> are independent of each other once <a href="core-1.html#display-list">Part 1</a> is understood. Read the Principles pages afterwards, or whenever a "why" in the tour is unclear.</p>
+    <h3 id="quiz">Name the principle</h3>
+    <p>Show a snippet and ask which principle explains it. Several snippets have more than one answer, and the discussion is the point.</p>
+    <div class="quiz">
+      <pre><code>(load-time-value (objc-class "NSWindow"))</code></pre>
+      <details class="check"><summary>Which principle explains this?</summary><p>P6, resolve early. The name is looked up once, when the code loads, and the compiled call holds an integer (P3).</p></details>
+      <pre><code>(when (&gt;= i (display-list-capacity display-list))
+  (error 'display-list-full :capacity (display-list-capacity display-list)))</code></pre>
+      <details class="check"><summary>Which principle explains this?</summary><p>P9, fail loudly when a bound is reached. It also keeps P1: growing the list would allocate inside a frame.</p></details>
+      <pre><code>(defun render-display-list (renderer display-list pass drawable width height scale)
+  (wait-for-last-frame renderer)
+  ...)</code></pre>
+      <details class="check"><summary>Which principle explains this?</summary><p>P10. The GPU may still be reading the instance buffer that the next line is about to overwrite.</p></details>
+      <pre><code>(msg-send :void encoder "drawPrimitives:vertexStart:vertexCount:instanceCount:"
+          (:ulong 4) (:ulong 0) (:ulong 4) (:ulong count))</code></pre>
+      <details class="check"><summary>Which principle explains this?</summary><p>P8: one call for the whole frame, instead of one per command. P5 is what makes it possible, since every command has the same shape.</p></details>
+      <pre><code>(setf (sb-sys:sap-ref-single sap offset) (display-list-x display-list i)
+      (sb-sys:sap-ref-single sap (+ offset 4)) (display-list-y display-list i)
+      ...)</code></pre>
+      <details class="check"><summary>Which principle explains this?</summary><p>P4. This is the copy that turns one array per field into one record per command, because the GPU reads a whole command at a time.</p></details>
+      <pre><code>(ldb (byte 62 0) (logxor hash (ash hash -62)))</code></pre>
+      <details class="check"><summary>Which principle explains this?</summary><p>P3 and P1. The result is kept in the immediate form, a fixnum, so returning it allocates nothing.</p></details>
+      <pre><code>(let ((delta (- (sb-ext:get-bytes-consed) before)))
+  (assert-true (&lt; delta 300000) delta))</code></pre>
+      <details class="check"><summary>Which principle explains this?</summary><p>P2. A claim of "allocates nothing" is made falsifiable by a test that totals the bytes consed over 400,000 lookups. Totals, because the counter moves in chunks.</p></details>
+      <pre><code>setPaused: YES
+setEnableSetNeedsDisplay: YES</code></pre>
+      <details class="check"><summary>Which principle explains this?</summary><p>P7. The view stops redrawing on a timer and draws only when a frame is requested.</p></details>
+    </div>
+    <h3 id="exercises">Exercises that make it concrete</h3>
+    <p>These are suggestions. Not every one has been run.</p>
+    <ul>
+      <li><strong>Count the garbage.</strong> Run the allocation tests (<code>make test</code>) and read one of them. Then write a small compiled loop that boxes a double on every pass and measure it with <code>sb-ext:get-bytes-consed</code>, the way the tests do. This makes "a frame allocates nothing" real (P1, P2).</li>
+      <li><strong>Break a bound.</strong> Make a display list with capacity 10 and push 11 rectangles. Read the error. Then explain why overwriting the oldest record is right for the frame ring and wrong for the display list (P9).</li>
+      <li><strong>Predict, then measure.</strong> Before running <code>make bench-metal</code>, write down how you expect the encode time to change as the command count grows from 10 to 10,000. Run it and compare (P8).</li>
+      <li><strong>Read the shader.</strong> In <code>rect-pipeline.lisp</code>, change the <code>1.0 / frame.scale</code> margin to <code>0.0</code> and look at the rounded corners in the golden-image test (P2).</li>
+      <li><strong>Trace one message.</strong> Pick any <code>msg-send</code> in the repository and write out the registers it fills, using the register diagram in <a href="core-1.html#objc">Part 2</a> (P3).</li>
+      <li><strong>Break the cache.</strong> Measure the same string twice with <code>measure-text</code> and time each call, then clear the cache and time it again (P6).</li>
+      <li><strong>Find the cost.</strong> Pick any principle and write down what the core pays for it. Compare your answer with its "Cost and limits" note (P12).</li>
+      <li><strong>Run a spike.</strong> The Makefile has <code>spike-a</code> to <code>spike-e</code>, <code>bench-metal</code> and <code>bench-text</code>. Each prints its own measurements (P2).</li>
+    </ul>
+    <h3 id="code-map">Where the code lives</h3>
+  </div>
+  <div class="tablescroll">
+  <table class="t">
+    <tr><th>Part</th><th>Files under <code>core/src</code></th></tr>
+    <tr><td>1. Display list</td><td><code>display-list.lisp</code></td></tr>
+    <tr><td>2. Objective-C bridge</td><td><code>platform/macos/objc.lisp</code></td></tr>
+    <tr><td>3. Windows, views, events</td><td><code>platform/macos/{app,main-queue,window,view,ns-event}.lisp</code>, <code>event.lisp</code>, <code>clock.lisp</code>, <code>ring.lisp</code></td></tr>
+    <tr><td>4. Renderer</td><td><code>render/metal/{device,target,rect-pipeline,renderer}.lisp</code></td></tr>
+    <tr><td>5. Text</td><td><code>text/{core-foundation,font,line,glyph-raster}.lisp</code>, <code>render/metal/{glyph-atlas,draw-text}.lisp</code></td></tr>
+  </table>
+  </div>
+  <p class="prose">Each file defines one package named after its path, such as <code>almighty-bolt-core/render/metal/renderer</code>, imports exactly the symbols it uses, and has a matching test file under <code>core/t</code>.</p>
+
+  <h3 id="glossary">Glossary</h3>
+  <div class="tablescroll">
+  <table class="t">
+    <tr><th>Term</th><th>Meaning</th></tr>
+    <tr><td>ABI</td><td>The agreement about how functions receive arguments and return results, and how data is laid out in memory, so that separately built code can work together.</td></tr>
+    <tr><td>Allocation</td><td>Asking the runtime for new memory. Produces garbage that the collector must later free.</td></tr>
+    <tr><td>Array of structs</td><td>Storing whole records one after another, so each record's fields sit together.</td></tr>
+    <tr><td>Atlas</td><td>One big texture holding many small images, here the glyph bitmaps.</td></tr>
+    <tr><td>Backpressure</td><td>Making a producer wait when a buffer or consumer is full, instead of letting work pile up.</td></tr>
+    <tr><td>Baseline</td><td>The line letters sit on.</td></tr>
+    <tr><td>Batching</td><td>Sending many items across a boundary in one call instead of one call each.</td></tr>
+    <tr><td>Boxed / immediate</td><td>A value stored in its own heap cell, or one that fits directly in a machine word.</td></tr>
+    <tr><td>Buffer (GPU)</td><td>A block of memory the GPU can read, such as the list of drawing commands.</td></tr>
+    <tr><td>Cache line</td><td>The block of memory, 128 bytes on this Mac, that a processor fetches at a time.</td></tr>
+    <tr><td>Callback</td><td>A function you hand to other code so it can call you.</td></tr>
+    <tr><td>Closure, block</td><td>A function packaged with the variables it uses. Objective-C calls its version a block.</td></tr>
+    <tr><td>Display list</td><td>The flat list of drawing commands for one frame.</td></tr>
+    <tr><td>Draw call</td><td>One command telling the GPU to draw.</td></tr>
+    <tr><td>Event loop</td><td>The system's loop that sleeps until something happens, then calls your code.</td></tr>
+    <tr><td>Fragment shader</td><td>GPU program that computes the colour of one pixel.</td></tr>
+    <tr><td>Frame</td><td>One complete picture shown on the screen.</td></tr>
+    <tr><td>Garbage collector</td><td>The part of the runtime that frees memory nobody uses.</td></tr>
+    <tr><td>Glyph</td><td>The drawn shape of a character in a particular font.</td></tr>
+    <tr><td>Hash table</td><td>A structure that finds the entry for a key without searching, by turning the key into a number that says where to look.</td></tr>
+    <tr><td>Heap</td><td>The pool of memory that the runtime hands out pieces of when a program allocates.</td></tr>
+    <tr><td>Hot path, cold path</td><td>Code that runs very often, such as every frame, and code that runs rarely, such as at startup.</td></tr>
+    <tr><td>Instancing</td><td>Drawing the same shape many times with different per-copy data in one call.</td></tr>
+    <tr><td>Latency</td><td>How long one piece of work takes from start to finish.</td></tr>
+    <tr><td>Machine word</td><td>The amount of data the CPU handles at once, 64 bits on this Mac.</td></tr>
+    <tr><td>Ownership</td><td>Knowing who may use or change a piece of storage now, and who frees it.</td></tr>
+    <tr><td>Pipeline (GPU)</td><td>The compiled shaders plus the settings for drawing, prepared once and reused.</td></tr>
+    <tr><td>Pointer / address</td><td>A number naming a location in memory.</td></tr>
+    <tr><td>Polling</td><td>Asking again and again whether something has changed.</td></tr>
+    <tr><td>Race</td><td>A bug in which the result depends on which of two threads reaches shared data first.</td></tr>
+    <tr><td>Reach</td><td>How far an explanation extends beyond the case it was first made for.</td></tr>
+    <tr><td>Register</td><td>A named slot inside the CPU. Arguments to functions travel in registers.</td></tr>
+    <tr><td>Ring</td><td>A fixed-size array used as a circular log: the head moves on after each write and wraps round, so the newest record replaces the oldest.</td></tr>
+    <tr><td>Seam</td><td>A narrow place in a design where one piece can be replaced without touching the rest.</td></tr>
+    <tr><td>Selector</td><td>The name of an Objective-C message, such as <code>setFrame:display:</code>.</td></tr>
+    <tr><td>Shaping</td><td>Turning characters into positioned glyphs, with ligatures, kerning and font fallback.</td></tr>
+    <tr><td>Signed distance</td><td>Distance to a shape's edge: negative inside, positive outside.</td></tr>
+    <tr><td>Struct of arrays</td><td>Storing each field of many records in its own array.</td></tr>
+    <tr><td>Tail latency</td><td>The latency of the slowest few requests or frames, as opposed to the average.</td></tr>
+    <tr><td>Texture</td><td>An image in GPU memory that shaders can read.</td></tr>
+    <tr><td>Thread</td><td>One line of execution in a program. Several can run at once and share the program's memory.</td></tr>
+    <tr><td>Throughput</td><td>How much work is done per second.</td></tr>
+    <tr><td>Vertex shader</td><td>GPU program that places one corner point of a shape.</td></tr>
+  </table>
+  </div>
+</section>
+<nav class="pager" aria-label="Previous and next page">
+<a rel="prev" href="principles-2.html"><span>Previous</span>Principles 2: what to do</a>
+</nav>
+<footer>
+  Written from the source in <code>core/src</code>, the project's charter, decision records, devlog and tests as they stand now. Measured numbers come from the devlog and tests, on an arm64 Mac. Figures described as calculated come from simple arithmetic on them. The frame-time demo uses invented numbers. Diagrams marked "illustration" show the idea, not measured proportions. Pixel values in the bitmap figure are drawn by hand. Examples from outside this project describe well-known practice and are not measurements.
+</footer>
+</div>
+</body>
+</html>

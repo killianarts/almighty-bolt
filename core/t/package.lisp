@@ -26,8 +26,8 @@
         (assert-eql :external status symbol)))))
 
 (define-test the-umbrella-exports-nothing-else ()
-  (let ((from-modules (loop for module in +modules+
-                            append (external-symbols module))))
+  (let ((from-modules (loop :for module :in +modules+
+                            :append (external-symbols module))))
     (dolist (symbol (external-symbols :almighty-bolt-core))
       (assert-true (member symbol from-modules) symbol))))
 
