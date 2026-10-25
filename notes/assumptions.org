@@ -27,16 +27,18 @@ Entry format:
 - *If false.* Every visual judgement made from a snapshot is suspect: re-look at each
   task in a window.
 
-* A-002 [OPEN] AppKit's characters for the named keys are the documented ones
+* A-002 [VERIFIED] AppKit's characters for the named keys are the documented ones
 - *Statement.* In a window, the arrow keys, forward delete, Home, End and Page Up and
   Down arrive as =characters= U+F700 to U+F703, U+F728, U+F729, U+F72B, U+F72C and
   U+F72D; the Delete key arrives as U+007F; Escape as U+001B. Only Tab, Space, Return
   and Shift-Tab have been seen (2026-10-25).
 - *Why not checked.* Keys cannot be pressed here.
-- *Evidence so far (2026-10-26, still OPEN).* Micah's =LOG=1= runs: the arrows, Home, End,
+- *Evidence (2026-10-26, VERIFIED by Micah).* Micah's =LOG=1= runs: the arrows, Home, End,
   Page Up, Page Down and forward Delete arrive as U+F700 to U+F703, U+F729, U+F72B, U+F72C,
   U+F72D and U+F728, as listed. Tab (code 9, physical 48) arrives with and without Shift.
-  Not yet seen in a log: the Delete key (Backspace, expected U+007F) and Escape (U+001B).
+  Escape arrives as code 27 (physical 53). The Delete key (physical 51) arrives as =#\Backspace=
+  and deletes backwards in a text field; the log shows the key after =logical-key= has
+  translated it, so the raw character (U+007F) is not shown, only that the result is right.
 - *Check.* Run any text field task and press each of those keys; the logged variant
   (=make 7guis ... LOG=1=) prints each key down with its character code.
 - *If false.* Fix =logical-key= in =core/src/platform/macos/ns-event.lisp= and the
@@ -52,7 +54,7 @@ Entry format:
   fine". Dead keys and input methods are still not supported, as the statement says.
 - *If false.* A real text-input path (NSTextInputClient) is needed, which is Phase 6.
 
-* A-004 [OPEN] The wheel's sign and units
+* A-004 [VERIFIED] The wheel's sign and units
 - *Statement.* A =wheel-event= with a positive =dy= means the content moves down (the
   view goes toward the start). Inside the variants the deltas are in lines, and a line is a
   row of a list or a grid (24 points). A wheel gives lines; a trackpad, or a mouse whose
@@ -77,10 +79,12 @@ Entry format:
   swiped on the immediate cells grid and said "swiping looks good" (2026-10-26). Micah's
   =LOG=1= runs of the retained and reactive CRUD with the mouse wheel show the same events as
   the immediate one (lines, 3.82 for a slow notch in either direction, and 9 to 19 lines in
-  one event when the wheel is spun fast); no problem was reported with them. Not checked:
-  the mouse wheel on the grid, and the trackpad in the retained and reactive variants. The
-  immediate variant has been checked with the mouse wheel and the trackpad on the CRUD list
-  and the trackpad on the grid.
+  one event when the wheel is spun fast); no problem was reported with them. Micah then
+  closed the entry with two checks left untried (2026-10-26): the mouse wheel on the grid,
+  and the trackpad in the retained and reactive variants. The immediate variant was checked
+  with the mouse wheel and the trackpad on the CRUD list and the trackpad on the grid.
+  The retained variant's trackpad code is the same conversion and lock as the immediate one
+  (0017, 0018) but only the tests have run it.
 - *Check.* =make 7guis VARIANT=immediate TASK=cells LOG=1= (and crud): swipe across calmly,
   swipe down with a little drift, and flick, and see that the grid moves along one axis; scroll
   with the wheel and the trackpad and read the printed deltas; a notch should move the list by as many rows

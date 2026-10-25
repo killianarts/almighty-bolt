@@ -65,6 +65,10 @@ the changes that rested on it can be found.
   apps pass the same acceptance tests and idle in windows. Tag =auto/02-reactive-complete=.
 - 0016 and the immediate variant (hash, box, ui, widgets, layout, paint, variant); all
   seven immediate apps pass the same acceptance tests. Tag =auto/03-immediate-complete=.
+- 2026-10-26, Micah's checks in windows: A-001 to A-007 are all VERIFIED (A-004 with two
+  checks left untried, noted in it). They found three things: the trackpad's units and axis
+  (0017, 0018) and the cell editor running under its neighbours (fixed in the grid painter).
+  The decisions 0012 to 0018 are still to be reviewed.
 
 * Review queue
 (Decision records made without Micah, newest last.)
