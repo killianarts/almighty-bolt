@@ -48,6 +48,11 @@ Entry format:
   precise deltas in points, which the list box treats as rows, so it scrolls too fast
   there; a wheel gives lines.
 - *Why not checked.* No trackpad or wheel here.
+- *Evidence so far (2026-10-26, still OPEN).* With a mouse wheel (Micah's, with the maker's
+  software installed, which may report smooth, precise deltas) the immediate CRUD list scrolls
+  but by several rows to a notch, not one. That fits the statement above: a precise delta in
+  points is taken as that many rows. Not known: what the wheel event carried (no log of
+  =dx=, =dy= and =precise-p= yet), the direction on the grid, or the trackpad.
 - *Check.* Scroll the CRUD list and the cells grid with the trackpad and a wheel.
 - *If false.* Change the sign in =pointer-wheel= of the list box and of the grid, and
   scale precise deltas by the row height (=wheel-event-precise-p=).
@@ -77,7 +82,7 @@ Entry format:
 - *If false.* The scissor rectangle may have to be in the drawable's pixels at its real
   size, not the points times the scale given to the host: see =copy-commands=.
 
-* A-007 [OPEN] The immediate variant sleeps when idle and answers a window's events as the tests drive it
+* A-007 [VERIFIED] The immediate variant sleeps when idle and answers a window's events as the tests drive it
 - *Statement.* The immediate variant asks for a frame only when an event could change
   what is shown (a press, a release, a key, a move that changes what the pointer is over or
   happens while a button is down or over a canvas, a wheel over a box that takes it), and
@@ -113,6 +118,10 @@ Entry format:
   retained variant asks only when something scrolled. Not changed.) Not yet checked: that
   the hovered and pressed looks are right in the window, and the wheel in the immediate CRUD
   list and cells grid (the Counter does nothing with it).
+  Micah then checked the rest (2026-10-26): the hovered and pressed looks are right, and the
+  wheel works in the immediate CRUD list ("everything looks good"). Marked VERIFIED on that.
+  Not tried: the wheel in the immediate cells grid, which is the same canvas code. See A-004
+  for the wheel's units.
 - *If false.* Wakeups: look at the value =enqueue-event= returns for the events it is
   given (=ui.lisp=). A wheel that does nothing: the place in =wheel-event= may be in
   another coordinate system than the pointer's.
