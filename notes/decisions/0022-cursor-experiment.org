@@ -1,0 +1,141 @@
+#+TITLE: 0022 — The cursor experiment (H6): what a front end with no tree does
+#+DATE: 2026-10-26
+- Status :: proposed
+
+* Context
+0020 left H6 open for a front end that places each widget where the cursor is as
+the widget is described (Dear ImGui style), with no box tree: it showed that a
+tree laid out after the description is enough, not that it is needed. Micah
+asked to see what cursor style is like. H6 expects such a front end to be
+correct only by lagging a frame or by building again, and says to count the
+cases that need either.
+
+A first look at the screen of 0020 showed that it would count none: every pane
+there is sized from the window, down, and no pane's size depends on its
+paragraph, so a front end that knows the room it has needs nothing else. A
+second screen was made, the dialog, where a size does come from below: a card as
+wide as its widest line and as tall as its lines, in the middle of the window,
+with a label at the right edge of the header and labels lined up to the right
+against their values.
+
+* What was built
+- =variants/cl-cursor= (537 lines of code), an experiment and not a contender:
+  it is not in the registry's =+variants+=, so the acceptance tests of the seven
+  tasks do not run it, and it has no input. A region is a row or a column with a
+  cursor; =label=, =paragraph=, =with-panel=, =with-row=, =with-column= and
+  =centered= take their place at the cursor and draw. A flex is done by hand
+  with =split-sizes=; =text-width= measures a leaf before it is placed. A thing
+  with an id leaves its rectangle, which the next build can ask for with
+  =remembered-size=.
+- Five modes for a container that is placed by its own size, which the build has
+  not got when it places it. =:lag= uses the size of the build before and says
+  nothing. =:request= does that and asks for another frame if the size was
+  wrong. =:rebuild= says that the build changed state, and the core builds again
+  (0009). =:measure= runs the container twice in one build, the first time to
+  find the sizes in it. =:fragment= draws the container at the origin into a
+  scratch list of its own, which gives its size, and appends that where the
+  parent puts it: the second of the two ways H6 names, children that return a
+  size and local commands.
+- Two screens in it: the layout of 0020 (18 lines of code, against 19 in the
+  immediate variant and 18 in the retained) and the dialog (20 lines, against 20
+  and 19), which is new in the retained and immediate variants too
+  (=apps/7guis/dialog=). A display list is compared with the box tree's command
+  by command, whatever the order, each command matched to the nearest of the
+  same kind and glyph (=variants/support/compare.lisp=).
+- =make bench-cursor= draws each screen in each mode at 311 widths (280 to 900
+  by 2) with one front end, as a window that is resized does, up, down and in a
+  fixed shuffle, with the test context's text, and with Core Text at scale 1 and
+  2. A frame is right if it is the box tree's to a hundredth of a point. =make
+  snapshots-cursor= draws the pictures. There are 23 tests of the front end and
+  15 acceptance tests that compare it with the box tree; the mutations that I
+  tried (no stale detection, no measure pass, a centre that is off) fail them.
+
+* Evidence
+- The layout of 0020: in every mode, at every width, with every text, 1 build
+  and the box tree's list, and no mode asks for a frame. The time of a frame at
+  a new width, with Core Text, is the box tree's, 459 us, and the cursor's, 455
+  to 459 us: the text engine's. The prediction I made before measuring, that
+  this screen would show lagged frames or second builds, was wrong.
+- The dialog, 310 steps of 2 points with one front end, Core Text at scale 2
+  (the other orders and texts are in the output of the bench). First frame
+  wrong, wrong at the end, frames asked for, builds a frame (mean, most),
+  microseconds a step:
+  | Mode     | First wrong | End wrong | Asked | Builds  |  us |
+  |----------+-------------+-----------+-------+---------+-----|
+  | box tree |           0 |         0 |     0 | 1.00, 1 | 130 |
+  | lag      |         102 |       102 |     0 | 1.00, 1 | 131 |
+  | request  |         102 |         0 |   102 | 1.00, 1 | 172 |
+  | rebuild  |           0 |         0 |     0 | 1.33, 2 | 171 |
+  | measure  |           0 |         0 |     0 | 1.00, 1 | 254 |
+  | fragment |         224 |   224 (a) |     0 | 1.00, 1 | 132 |
+  (a) Off by at most 0.21 points here and 1 point at scale 1 (a device pixel),
+  not by a lag. Shuffled, so that most steps are large: lag is wrong at 303 of
+  310, request needs a second frame at 303, rebuild builds 1.98 times a frame,
+  and request, rebuild and measure cost 253 to 257 us against the box tree's
+  131. A new front end's first frame is wrong at 311 of 311 widths in lag and
+  request, and at none in rebuild (which built twice), measure and, apart from
+  the pixel, fragment.
+- What a wrong frame looks like (=/tmp/shots-cursor/dialog-420-lag.png=, from
+  =make snapshots-cursor=): drawn at 700 wide and then at 420, the lagging card
+  keeps the background of 700, a band across the window, and its text is centred
+  as if the card were still that wide, cut off at the left edge. The host draws
+  on request, and a lagging front end asks for nothing, so it stays like that
+  until the next event; a smoke run of the dialog in a window drew one frame and
+  none after it. I have not looked at it in a window.
+- Depth. In a test where a card moves by the remembered width of the card inside
+  it, rebuild takes 2 builds for one level, 3 for two and reaches the cap of 3,
+  with its warning, for three. The dialog has one level, so 2 builds are the
+  most it needs here.
+- What the box tree gave and the cursor front end needed. The room: a line of
+  text measures a little wider than the width it was broken for, and with no
+  constraint the card grew up to 2 points past the window at 73 of 311 widths
+  with the real text (the test context's text never does); =place= now takes no
+  more than the room across, 4 lines. Ids: a size is remembered by id, so every
+  container that is placed by its size needs one and two of the same id clash;
+  the box-tree variants make keys from the parent's key and an order, and this
+  front end does not. By hand: the room for the card is =(- (avail-height) +gap+
+  (line-height))=, the height of the status line and a gap taken off; a status
+  of two lines would need that line changed, where a flex takes what is left.
+  Pixels: a fragment is moved to a whole pixel and the text in it was put on a
+  whole pixel in the fragment, not in the window, so some of it lands a pixel
+  from where the box tree puts it.
+- The cases of the two screens. The panes of the split and the paragraphs: a
+  size from the window, down, with =split-sizes= and the room across. Close at
+  the right and the labels lined up to the right: a size that is text, measured
+  before the widget is placed, with =text-width=. The status at the bottom:
+  arithmetic on a gap and a line. The card's background and its place: its own
+  size, from below; the only case that needs a mode.
+
+* Decision
+The immediate variant stays a box tree laid out after the description (0016 is
+unchanged), and =cl-cursor= stays in the repository as an experiment, outside
+the variants of the comparison.
+
+For the charter, once this is accepted, H6 is partly refuted: top-down layouts,
+split panels and wrapped text in a resizable window, need no tree, no lag and no
+extra build in a front end that is given its room and keeps to it. What needs
+more is a container that is placed by its own size, which a cursor front end has
+to deal with in one of four ways, each with a price: a stale frame (a third of
+the steps of a drag in the dialog, nearly all of a jump, and for good if nothing
+asks for another frame), one more frame, one more build for a third of the
+frames (and the cap of 3 after three levels), the container described twice
+(twice the time here), or a fragment that is a pixel off. The box tree has none
+of these: one build, the box tree's own list, and 130 us, and it costs a tree
+and a pass of layout that, on the layout of 0020, cost no more than the cursor
+front end did.
+
+* Consequences
+- Easier: an answer to H6 that is measured. If a cursor-style API is wanted over
+  our layout, the parts that go down can be written that way with no tree, and
+  what it costs to go up is known.
+- Harder: the charter's H6 wording has to be changed (it says split panels and
+  wrapped text need a tree), and the claim in 0020 that cursor layout is
+  untested is replaced by this.
+- Open: the experiment is two screens, one level deep, build time only, with no
+  input; a cursor front end that has hit testing, focus and ids that survive a
+  loop is not built; the fragment's pixel could be put right by snapping against
+  the place the fragment ends up in, which I did not try; and how often an app
+  needs a container placed by its own size is for the stress apps to say (Phase
+  3). To see the lag in a window: =make 7guis VARIANT=cursor TASK=dialog
+  CURSOR_MODE=lag=, then make the window narrower (modes are lag, request,
+  rebuild, measure and fragment).
