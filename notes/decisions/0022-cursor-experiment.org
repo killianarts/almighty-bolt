@@ -68,20 +68,23 @@ against their values.
   | rebuild  |           0 |         0 |     0 | 1.33, 2 | 171 |
   | measure  |           0 |         0 |     0 | 1.00, 1 | 254 |
   | fragment |         224 |   224 (a) |     0 | 1.00, 1 | 132 |
-  (a) Off by at most 0.21 points here and 1 point at scale 1 (a device pixel),
-  not by a lag. Shuffled, so that most steps are large: lag is wrong at 303 of
-  310, request needs a second frame at 303, rebuild builds 1.98 times a frame,
-  and request, rebuild and measure cost 253 to 257 us against the box tree's
-  131. A new front end's first frame is wrong at 311 of 311 widths in lag and
-  request, and at none in rebuild (which built twice), measure and, apart from
-  the pixel, fragment.
-- What a wrong frame looks like (=/tmp/shots-cursor/dialog-420-lag.png=, from
-  =make snapshots-cursor=): drawn at 700 wide and then at 420, the lagging card
-  keeps the background of 700, a band across the window, and its text is centred
-  as if the card were still that wide, cut off at the left edge. The host draws
-  on request, and a lagging front end asks for nothing, so it stays like that
-  until the next event; a smoke run of the dialog in a window drew one frame and
-  none after it. I have not looked at it in a window.
+  (a) Not a lag: the text is exact at scale 2 (none of the 78,683 glyphs of the
+  311 widths is off) and the card's background is off by at most 0.21 points,
+  because the fragment is moved to a whole pixel and the box tree's panel is
+  not. At scale 1, 4,917 glyphs (6%) are a point off. Shuffled, so that most
+  steps are large: lag is wrong at 303 of 310, request needs a second frame at
+  303, rebuild builds 1.98 times a frame, and request, rebuild and measure cost
+  253 to 257 us against the box tree's 131. A new front end's first frame is
+  wrong at 311 of 311 widths in lag and request, and at none in rebuild (which
+  built twice), measure and, apart from the pixel, fragment.
+- What a wrong frame looks like (=dialog-420-lag.png= from =make
+  snapshots-cursor OUT=/tmp/shots/=, with =dialog-420-box-tree.png= beside it):
+  drawn at 700 wide and then at 420, the lagging card keeps the background of
+  700, a band across the window, and its text is centred as if the card were
+  still that wide, cut off at the left edge. The host draws on request, and a
+  lagging front end asks for nothing, so it stays like that until the next
+  event; a smoke run of the dialog in a window drew one frame and none after it.
+  I have not looked at it in a window.
 - Depth. In a test where a card moves by the remembered width of the card inside
   it, rebuild takes 2 builds for one level, 3 for two and reaches the cap of 3,
   with its warning, for three. The dialog has one level, so 2 builds are the
@@ -96,9 +99,12 @@ against their values.
   front end does not. By hand: the room for the card is =(- (avail-height) +gap+
   (line-height))=, the height of the status line and a gap taken off; a status
   of two lines would need that line changed, where a flex takes what is left.
-  Pixels: a fragment is moved to a whole pixel and the text in it was put on a
-  whole pixel in the fragment, not in the window, so some of it lands a pixel
-  from where the box tree puts it.
+  Pixels: a fragment is moved to a whole pixel, and the text in it was put on a
+  whole pixel in the fragment, not in the window. At scale 2 that moved no glyph
+  of the dialog, and moved the card's background, which the box tree leaves
+  between pixels, by up to 0.21 points; at scale 1, 6% of the glyphs land a
+  point from where the box tree puts them; and in a test with a gap of 0.3
+  between two labels the text is half a point off at scale 2.
 - The cases of the two screens. The panes of the split and the paragraphs: a
   size from the window, down, with =split-sizes= and the room across. Close at
   the right and the labels lined up to the right: a size that is text, measured
@@ -111,18 +117,30 @@ The immediate variant stays a box tree laid out after the description (0016 is
 unchanged), and =cl-cursor= stays in the repository as an experiment, outside
 the variants of the comparison.
 
-For the charter, once this is accepted, H6 is partly refuted: top-down layouts,
-split panels and wrapped text in a resizable window, need no tree, no lag and no
-extra build in a front end that is given its room and keeps to it. What needs
-more is a container that is placed by its own size, which a cursor front end has
-to deal with in one of four ways, each with a price: a stale frame (a third of
-the steps of a drag in the dialog, nearly all of a jump, and for good if nothing
-asks for another frame), one more frame, one more build for a third of the
-frames (and the cap of 3 after three levels), the container described twice
-(twice the time here), or a fragment that is a pixel off. The box tree has none
-of these: one build, the box tree's own list, and 130 us, and it costs a tree
-and a pass of layout that, on the layout of 0020, cost no more than the cursor
-front end did.
+For the charter, once this is accepted, H6 is partly refuted and partly
+confirmed. Refuted for top-down layouts: split panels and wrapped text in a
+resizable window need no tree, no lag and no extra build in a front end that is
+given its room and keeps to it. Confirmed for a container that is placed by its
+own size: a cursor front end lags or builds again, as H6 expected, and its other
+ways out are the two that H6 names, a second description and children that
+return a size and local commands. Each has a price here:
+- the size of the build before (lag): a stale frame at a third of the steps of a
+  drag in the dialog and at nearly all of a jump, and for good if nothing asks
+  for another frame;
+- the same, and a request for the next frame (request): the stale frame is shown
+  once and then put right;
+- another build (rebuild): 1.33 builds a frame in a drag, and the cap of 3 is
+  reached at three levels of nesting;
+- the container described twice (measure): the dialog took twice the time;
+- a fragment placed by the size it returns (fragment): text exact at scale 2 but
+  6% of it a point off at scale 1, and the background of a panel on a pixel
+  where the box tree's is not.
+The box tree has none of these prices: one build, the box tree's own list, and
+130 us in the dialog, and it costs a tree and a pass of layout that, on the
+layout of 0020, cost no more than the cursor front end did. The third case that
+H6 names, content-sized columns, was tried only with labels in the columns,
+whose width can be measured first; a column of containers is a bottom-up case
+like the card, and was not built, so the charter should not say more than that.
 
 * Consequences
 - Easier: an answer to H6 that is measured. If a cursor-style API is wanted over

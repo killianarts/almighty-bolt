@@ -1317,10 +1317,11 @@ frames was wrong: every pane is sized from the window, down). The dialog is wher
 below. Core Text, scale 2, 310 steps of 2 points up: lag is wrong in 102 steps and stays wrong;
 request is wrong in the same 102 and put right by one more frame each; rebuild is never wrong and
 builds 1.33 times a frame, 2 at most (1.98 when the steps are shuffled); measure is never wrong with
-1 build and twice the time (254 us against 130 for the box tree); fragment has 1 build and no lag
-but its text is a device pixel from the box tree's (at most 0.21 points at scale 2, 1 point at scale
-1). A card in a card reaches the settle cap at three levels (a test). In a window a lagging dialog
-stays stale until something asks for a frame: a smoke run drew one frame and none after it.
+1 build and twice the time (254 us against 130 for the box tree); fragment has 1 build and no lag,
+its text exact at scale 2 (none of 78,683 glyphs off) and the card's background up to 0.21 points
+from the box tree's, and at scale 1 6% of the glyphs a point off. A card in a card reaches the
+settle cap at three levels (a test). In a window a lagging dialog stays stale until something asks
+for a frame: a smoke run drew one frame and none after it.
 ** What went wrong on the way
 The first comparison found every frame different: the cursor front end did not draw the window's
 background. With the real text engine 73 widths were wrong in every mode: a line of text measures a
@@ -1328,7 +1329,12 @@ little wider than the width it was broken for, and a front end with no constrain
 2 points past the window; =place= takes no more than the room now. Then the fragment mode seemed to
 be 53 points off, which was my comparison pairing commands by their rank in a sort; a glyph a pixel
 off changed the pairing. Each command is now matched to the nearest of its kind, and the real figure
-is a pixel (37 of 253 glyphs at one width).
+is a pixel (37 of 253 glyphs at one width at scale 1). I first called that a pixel of text at scale
+2 as well; a count by kind showed that at scale 2 no glyph is off and only the background is. My two
+smoke runs, lag and measure, printed the same line, which showed nothing about whether the mode had
+arrived; the mode is in the window's title now, =CURSOR_MODE= is passed by the Makefile, and a
+headless check through the registry showed each of the five modes arriving, with the lagging
+dialog's first frame stale and asking for nothing.
 ** Not done
 A cursor front end with input, hit testing and ids that survive a loop; snapping the fragment
 against its final place; more than two screens or one level of nesting; a look at the lagging dialog
