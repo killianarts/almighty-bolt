@@ -23,7 +23,13 @@
                 #:make-null-variant)
   (:export #:main
            #:overhead-main
-           #:report))
+           #:report
+           #:shell
+           #:machine-profile
+           #:source-state
+           #:timestamp
+           #:write-record
+           #:environment-number))
 
 (in-package #:almighty-bolt-bench/results)
 

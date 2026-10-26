@@ -1,0 +1,50 @@
+(require :asdf)
+(asdf:initialize-source-registry
+ (list :source-registry (list :tree (uiop:getcwd)) :ignore-inherited-configuration))
+
+(defpackage #:almighty-bolt-scripts/compile-time
+  (:use #:cl))
+
+(in-package #:almighty-bolt-scripts/compile-time)
+
+;;;; One variant's compile times, in a process that has nothing compiled: the fasls go into the
+;;;; directory CACHE (a new one), so every step starts from nothing. Prints a line for each step:
+;;;;   step <name> <seconds of real time>
+;;;; The steps are the core, the 7GUIs models that every variant shares, the retained library (the
+;;;; others are built on it), the variant's own library (not for retained), the variant's seven
+;;;; apps, and then two changes by touching a file: one in the variant's library and one in an
+;;;; app, to see what an incremental build costs. Run by bench/compile-time.lisp, or:
+;;;;   VARIANT=immediate CACHE=/tmp/cache/ sbcl --non-interactive --load scripts/compile-time.lisp
+
+(let* ((variant (string-downcase (or (uiop:getenv "VARIANT") (error "Say which variant."))))
+       (cache (uiop:ensure-directory-pathname (or (uiop:getenv "CACHE") (error "Say where CACHE is."))))
+       (library (format nil "almighty-bolt-variant-~a" variant))
+       (apps (format nil "almighty-bolt-7guis/~a" variant)))
+  (asdf:initialize-output-translations
+   `(:output-translations (t (,(namestring cache) :**/ :*.*.*)) :ignore-inherited-configuration))
+  (flet ((timed (name thunk)
+           (let ((start (get-internal-real-time)))
+             (let ((*standard-output* (make-broadcast-stream))
+                   (*error-output* (make-broadcast-stream)))
+               (handler-bind ((warning #'muffle-warning))
+                 (funcall thunk)))
+             (format t "~&step ~a ~,3f~%" name
+                     (/ (- (get-internal-real-time) start) internal-time-units-per-second 1.0))
+             (finish-output)))
+         (touch (path)
+           ;; ASDF compares file write dates a second at a time. A file that is not there would
+           ;; be made by touch, and the measurement would be of nothing.
+           (unless (probe-file path) (error "There is no ~a to touch." path))
+           (sleep 1.1)
+           (uiop:run-program (list "touch" path))))
+    (timed "core" (lambda () (asdf:load-system "almighty-bolt-core")))
+    (timed "shared-models" (lambda () (asdf:load-system "almighty-bolt-7guis")))
+    (timed "retained-library" (lambda () (asdf:load-system "almighty-bolt-variant-retained")))
+    (unless (string= variant "retained")
+      (timed "variant-library" (lambda () (asdf:load-system library))))
+    (timed "apps" (lambda () (asdf:load-system apps)))
+    (touch (format nil "variants/cl-~a/src/~a" variant
+                   (if (string= variant "reactive") "views.lisp" "widgets.lisp")))
+    (timed "incremental-library-file" (lambda () (asdf:load-system apps)))
+    (touch (format nil "apps/7guis/counter/~a.lisp" variant))
+    (timed "incremental-app-file" (lambda () (asdf:load-system apps)))))

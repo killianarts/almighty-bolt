@@ -11,7 +11,9 @@
                "almighty-bolt-7guis/immediate" "almighty-bolt-variant-null")
   :components ((:file "compare" :if-feature :darwin)
                (:file "layout-spike" :if-feature :darwin)
-               (:file "results" :if-feature :darwin)))
+               (:file "results" :if-feature :darwin)
+               (:file "app-metrics" :if-feature :darwin)
+               (:file "compile-time" :if-feature :darwin)))
 
 (defsystem "almighty-bolt-bench/cursor"
   :description "The cursor experiment of record 0022 (archived), swept over window widths: make bench-cursor"

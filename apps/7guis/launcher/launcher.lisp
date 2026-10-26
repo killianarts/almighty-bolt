@@ -10,6 +10,7 @@
                 #:hit-target
                 #:variant
                 #:frame-ring-total
+                #:frame-end-ns
                 #:pointer-event
                 #:pointer-event-kind
                 #:pointer-event-x
@@ -42,7 +43,8 @@
                 #:app-width
                 #:app-height
                 #:app-title)
-  (:export #:run))
+  (:export #:run
+           #:image-main))
 
 (in-package #:almighty-bolt-7guis/launcher)
 
@@ -132,9 +134,25 @@ the next of these."
     (finish-output)
     (close-host-window host)))
 
-(defun run (variant task &key log smoke record)
+(defun measure-driver (host)
+  "For a measurement from outside (bench/app-metrics.lisp): print the end time of the first frame
+on the core clock, the one an outside process can read too, and then once a second the frames
+drawn so far and the bytes in use in the Lisp heap, until the process is killed. Everything is a
+line of words and numbers."
+  (let ((ring (host-ring host)))
+    (loop :until (plusp (frame-ring-total ring))
+          :do (sleep 0.001))
+    (format t "~&first-frame-ns ~d~%" (frame-end-ns ring 0))
+    (finish-output)
+    (loop
+      (sleep 1)
+      (format t "~&tick ~d ~d~%" (frame-ring-total ring) (sb-kernel:dynamic-usage))
+      (finish-output))))
+
+(defun run (variant task &key log smoke record measure)
   "Open the app of TASK in VARIANT (keywords) in a window, and run until it is closed. With
-RECORD, a pathname, the events are written to it as a replay script as they come."
+RECORD, a pathname, the events are written to it as a replay script as they come. With MEASURE
+the process reports to whoever started it and runs until it is killed."
   (let ((app (or (find-app variant task)
                  (error "There is no ~(~a~) app for ~(~a~)." variant task)))
         (recorder nil))
@@ -156,4 +174,23 @@ RECORD, a pathname, the events are written to it as a replay script as they come
                 (app-title app) record)
         (finish-output))
       (run-variant object :title (app-title app) :width (app-width app)
-                          :height (app-height app) :driver (and smoke #'smoke-check)))))
+                          :height (app-height app)
+                          :driver (cond (smoke #'smoke-check)
+                                        (measure #'measure-driver))))))
+
+(defun environment (name)
+  (let ((value (uiop:getenv name)))
+    (and value (plusp (length value)) value)))
+
+(defun image-main (variant)
+  "What a saved executable of VARIANT does when it starts: open the app of the task that the
+environment's TASK names, in a window. MEASURE=1 makes it report to the process that started
+it, for bench/app-metrics.lisp; RECORD is as for make 7guis."
+  (sb-ext:disable-debugger)
+  (let ((task (environment "TASK")))
+    (unless task
+      (format *error-output* "Say which task with TASK=counter, for example.~%")
+      (sb-ext:exit :code 2 :abort t))
+    (run variant (intern (string-upcase task) :keyword)
+         :log (environment "LOG") :record (environment "RECORD") :measure (environment "MEASURE"))
+    (sb-ext:exit :code 0)))

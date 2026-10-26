@@ -1,4 +1,4 @@
-.PHONY: deps shim test spike-a spike-b spike-c spike-d spike-e bench-metal bench-text bench-null bench-retained bench-compare bench-layout test-cursor bench-cursor snapshots-cursor bench-run bench-overhead bench-report snapshots replay 7guis 7guis-smoke clean
+.PHONY: deps shim test spike-a spike-b spike-c spike-d spike-e bench-metal bench-text bench-null bench-retained bench-compare bench-layout image test-cursor bench-cursor snapshots-cursor bench-run bench-overhead bench-app bench-compile bench-report snapshots replay 7guis 7guis-smoke clean
 
 # ASDF looks only in this tree (project and vendored/), never in ~/common-lisp/.
 SBCL = sbcl --noinform --non-interactive --no-sysinit --no-userinit
@@ -89,6 +89,16 @@ bench-run:
 bench-overhead:
 	WHICH=overhead $(SBCL) $(REGISTRY) --load bench/run.lisp
 
+# Startup, idle CPU and frames, memory and image size of each variant's executable running each
+# task in a window (make image first). VARIANTS=retained,immediate TASKS=counter,cells IDLE=10 REPS=5.
+bench-app:
+	WHICH=app $(SBCL) $(REGISTRY) --load bench/run.lisp
+
+# How long each variant takes to compile from nothing and after a change to one file, in new
+# processes with empty fasl caches (REPS=3).
+bench-compile:
+	WHICH=compile $(SBCL) $(REGISTRY) --load bench/run.lisp
+
 bench-report:
 	WHICH=report $(SBCL) $(REGISTRY) --load bench/run.lisp
 
@@ -114,6 +124,11 @@ snapshots:
 # Pictures of the cursor experiment (record 0022): make snapshots-cursor OUT=/tmp/shots/
 snapshots-cursor:
 	OUT=$(OUT) sbcl --noinform --non-interactive --no-sysinit --no-userinit --load scripts/snapshot-cursor.lisp
+
+# An executable of a variant with its apps: make image VARIANT=immediate, then
+# TASK=counter build/immediate (MEASURE=1 reports to the process that started it).
+image:
+	VARIANT=$(VARIANT) sbcl --noinform --non-interactive --no-sysinit --no-userinit --load scripts/build-image.lisp
 
 # A 7GUIs task of a variant in a window: make 7guis VARIANT=retained TASK=counter
 # LOG=1 prints the presses, releases and keys that reach it and what is under the
