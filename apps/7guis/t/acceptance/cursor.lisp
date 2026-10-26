@@ -160,3 +160,29 @@
       (let ((builds (draw object context list)))
         (assert-true (<= builds 2) width)
         (assert-true (same-p list (box-tree-list :dialog width)) width)))))
+
+;;; --- the comparison itself ---
+
+(defun list-of (&rest commands)
+  "A display list of glyphs, each (x y)."
+  (let ((list (core:make-display-list :capacity 16)))
+    (dolist (command commands list)
+      (core:push-glyph list (first command) (second command) 8f0 14f0 65 #xffffffff))))
+
+(define-test the-comparison-does-not-mind-the-order-and-says-how-far-a-command-moved ()
+  (let ((a (list-of '(0f0 0f0) '(100f0 0f0) '(0f0 20f0)))
+        (reordered (list-of '(0f0 20f0) '(0f0 0f0) '(100f0 0f0)))
+        (moved (list-of '(0f0 0f0) '(100.5f0 0f0) '(0f0 20f0)))
+        (crossed (list-of '(0f0 0f0) '(99f0 1f0) '(0f0 20f0))))
+    (assert-equal '(0f0 nil) (multiple-value-list (compare:compare-display-lists a reordered)))
+    (assert-equal '(0.5f0 nil) (multiple-value-list (compare:compare-display-lists a moved)))
+    ;; Moved a point, among commands of the same kind that are far apart: matched to its own.
+    (assert-equal '(1f0 nil) (multiple-value-list (compare:compare-display-lists a crossed)))
+    (assert-equal '(nil :count)
+                  (multiple-value-list (compare:compare-display-lists a (list-of '(0f0 0f0)))))))
+
+(define-test the-comparison-sees-a-glyph-that-is-another-glyph ()
+  (let ((a (list-of '(0f0 0f0)))
+        (b (core:make-display-list :capacity 4)))
+    (core:push-glyph b 0f0 0f0 8f0 14f0 66 #xffffffff)
+    (assert-equal '(nil :commands) (multiple-value-list (compare:compare-display-lists a b)))))
