@@ -187,9 +187,9 @@ app.
   the model's =key-move= and =status-text=; 4 tests. There: a million rows; a click selects; the
   wheel and the scroll bar scroll; up, down, page up, page down and home keep the row in view; the
   status line follows. Not there, and why: stripes (a list pane has one ink); real columns (one
-  string a row, aligned by a text style of equal widths); rows of 22 pixels (McCLIM's are 17); the
-  thumb of fixed size (McCLIM's is the page over the whole and so a hair for a million); keeping
-  nothing for the rows that do not show (the pane holds a million items).
+  string a row, aligned by a text style of equal widths); the thumb of fixed size (McCLIM's is the
+  page over the whole and so a hair for a million); keeping nothing for the rows that do not show
+  (the pane holds a million items).
 - *editor*. Built with the =:text-editor= gadget, in the viewport that McCLIM wraps it in; 2 tests.
   There: the sample text, the caret, the selection, the keys, the mouse, a kill ring, scrolling to
   the caret. Not there, and why: the gutter of line numbers and the highlight of the line (the
@@ -294,6 +294,11 @@ below what shows), so they are for that screen and not for the app.
   |   the board alone (36 tiles)       | 10.16         | 1.9 MB           | 196.68      | 2.9 MB         |
   |   the chart alone (721 rectangles) | 11.23         | 4.8 MB           | 206.50      | 4.8 MB         |
   | dashboard (gadgets)                | 12.22         | 6.0 MB           | 957.34      | 23.8 MB        |
+The gadget version's 12 ms on the null port is not comparable with the display-function version's 21
+ms: the null port has no windows, so I take it not to repaint the gadgets that were set, and the 72
+repaints are the part of the work that it leaves out. Through XQuartz, where they are done, the
+gadget version is the slower of the two (0.96 s against 0.43 s) and conses three times the bytes (it was 0.42 s before I gave the
+frames the sizes of our windows, so these figures follow the window's size as well as the screen's).
 - Ours, for the same screen of 36 tiles and a chart (display lists, headless, nothing drawn): 43 to
   85 microseconds and 0.6 to 9.4 KB a frame (record 0026's tables on =builder-macros=, and the
   devlog of 8e95a86). McCLIM's null-port step is 250 to 490 times the time and 700 to 11,000 times
@@ -321,8 +326,11 @@ below what shows), so they are for that screen and not for the app.
   (25 MB is what a McCLIM window with a thousand items keeps): a string and a value for each item,
   and a width for each string when the pane first lays out. It then works: a repaint of the visible
   rows takes about a millisecond whatever the number of rows, and a page down (select, redisplay the
-  status line, scroll) 60 to 125 ms. Ours keeps no row, so it holds nothing for the rows that do not
-  show.
+  status line, scroll) 60 to 125 ms. I took it to the end as well (the End key on XQuartz: row
+  1,000,000 selected and shown with the rows above it, the status line right, the scroll thumb at
+  the bottom, and back with Home), where the pane is 21.7 million pixels tall and the viewport 21.69
+  million pixels down: McCLIM's coordinates are not the 16 bits of X11. Ours keeps no row, so it
+  holds nothing for the rows that do not show.
   | lines  | text      | open or set (s) | value (ms) | repaint (ms) | one key (ms) | consed a key |
   |--------+-----------+-----------------+------------+--------------+--------------+--------------|
   | 200    | construct | 0.17            | 0.5        | 3.5          | 20.6         | 1.7 MB       |
@@ -405,8 +413,8 @@ what I say of it is from reading it and its source.
   millisecond, a page down 60 to 125 ms). Wrong about unusable.
 - Expected: The list pane has no columns, stripes, right-aligned value, status line or arrow keys.
   Found: The status line and the keys are built from McCLIM's own callbacks and commands (12 lines).
-  Columns by a text style of equal widths. Only the stripes, the 22-pixel row and the fixed thumb
-  are left.
+  Columns by a text style of equal widths. Only the stripes and the fixed thumb are left (the rows
+  are 22 pixels in McCLIM too).
 - Expected: The editor opens 20,000 lines; slow at 200,000; no input method, no gutter, a status
   line that needs wiring. Found: 6.4 s to open at 20,000 and 8.3 s for a character: unusable. I did
   not try 200,000. The gadget does handle an input method's events (CLX does not send them). No

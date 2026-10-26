@@ -37,11 +37,11 @@ written.
 What is and is not there, by app:
 - Dashboard: all of it (36 tiles and the chart), except 60 steps a second. Rows:
   a million rows with click, wheel, scroll bar, keys and status line; no
-  stripes, no real columns, 17-pixel rows, a thumb that is a hair, and it keeps
-  the million. Editor: the =text-editor= gadget, with the sample text, the
-  caret, the selection and the keys; no gutter, no highlight of the line, no
-  status line (the caret's place is internal to McCLIM), no input method on CLX
-  (the gadget handles one, the SDL2 backend sends one; not run).
+  stripes, no real columns, a thumb that is a hair, and it keeps the million.
+  Editor: the =text-editor= gadget, with the sample text, the caret, the
+  selection and the keys; no gutter, no highlight of the line, no status line
+  (the caret's place is internal to McCLIM), no input method on CLX (the gadget
+  handles one, the SDL2 backend sends one; not run).
 Sizes, lines and body tokens, with the painter and the controller that the
 variants share counted (the variants at =4cb93b8=):
   | app       | retained   | reactive   | immediate  | McCLIM    |
@@ -89,8 +89,8 @@ them, and H2 stays OPEN.
   nice in McCLIM is a display function (the immediate way of writing) over a
   retained structure of output records that it indexes and replays, and that
   structure is both what its other layers are made on and what a step costs (21
-  ms, 6.7 MB, for 900 records). The records are the price of the layers; I did
-  not use the layers.
+  ms, 6.7 MB, for about 900 records). The records are the price of the layers; I
+  did not use the layers.
 - Ours is incomplete in widgets (no scroll bar, scroller, text area, check box
   or radio group, table) and in a command and presentation layer, and McCLIM's
   saving in the rows and the editor is those widgets. It is not incomplete in
@@ -105,7 +105,10 @@ Proposed, for Micah to choose (the work is on the branch =mcclim=, from
 =4cb93b8=, not pushed):
 - (a) Merge it onto =phase-2=. =make deps= then fetches McCLIM, 80 MB and a few
   minutes, for everyone; =make test= and =make image= do not load it. The
-  comparison stays in the repository with a way to repeat it. I recommend this.
+  comparison stays in the repository with a way to repeat it. Merging it and
+  =builder-macros= both will conflict, mildly: both add to the devlog and the
+  progress file, and =scripts/mcclim-size.lisp= holds a copy of
+  =app-tokens.lisp='s counter, which should become one. I recommend this.
 - (b) Keep it on the branch. =make deps= stays as it was, and anyone who wants
   the comparison checks the branch out.
 - (c) Merge the apps, tests and scripts but make the McCLIM dependency optional
