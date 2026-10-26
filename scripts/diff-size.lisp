@@ -9,13 +9,14 @@
 
 ;;;; How large a change is, in the way the change-cost tests count (decision record 0024): the lines
 ;;;; added and removed, not counting blank lines or lines that are only a comment, which are counted
-;;;; apart; and the files and hunks touched. A change is the difference between two revisions, as
+;;;; apart, nor a change that is only of white space (a form that is indented more because something
+;;;; was put around it); and the files and hunks touched. A change is the difference between two revisions, as
 ;;;; git shows it with no context lines. From the repository root:
 ;;;;   FROM=base TO=change-cost/e1-tests sbcl --script scripts/diff-size.lisp
 ;;;; or, loaded, (measure-diff "from" "to" :paths '("apps/7guis/crud/")).
 
 (defun git-diff (from to paths)
-  (uiop:run-program (append (list "git" "diff" "-U0" "--no-color" "--no-ext-diff" from to)
+  (uiop:run-program (append (list "git" "diff" "-U0" "-w" "--no-color" "--no-ext-diff" from to)
                             (and paths (cons "--" paths)))
                     :output :string))
 
