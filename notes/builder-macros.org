@@ -1,0 +1,100 @@
+#+TITLE: Builder macros and a signal model: how much of the size gap is API shape
+
+Decision record 0024 found the immediate variant's apps smallest (475 lines against 547 reactive
+and 576 retained for the seven 7GUIs tasks). Micah asked whether that is because the retained and
+reactive variants *describe* their trees with plain function calls (children first, options
+after) where the immediate variant has macros whose body is the children, or because they must
+*wire* a change of state to the widgets it changes. This file says how the two experiments that
+answer it are run and what I expect, before any macro is written. Written 2026-10-26 on the branch
+=builder-macros=, from =4cb93b8=.
+
+* The baseline (=sbcl --script scripts/app-size.lisp= at =4cb93b8=)
+Lines of code, concepts (the symbols an app imports from the variants' packages):
+
+  | tasks            | retained  | reactive  | immediate |
+  |------------------+-----------+-----------+-----------|
+  | seven 7GUIs      | 576, 71   | 547, 74   | 475, 53   |
+  | three stress     | 240, 26   | 244, 28   | 185, 20   |
+  | all ten          | 816, 97   | 791, 102  | 660, 73   |
+
+The gap to immediate: retained +156 lines (+24 %), reactive +131 (+20 %). The seven 7GUIs tasks
+alone, which 0024 counted: +101 and +72. The stress tasks alone: +55 and +59.
+
+* Experiment 1: builder macros for retained and reactive
+** What is added
+A package of its own in each variant (=almighty-bolt-variant-retained/builder=,
+=almighty-bolt-variant-reactive/builder=), one file each, which exports macros with the immediate
+variant's syntax: =(row (:gap 10 :cross-align :center) child ...)=, likewise =column=, =stack=,
+=padding=, =panel=, =center=; for reactive also =(component (:key k) body ...)=. The functions
+stay as they are, so no existing caller changes.
+- The body forms are the children. A form's value, if it is not NIL, is a child; if it is a list
+  it is spliced in, so =(loop :collect ...)= puts in a computed row. A NIL is left out (as the
+  reactive constructors already do).
+- A form's value is what counts, so a prebuilt node held in a variable (retained apps build their
+  widgets first and keep them) is a child by naming it. The immediate macros are different: a
+  widget called in the body puts itself in. That is not copied, because it would miss those
+  nodes or put them in twice. The consequence is that a loop for effect (=dotimes=) puts
+  nothing in, and a loop has to be =loop :collect=. That stays a difference, and is reported.
+- The macros expand to the internal constructor with the options as positional arguments, and
+  the children as one list. They do not go through =&rest= and =split-arguments=, which copies
+  the children, and a description in the reactive variant is made again whenever a signal
+  changes.
+
+** What is done with them
+Every app of the ten counted by =app-size= in retained and reactive is ported by the same rule:
+the container forms are rewritten with the macros, and nothing else is touched (no
+re-wrapping, no renames, no change of what the app does). Immediate is not touched. The apps that
+are not counted (layout, dialog, cursor, which are fixtures of earlier studies) are left on the
+functions, and keep working.
+
+** What is checked
+1. The frames are the same. =scripts/frame-hashes.lisp= drives each app by the acceptance driver
+   (initial frame, a battery of events, a resize) and prints the hash of the display list after
+   each step. The hashes of each port are compared to the hashes of the same app before the port,
+   in the same variant. They must be identical.
+2. =make test= passes.
+3. The sizes, by =scripts/app-size.lisp=, next to the baseline, and the size of the port itself by
+   =scripts/diff-size.lisp=, so that a change of layout is not mistaken for a saving.
+4. Allocation: the reactive dashboard per frame, which was 9.4 KB at =8e95a86=, and the retained
+   one, by =make bench-app=.
+
+* Experiment 2: a reactive dashboard whose model is made of signals
+The reactive dashboard copies the model's 36 values into 36 signals and bumps a version signal for
+the chart, in its ticker, because a signal cannot see the model change in place. The experiment
+makes the model signal-native: one signal, the step, written by the ticker, and each tile's value a
+=computed= of it that the two components of a tile read. The shared model
+(=apps/stress/dashboard/model.lisp=) stays as it is for the other two variants; the history the
+chart draws is still advanced by it.
+- The counting trap: if the signals move to a file of their own, the app shrinks by relocation.
+  The size counted is the app and the new model file together, next to the old app.
+- The shared model was written so that a step allocates nothing. 36 computed values may not keep
+  that, so the allocation per frame is measured against the reactive dashboard's own earlier
+  number, not against the other variants'.
+
+* What I expect
+Written down before anything is run, so that it can be wrong.
+- *Static trees gain nothing.* A tree whose children are named (counter, temperature, flight,
+  crud, the editor) is =(padding (column a b :gap 12) :all 24)= now and =(padding (:all 24)
+  (column (:gap 12) a b))= after: the same number of lines, and where an option list goes on a
+  line of its own, one more.
+- *Computed children gain a little.* The dashboards, =rows=, possibly =cells= and =circles= have an
+  =(apply #'row (append (loop ...) (list :gap ...)))=. That is perhaps ten lines each in the two
+  dashboards.
+- So the totals of retained and reactive move by less than 5 % (under about 40 lines), and more
+  than 85 % of the gap to immediate remains. The concepts do not change: the macros have the
+  names of the functions, and =apply= and =append= are not framework concepts.
+- Experiment 2: the app is about ten lines shorter and the new model file about as long, so the
+  two together are no shorter; a frame allocates the same or more.
+- If that holds, the gap is wiring (the handles, the setters, the signals and what routes a
+  change to them) and not syntax, which is what the change-cost edits (0024) pointed at: the
+  retained variant costs most where an edit needs what a widget held before, and a handle to
+  something to show or hide it.
+- What would show me wrong: the totals falling by more than 15 % of the gap, or the frames
+  differing.
+
+* Reporting
+The gap before minus the gap after is what API shape accounts for; what remains is wiring. Both
+are given as lines and as a share of the gap, per variant, for the seven 7GUIs tasks and for the
+three stress tasks. The loop difference is reported as it is. The result goes to the devlog, and
+whether the macros belong in the libraries is a proposed record, for Micah to decide: merging
+them into the apps of record changes what 0024 measured.
