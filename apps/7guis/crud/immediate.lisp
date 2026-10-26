@@ -19,6 +19,7 @@
                 #:column
                 #:row
                 #:text-field
+                #:choice
                 #:list-box)
   (:import-from #:almighty-bolt-variant-immediate/immediate
                 #:make-immediate-variant)
@@ -33,20 +34,27 @@
 (defun make-crud ()
   (let ((entries (make-entries '("Hans" "Emil") '("Max" "Mustermann") '("Roman" "Tisch")))
         (filter "")
+        (filter-index 0)
         (picked nil)
         (name "")
         (surname ""))
     (make-immediate-variant
      (lambda ()
-       (let* ((shown (entries-filtered entries filter))
+       (let* ((filter-on (zerop filter-index))
+              (shown (if filter-on (entries-filtered entries filter) (entries-list entries)))
               (picked-entry (find picked shown :key #'entry-id)))
          (padding (:all 20)
            (column (:gap 14)
-             (row (:gap 10 :cross-align :center)
-               (label "Filter prefix:")
-               (multiple-value-bind (text changed) (text-field :filter filter :width 160)
-                 (when changed
-                   (setf filter text))))
+             (multiple-value-bind (index changed)
+                 (choice :filter-switch '("filter on" "filter off") filter-index)
+               (when changed
+                 (setf filter-index index)))
+             (when filter-on
+               (row (:gap 10 :cross-align :center)
+                 (label "Filter prefix:")
+                 (multiple-value-bind (text changed) (text-field :filter filter :width 160)
+                   (when changed
+                     (setf filter text)))))
              (row (:gap 20)
                (multiple-value-bind (index changed)
                    (list-box :list (mapcar #'entry-display shown)
