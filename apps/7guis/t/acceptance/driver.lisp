@@ -21,6 +21,9 @@
            #:release-at
            #:move-to
            #:type-text
+           #:input-text
+           #:compose
+           #:text-input-caret
            #:press-key
            #:scroll
            #:scroll-points
@@ -193,6 +196,23 @@ second press counted by the platform as the second click."
 (defun type-text (driver string)
   (loop :for character :across string
         :do (press-key driver character)))
+
+(defun input-text (driver string)
+  "Deliver STRING as the input method of the system would: as text, not as keys."
+  (deliver driver (core:make-text-input-event :timestamp 0 :text string)))
+
+(defun compose (driver kind text &key (start (length text)) (length 0))
+  "Deliver a step of a composition (KIND is :started, :changed or :committed) of TEXT, with LENGTH
+characters selected from START in it."
+  (deliver driver (core:make-composition-event :timestamp 0 :kind kind :text text
+                                               :selection-start start :selection-length length)))
+
+(defun text-input-caret (driver)
+  "Whether the app takes text input, and where its caret is in the window: x, y, width, height."
+  (let ((context (driver-context driver)))
+    (values (core:context-text-input-p context)
+            (let ((rect (core:context-text-input-rect context)))
+              (list (aref rect 0) (aref rect 1) (aref rect 2) (aref rect 3))))))
 
 (defun scroll (driver id dy)
   "Scroll the wheel by DY over the middle of the control ID."

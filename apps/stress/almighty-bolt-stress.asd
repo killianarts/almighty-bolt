@@ -7,18 +7,21 @@
   :serial t
   :depends-on ("almighty-bolt-core")
   :components ((:module "dashboard" :components ((:file "model") (:file "paint")))
-               (:module "rows" :components ((:file "model") (:file "paint"))))
+               (:module "rows" :components ((:file "model") (:file "paint")))
+               (:module "editor"
+                :components ((:file "model") (:file "paint") (:file "control"))))
   :in-order-to ((test-op (test-op "almighty-bolt-stress/tests"))))
 
 (defsystem "almighty-bolt-stress/tests"
   :depends-on ("almighty-bolt-stress" "almighty-bolt-variant-support" "lisp-unit2")
   :components ((:module "t"
                 :serial t
-                :components ((:file "dashboard") (:file "rows"))))
+                :components ((:file "dashboard") (:file "rows") (:file "editor"))))
   :perform (test-op (o s)
                     (let* ((results
                              (loop :for package :in '(:almighty-bolt-stress/t/dashboard
-                                                      :almighty-bolt-stress/t/rows)
+                                                      :almighty-bolt-stress/t/rows
+                                                      :almighty-bolt-stress/t/editor)
                                    :collect (uiop:symbol-call :lisp-unit2 :run-tests
                                                               :package package)))
                            (bad (loop :for db :in results
@@ -34,21 +37,24 @@
   :depends-on ("almighty-bolt-stress" "almighty-bolt-7guis" "almighty-bolt-variant-retained")
   :serial t
   :components ((:module "dashboard" :components ((:file "retained")))
-               (:module "rows" :components ((:file "retained")))))
+               (:module "rows" :components ((:file "retained")))
+               (:module "editor" :components ((:file "retained")))))
 
 (defsystem "almighty-bolt-stress/reactive"
   :description "The stress apps in the reactive variant"
   :depends-on ("almighty-bolt-stress" "almighty-bolt-7guis" "almighty-bolt-variant-reactive")
   :serial t
   :components ((:module "dashboard" :components ((:file "reactive")))
-               (:module "rows" :components ((:file "reactive")))))
+               (:module "rows" :components ((:file "reactive")))
+               (:module "editor" :components ((:file "reactive")))))
 
 (defsystem "almighty-bolt-stress/immediate"
   :description "The stress apps in the immediate variant"
   :depends-on ("almighty-bolt-stress" "almighty-bolt-7guis" "almighty-bolt-variant-immediate")
   :serial t
   :components ((:module "dashboard" :components ((:file "immediate")))
-               (:module "rows" :components ((:file "immediate")))))
+               (:module "rows" :components ((:file "immediate")))
+               (:module "editor" :components ((:file "immediate")))))
 
 (defsystem "almighty-bolt-stress/acceptance"
   :description "The same behavioural tests for every variant's version of every stress app"
@@ -57,11 +63,12 @@
   :components ((:module "t"
                 :components ((:module "acceptance"
                               :serial t
-                              :components ((:file "dashboard") (:file "rows"))))))
+                              :components ((:file "dashboard") (:file "rows") (:file "editor"))))))
   :perform (test-op (o s)
                     (let* ((results
                              (loop :for package :in '(:almighty-bolt-stress/t/acceptance/dashboard
-                                                      :almighty-bolt-stress/t/acceptance/rows)
+                                                      :almighty-bolt-stress/t/acceptance/rows
+                                                      :almighty-bolt-stress/t/acceptance/editor)
                                    :collect (uiop:symbol-call :lisp-unit2 :run-tests
                                                               :package package)))
                            (bad (loop :for db :in results
