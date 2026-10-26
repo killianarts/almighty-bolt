@@ -89,3 +89,39 @@
   (replace-text driver :name "Ronald")
   (d:click driver :update)
   (assert-equal "Tisch, Ronald" (listed driver)))
+
+;;; --- E4 (notes/change-cost.org): the filter row is hidden behind a switch. The switch is a
+;;; choice of two options, :filter-switch ("filter on" first); while it is off the row is not on
+;;; the screen and the list shows everybody. ---
+
+(defun filter-shown-p (driver)
+  "True if the filter field is on the screen: it has a place, with a size."
+  (let ((rectangle (d:rectangle driver :filter)))
+    (and rectangle (plusp (third rectangle)) (plusp (fourth rectangle)))))
+
+(defun turn-filter-off (driver)
+  (d:click-at driver :filter-switch 0.8 0.5))
+
+(defun turn-filter-on (driver)
+  (d:click-at driver :filter-switch 0.15 0.5))
+
+(d:define-acceptance the-filter-row-is-shown-at-first :crud
+  (assert-true (filter-shown-p driver)))
+
+(d:define-acceptance turning-the-switch-off-hides-the-filter-row :crud
+  (turn-filter-off driver)
+  (assert-false (filter-shown-p driver)))
+
+(d:define-acceptance with-the-filter-off-the-list-shows-everybody :crud
+  (replace-text driver :filter "m")
+  (assert-equal "Mustermann, Max" (listed driver))
+  (turn-filter-off driver)
+  (assert-equal "Emil, HansMustermann, MaxTisch, Roman" (listed driver)))
+
+(d:define-acceptance turning-the-filter-on-again-brings-back-the-row-and-what-it-held :crud
+  (replace-text driver :filter "t")
+  (turn-filter-off driver)
+  (turn-filter-on driver)
+  (assert-true (filter-shown-p driver))
+  (assert-equal "t" (d:text-in driver :filter))
+  (assert-equal "Tisch, Roman" (listed driver)))
