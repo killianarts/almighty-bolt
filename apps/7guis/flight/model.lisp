@@ -6,12 +6,13 @@
            #:flight-valid-p
            #:date-text-valid-p
            #:return-date-enabled-p
+           #:return-date-invalid-p
            #:booking-message))
 
 (in-package #:almighty-bolt-7guis/flight/model)
 
 ;;; The flight booker's logic: dates are written dd.mm.yyyy; a one-way flight needs one
-;;; valid date and a return flight two, the second not before the first.
+;;; valid date, and a return flight a second, not before the first, or none (an open return).
 
 (defun leap-year-p (year)
   (and (zerop (mod year 4)) (or (plusp (mod year 100)) (zerop (mod year 400)))))
@@ -56,12 +57,20 @@ with real numbers: two digits, a point, two digits, a point and four digits."
 :RETURN."
   (eq kind :return))
 
+(defun return-date-invalid-p (kind return-text)
+  "True if RETURN-TEXT is to be shown as wrong: a return flight whose return date is not
+empty and is not a date."
+  (and (eq kind :return)
+       (plusp (length return-text))
+       (not (date-text-valid-p return-text))))
+
 (defun flight-valid-p (kind start-text return-text)
-  "True if the flight can be booked: a valid start date, and for a return flight a
-valid return date that is not before it."
+  "True if the flight can be booked: a valid start date, and for a return flight either no
+return date or a valid one that is not before it."
   (let ((start (parse-date start-text)))
     (and start
          (or (eq kind :one-way)
+             (zerop (length return-text))
              (let ((return (parse-date return-text)))
                (and return (not (date< return start))))))))
 
@@ -69,4 +78,6 @@ valid return date that is not before it."
   "What the task says when the flight is booked."
   (ecase kind
     (:one-way (format nil "Booked a one-way flight on ~a." start-text))
-    (:return (format nil "Booked a return flight, ~a to ~a." start-text return-text))))
+    (:return (if (zerop (length return-text))
+                 (format nil "Booked an open return flight from ~a." start-text)
+                 (format nil "Booked a return flight, ~a to ~a." start-text return-text)))))

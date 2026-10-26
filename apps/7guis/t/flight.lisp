@@ -34,9 +34,21 @@
   (assert-false (m:flight-valid-p :return "27.04.2014" "nonsense"))
   (assert-false (m:flight-valid-p :return "nonsense" "28.04.2014")))
 
+(define-test a-return-flight-may-have-no-return-date ()
+  (assert-true (m:flight-valid-p :return "27.04.2014" ""))
+  (assert-false (m:flight-valid-p :return "nonsense" ""))
+  (assert-false (m:return-date-invalid-p :return ""))
+  (assert-false (m:return-date-invalid-p :one-way "nonsense"))
+  (assert-true (m:return-date-invalid-p :return "nonsense"))
+  (assert-false (m:return-date-invalid-p :return "28.04.2014")))
+
 (define-test only-a-return-flight-has-a-return-date ()
   (assert-true (m:return-date-enabled-p :return))
   (assert-false (m:return-date-enabled-p :one-way)))
+
+(define-test an-open-return-says-so ()
+  (assert-equal "Booked an open return flight from 27.04.2014."
+                (m:booking-message :return "27.04.2014" "")))
 
 (define-test the-booking-says-what-was-booked ()
   (assert-equal "Booked a one-way flight on 27.04.2014."
