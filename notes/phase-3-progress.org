@@ -1,0 +1,31 @@
+#+TITLE: Phase 3 run: instrumentation, change cost, stress apps
+
+Micah's go-ahead of 2026-10-26: steps 1 to 3 of the order I suggested, in this order.
+
+1. Instrumentation and metrics (host phases, trace output, settle statistics, idle floor,
+   startup, memory, image size, compile time).
+2. Change-cost tests and size counts on the 7GUIs apps (the rubric is Micah's to score).
+3. Stress apps: animated dashboard, million-row list, text editor (IME hooks first).
+
+Micah has a spare Mac, old and not arm64: possibly useful for speed benchmarks later. The code
+assumes arm64 in places (struct passing through objc_msgSend), so using it is a porting task of
+its own; result records already hold the machine profile.
+
+* Rules for this run
+- New decisions are records with status proposed until Micah accepts them.
+- Commit with =scripts/auto-commit.sh= only when =make test= passes (chain with &&).
+- Do not push without Micah's say-so.
+- Stop for genuine decisions: the build-time switch for instrumentation, a C shim for the IME,
+  edit targets for the change-cost tests, and whether to merge the change-cost patches.
+- Mutation-check each new counter or metric.
+
+* Status
+(newest last)
+- Plan checked by the advisor; two spikes first: saving an executable image (startup time and
+  image size depend on it) and returning structs from a Lisp callback (the IME's
+  firstRectForCharacterRange).
+
+* Review queue
+(records proposed in this run)
+
+* Open decisions for Micah
