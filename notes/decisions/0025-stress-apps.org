@@ -69,26 +69,48 @@ Lines of code of each variant's own file for the app, and what the three share:
   than what differs: for the editor a variant's own file is a ninth of the code.
 
 The build of a frame with no window (the real text engine; median of 10
-repetitions after 3 warm-ups) and the bytes consed in it:
+repetitions after 3 warm-ups) and the bytes consed in it (the immediate column
+includes the handling of events; see below):
   | App       | Retained      | Reactive       | Immediate       |
   |-----------+---------------+----------------+-----------------|
   | dashboard |  48 us, 0.4 K |  74 us, 27.5 K |  85 us, 0 B     |
   | rows      |  29 us, 1.7 K |  30 us,  2.3 K |  66 us, 3.0 K   |
   | editor    |  46 us, 2.5 K | 48 us,   4.2 K | 188 us, 11.7 K  |
-- In the rows and editor scripts every frame has an input and the immediate
-  variant builds twice (2.00 builds a frame, as in the 7GUIs scripts: an input
-  changes state while it is built, so it is built again); in the dashboard it
-  builds once. The immediate variant is slowest in all three; its first frame
-  conses 1.7 to 2.0 MB (the others 0 to 262 K). Where the bytes in a frame come
-  from was not traced.
+- This table is not like for like, and the immediate column is inflated by it. A
+  frame's sample is the time and bytes in =frame=. In the immediate variant the
+  app handles an event while it builds the frame (the canvas returns the events
+  and the app acts on them there), so the sample includes what the editor does
+  to the document; in the retained and reactive variants the handler runs in
+  =handle-event=, which the harness does not time or count. With the editor's
+  painter and status text stubbed out the immediate frame still allocates 17.6
+  KB for a typed character, a text event, a Return or a composition step, and
+  nothing for an arrow, a selection or the wheel, and the retained frame
+  nothing: the 17.6 KB is the edit of the document (=editor-key= allocates 15.7
+  KB a call inside the immediate frame). It is the same work in the three
+  variants.
+- Both together, by event (the real text engine; microseconds of =handle-event=
+  and the frame, last 200 events of a script; retained, reactive and immediate):
+  arrows 44, 44 and 101; wheel 49, 45 and 97; typed characters 573, 574 and 704;
+  Return 526, 503 and 509; text from the input method 758, 953 and 1172; a
+  composition step 290, 241 and 273. On an edit the three cost about the same,
+  and most of it is the model's (about 100 us in =handle-event= for an edit with
+  a line index of 20,000 entries); on an event that changes nothing the
+  immediate variant costs twice as much, which is its second build (in every
+  frame that has an input, 2.00 builds a frame, as in the 7GUIs scripts). Bytes
+  by event are not reliable below about 10 KB with the counter of SBCL, which
+  moves by allocation regions; the 17.6 KB is not in doubt, the 1 KB differences
+  are. The dashboard has no input and is not affected: it builds once, and its
+  immediate frame allocates nothing and its reactive 27.5 KB. Its first frame in
+  the immediate variant conses 1.7 to 2.0 MB (the others 0 to 262 K).
 - Through the host into an off-screen texture (instrumentation on, variants
   interleaved), the frame takes about the same in the three variants in every
   app: dashboard 1091, 1092 and 1082 us; rows 805, 811 and 814; editor 742, 658
   and 786, with ranges that overlap (the editor's 95th percentiles are 1353,
   1097 and 1219). The build is an eighth to a third of the frame; the wait for
   the GPU is most of the rest. The variants differ in the build (editor 116, 133
-  and 278 us) and not in the frame. These are not a window's numbers (no vsync,
-  no drawable).
+  and 278 us, of which the immediate includes the handling of events, as above)
+  and not in the frame. These are not a window's numbers (no vsync, no
+  drawable).
 
 In a window, from outside (executables made by =make image=; 5 launches; ten
 seconds after the first frame, or after it was quiet):
@@ -137,16 +159,17 @@ What the editor showed about the interfaces:
 * Decision
 Proposed: keep the three apps, their scripts and tests as the stress set, and
 the bounded cache. H1 and H3 stay OPEN. The stress apps lean the way the small
-ones did on code size (the immediate variant's file is smallest) and on
-allocation (the immediate variant's frame costs the most, except in the
-dashboard where the reactive conses 27 K a frame), and show no difference in
-frame time through the host or in a window; that is the shape H1 expects, from
-one machine, one author and three apps. On H3, the input method needed the same
-two hooks on the canvas and the same controller in the three variants; adding
-the hooks to the libraries took 61, 16 and 44 lines in the retained, reactive
-and immediate (it routes text to the focused node by generic functions in the
-retained), which is one datum and not a verdict; what H3 says about
-accessibility and the machine interface is for step 4.
+ones did on code size (the immediate variant's file is smallest) and show no
+difference in frame time through the host or in a window, nor, once the handling
+of an event is counted with the frame, in the cost of an edit (on allocation,
+the one app with no input shows the reactive variant at 27 K a frame and the
+immediate at none); that is the shape H1 expects, from one machine, one author
+and three apps. On H3, the input method needed the same two hooks on the canvas
+and the same controller in the three variants; adding the hooks to the libraries
+took 61, 16 and 44 lines in the retained, reactive and immediate (it routes text
+to the focused node by generic functions in the retained), which is one datum
+and not a verdict; what H3 says about accessibility and the machine interface is
+for step 4.
 
 Proposed, and for Micah to choose: (a) =set-text-input-caret= takes the caret in
 the canvas's own coordinates and the variant adds the canvas's place, so that an
@@ -154,7 +177,10 @@ app does not have to ask where its canvas is; (b) an =unclip= keeps no rectangle
 (=push-unclip= and =append-display-list= leave it zero), so that a display list
 and its hash are the same across variants; (c) handlers are given the context,
 or the canvas keeps the lines it laid out, if a proportional-font editor is
-wanted. None is done.
+wanted; (d) the harness times and counts =handle-event= with the frame, for
+every variant, so that the cost of an event is the same thing in each (the
+records of the 7GUIs scripts and of 0021 and 0023 have the asymmetry described
+above, and their tables of the build are of the frame only). None is done.
 
 * Consequences
 - Easier: three apps that stress the text cache, the scroll, the animation and

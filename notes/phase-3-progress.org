@@ -54,3 +54,8 @@ its own; result records already hold the machine profile.
   VARIANT=immediate=, then switch to a Japanese or Chinese keyboard and type; the candidate window
   should be beside the caret.
 - Not pushed: all commits since =7f11e02= are local (tests pass at each).
+- 0025 (d): the harness counts the frame but not =handle-event=, and an immediate app handles events
+  inside the frame, so its build looks slower and allocates more than the others'. Counting both for
+  every variant is a change to the host and headless runs, and the records of the 7GUIs scripts and of
+  0021 and 0023 would be run again. (Found by asking why the immediate editor allocates more; 0025 says
+  so.)

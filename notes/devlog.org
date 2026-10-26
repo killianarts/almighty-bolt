@@ -1423,13 +1423,15 @@ tests, the same acceptance tests for the three variants, replay scripts (apps/st
 results (headless, host, and the executables in windows) and record 0025 (proposed).
 ** What I measured
 A variant's own file for the app is smallest in the immediate variant in all three (56, 70 and 59
-lines against 78, 88, 74 retained and 83, 87, 74 reactive). The build of a frame is the slowest in
-the immediate variant (editor 188 us against 46 and 48; two builds in every frame that has an
-input), the frame through the host is the same in all three (the GPU's wait is most of it), the rows
-and the editor draw nothing and use no CPU when left alone in all three, and the dashboard uses 8 to
-10% of a core at 60 frames a second in all three. The retained and reactive display lists of the
-editor session hash the same at all 394 checkpoints; the immediate differs in the unused rectangle
-of an unclip.
+lines against 78, 88, 74 retained and 83, 87, 74 reactive). The build of a frame was the slowest in
+the immediate variant (editor 188 us against 46 and 48), but that compares unlike things: in
+immediate the app handles an event inside the frame, in retained and reactive in handle-event, which
+the harness does not count. With both counted an edit costs 573, 574 and 704 us and an event that
+changes nothing 44, 44 and 101 (immediate builds twice). The frame through the host is the same in
+all three (the GPU's wait is most of it), the rows and the editor draw nothing and use no CPU when
+left alone in all three, and the dashboard uses 8 to 10% of a core at 60 frames a second in all
+three. The retained and reactive display lists of the editor session hash the same at all 394
+checkpoints; the immediate differs in the unused rectangle of an unclip.
 ** What went wrong on the way
 The million rows grew the heap without bound: the text engine's cache of laid-out lines never let
 anything go; it is now two generations of 4096. The dashboard never goes quiet, so the app metrics
@@ -1440,7 +1442,9 @@ painter does not know where it is; all three now ask lookup-target. Several of m
 expectations were wrong (a column miscounted, a position after an insert, a click left of the text
 that I expected at the end of a line, a page counted from the wrong line, a long line I expected to
 be longer, a helper that did not set the column a vertical move keeps); each time the code was
-right.
+right. I also reported the immediate variant's frame as slower and heavier than the others for the
+editor and rows, and was asked why: its frame includes the app's handling of the event and the
+others' does not (0025 now says so; the harness is for Micah to decide, 0025 (d)).
 ** Not done
 A real input method tried by a person (Japanese, Chinese, an accent menu); the caret's coordinates
 in the canvas's own (open in 0025); handlers that can measure text; why the dashboard's lists differ
