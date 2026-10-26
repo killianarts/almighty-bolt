@@ -62,7 +62,9 @@
             book (button "Book" :id :book :on-click #'book-it)
             message (label "" :id :message))
       (refresh)
-      (make-retained-variant (padding (column kind start return book message :gap 12)
+      (make-retained-variant (padding (row (column kind start return :gap 12)
+                                           (column book message :gap 12)
+                                           :gap 24)
                                       :all 24)))))
 
-(register-app :retained :flight #'make-flight :width 460 :height 290)
+(register-app :retained :flight #'make-flight :width 700 :height 220)
