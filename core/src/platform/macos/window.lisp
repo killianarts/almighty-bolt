@@ -6,7 +6,8 @@
                 #:ns-string
                 #:release
                 #:define-callback
-                #:ensure-class
+                #:define-runtime-class
+                #:define-startup
                 #:ivar-offset
                 #:instance-slot
                 #:register-object
@@ -88,17 +89,17 @@
   (funcall (window-event-handler (window-of self *delegate-slot-offset*))
            (make-focus-event :timestamp (now-ns) :focused-p nil)))
 
-(defvar *delegate-class*
-  (ensure-class "AlmightyBoltWindowDelegate" "NSObject"
-                :ivars '(("lispSlot" 8 3 "Q"))
-                :methods '(("windowWillClose:" "v@:@" window-will-close)
-                           ("windowDidResize:" "v@:@" window-did-resize)
-                           ("windowDidChangeBackingProperties:" "v@:@"
-                            window-did-change-backing-properties)
-                           ("windowDidBecomeKey:" "v@:@" window-did-become-key)
-                           ("windowDidResignKey:" "v@:@" window-did-resign-key))))
+(define-runtime-class *delegate-class* "AlmightyBoltWindowDelegate" "NSObject"
+  :ivars '(("lispSlot" 8 3 "Q"))
+  :methods '(("windowWillClose:" "v@:@" window-will-close)
+             ("windowDidResize:" "v@:@" window-did-resize)
+             ("windowDidChangeBackingProperties:" "v@:@"
+              window-did-change-backing-properties)
+             ("windowDidBecomeKey:" "v@:@" window-did-become-key)
+             ("windowDidResignKey:" "v@:@" window-did-resign-key)))
 
-(setf *delegate-slot-offset* (ivar-offset *delegate-class* "lispSlot"))
+(define-startup window-delegate-offset
+  (setf *delegate-slot-offset* (ivar-offset *delegate-class* "lispSlot")))
 
 (defun make-window (&key (title "") (width 480) (height 320)
                       (event-handler #'identity) (on-close (lambda ())))

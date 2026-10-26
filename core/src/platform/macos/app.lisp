@@ -7,7 +7,7 @@
                 #:release
                 #:register-selector
                 #:define-callback
-                #:ensure-class
+                #:define-runtime-class
                 #:with-autorelease-pool
                 #:with-masked-float-traps)
   (:import-from #:almighty-bolt-core/platform/macos/main-queue
@@ -28,10 +28,9 @@
     ((self sb-alien:unsigned-long) (cmd sb-alien:unsigned-long) (app sb-alien:unsigned-long))
   1)
 
-(defvar *app-delegate-class*
-  (ensure-class "AlmightyBoltAppDelegate" "NSObject"
-                :methods '(("applicationShouldTerminateAfterLastWindowClosed:" "B@:@"
-                            app-should-terminate-after-last-window-closed))))
+(define-runtime-class *app-delegate-class* "AlmightyBoltAppDelegate" "NSObject"
+  :methods '(("applicationShouldTerminateAfterLastWindowClosed:" "B@:@"
+              app-should-terminate-after-last-window-closed)))
 
 (defun shared-application ()
   (msg-send :id (objc-class "NSApplication") "sharedApplication"))

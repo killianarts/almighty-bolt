@@ -19,8 +19,7 @@
 
 (dolist (framework '("CoreFoundation" "CoreGraphics" "CoreText"))
   (sb-alien:load-shared-object
-   (format nil "/System/Library/Frameworks/~a.framework/~a" framework framework)
-   :dont-save t))
+   (format nil "/System/Library/Frameworks/~a.framework/~a" framework framework)))
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (defun alien-type-for (type)

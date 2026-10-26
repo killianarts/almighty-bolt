@@ -15,6 +15,9 @@
            #:callable-address
            #:define-callback
            #:ensure-class
+           #:define-runtime-class
+           #:define-startup
+           #:reinitialize-objc
            #:ivar-offset
            #:instance-slot
            #:register-object
@@ -32,6 +35,12 @@
 ;;; argument list for each call site. It is never called through a variadic
 ;;; interface: Apple's arm64 convention passes variadic arguments on the stack,
 ;;; which objc_msgSend does not expect.
+;;;
+;;; A saved image keeps none of what the process learned from the runtime: the addresses
+;;; of classes and selectors, and the classes made at run time, are the old process's.
+;;; So a literal class or selector is a cell that is filled in when the code is loaded and
+;;; again when an image starts (REINITIALIZE-OBJC), the classes made with
+;;; DEFINE-RUNTIME-CLASS are made again, and DEFINE-STARTUP forms are run again.
 
 (deftype id () '(unsigned-byte 64))
 
@@ -39,8 +48,7 @@
 
 (dolist (framework '("Foundation" "AppKit" "QuartzCore" "Metal" "MetalKit"))
   (sb-alien:load-shared-object
-   (format nil "/System/Library/Frameworks/~a.framework/~a" framework framework)
-   :dont-save t))
+   (format nil "/System/Library/Frameworks/~a.framework/~a" framework framework)))
 
 ;;; Geometry. These are only used as the result types of messages such as
 ;;; -[NSView bounds]. Struct results come back through sb-alien. Struct
@@ -80,13 +88,36 @@
                           (function sb-alien:unsigned-long sb-alien:c-string))
    name))
 
+(defstruct (cell (:constructor make-cell (kind name)))
+  "A class or a selector looked up by name, whose address is filled in at load time and
+again when an image starts."
+  (kind :class :type (member :class :selector) :read-only t)
+  (name "" :type string :read-only t)
+  (value 0 :type (unsigned-byte 64)))
+
+(defvar *cells* '()
+  "Every cell made, so that they can be filled in again.")
+
+(defun resolve-cell (cell)
+  (setf (cell-value cell)
+        (ecase (cell-kind cell)
+          (:class (find-objc-class (cell-name cell)))
+          (:selector (register-selector (cell-name cell))))))
+
+(defun make-resolved-cell (kind name)
+  (let ((cell (make-cell kind name)))
+    (resolve-cell cell)
+    (push cell *cells*)
+    cell))
+
 (defmacro objc-class (name)
-  "The class called NAME, looked up once when the code is loaded."
-  `(load-time-value (find-objc-class ,name)))
+  "The class called NAME, looked up once when the code is loaded (and when an image
+starts)."
+  `(cell-value (load-time-value (make-resolved-cell :class ,name))))
 
 (defmacro selector (name)
-  "The selector NAME, looked up once when the code is loaded."
-  `(load-time-value (register-selector ,name)))
+  "The selector NAME, looked up once when the code is loaded (and when an image starts)."
+  `(cell-value (load-time-value (make-resolved-cell :selector ,name))))
 
 ;;; Sending messages
 
@@ -309,6 +340,56 @@ effect."
                                 (function sb-alien:void sb-alien:unsigned-long))
          class)
         class)))
+
+;;; Classes made at run time are made again when an image starts. A class is kept in a
+;;; variable, which is set again.
+
+(defvar *runtime-classes* '()
+  "The specifications (variable name superclass ivars methods) of the classes made with
+DEFINE-RUNTIME-CLASS, oldest last.")
+
+(defvar *startup-hooks* '()
+  "Functions that run, oldest last, after the classes are made again when an image starts.")
+
+(defun make-runtime-class (specification)
+  (destructuring-bind (variable name superclass ivars methods) specification
+    (setf (symbol-value variable)
+          (ensure-class name superclass :ivars ivars :methods methods))))
+
+(defun register-runtime-class (variable name superclass ivars methods)
+  (let ((specification (list variable name superclass ivars methods)))
+    (setf *runtime-classes*
+          (cons specification (remove variable *runtime-classes* :key #'first)))
+    (make-runtime-class specification)))
+
+(defmacro define-runtime-class (variable name superclass &key ivars methods)
+  "Make the class NAME (see ENSURE-CLASS), keep it in VARIABLE, and make it again when an
+image starts."
+  `(progn
+     (defvar ,variable nil)
+     (register-runtime-class ',variable ,name ,superclass ,ivars ,methods)))
+
+(defmacro define-startup (name &body body)
+  "Run BODY now, and again when an image starts, after the classes are made again. NAME
+says which it is, and a second definition of it replaces the first."
+  `(let ((function (lambda () ,@body)))
+     (setf *startup-hooks* (cons (cons ',name function)
+                                 (remove ',name *startup-hooks* :key #'car)))
+     (funcall function)))
+
+(defun reinitialize-objc ()
+  "Fill in the addresses of classes and selectors, make the run-time classes, and run the
+startup forms again: what an image that was saved needs when it starts. It runs by itself
+at the start of an image, from SB-EXT:*INIT-HOOKS*."
+  (dolist (cell (reverse *cells*))
+    (resolve-cell cell))
+  (dolist (specification (reverse *runtime-classes*))
+    (make-runtime-class specification))
+  (dolist (hook (reverse *startup-hooks*))
+    (funcall (cdr hook)))
+  (setf *objects* (make-array 64 :initial-element nil)))
+
+(pushnew 'reinitialize-objc sb-ext:*init-hooks*)
 
 (defun ivar-offset (class name)
   "The byte offset of the instance variable NAME within an instance of CLASS."

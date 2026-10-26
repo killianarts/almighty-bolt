@@ -4,7 +4,8 @@
                 #:msg-send
                 #:objc-class
                 #:define-callback
-                #:ensure-class
+                #:define-runtime-class
+                #:define-startup
                 #:ivar-offset
                 #:instance-slot
                 #:register-object
@@ -101,32 +102,32 @@
 ;;; same pointer events (a drag is a move with buttons down), so their methods
 ;;; use the same callbacks.
 
-(defvar *view-class*
-  (ensure-class "AlmightyBoltView" "MTKView"
-                :ivars '(("lispSlot" 8 3 "Q"))
-                :methods '(("drawInMTKView:" "v@:@" view-draw)
-                           ("mtkView:drawableSizeWillChange:" "v@:@{CGSize=dd}"
-                            view-drawable-size-will-change)
-                           ("isFlipped" "B@:" view-yes)
-                           ("acceptsFirstResponder" "B@:" view-yes)
-                           ("acceptsFirstMouse:" "B@:@" view-yes-for-event)
-                           ("mouseDown:" "v@:@" view-mouse-down)
-                           ("rightMouseDown:" "v@:@" view-mouse-down)
-                           ("otherMouseDown:" "v@:@" view-mouse-down)
-                           ("mouseUp:" "v@:@" view-mouse-up)
-                           ("rightMouseUp:" "v@:@" view-mouse-up)
-                           ("otherMouseUp:" "v@:@" view-mouse-up)
-                           ("mouseDragged:" "v@:@" view-mouse-moved)
-                           ("rightMouseDragged:" "v@:@" view-mouse-moved)
-                           ("otherMouseDragged:" "v@:@" view-mouse-moved)
-                           ("mouseMoved:" "v@:@" view-mouse-moved)
-                           ("mouseEntered:" "v@:@" view-mouse-entered)
-                           ("mouseExited:" "v@:@" view-mouse-exited)
-                           ("scrollWheel:" "v@:@" view-scroll-wheel)
-                           ("keyDown:" "v@:@" view-key-down)
-                           ("keyUp:" "v@:@" view-key-up))))
+(define-runtime-class *view-class* "AlmightyBoltView" "MTKView"
+  :ivars '(("lispSlot" 8 3 "Q"))
+  :methods '(("drawInMTKView:" "v@:@" view-draw)
+             ("mtkView:drawableSizeWillChange:" "v@:@{CGSize=dd}"
+              view-drawable-size-will-change)
+             ("isFlipped" "B@:" view-yes)
+             ("acceptsFirstResponder" "B@:" view-yes)
+             ("acceptsFirstMouse:" "B@:@" view-yes-for-event)
+             ("mouseDown:" "v@:@" view-mouse-down)
+             ("rightMouseDown:" "v@:@" view-mouse-down)
+             ("otherMouseDown:" "v@:@" view-mouse-down)
+             ("mouseUp:" "v@:@" view-mouse-up)
+             ("rightMouseUp:" "v@:@" view-mouse-up)
+             ("otherMouseUp:" "v@:@" view-mouse-up)
+             ("mouseDragged:" "v@:@" view-mouse-moved)
+             ("rightMouseDragged:" "v@:@" view-mouse-moved)
+             ("otherMouseDragged:" "v@:@" view-mouse-moved)
+             ("mouseMoved:" "v@:@" view-mouse-moved)
+             ("mouseEntered:" "v@:@" view-mouse-entered)
+             ("mouseExited:" "v@:@" view-mouse-exited)
+             ("scrollWheel:" "v@:@" view-scroll-wheel)
+             ("keyDown:" "v@:@" view-key-down)
+             ("keyUp:" "v@:@" view-key-up)))
 
-(setf *view-slot-offset* (ivar-offset *view-class* "lispSlot"))
+(define-startup view-slot-offset
+  (setf *view-slot-offset* (ivar-offset *view-class* "lispSlot")))
 
 (defconstant +tracking-options+
   (logior 1       ; NSTrackingMouseEnteredAndExited

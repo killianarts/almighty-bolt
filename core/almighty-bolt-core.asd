@@ -112,6 +112,7 @@
                     :serial t
                     :components
                     ((:file "objc")
+                     (:file "image")
                      (:file "ns-event")
                      (:file "host")))))
                  (:module "text"
@@ -151,6 +152,7 @@
                                                       :almighty-bolt-core/t/layout/tree
                                                       :almighty-bolt-core/t/package
                                                       #+darwin :almighty-bolt-core/t/platform/macos/objc
+                                                      #+darwin :almighty-bolt-core/t/platform/macos/image
                                                       #+darwin :almighty-bolt-core/t/platform/macos/ns-event
                                                       #+darwin :almighty-bolt-core/t/platform/macos/host
                                                       #+darwin :almighty-bolt-core/t/text/line
