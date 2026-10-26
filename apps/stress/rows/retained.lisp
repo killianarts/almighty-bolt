@@ -17,11 +17,12 @@
                 #:status-text)
   (:import-from #:almighty-bolt-stress/rows/paint
                 #:paint-rows)
-  (:import-from #:almighty-bolt-variant-retained/widgets
-                #:label
-                #:label-text
+  (:import-from #:almighty-bolt-variant-retained/builder
                 #:padding
                 #:column)
+  (:import-from #:almighty-bolt-variant-retained/widgets
+                #:label
+                #:label-text)
   (:import-from #:almighty-bolt-variant-retained/inputs
                 #:canvas
                 #:canvas-invalidate)
@@ -91,6 +92,7 @@
                                 :paint #'paint :on-press #'press :on-drag #'drag
                                 :on-release #'release :on-key #'key :on-wheel #'scroll))
       (make-retained-variant
-       (padding (column status list-canvas :gap 12) :all 20)))))
+       (padding (:all 20)
+         (column (:gap 12) status list-canvas))))))
 
 (register-app :retained :rows #'make-rows-app :width 640 :height 470)

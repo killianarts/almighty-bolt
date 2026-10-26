@@ -6,12 +6,13 @@
                 #:make-signal
                 #:value
                 #:update)
-  (:import-from #:almighty-bolt-variant-reactive/views
-                #:label
-                #:button
+  (:import-from #:almighty-bolt-variant-reactive/builder
                 #:padding
                 #:row
                 #:component)
+  (:import-from #:almighty-bolt-variant-reactive/views
+                #:label
+                #:button)
   (:import-from #:almighty-bolt-variant-reactive/reactive
                 #:make-reactive-variant)
   (:export #:make-counter))
@@ -26,11 +27,11 @@
   (let ((count (make-signal 0)))
     (make-reactive-variant
      (lambda ()
-       (padding (row (component (lambda ()
-                                  (label (princ-to-string (value count)) :id :count :size 32)))
-                     (button "Count" :id :count-button
-                                     :on-click (lambda () (update count #'1+)))
-                     :gap 16 :cross-align :center)
-                :all 24)))))
+       (padding (:all 24)
+         (row (:gap 16 :cross-align :center)
+           (component ()
+             (label (princ-to-string (value count)) :id :count :size 32))
+           (button "Count" :id :count-button
+                           :on-click (lambda () (update count #'1+)))))))))
 
 (register-app :reactive :counter #'make-counter :width 360 :height 160)

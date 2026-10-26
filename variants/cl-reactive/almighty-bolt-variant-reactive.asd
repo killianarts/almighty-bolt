@@ -9,6 +9,7 @@
   :depends-on ("almighty-bolt-core" "almighty-bolt-variant-retained")
   :components ((:file "signals")
                (:file "views")
+               (:file "builder")
                (:file "elements")
                (:file "reactive"))
   :in-order-to ((test-op (test-op "almighty-bolt-variant-reactive/tests"))))
@@ -21,11 +22,13 @@
                 :components
                 ((:file "signals")
                  (:file "elements")
+                 (:file "builder")
                  (:file "reactive"))))
   :perform (test-op (o s)
                     (let* ((results
                              (loop :for package :in '(:almighty-bolt-variant-reactive/t/signals
                                                       :almighty-bolt-variant-reactive/t/elements
+                                                      :almighty-bolt-variant-reactive/t/builder
                                                       :almighty-bolt-variant-reactive/t/reactive)
                                    :collect (uiop:symbol-call :lisp-unit2 :run-tests
                                                               :package package)))

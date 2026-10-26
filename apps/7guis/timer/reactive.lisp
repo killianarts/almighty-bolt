@@ -12,15 +12,16 @@
   (:import-from #:almighty-bolt-variant-reactive/signals
                 #:make-signal
                 #:value)
-  (:import-from #:almighty-bolt-variant-reactive/views
-                #:label
-                #:button
+  (:import-from #:almighty-bolt-variant-reactive/builder
                 #:padding
                 #:column
                 #:row
-                #:progress
-                #:slider
                 #:component)
+  (:import-from #:almighty-bolt-variant-reactive/views
+                #:label
+                #:button
+                #:progress
+                #:slider)
   (:import-from #:almighty-bolt-variant-reactive/reactive
                 #:make-reactive-variant
                 #:add-ticker)
@@ -40,28 +41,27 @@
          (variant
            (make-reactive-variant
             (lambda ()
-              (padding
-               (column (row (label "Elapsed time:")
-                            (component (lambda ()
-                                         (progress :id :gauge :width 240
-                                                   :fraction (timer-fraction
-                                                              (make-timer :duration (value duration)
-                                                                          :elapsed (value elapsed))))))
-                            :gap 12 :cross-align :center)
-                       (component (lambda ()
-                                    (label (format-seconds (value elapsed)) :id :elapsed)))
-                       (row (label "Duration:")
-                            (slider :id :duration :minimum 1 :maximum 30 :width 240
-                                    :value (value duration)
-                                    :on-change (lambda (new) (setf (value duration) new)))
-                            (label (format-seconds (value duration)) :id :duration-label)
-                            :gap 12 :cross-align :center)
-                       (button "Reset" :id :reset
-                                       :on-click (lambda ()
-                                                   (setf (value elapsed) 0d0
-                                                         last-time nil)))
-                       :gap 14)
-               :all 24)))))
+              (padding (:all 24)
+                (column (:gap 14)
+                  (row (:gap 12 :cross-align :center)
+                    (label "Elapsed time:")
+                    (component ()
+                      (progress :id :gauge :width 240
+                                :fraction (timer-fraction
+                                           (make-timer :duration (value duration)
+                                                       :elapsed (value elapsed))))))
+                  (component ()
+                    (label (format-seconds (value elapsed)) :id :elapsed))
+                  (row (:gap 12 :cross-align :center)
+                    (label "Duration:")
+                    (slider :id :duration :minimum 1 :maximum 30 :width 240
+                            :value (value duration)
+                            :on-change (lambda (new) (setf (value duration) new)))
+                    (label (format-seconds (value duration)) :id :duration-label))
+                  (button "Reset" :id :reset
+                                  :on-click (lambda ()
+                                              (setf (value elapsed) 0d0
+                                                    last-time nil)))))))))
     (flet ((timer ()
              (make-timer :duration (value duration) :elapsed (value elapsed))))
       (add-ticker variant

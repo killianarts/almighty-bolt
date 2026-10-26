@@ -11,6 +11,7 @@
                (:file "node")
                (:file "widgets")
                (:file "inputs")
+               (:file "builder")
                (:file "retained")
                (:file "measure" :if-feature :darwin))
   :in-order-to ((test-op (test-op "almighty-bolt-variant-retained/tests"))))
@@ -25,6 +26,7 @@
                  (:file "widgets")
                  (:file "inputs")
                  (:file "containers")
+                 (:file "builder")
                  (:file "retained")
                  (:file "cache")
                  (:file "host" :if-feature :darwin))))
@@ -33,6 +35,7 @@
                              (loop :for package :in '(:almighty-bolt-variant-retained/t/widgets
                                                       :almighty-bolt-variant-retained/t/inputs
                                                       :almighty-bolt-variant-retained/t/containers
+                                                      :almighty-bolt-variant-retained/t/builder
                                                       :almighty-bolt-variant-retained/t/retained
                                                       :almighty-bolt-variant-retained/t/cache
                                                       #+darwin :almighty-bolt-variant-retained/t/host)

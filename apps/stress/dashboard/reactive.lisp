@@ -19,15 +19,16 @@
   (:import-from #:almighty-bolt-variant-reactive/signals
                 #:make-signal
                 #:value)
-  (:import-from #:almighty-bolt-variant-reactive/views
-                #:label
+  (:import-from #:almighty-bolt-variant-reactive/builder
                 #:padding
                 #:panel
                 #:column
                 #:row
-                #:progress
-                #:canvas
                 #:component)
+  (:import-from #:almighty-bolt-variant-reactive/views
+                #:label
+                #:progress
+                #:canvas)
   (:import-from #:almighty-bolt-variant-reactive/reactive
                 #:make-reactive-variant
                 #:add-ticker)
@@ -48,37 +49,33 @@
     (dotimes (tile +tiles+)
       (setf (svref indices tile) (make-signal (aref (dashboard-indices model) tile))))
     (flet ((tile (tile)
-             (panel (column (label (tile-name tile))
-                            (component (lambda ()
-                                         (label (index-text (value (svref indices tile)))
-                                                :id (tile-value-id tile))))
-                            (component (lambda ()
-                                         (progress :id (tile-bar-id tile) :width 120
-                                                   :fraction (/ (float (value (svref indices tile)) 1f0)
-                                                                999f0))))
-                            :gap 4)
-                    :all 8 :flex 1)))
+             (panel (:all 8 :flex 1)
+               (column (:gap 4)
+                 (label (tile-name tile))
+                 (component ()
+                   (label (index-text (value (svref indices tile)))
+                          :id (tile-value-id tile)))
+                 (component ()
+                   (progress :id (tile-bar-id tile) :width 120
+                             :fraction (/ (float (value (svref indices tile)) 1f0)
+                                          999f0)))))))
       (let ((variant
               (make-reactive-variant
                (lambda ()
-                 (padding
-                  (column (label "Dashboard" :id :title)
-                          (apply #'column
-                                 (append (loop :for r :below +rows+
-                                               :collect (apply #'row
-                                                               (append (loop :for c :below +columns+
-                                                                             :collect (tile (+ (* r +columns+) c)))
-                                                                       (list :gap 8 :flex 1 :fill t
-                                                                             :cross-align :stretch))))
-                                         (list :gap 8 :flex 1 :fill t :cross-align :stretch)))
-                          (component (lambda ()
-                                       (value version)
-                                       (canvas :id :chart :width 936 :height 90 :data (value version)
-                                               :paint (lambda (data canvas context list x y width height)
-                                                        (declare (ignore data canvas context))
-                                                        (paint-chart list x y width height model)))))
-                          :gap 8 :cross-align :stretch)
-                  :all 12)))))
+                 (padding (:all 12)
+                   (column (:gap 8 :cross-align :stretch)
+                     (label "Dashboard" :id :title)
+                     (column (:gap 8 :flex 1 :fill t :cross-align :stretch)
+                       (loop :for r :below +rows+
+                             :collect (row (:gap 8 :flex 1 :fill t :cross-align :stretch)
+                                        (loop :for c :below +columns+
+                                              :collect (tile (+ (* r +columns+) c))))))
+                     (component ()
+                       (value version)
+                       (canvas :id :chart :width 936 :height 90 :data (value version)
+                               :paint (lambda (data canvas context list x y width height)
+                                        (declare (ignore data canvas context))
+                                        (paint-chart list x y width height model))))))))))
         (add-ticker variant
                     (lambda (now)
                       (when (advance-dashboard model (step-at now))

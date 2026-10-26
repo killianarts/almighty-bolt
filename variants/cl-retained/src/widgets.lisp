@@ -76,6 +76,8 @@
            #:progress-fraction
            #:row
            #:column
+           #:flex-box-of
+           #:stack-of
            #:paint-children
            #:split-arguments))
 
@@ -287,15 +289,17 @@ values. Nodes are never keywords, so the first keyword starts the options."
   (cross-align :start :type keyword)
   (fill nil))
 
+(defun flex-box-of (axis children &key id (gap 0) (main-align :start) (cross-align :start) fill
+                                    (flex 0))
+  "A box of CHILDREN, a list, along AXIS (:HORIZONTAL or :VERTICAL), with the options of ROW."
+  (adopt (%make-flex-box :axis axis :id id :gap (float gap 1f0)
+                         :main-align main-align :cross-align cross-align
+                         :fill fill :flex (float flex 1f0))
+         children))
+
 (defun make-flex-box (axis arguments)
   (multiple-value-bind (children options) (split-arguments arguments)
-    (destructuring-bind (&key id (gap 0) (main-align :start) (cross-align :start) fill
-                           (flex 0))
-        options
-      (adopt (%make-flex-box :axis axis :id id :gap (float gap 1f0)
-                             :main-align main-align :cross-align cross-align
-                             :fill fill :flex (float flex 1f0))
-             children))))
+    (apply #'flex-box-of axis children options)))
 
 (defun row (&rest arguments)
   "Children side by side, followed by options: :GAP between them, :MAIN-ALIGN and
@@ -450,12 +454,15 @@ values. Nodes are never keywords, so the first keyword starts the options."
 
 (defstruct (stack (:include node) (:constructor %make-stack)))
 
+(defun stack-of (children &key id (flex 0))
+  "A stack of CHILDREN, a list, with the options of STACK."
+  (adopt (%make-stack :id id :flex (float flex 1f0)) children))
+
 (defun stack (&rest arguments)
   "Children drawn one over another, the later on top, followed by the options :ID and
 :FLEX. The stack is as large as its largest child, and every child is at its corner."
   (multiple-value-bind (children options) (split-arguments arguments)
-    (destructuring-bind (&key id (flex 0)) options
-      (adopt (%make-stack :id id :flex (float flex 1f0)) children))))
+    (apply #'stack-of children options)))
 
 (defmethod layout-node ((stack stack) context min-w max-w min-h max-h)
   (let ((width 0f0)

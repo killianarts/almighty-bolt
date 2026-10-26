@@ -12,13 +12,14 @@
                 #:timer-reset
                 #:timer-with-duration
                 #:format-seconds)
+  (:import-from #:almighty-bolt-variant-retained/builder
+                #:padding
+                #:column
+                #:row)
   (:import-from #:almighty-bolt-variant-retained/widgets
                 #:label
                 #:label-text
                 #:button
-                #:padding
-                #:column
-                #:row
                 #:progress
                 #:progress-fraction)
   (:import-from #:almighty-bolt-variant-retained/inputs
@@ -71,14 +72,14 @@
                            :on-change #'change-duration)
             reset (button "Reset" :id :reset :on-click #'start-again))
       (let ((variant (make-retained-variant
-                      (padding (column (row (label "Elapsed time:") gauge
-                                            :gap 12 :cross-align :center)
-                                       elapsed
-                                       (row (label "Duration:") slider duration
-                                            :gap 12 :cross-align :center)
-                                       reset
-                                       :gap 14)
-                               :all 24))))
+                      (padding (:all 24)
+                        (column (:gap 14)
+                          (row (:gap 12 :cross-align :center)
+                            (label "Elapsed time:") gauge)
+                          elapsed
+                          (row (:gap 12 :cross-align :center)
+                            (label "Duration:") slider duration)
+                          reset)))))
         (add-ticker variant #'tick)
         variant))))
 

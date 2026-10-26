@@ -17,12 +17,13 @@
                 #:make-signal
                 #:value
                 #:computed)
+  (:import-from #:almighty-bolt-variant-reactive/builder
+                #:padding
+                #:column
+                #:row)
   (:import-from #:almighty-bolt-variant-reactive/views
                 #:label
                 #:button
-                #:padding
-                #:column
-                #:row
                 #:text-field
                 #:list-box)
   (:import-from #:almighty-bolt-variant-reactive/reactive
@@ -63,35 +64,34 @@
                      (value surname) (entry-surname entry)))))
       (make-reactive-variant
        (lambda ()
-         (padding
-          (column (row (label "Filter prefix:")
-                       (text-field :id :filter :width 160 :value (value filter)
-                                   :on-change (lambda (text) (setf (value filter) text)))
-                       :gap 10 :cross-align :center)
-                  (row (list-box :id :list :width 220 :rows 6
-                                 :items (mapcar #'entry-display (value shown))
-                                 :selected (position (value picked) (value shown) :key #'entry-id)
-                                 :on-select #'pick)
-                       (column (row (label "Name:")
-                                    (text-field :id :name :width 160 :value (value name)
-                                                :on-change (lambda (text) (setf (value name) text)))
-                                    :gap 10 :cross-align :center)
-                               (row (label "Surname:")
-                                    (text-field :id :surname :width 160 :value (value surname)
-                                                :on-change (lambda (text)
-                                                             (setf (value surname) text)))
-                                    :gap 10 :cross-align :center)
-                               :gap 10)
-                       :gap 20)
-                  (row (button "Create" :id :create :on-click #'create
-                                        :enabled (plusp (+ (length (value name))
-                                                           (length (value surname)))))
-                       (button "Update" :id :update :on-click #'update
-                                        :enabled (and (value picked-entry) t))
-                       (button "Delete" :id :delete :on-click #'delete-picked
-                                        :enabled (and (value picked-entry) t))
-                       :gap 10)
-                  :gap 14)
-          :all 20))))))
+         (padding (:all 20)
+           (column (:gap 14)
+             (row (:gap 10 :cross-align :center)
+               (label "Filter prefix:")
+               (text-field :id :filter :width 160 :value (value filter)
+                           :on-change (lambda (text) (setf (value filter) text))))
+             (row (:gap 20)
+               (list-box :id :list :width 220 :rows 6
+                         :items (mapcar #'entry-display (value shown))
+                         :selected (position (value picked) (value shown) :key #'entry-id)
+                         :on-select #'pick)
+               (column (:gap 10)
+                 (row (:gap 10 :cross-align :center)
+                   (label "Name:")
+                   (text-field :id :name :width 160 :value (value name)
+                               :on-change (lambda (text) (setf (value name) text))))
+                 (row (:gap 10 :cross-align :center)
+                   (label "Surname:")
+                   (text-field :id :surname :width 160 :value (value surname)
+                               :on-change (lambda (text)
+                                            (setf (value surname) text))))))
+             (row (:gap 10)
+               (button "Create" :id :create :on-click #'create
+                                :enabled (plusp (+ (length (value name))
+                                                   (length (value surname)))))
+               (button "Update" :id :update :on-click #'update
+                                :enabled (and (value picked-entry) t))
+               (button "Delete" :id :delete :on-click #'delete-picked
+                                :enabled (and (value picked-entry) t))))))))))
 
 (register-app :reactive :crud #'make-crud :width 640 :height 280)

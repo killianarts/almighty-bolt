@@ -20,12 +20,13 @@
   (:import-from #:almighty-bolt-variant-reactive/signals
                 #:make-signal
                 #:value)
-  (:import-from #:almighty-bolt-variant-reactive/views
-                #:label
+  (:import-from #:almighty-bolt-variant-reactive/builder
                 #:padding
                 #:column
-                #:canvas
                 #:component)
+  (:import-from #:almighty-bolt-variant-reactive/views
+                #:label
+                #:canvas)
   (:import-from #:almighty-bolt-variant-reactive/reactive
                 #:make-reactive-variant)
   (:export #:make-rows-app))
@@ -81,15 +82,14 @@
                      t)))))
       (make-reactive-variant
        (lambda ()
-         (padding
-          (column (component (lambda () (label (status-text (value selected)) :id :status)))
-                  (component (lambda ()
-                               (canvas :id :list :width +list-width+ :height +list-height+
-                                       :focusable t :paint #'draw
-                                       :data (list (value top) (value selected))
-                                       :on-press #'press :on-drag #'drag :on-release #'release
-                                       :on-key #'key :on-wheel #'scroll)))
-                  :gap 12)
-          :all 20))))))
+         (padding (:all 20)
+           (column (:gap 12)
+             (component () (label (status-text (value selected)) :id :status))
+             (component ()
+               (canvas :id :list :width +list-width+ :height +list-height+
+                       :focusable t :paint #'draw
+                       :data (list (value top) (value selected))
+                       :on-press #'press :on-drag #'drag :on-release #'release
+                       :on-key #'key :on-wheel #'scroll)))))))))
 
 (register-app :reactive :rows #'make-rows-app :width 640 :height 470)

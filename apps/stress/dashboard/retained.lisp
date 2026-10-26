@@ -16,13 +16,14 @@
                 #:tile-fraction)
   (:import-from #:almighty-bolt-stress/dashboard/paint
                 #:paint-chart)
-  (:import-from #:almighty-bolt-variant-retained/widgets
-                #:label
-                #:label-text
+  (:import-from #:almighty-bolt-variant-retained/builder
                 #:padding
                 #:panel
                 #:column
-                #:row
+                #:row)
+  (:import-from #:almighty-bolt-variant-retained/widgets
+                #:label
+                #:label-text
                 #:progress
                 #:progress-fraction)
   (:import-from #:almighty-bolt-variant-retained/inputs
@@ -55,9 +56,9 @@
             (svref bars tile) (progress :id (tile-bar-id tile) :width 120
                                         :fraction (tile-fraction model tile))))
     (flet ((tile (tile)
-             (panel (column (label (tile-name tile)) (svref values tile) (svref bars tile)
-                            :gap 4)
-                    :all 8 :flex 1))
+             (panel (:all 8 :flex 1)
+               (column (:gap 4)
+                 (label (tile-name tile)) (svref values tile) (svref bars tile))))
            (tick (now)
              (when (advance-dashboard model (step-at now))
                (dotimes (tile +tiles+)
@@ -67,19 +68,15 @@
              t))
       (let ((variant
               (make-retained-variant
-               (padding
-                (column (label "Dashboard" :id :title)
-                        (apply #'column
-                               (append (loop :for r :below +rows+
-                                             :collect (apply #'row
-                                                             (append (loop :for c :below +columns+
-                                                                           :collect (tile (+ (* r +columns+) c)))
-                                                                     (list :gap 8 :flex 1 :fill t
-                                                                           :cross-align :stretch))))
-                                       (list :gap 8 :flex 1 :fill t :cross-align :stretch)))
-                        chart
-                        :gap 8 :cross-align :stretch)
-                :all 12))))
+               (padding (:all 12)
+                 (column (:gap 8 :cross-align :stretch)
+                   (label "Dashboard" :id :title)
+                   (column (:gap 8 :flex 1 :fill t :cross-align :stretch)
+                     (loop :for r :below +rows+
+                           :collect (row (:gap 8 :flex 1 :fill t :cross-align :stretch)
+                                      (loop :for c :below +columns+
+                                            :collect (tile (+ (* r +columns+) c))))))
+                   chart)))))
         (add-ticker variant #'tick)
         variant))))
 

@@ -18,6 +18,8 @@
            #:stack
            #:row
            #:column
+           #:flex-view-of
+           #:stack-of
            #:scrim
            #:progress
            #:text-field
@@ -128,18 +130,23 @@ third of the size of a property list (a canvas has fifteen).")
 (defun center (child &key id (flex 0) (visible t) (enabled t) key)
   (make-view :center +no-props+ (list child) id flex visible enabled key))
 
+(defun stack-of (children &key id (flex 0) (visible t) (enabled t) key)
+  "A stack of CHILDREN, a list, with the common keys."
+  (make-view :stack +no-props+ children id flex visible enabled key))
+
 (defun stack (&rest arguments)
   (multiple-value-bind (children options) (split-arguments arguments)
-    (destructuring-bind (&key id (flex 0) (visible t) (enabled t) key) options
-      (make-view :stack +no-props+ children id flex visible enabled key))))
+    (apply #'stack-of children options)))
+
+(defun flex-view-of (type children &key id (flex 0) (visible t) (enabled t) key (gap 0)
+                                     (main-align :start) (cross-align :start) fill)
+  "A view of TYPE (:ROW or :COLUMN) of CHILDREN, a list, with the options of ROW."
+  (make-view type (vector gap main-align cross-align fill)
+             children id flex visible enabled key))
 
 (defun flex-view (type arguments)
   (multiple-value-bind (children options) (split-arguments arguments)
-    (destructuring-bind (&key id (flex 0) (visible t) (enabled t) key (gap 0)
-                           (main-align :start) (cross-align :start) fill)
-        options
-      (make-view type (vector gap main-align cross-align fill)
-                 children id flex visible enabled key))))
+    (apply #'flex-view-of type children options)))
 
 (defun row (&rest arguments)
   "Children side by side, then :GAP, :MAIN-ALIGN, :CROSS-ALIGN, :FILL and the common keys."

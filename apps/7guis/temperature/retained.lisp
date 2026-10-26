@@ -5,10 +5,11 @@
   (:import-from #:almighty-bolt-7guis/temperature/model
                 #:celsius-text->fahrenheit-text
                 #:fahrenheit-text->celsius-text)
-  (:import-from #:almighty-bolt-variant-retained/widgets
-                #:label
+  (:import-from #:almighty-bolt-variant-retained/builder
                 #:padding
                 #:row)
+  (:import-from #:almighty-bolt-variant-retained/widgets
+                #:label)
   (:import-from #:almighty-bolt-variant-retained/inputs
                 #:text-field
                 #:text-field-text)
@@ -35,8 +36,8 @@
                                                 (when other
                                                   (setf (text-field-text celsius) other))))))
     (make-retained-variant
-     (padding (row celsius (label "Celsius =") fahrenheit (label "Fahrenheit")
-                   :gap 10 :cross-align :center)
-              :all 20))))
+     (padding (:all 20)
+       (row (:gap 10 :cross-align :center)
+         celsius (label "Celsius =") fahrenheit (label "Fahrenheit"))))))
 
 (register-app :retained :temperature #'make-temperature :width 520 :height 90)
