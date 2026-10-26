@@ -9,6 +9,7 @@
                 #:entry-surname
                 #:entry-display
                 #:entries-find
+                #:entries-list
                 #:entries-add
                 #:entries-update
                 #:entries-remove

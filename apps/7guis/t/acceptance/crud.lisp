@@ -95,9 +95,8 @@
 ;;; the screen and the list shows everybody. ---
 
 (defun filter-shown-p (driver)
-  "True if the filter field is on the screen: it has a place, with a size."
-  (let ((rectangle (d:rectangle driver :filter)))
-    (and rectangle (plusp (third rectangle)) (plusp (fourth rectangle)))))
+  "True if the filter row is on the screen: its label is drawn."
+  (and (search "Filter prefix" (d:screen-text driver)) t))
 
 (defun turn-filter-off (driver)
   (d:click-at driver :filter-switch 0.8 0.5))

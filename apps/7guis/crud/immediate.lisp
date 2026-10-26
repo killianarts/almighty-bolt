@@ -8,6 +8,7 @@
                 #:entry-name
                 #:entry-surname
                 #:entry-display
+                #:entries-list
                 #:entries-add
                 #:entries-update
                 #:entries-remove
