@@ -1,6 +1,6 @@
 #+TITLE: 0022 — The cursor experiment (H6): what a front end with no tree does
 #+DATE: 2026-10-26
-- Status :: proposed
+- Status :: accepted (Micah, 2026-10-26)
 
 * Context
 0020 left H6 open for a front end that places each widget where the cursor is as

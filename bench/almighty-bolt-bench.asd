@@ -8,9 +8,13 @@
   :depends-on ("almighty-bolt-core" "almighty-bolt-variant-retained"
                "almighty-bolt-variant-reactive" "almighty-bolt-variant-immediate"
                "almighty-bolt-7guis/retained" "almighty-bolt-7guis/reactive"
-               "almighty-bolt-7guis/immediate" "almighty-bolt-7guis/cursor"
-               "almighty-bolt-variant-support")
+               "almighty-bolt-7guis/immediate")
   :components ((:file "compare" :if-feature :darwin)
                (:file "layout-spike" :if-feature :darwin)
-               (:file "cursor-spike" :if-feature :darwin)
                (:file "results" :if-feature :darwin)))
+
+(defsystem "almighty-bolt-bench/cursor"
+  :description "The cursor experiment of record 0022 (archived), swept over window widths: make bench-cursor"
+  :depends-on ("almighty-bolt-core" "almighty-bolt-7guis/immediate" "almighty-bolt-7guis/cursor"
+               "almighty-bolt-variant-support")
+  :components ((:file "cursor-spike" :if-feature :darwin)))

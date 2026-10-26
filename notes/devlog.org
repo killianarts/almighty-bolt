@@ -1339,3 +1339,16 @@ dialog's first frame stale and asking for nothing.
 A cursor front end with input, hit testing and ids that survive a loop; snapping the fragment
 against its final place; more than two screens or one level of nesting; a look at the lagging dialog
 in a window (=make 7guis VARIANT=cursor TASK=dialog CURSOR_MODE=lag=, then narrow the window).
+
+* 2026-10-26 — 0022 accepted; the cursor experiment archived
+** What happened
+Micah accepted 0022 and asked for the cursor experiment to be archived and the work to go on.
+** What I did
+=cl-cursor= is out of =make test=: =make test-cursor= runs its 23 unit tests and 8 comparisons with the
+box tree, =almighty-bolt-bench/cursor= holds its sweep apart from the other benches, and the
+acceptance system no longer depends on it. The dialog screen in the retained and immediate
+variants stays, with its tests (=t/acceptance/dialog.lisp=, 7 tests). The registry still accepts
+=:cursor=, so =make 7guis VARIANT=cursor= opens it; =variants/cl-cursor/README.org= says what is what.
+The charter's H6 is split: H6a (split panels and wrapped text need a tree) is refuted and H6b (a
+container placed by its own size needs a lag, another build or an alternative) is confirmed, with
+content-sized columns of containers not covered.

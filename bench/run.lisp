@@ -11,6 +11,7 @@
   (cond ((string-equal which "layout")
          (funcall (intern "MAIN" "ALMIGHTY-BOLT-BENCH/LAYOUT-SPIKE")))
         ((string-equal which "cursor")
+         (asdf:load-system "almighty-bolt-bench/cursor")
          (funcall (intern "MAIN" "ALMIGHTY-BOLT-BENCH/CURSOR-SPIKE")))
         ((string-equal which "results")
          (funcall (intern "MAIN" "ALMIGHTY-BOLT-BENCH/RESULTS")))

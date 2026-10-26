@@ -1,4 +1,4 @@
-.PHONY: deps shim test spike-a spike-b spike-c spike-d spike-e bench-metal bench-text bench-null bench-retained bench-compare bench-layout bench-cursor snapshots-cursor bench-run bench-report snapshots replay 7guis 7guis-smoke clean
+.PHONY: deps shim test spike-a spike-b spike-c spike-d spike-e bench-metal bench-text bench-null bench-retained bench-compare bench-layout test-cursor bench-cursor snapshots-cursor bench-run bench-report snapshots replay 7guis 7guis-smoke clean
 
 # ASDF looks only in this tree (project and vendored/), never in ~/common-lisp/.
 SBCL = sbcl --noinform --non-interactive --no-sysinit --no-userinit
@@ -31,7 +31,6 @@ test:
 	$(SBCL) $(REGISTRY) --eval '(asdf:test-system "almighty-bolt-variant-retained")'
 	$(SBCL) $(REGISTRY) --eval '(asdf:test-system "almighty-bolt-variant-reactive")'
 	$(SBCL) $(REGISTRY) --eval '(asdf:test-system "almighty-bolt-variant-immediate")'
-	$(SBCL) $(REGISTRY) --eval '(asdf:test-system "almighty-bolt-variant-cursor")'
 	$(SBCL) $(REGISTRY) --eval '(asdf:test-system "almighty-bolt-7guis")'
 	$(SBCL) $(REGISTRY) --eval '(asdf:test-system "almighty-bolt-7guis/acceptance")'
 
@@ -91,6 +90,12 @@ bench-report:
 # The layout spike (H6) in the three variants, with the real text engine.
 bench-layout:
 	WHICH=layout $(SBCL) $(REGISTRY) --load bench/run.lisp
+
+# The cursor experiment (record 0022) is archived: it is not in make test. These run its tests,
+# its sweep and its pictures.
+test-cursor:
+	$(SBCL) $(REGISTRY) --eval '(asdf:test-system "almighty-bolt-variant-cursor")'
+	$(SBCL) $(REGISTRY) --eval '(asdf:test-system "almighty-bolt-7guis/cursor/tests")'
 
 # The cursor experiment (record 0022): the layout spike and the dialog screen in the cursor
 # front end in each mode, against the box tree, with the fake text and with the real engine.

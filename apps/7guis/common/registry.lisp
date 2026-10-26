@@ -36,8 +36,9 @@
 (defun register-app (variant task constructor &key (width 400) (height 300) title)
   "Record that VARIANT has an app for TASK, made by calling CONSTRUCTOR, which runs in a
 window WIDTH by HEIGHT points."
-  ;; :cursor is the experiment of record 0022, not a variant of the comparison: it is not in
-  ;; +VARIANTS+, so the acceptance tests of the seven tasks do not run it.
+  ;; :cursor is the experiment of record 0022, archived, not a variant of the comparison: it
+  ;; is not in +VARIANTS+, so the acceptance tests of the seven tasks do not run it, and it is
+  ;; here only so that make 7guis VARIANT=cursor still opens it.
   (check-type variant (member :retained :reactive :immediate :cursor))
   (check-type task (member :counter :temperature :flight :timer :crud :circles :cells :layout
                            :dialog))

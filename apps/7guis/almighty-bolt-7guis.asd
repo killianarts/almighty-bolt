@@ -72,7 +72,7 @@
   :description "The same behavioural tests for every variant's version of every task"
   :depends-on ("almighty-bolt-7guis" "almighty-bolt-variant-support"
                "almighty-bolt-7guis/retained" "almighty-bolt-7guis/reactive"
-               "almighty-bolt-7guis/immediate" "almighty-bolt-7guis/cursor"
+               "almighty-bolt-7guis/immediate"
                "lisp-unit2" "flexi-streams")
   :serial t
   :components ((:module "t"
@@ -89,7 +89,7 @@
                                (:file "cells")
                                (:file "replay")
                                (:file "layout")
-                               (:file "cursor"))))))
+                               (:file "dialog"))))))
   :perform (test-op (o s)
                     (let* ((results
                              (loop :for package :in '(:almighty-bolt-7guis/t/acceptance/counter
@@ -101,7 +101,7 @@
                                                       :almighty-bolt-7guis/t/acceptance/cells
                                                       :almighty-bolt-7guis/t/acceptance/replay
                                                       :almighty-bolt-7guis/t/acceptance/layout
-                                                      :almighty-bolt-7guis/t/acceptance/cursor)
+                                                      :almighty-bolt-7guis/t/acceptance/dialog)
                                    :collect (uiop:symbol-call :lisp-unit2 :run-tests
                                                               :package package)))
                            (bad (loop :for db :in results
@@ -146,3 +146,24 @@
   :components ((:module "cursor" :components ((:file "mode")))
                (:module "layout" :components ((:file "cursor")))
                (:module "dialog" :components ((:file "cursor")))))
+
+(defsystem "almighty-bolt-7guis/cursor/tests"
+  :description "The cursor experiment's screens against the box tree (record 0022, archived: not in make test; make test-cursor)"
+  :depends-on ("almighty-bolt-7guis/cursor" "almighty-bolt-7guis/immediate"
+               "almighty-bolt-variant-support" "lisp-unit2")
+  :components ((:module "t"
+                :components
+                ((:module "acceptance"
+                  :components ((:file "cursor"))))))
+  :perform (test-op (o s)
+                    (let* ((results
+                             (loop :for package :in '(:almighty-bolt-7guis/t/acceptance/cursor)
+                                   :collect (uiop:symbol-call :lisp-unit2 :run-tests
+                                                              :package package)))
+                           (bad (loop :for db :in results
+                                      :append (uiop:symbol-call :lisp-unit2 :failed db)
+                                      :append (uiop:symbol-call :lisp-unit2 :errors db))))
+                      (dolist (db results)
+                        (uiop:symbol-call :lisp-unit2 :print-summary db))
+                      (when bad
+                        (error "~d cursor experiment test~:p failed." (length bad))))))

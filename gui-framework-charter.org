@@ -85,15 +85,38 @@ whether one library could serve both languages.
 ** OPEN H5: Per-frame allocation, not the approach, dominates GC cost
 Test by comparing each variant with and without node pooling.
 
-** OPEN H6: Immediate variants need a per-frame node tree to reach complex layouts
-Expectation: a cursor-style layout (Dear ImGui) places widgets as they are
-emitted, so a parent cannot know its children's sizes until after they are
-drawn. It stays correct only by lagging a frame or by rebuilding (the settle
-loop). Layouts like the stress apps' split panels, wrapped text in resizable
-containers and content-sized columns need a node tree built each frame and
-laid out afterwards (Fleury's approach), or children that return a size and
-local-coordinate commands for the parent to position. Test with the
-[[*Layout][layout spike]]: count the cases that need a lagged size or an extra build.
+** REFUTED H6a: Split panels and wrapped text need a per-frame node tree
+Expectation, as H6 was first written: a cursor-style layout (Dear ImGui) places
+widgets as they are emitted, so a parent cannot know its children's sizes until
+after they are drawn, and layouts like the stress apps' split panels and wrapped
+text in resizable containers need a node tree built each frame and laid out
+afterwards (Fleury's approach).
+
+Result: a cursor front end that is given its room and keeps to it drew the
+layout spike with 1 build and the box tree's display list at 311 window widths,
+in every one of five modes, with the test text and with Core Text at scales 1
+and 2, in the same time (records
+[[file:notes/decisions/0020-layout-spike.org][0020]] and
+[[file:notes/decisions/0022-cursor-experiment.org][0022]]). Every size in those
+layouts goes down from the window.
+
+** CONFIRMED H6b: A container placed by its own size needs a lagged size, another build, or one of two alternatives
+Expectation: a container that is centred, right-aligned or as large as its
+content cannot be placed by a front end that places widgets as they are emitted,
+until it has been drawn. It stays correct only by lagging a frame or by
+rebuilding (the settle loop), or by describing it twice, or by children that
+return a size and local-coordinate commands for the parent to position; a node
+tree laid out after the description needs none of these.
+
+Result: in the dialog screen a cursor front end drew a stale frame at a third of
+the steps of a window drag when it used the size of the build before (and at
+nearly all of a jump, and for good if no frame is asked for), built 1.33 times a
+frame when it rebuilt, took twice the time when it described the card twice, and
+put some text a pixel off at scale 1 when it drew a fragment and moved it. The
+box tree did it in 1 build, exactly (record
+[[file:notes/decisions/0022-cursor-experiment.org][0022]]). Content-sized
+columns of containers, which the first wording named, were tried only with
+labels in them, and are not covered.
 
 * Architecture
 
@@ -401,8 +424,9 @@ wait until a variant needs them. After warm-up the functions allocate nothing.
   constraints and returns a size plus commands in local coordinates, and the
   parent positions them with push/pop transform.
 - /Cursor layout/ (Dear ImGui style) may exist as a convenience for simple
-  screens. It is not the reference, because it relies on last frame's sizes
-  or on the settle loop.
+  screens. It is not the reference, because for a container placed by its own
+  size it relies on last frame's sizes, the settle loop or a second description
+  (H6b, record 0022); sizes that go down need none of them (H6a).
 
 *Layout spike (H6).* Before the variants are built out, implement the same
 layouts in each front end: 7GUIs Flight Booker and Cells, a nested split
@@ -758,7 +782,7 @@ The experimental phase ends when:
 - [X] Retained (=cl-retained=) (0012, 0013, 0014, 0017, 0018; tag =auto/01-retained-complete=)
 - [X] Reactive hybrid, the Flutter model (=cl-reactive=) (0015; tag =auto/02-reactive-complete=)
 - [X] Immediate + cache (=cl-immediate=) (0016; tag =auto/03-immediate-complete=)
-- [X] Layout spike across front ends (H6) (0020; H6 stays open for a cursor-style front end)
+- [X] Layout spike across front ends (H6) (0020, 0022: H6a refuted, H6b confirmed)
 - [X] All 7GUIs tasks in each (the acceptance tests pass for all three, and Micah ran them in windows on 2026-10-26)
 
 ** TODO Phase 3: Benchmarks and stress apps

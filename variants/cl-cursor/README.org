@@ -1,0 +1,17 @@
+#+TITLE: cl-cursor: an archived experiment
+
+A front end that places each widget where the cursor is as the widget is described, with no
+tree and no layout pass, built to see what H6 expects of it. It is finished (decision record
+0022, accepted): it is not a variant of the comparison, it is not in =make test=, and nothing
+here is to be extended. It stays so that the record's numbers can be run again.
+
+- =make test-cursor= runs its unit tests and its comparison with the box tree.
+- =make bench-cursor= sweeps 311 window widths in each of its five modes.
+- =make snapshots-cursor OUT=/tmp/shots/= draws the stale and the settled dialog.
+- =make 7guis VARIANT=cursor TASK=dialog CURSOR_MODE=lag= opens it in a window (modes: lag,
+  request, rebuild, measure, fragment); TASK=layout is the screen of 0020.
+
+What it uses from outside: =apps/7guis/{layout,dialog,cursor}/cursor.lisp= and =mode.lisp=
+(the two screens), =variants/support/compare.lisp= (the display-list comparison), and
+=bench/cursor-spike.lisp=. The dialog screen in the retained and immediate variants
+(=apps/7guis/dialog/=) is not part of the experiment; it stays, with its acceptance tests.

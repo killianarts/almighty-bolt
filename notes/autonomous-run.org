@@ -74,7 +74,7 @@ the changes that rested on it can be found.
 (Decision records made without Micah, newest last. All of them are accepted: 0012, 0013,
 0015 and 0016 on 2026-10-26, and 0014, 0017 and 0018 after Micah reviewed all the records
 on the same day. 0019, 0020 and 0021 were made after the grant ended, as proposals, and
-Micah accepted them on 2026-10-26. 0022 is a proposal too.)
+Micah accepted them, and 0022, on 2026-10-26.)
 - 0012 Keys and the editing of one line of text (A-002, A-003). Accepted.
 - 0013 The 7GUIs apps: what is shared, and where they differ from the task. Accepted.
 - 0014 Clipping in the display list (renderer scissor stretches). Accepted. Micah asked
@@ -92,7 +92,7 @@ Micah accepted them on 2026-10-26. 0022 is a proposal too.)
 - 0021 The benchmark harness: headless replay, variant build time, result records.
   Accepted.
 - 0022 The cursor experiment (H6): a front end with no tree, five ways to get a size it
-  has not got. Proposed.
+  has not got. Accepted; the experiment is archived (variants/cl-cursor/README.org).
 
 * Morning checklist
 State when the run stopped: branch =phase-2=, tags =auto/01-retained-complete=,
