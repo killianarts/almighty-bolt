@@ -89,4 +89,4 @@
                        name ""
                        surname ""))))))))))
 
-(register-app :immediate :crud #'make-crud :width 640 :height 280)
+(register-app :immediate :crud #'make-crud :width 640 :height 322)

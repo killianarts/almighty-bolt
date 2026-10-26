@@ -116,4 +116,4 @@
                         :gap 14)
                 :all 20)))))
 
-(register-app :retained :crud #'make-crud :width 640 :height 280)
+(register-app :retained :crud #'make-crud :width 640 :height 322)

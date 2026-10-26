@@ -103,4 +103,4 @@
                   :gap 14)
           :all 20))))))
 
-(register-app :reactive :crud #'make-crud :width 640 :height 280)
+(register-app :reactive :crud #'make-crud :width 640 :height 322)
