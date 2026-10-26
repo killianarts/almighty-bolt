@@ -179,20 +179,28 @@ ring, one for each frame (see +RING-COLUMNS+)."
                                            (core:frame-capped-p ring last)))))))
       (values result (loop :for i :below (core:frame-ring-count ring) :collect (frame-row ring i))))))
 
-(defun measure-host-script (script variant task host &key (repetitions 10) (warmups 3))
-  "A host replay of SCRIPT WARMUPS times thrown away and then REPETITIONS times kept. Returns
-the repetitions as lists of frame rows. An error if two runs draw different frames."
+(defun measure-host-scripts (script task variants host &key (repetitions 10) (warmups 3))
+  "Host replays of SCRIPT in each of VARIANTS: WARMUPS rounds thrown away and then REPETITIONS
+rounds kept, each round one replay in each variant in turn, because the GPU's and the CPU's
+speed drift over a run (a variant that is measured ten times in a row gets one state of the
+machine and the next gets another). Returns a list of (variant . repetitions), the repetitions
+lists of frame rows. An error if two runs of a variant draw different frames."
   (dotimes (i warmups)
-    (host-run-once script variant task host))
-  (let ((runs '()) (reference nil))
+    (dolist (variant variants)
+      (host-run-once script variant task host)))
+  (let ((runs (mapcar (lambda (variant) (list variant)) variants))
+        (references (mapcar (lambda (variant) (cons variant nil)) variants)))
     (dotimes (i repetitions)
-      (multiple-value-bind (result rows) (host-run-once script variant task host)
-        (let ((hashes (map 'vector #'cdr (core:replay-result-hashes result))))
-          (cond ((null reference) (setf reference hashes))
-                ((not (equalp reference hashes))
-                 (error "Two host runs of the script gave different frames in ~(~a ~a~)." variant task))))
-        (push rows runs)))
-    (nreverse runs)))
+      (dolist (variant variants)
+        (multiple-value-bind (result rows) (host-run-once script variant task host)
+          (let ((hashes (map 'vector #'cdr (core:replay-result-hashes result)))
+                (reference (assoc variant references)))
+            (cond ((null (cdr reference)) (setf (cdr reference) hashes))
+                  ((not (equalp (cdr reference) hashes))
+                   (error "Two host runs of the script gave different frames in ~(~a ~a~)."
+                          variant task))))
+          (push rows (cdr (assoc variant runs))))))
+    (mapcar (lambda (entry) (cons (car entry) (reverse (cdr entry)))) runs)))
 
 (defun rows-ring (runs)
   "One ring with the frames of every repetition but the first frame of each, which is cold."
@@ -297,9 +305,10 @@ instrumentation on."
           (let* ((script (core:load-script path))
                  (task (getf (core:script-header script) :app))
                  (name (pathname-name path)))
-            (dolist (variant +variants+)
-              (let* ((runs (measure-host-script script variant task host
-                                                :repetitions repetitions :warmups warmups))
+            (dolist (entry (measure-host-scripts script task +variants+ host
+                                                 :repetitions repetitions :warmups warmups))
+              (let* ((variant (car entry))
+                     (runs (cdr entry))
                      (summary (host-summary runs))
                      (record (append (list :date date) source
                                      (list :mode :host :variant variant :app task
@@ -307,6 +316,7 @@ instrumentation on."
                                            :script (namestring (enough-namestring path))
                                            :machine machine :repetitions repetitions
                                            :warmups warmups :columns +ring-columns+
+                                           :interleaved t
                                            :runs runs :summary summary))))
                 (print-host-line variant task name summary)
                 (write-record directory record)))))))))
