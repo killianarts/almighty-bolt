@@ -111,7 +111,7 @@ snapshots-cursor:
 # release and key (make replay SCRIPT=session.script plays it back). 7guis-smoke opens it, draws,
 # waits and reports, with nobody at the window.
 7guis:
-	VARIANT=$(VARIANT) TASK=$(TASK) LOG=$(LOG) RECORD=$(RECORD) $(SBCL_APP) $(REGISTRY) --load apps/7guis/run.lisp
+	VARIANT=$(VARIANT) TASK=$(TASK) LOG=$(LOG) RECORD=$(RECORD) CURSOR_MODE=$(CURSOR_MODE) $(SBCL_APP) $(REGISTRY) --load apps/7guis/run.lisp
 
 # Play a replay script back with the real text engine and no window, and say what happened:
 #   make replay SCRIPT=apps/7guis/replay/counter-clicks.script [VARIANT=reactive] [FREEZE=golden.script]
@@ -122,7 +122,7 @@ replay:
 	SCRIPT=$(SCRIPT) VARIANT=$(VARIANT) FREEZE=$(FREEZE) sbcl $(HEAP) --noinform --non-interactive --no-sysinit --no-userinit --eval '(require :asdf)' --eval '(asdf:initialize-source-registry (list :source-registry (list :tree (uiop:getcwd)) :ignore-inherited-configuration))' --load scripts/replay.lisp
 
 7guis-smoke:
-	SMOKE=1 VARIANT=$(VARIANT) TASK=$(TASK) $(SBCL_APP) $(REGISTRY) --load apps/7guis/run.lisp
+	SMOKE=1 VARIANT=$(VARIANT) TASK=$(TASK) CURSOR_MODE=$(CURSOR_MODE) $(SBCL_APP) $(REGISTRY) --load apps/7guis/run.lisp
 
 # Spike E: 2000 requested frames of text (about 35 s), then a window left alone for 10 s.
 spike-e:
