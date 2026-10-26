@@ -85,12 +85,10 @@
   (marked-text "" :type string)
   (marked-start 0 :type fixnum)
   (marked-length 0 :type fixnum)
-  ;; Counts the changes of what the document shows, so that a view can tell, and of the text alone.
+  ;; Counts the changes of what the document shows, so that a view can tell.
   (version 0 :type fixnum)
-  (text-version 0 :type fixnum)
-  ;; The strings of the lines that show, by the line's number mod LINE-SLOTS, and the text version
-  ;; they are of, so that drawing the same text again makes no strings.
-  (cache-version -1 :type fixnum)
+  ;; The strings of the lines that show, by the line's number mod the number of lines that show, and
+  ;; which line each is, so that drawing the same text again makes no strings and an edit makes one.
   (cache-lines (make-array +visible-lines+ :element-type 'fixnum :initial-element -1)
    :type (simple-array fixnum (*)))
   (cache-strings (make-array +visible-lines+ :initial-element "") :type simple-vector)
@@ -141,7 +139,8 @@
 
 (defun make-document (string)
   "A document of STRING, with the caret at the start."
-  (let* ((gap 64)
+  ;; A gap that a person's typing will not use up: the array is not made again in the middle of it.
+  (let* ((gap (max 1024 (floor (length string) 16)))
          (data (make-array (+ (length string) gap) :element-type 'character :initial-element #\Space)))
     (replace data string :start1 gap)
     (let ((document (%make-document :data data :gap-start 0 :gap-end gap)))
@@ -242,9 +241,20 @@
     (make-room document (length string))
     (replace (document-data document) string :start1 (document-gap-start document))
     (incf (document-gap-start document) (length string))
-    (adjust-lines document start removed string)
-    (incf (document-text-version document))
+    (let ((lines (document-line-count document)))
+      (adjust-lines document start removed string)
+      ;; An edit inside a line changes that line's string and no other's; one that adds or takes away
+      ;; a line break moves the lines after it.
+      (if (and (= lines (document-line-count document)) (not (find #\Newline string)))
+          (forget-line document (position-line document start))
+          (fill (document-cache-lines document) -1)))
     (incf (document-version document))))
+
+(defun forget-line (document line)
+  "Drop the kept string of LINE, if it has one."
+  (let ((slot (mod line +visible-lines+)))
+    (when (= (aref (document-cache-lines document) slot) line)
+      (setf (aref (document-cache-lines document) slot) -1))))
 
 ;;; --- selection and the caret ---
 
@@ -353,24 +363,57 @@ SELECTION-START in it); it is shown at the caret and is not in the text yet."
   (when (plusp (length text))
     (insert-text document text)))
 
+(defun digit-count (number)
+  (let ((count 1))
+    (loop :while (>= number 10)
+          :do (setf number (floor number 10))
+              (incf count))
+    count))
+
+(defun grouped-length (number)
+  "How many characters NUMBER takes with a comma between each three digits, as ~:d writes it."
+  (let ((digits (digit-count number)))
+    (+ digits (floor (1- digits) 3))))
+
+(defun put-grouped (string at number)
+  "Write NUMBER into STRING from AT, with commas; returns where it ends."
+  (let ((end (+ at (grouped-length number))))
+    (loop :for position :from (1- end) :downto at
+          :for place :from 0
+          :do (cond ((= (mod place 4) 3) (setf (char string position) #\,))
+                    (t (setf (char string position) (code-char (+ 48 (mod number 10)))
+                             number (floor number 10)))))
+    end))
+
 (defun status-text (document)
-  "The status line, which is made again only when the document has changed."
+  "The status line, which is made again only when the document has changed. It is written into one
+string, and not with FORMAT, which makes streams and pieces to make the one."
   (unless (= (document-status-version document) (document-version document))
     (let* ((caret (document-caret document))
-           (line (position-line document caret)))
-      (setf (document-status-string document)
-            (format nil "Ln ~:d, Col ~:d    ~:d lines~@[    ~:d selected~]"
-                    (1+ line) (1+ (position-column document caret)) (document-line-count document)
-                    (and (selection-p document)
-                         (- (selection-end document) (selection-start document))))
+           (line (1+ (position-line document caret)))
+           (column (1+ (position-column document caret)))
+           (lines (document-line-count document))
+           (selected (and (selection-p document)
+                          (- (selection-end document) (selection-start document))))
+           (string (make-string (+ 3 (grouped-length line) 6 (grouped-length column)
+                                   4 (grouped-length lines) 6
+                                   (if selected (+ 4 (grouped-length selected) 9) 0))))
+           (at 0))
+      (flet ((text (text)
+               (replace string text :start1 at)
+               (incf at (length text)))
+             (number (number)
+               (setf at (put-grouped string at number))))
+        (text "Ln ") (number line) (text ", Col ") (number column)
+        (text "    ") (number lines) (text " lines")
+        (when selected
+          (text "    ") (number selected) (text " selected")))
+      (setf (document-status-string document) string
             (document-status-version document) (document-version document))))
   (document-status-string document))
 
 (defun cached-line-string (document line)
-  "The string of LINE. The strings of the lines that show are kept until the text changes."
-  (unless (= (document-cache-version document) (document-text-version document))
-    (fill (document-cache-lines document) -1)
-    (setf (document-cache-version document) (document-text-version document)))
+  "The string of LINE. The strings of the lines that show are kept until their text changes."
   (let ((slot (mod line +visible-lines+)))
     (unless (= (aref (document-cache-lines document) slot) line)
       (setf (svref (document-cache-strings document) slot) (line-string document line)

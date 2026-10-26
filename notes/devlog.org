@@ -1449,3 +1449,10 @@ others' does not (0025 now says so; the harness is for Micah to decide, 0025 (d)
 A real input method tried by a person (Japanese, Chinese, an accent menu); the caret's coordinates
 in the canvas's own (open in 0025); handlers that can measure text; why the dashboard's lists differ
 across variants; an immutable document; H5.
+Allocation: asked how to reduce it in all three variants, I found that most of what I had put down
+to immediate mode was one 3.4 MB regrowth of the editor's gap buffer (the gap was 64 characters) and
+24 line strings made again after every edit. Fixed in the shared model (gap a sixteenth of the text,
+only the edited line's string made again, the status line written without format): typing prose went
+from 7.5, 8.7 and 7.6 KB an event to 3.3, 4.6 and 3.5 KB in retained, reactive and immediate. What
+is left is Core Text shaping a new line (1.4 KB and 58 bytes a character) and reactive's
+descriptions of views (a plist of about 300 bytes a view; 27.5 KB a frame in the dashboard).

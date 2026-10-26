@@ -85,9 +85,11 @@ includes the handling of events; see below):
   painter and status text stubbed out the immediate frame still allocates 17.6
   KB for a typed character, a text event, a Return or a composition step, and
   nothing for an arrow, a selection or the wheel, and the retained frame
-  nothing: the 17.6 KB is the edit of the document (=editor-key= allocates 15.7
-  KB a call inside the immediate frame). It is the same work in the three
-  variants.
+  nothing: the 17.6 KB is one growth of the document's array: the gap of the
+  buffer was 64 characters, the typing used it up, and the 3.4 MB array was made
+  again, which is 17 KB spread over the 200 edits of the script (an edit that
+  does not use the gap up allocates about 30 bytes). It is the model's, the same
+  in the three variants, and it was counted in the immediate frame only.
 - Both together, by event (the real text engine; microseconds of =handle-event=
   and the frame, last 200 events of a script; retained, reactive and immediate):
   arrows 44, 44 and 101; wheel 49, 45 and 97; typed characters 573, 574 and 704;
@@ -98,7 +100,7 @@ includes the handling of events; see below):
   immediate variant costs twice as much, which is its second build (in every
   frame that has an input, 2.00 builds a frame, as in the 7GUIs scripts). Bytes
   by event are not reliable below about 10 KB with the counter of SBCL, which
-  moves by allocation regions; the 17.6 KB is not in doubt, the 1 KB differences
+  moves by allocation regions; the 3.4 MB is not in doubt, the 1 KB differences
   are. The dashboard has no input and is not affected: it builds once, and its
   immediate frame allocates nothing and its reactive 27.5 KB. Its first frame in
   the immediate variant conses 1.7 to 2.0 MB (the others 0 to 262 K).
@@ -111,6 +113,19 @@ includes the handling of events; see below):
   and 278 us, of which the immediate includes the handling of events, as above)
   and not in the frame. These are not a window's numbers (no vsync, no
   drawable).
+- Allocation was then cut in the editor's shared code, which all three variants
+  run (measured over 2500 events, handling and frame together, bytes an event
+  for retained, reactive and immediate): typing prose, 40 characters and a
+  Return, from 7.5, 8.7 and 7.6 KB to 3.3, 4.6 and 3.5 KB; an arrow key from
+  550, 1750 and 520 B to 260, 1490 and 420 B. The gap is a sixteenth of the text
+  (at least 1024 characters), so that typing does not make the array again; an
+  edit inside a line makes that line's string again and not the 24 that show
+  (3.4 KB less); the status line is written into one string and not with
+  =format= (about 300 B less). What is left of an edit is Core Text shaping the
+  new line (1.4 KB and 58 bytes a character, which the text engine makes) and,
+  in the reactive variant, its descriptions of the views (a view is a structure
+  and a property list of about 300 bytes, which is why its dashboard conses 27.5
+  KB a frame).
 
 In a window, from outside (executables made by =make image=; 5 launches; ten
 seconds after the first frame, or after it was quiet):
