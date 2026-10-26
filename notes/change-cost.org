@@ -8,11 +8,14 @@ Decision record 0024 has the results. Written 2026-10-26 before the edits were m
 - Each edit starts from the same base commit and is made on a branch of its own: the edits do
   not build on each other.
 - Each edit is first a *specification* and an *acceptance test* that is the same for every
-  variant (the driver of =apps/7guis/t/acceptance/= runs it against each). The tests fail
-  before the edit, in every variant.
+  variant (the driver of =apps/7guis/t/acceptance/= runs it against each). The tests that
+  describe the new behaviour fail before the edit, in every variant; a test that guards what
+  must not change passes before and after.
 - A shared change (the model of a task, the painters that variants share) is made once and
   committed apart. Then each variant's own view code is changed, one commit for each variant,
-  in the order given below, and the variant's acceptance tests pass before the next begins.
+  in the order given below, and the variant's acceptance tests are run. (E1 to E5 were written,
+  all three variants, before any was run, because a benchmark was using the machine; each
+  variant's commit is separate and in the order below.)
 - The order is rotated from one edit to the next, because the variant that is done first pays
   for finding out what the edit needs, and the later ones are helped by it.
 - What is counted, for each commit: the lines of code added and removed (blank lines and lines

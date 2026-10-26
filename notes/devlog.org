@@ -1383,3 +1383,31 @@ the tool checks the file exists.
 ** Not done
 CI tracking (needs a runner with a GPU), a trace from a window and not an off-screen host, phases a
 variant defines beyond update, layout and paint.
+
+* 2026-10-26 — Phase 3, step 2: change cost and size
+** What I did
+Specs of five edits before any code (=notes/change-cost.org=), a shared acceptance test for each,
+then the edits in rotated order in a worktree (branches =change-cost/e1= to =e5=): an Email field in
+CRUD, an optional return date in the flight booker, Undo in the temperature converter, the CRUD
+filter row behind a switch, the flight booker in two columns. =scripts/diff-size.lisp= counts a
+change (code lines added and removed, comments, blanks and white space not counted),
+=scripts/change-cost-report.lisp= makes the table and the patches (=results/change-cost/=),
+=scripts/app-size.lisp= the size and concept count of each app (0024, proposed).
+** What I measured
+Over the five edits the variants' own code changed by 92 lines (retained), 69 (reactive) and 64
+(immediate); the shared tests by 174 and the shared model by 34. The retained variant is the largest
+in E3 (31 lines against 18 and 12, because a retained text field cannot say what it held before a
+change) and E4 (26 against 18 and 15, for a handle on the row to hide and a refresh from the
+switch). Immediate is the largest in E1 (24 against 20 and 20). The seven apps are 576, 547 and 475
+lines of code and use 71, 74 and 53 framework symbols.
+** What went wrong on the way
+The tests of E3 typed after the text that was in the field and not over it. In E4 the window was too
+small for the added row and the retained and reactive variants lost the clicks outside it while
+immediate did not (it finds controls outside the window), the immediate and reactive apps each
+lacked an import found only by a test, and the retained =lookup-target= of a control inside a hidden
+row gave its old rectangle. E4 uses a choice of two options because no variant has a checkbox. A
+benchmark was running on the machine while I began, so the edits were first written and only then
+run, and not run one variant at a time as =notes/change-cost.org= says.
+** Not done
+The usability rubric is Micah's to score (=notes/usability-rubric.org=); more edits, edits that are
+not of an app (a widget, an event), a checkbox widget.

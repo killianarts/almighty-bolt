@@ -1,0 +1,90 @@
+#+TITLE: 0024 — Change cost and size: what five edits cost in each variant
+#+DATE: 2026-10-26
+- Status :: proposed
+
+* Context
+Step 2 of Phase 3: H2 says that immediate mode with a cache gives the smallest
+change cost, because building, mutation and interaction code are in one place.
+The charter's test is a set of scripted edits applied to each variant, measuring
+the size of the diff, with the lines of code and the concepts of each app as the
+size. =notes/change-cost.org= says what the five edits are and how they are
+counted; it was written before any edit was made.
+
+* What was done
+- Each edit was a specification and an acceptance test that is the same for
+  every variant (the driver runs it against each). The tests that describe the
+  new behaviour failed in all three variants before the edit, and pass after it
+  (a test that guards behaviour that should not change passes before and after).
+  The shared parts (the model of a task, the tests) were changed once; each
+  variant's own app was then changed, in an order that is rotated from one edit
+  to the next.
+- The size of a change is the lines of code added plus those removed, not
+  counting blank lines, comment lines, or a change of white space
+  (=scripts/diff-size.lisp=, itself checked on a commit of a comment, a blank
+  line, a re-indented line and one line of code: it counts the one). The size of
+  an app is its lines of code and the number of distinct symbols it imports from
+  the variant's packages (=scripts/app-size.lisp=).
+- The edits are kept as patches in =results/change-cost/=, against the commit
+  they began at, and as branches =change-cost/e1= to =e5= in the working copy
+  that made them, not merged into the apps.
+- The edits: E1 an Email field in the CRUD form; E2 an optional return date in
+  the flight booker; E3 an Undo button in the temperature converter; E4 the
+  filter row of CRUD behind a switch (a choice of two options stands in for a
+  checkbox, which no variant has); E5 the flight booker's controls in two
+  columns.
+
+* Evidence
+Lines of code changed (added and removed) in each part of each edit:
+  | Edit | Tests | Model | Retained | Reactive | Immediate |
+  |------+-------+-------+----------+----------+-----------|
+  | E1 field   |    40 |    18 |       20 |       20 |        24 |
+  | E2 optional |    47 |    16 |        6 |        4 |         4 |
+  | E3 undo    |    35 |     0 |       31 |       18 |        12 |
+  | E4 switch  |    24 |     0 |       26 |       18 |        15 |
+  | E5 columns |    28 |     0 |        9 |        9 |         9 |
+  | sum        |   174 |    34 |       92 |       69 |        64 |
+- Over the five edits the immediate variant's code changed least (64 lines
+  against 69 reactive and 92 retained). It is the smallest in E3 and E4, tied
+  with the reactive in E2 and with both in E5, and the largest in E1 (24 against
+  20 and 20).
+- The order in which the variants were done shows no sign of the first paying
+  more: the first done was the least, or tied for the least, in four of the five
+  edits (E1 retained 20, E2 reactive 4, E3 immediate 12, E5 reactive 9) and the
+  most in E4 (retained, 26).
+- The retained variant costs most where an edit needs what a widget held before
+  a change (E3: 31 lines, with a copy of the last texts of both fields and the
+  enabling of the button by hand) or needs a handle on something to show or hide
+  it (E4). The reactive and immediate variants have the old values and the
+  condition at hand.
+- The size of the apps: 576, 547 and 475 lines of code in the retained, reactive
+  and immediate variants, and 71, 74 and 53 concepts. The immediate variant is
+  the smallest in six of the seven tasks (the retained is, in temperature, by
+  two lines) and uses the fewest concepts in all seven.
+- Findings about the variants that the edits turned up: the retained
+  =lookup-target= gives the old rectangle of a control that is inside a hidden
+  node; the immediate variant finds a control by a click outside the window, so
+  that E4's tests passed in it before the window was made taller and failed in
+  the other two; a required argument added to a model function is found by the
+  callers when they run, not when they are compiled.
+
+* Decision
+Proposed: H2 stays OPEN, and is not decided by this. The results lean toward it
+(the immediate variant changed least over the five edits and its apps are
+smallest), but they are five small edits, written by one author who also wrote
+the variants, and counted in lines; the largest gap is in one edit that needs
+what a widget held before a change, which is a feature of the retained widgets
+and not of retention as an approach (a retained text field could say what it
+held). The method is kept as the protocol: a specification and a shared test
+first, the shared change apart, variants in rotated order, patches kept, white
+space and comments not counted. The five edits stay as the first set; more would
+make the measure better.
+
+* Consequences
+- Easier: the cost of a change is a number that can be repeated: the patches are
+  in the repository and the report prints the table.
+- Open: the usability rubric is for Micah to score (=notes/usability-rubric.org=
+  has the sheet and the facts); there is no checkbox widget in any variant, and
+  E4 used a choice, which Micah can ask to have replaced by a checkbox (it would
+  be library work in each variant, and a change-cost datum of its own); edits
+  that change the architecture and not an app (a new widget, a new kind of
+  event) are not in this set.
