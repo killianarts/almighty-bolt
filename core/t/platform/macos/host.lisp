@@ -19,7 +19,7 @@
 ;;; and the events AppKit delivers are checked by running the null variant.
 
 (defmacro with-host ((host target variant &key (width 64) (height 48) (scale 2)
-                                            (capacity 1024))
+                                            (capacity 1024) phases)
                      &body body)
   "Run BODY with HOST, a host for VARIANT, drawing into TARGET, an off-screen texture
 WIDTH by HEIGHT points at SCALE pixels a point."
@@ -27,7 +27,8 @@ WIDTH by HEIGHT points at SCALE pixels a point."
      (objc:with-autorelease-pool
        (let* ((device (device:default-device))
               (,host (host:make-host ,variant device target:+pixel-format-bgra8-unorm+
-                                     :capacity ,capacity :scale ,scale))
+                                     :capacity ,capacity :scale ,scale
+                                     :phases ,phases))
               (,target (target:make-offscreen-target device (* ,width ,scale)
                                                      (* ,height ,scale))))
          (let ((pass (target:offscreen-target-descriptor ,target)))
@@ -305,3 +306,67 @@ reads the count."
         (let ((delta (- (sb-ext:get-bytes-consed) before)))
           (assert-true (< delta 300000) delta)))
       (assert-eql 5050 (funcall wakes)))))
+
+;;; --- the instrumentation of Phase 3 ---
+
+;;; A variant that spends known times in its phases.
+(defclass phased-variant (variant:variant) ())
+
+(defmethod variant:frame ((variant phased-variant) context list)
+  (variant:with-phase (context variant:+phase-update+) (sleep 0.002))
+  (variant:with-phase (context variant:+phase-layout+) (sleep 0.004))
+  (variant:with-phase (context variant:+phase-paint+)
+    (sleep 0.001)
+    (dl:push-rect list 10 10 20 20 (dl:pack-color 255 0 0)))
+  nil)
+
+(define-test with-the-instrumentation-on-the-ring-has-the-phases-of-the-variant ()
+  (with-host (host target (make-instance 'phased-variant) :phases t)
+    (dotimes (i 3)
+      (draw host))
+    (let ((ring (host:host-ring host)))
+      (assert-eql 3 (ring:frame-ring-count ring))
+      (dotimes (i 3)
+        (assert-true (>= (ring:frame-update-ns ring i) 1500000) i)
+        (assert-true (>= (ring:frame-layout-ns ring i) 3500000) i)
+        (assert-true (>= (ring:frame-paint-ns ring i) 800000) i)
+        ;; One build: its time is the first build's, and the parts are inside it.
+        (assert-true (<= (abs (- (ring:frame-first-build-ns ring i) (ring:frame-build-ns ring i)))
+                         200000)
+                     i)
+        (assert-true (<= (+ (ring:frame-update-ns ring i) (ring:frame-layout-ns ring i)
+                            (ring:frame-paint-ns ring i))
+                         (ring:frame-first-build-ns ring i))
+                     i))
+      ;; The GPU has no frame before the first one to report on.
+      (assert-eql 0 (ring:frame-gpu-ns ring 0))
+      (assert-true (plusp (ring:frame-gpu-ns ring 2))))))
+
+(define-test with-the-instrumentation-off-the-ring-has-no-details ()
+  (with-host (host target (make-instance 'phased-variant))
+    (dotimes (i 3)
+      (draw host))
+    (let ((ring (host:host-ring host)))
+      (dotimes (i 3)
+        (assert-eql 0 (ring:frame-update-ns ring i))
+        (assert-eql 0 (ring:frame-layout-ns ring i))
+        (assert-eql 0 (ring:frame-paint-ns ring i))
+        (assert-eql 0 (ring:frame-first-build-ns ring i))
+        (assert-eql 0 (ring:frame-gpu-ns ring i))))))
+
+(define-test the-builds-of-a-frame-that-settles-show-the-cost-of-settling ()
+  (with-host (host target (make-instance 'scripted-variant :script '(t t nil)) :phases t)
+    (draw host)
+    (let ((ring (host:host-ring host)))
+      (assert-eql 3 (ring:frame-builds ring 0))
+      (assert-true (plusp (ring:frame-first-build-ns ring 0)))
+      (assert-true (> (ring:frame-build-ns ring 0) (ring:frame-first-build-ns ring 0))))))
+
+(define-test running-frames-with-the-instrumentation-on-allocates-nothing ()
+  (with-host (host target (make-instance 'busy-variant) :capacity 256 :phases t)
+    (draw-frames host 50)
+    (let ((before (sb-ext:get-bytes-consed)))
+      (draw-frames host 5000)
+      (let ((delta (- (sb-ext:get-bytes-consed) before)))
+        (assert-true (< delta 300000) delta)))))
+

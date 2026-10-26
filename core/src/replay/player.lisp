@@ -122,18 +122,24 @@ many frames); and the bytes consed and nanoseconds of garbage collection in all 
                    (remove-keys options :target :fx :fy)))))))
 
 (defun replay (script variant context
-               &key frame-interval-ns (capacity 65536) measure)
+               &key frame-interval-ns (capacity 65536) measure frame-function display-list)
   "Replay SCRIPT into VARIANT, whose frames are built with CONTEXT (which must have the text
 support the variant needs). The context's size and scale are set from the script's header
 if it has them. Returns a REPLAY-RESULT. Signals REPLAY-TARGET-MISSING for a target the
 variant does not show. With MEASURE, the time each frame takes to build is noted, on the
 real clock though the script's is virtual, with the bytes consed and the time spent in
-garbage collection over the whole replay; the replay is otherwise the same."
+garbage collection over the whole replay; the replay is otherwise the same.
+
+FRAME-FUNCTION, a function of no arguments, makes each frame in place of SETTLE-FRAME and returns
+the builds and whether the cap was hit, as SETTLE-FRAME does. The host's RUN-FRAME is what it
+is for: a replay that draws, with the real renderer. The frame's display list is then the host's,
+which DISPLAY-LIST says; the context's size and scale are the frame function's to use. Everything
+the player knows of time is still the script's, and the host's ring is on the real clock."
   (let* ((header (script-header script))
          (interval (or frame-interval-ns (getf header :frame-interval-ns)
                        +default-frame-interval-ns+))
          (clock (make-virtual-clock 0))
-         (list (make-display-list :capacity capacity))
+         (list (or display-list (make-display-list :capacity capacity)))
          (hashes (make-array 64 :adjustable t :fill-pointer 0))
          (checkpoints '())
          (frames 0) (builds 0) (capped 0)
@@ -157,7 +163,9 @@ garbage collection over the whole replay; the replay is otherwise the same."
                                 (consed (and measure (sb-ext:get-bytes-consed))))
                             (multiple-value-bind (n capped-p)
                                 (handler-bind ((settle-cap-reached #'muffle-warning))
-                                  (settle-frame variant context list))
+                                  (if frame-function
+                                      (funcall frame-function)
+                                      (settle-frame variant context list)))
                               (when measure
                                 (vector-push-extend
                                  (list (- (real-time-source) start) n

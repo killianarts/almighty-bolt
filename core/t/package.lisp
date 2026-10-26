@@ -10,6 +10,8 @@
 (defparameter +modules+
   '(:almighty-bolt-core/clock
     :almighty-bolt-core/ring
+    :almighty-bolt-core/trace
+    :almighty-bolt-core/ring-summary
     :almighty-bolt-core/event
     :almighty-bolt-core/stats
     :almighty-bolt-core/wheel-lock

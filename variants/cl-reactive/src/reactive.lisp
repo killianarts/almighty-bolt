@@ -7,7 +7,9 @@
                 #:hit-target
                 #:lookup-target
                 #:request-frame
-                #:context-now-ns)
+                #:context-now-ns
+                #:with-phase
+                #:+phase-update+)
   (:import-from #:almighty-bolt-variant-reactive/views
                 #:component)
   (:import-from #:almighty-bolt-variant-reactive/elements
@@ -93,10 +95,13 @@ that doing so tells in turn, until none is left."
     (setf (busy variant) t)
     (unwind-protect
          (progn
-           (dolist (ticker (tickers variant))
-             (when (funcall ticker now)
-               (setf again t)))
-           (flush variant)
+           ;; The signals the tickers write, and the components described again for them.
+           (with-phase (context +phase-update+)
+             (dolist (ticker (tickers variant))
+               (when (funcall ticker now)
+                 (setf again t)))
+             (flush variant))
+           ;; Laying out and painting the retained tree are the inner variant's phases.
            (frame (reactive-variant-inner variant) context list))
       (setf (busy variant) nil))
     (when again

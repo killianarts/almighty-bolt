@@ -21,6 +21,13 @@
            #:frame-encode-ns
            #:frame-builds
            #:frame-capped-p
+           #:record-frame-details
+           #:frame-gc-ns
+           #:frame-first-build-ns
+           #:frame-update-ns
+           #:frame-layout-ns
+           #:frame-paint-ns
+           #:frame-gpu-ns
            #:map-frames))
 
 (in-package #:almighty-bolt-core/ring)
@@ -32,8 +39,12 @@
 ;;; the time spent building, the time spent waiting for the display (the previous
 ;;; frame's GPU work, then the drawable), the time spent encoding and committing,
 ;;; and the number of builds with a flag for whether the settle cap was hit (they
-;;; share a word). A recorder that does not time phases leaves them zero. When the
-;;; ring is full the oldest record is overwritten.
+;;; share a word). A recorder that does not time phases leaves them zero. Eight more words,
+;;; filled in by RECORD-FRAME-DETAILS, hold what the instrumentation of Phase 3 adds: the time
+;;; spent in garbage collection, the time of the first build (the rest of the build time is
+;;; the cost of settling), the time the variant spent in its update, layout and paint phases,
+;;; the GPU's time for the frame before, and two words not yet used. When the ring is full the
+;;; oldest record is overwritten.
 ;;;
 ;;; SB-EXT:GET-BYTES-CONSED only advances when an allocation region is closed
 ;;; (tens of kilobytes at a time), so one frame's consing reads as zero or as a
@@ -41,7 +52,7 @@
 
 (deftype u64 () '(unsigned-byte 64))
 
-(defconstant +words-per-record+ 8)
+(defconstant +words-per-record+ 16)
 
 (defstruct (frame-ring (:constructor %make-frame-ring (capacity data)))
   (capacity 1 :type (integer 1 #.(floor array-dimension-limit +words-per-record+))
@@ -97,10 +108,35 @@ how many times the variant built it, and CAPPED whether the settle cap was hit."
           (aref data (+ base 7)) (if capped
                                      (logior builds (ash 1 +capped-bit+))
                                      builds))
+    ;; What an older record in this place held is gone, details and all.
+    (loop :for word :from 8 :below +words-per-record+
+          :do (setf (aref data (+ base word)) 0))
     (setf (frame-ring-head ring) (if (= (1+ head) capacity) 0 (1+ head)))
     (when (< (frame-ring-count ring) capacity)
       (incf (frame-ring-count ring)))
     (incf (frame-ring-total ring))
+    nil))
+
+(declaim (inline record-frame-details))
+(defun record-frame-details (ring &key (gc-ns 0) (first-build-ns 0) (update-ns 0) (layout-ns 0)
+                                    (paint-ns 0) (gpu-ns 0))
+  "Set the words after the first eight of the record that RECORD-FRAME wrote last. Does not
+allocate."
+  (declare (type frame-ring ring)
+           (type u64 gc-ns first-build-ns update-ns layout-ns paint-ns gpu-ns))
+  (let* ((capacity (frame-ring-capacity ring))
+         (head (frame-ring-head ring))
+         (last (if (zerop head) (1- capacity) (1- head)))
+         (base (* last +words-per-record+))
+         (data (frame-ring-data ring)))
+    (setf (aref data (+ base 8)) gc-ns
+          (aref data (+ base 9)) first-build-ns
+          (aref data (+ base 10)) update-ns
+          (aref data (+ base 11)) layout-ns
+          (aref data (+ base 12)) paint-ns
+          (aref data (+ base 13)) gpu-ns
+          (aref data (+ base 14)) 0
+          (aref data (+ base 15)) 0)
     nil))
 
 (defmacro with-recorded-frame ((ring) &body body)
@@ -161,6 +197,31 @@ frame's GPU work to finish, and then for its drawable."
 (defun frame-capped-p (ring index)
   "True if the INDEXth frame hit the settle cap."
   (logbitp +capped-bit+ (record-word ring index 7)))
+
+(defun frame-gc-ns (ring index)
+  "Nanoseconds of garbage collection that ended during the INDEXth frame."
+  (record-word ring index 8))
+
+(defun frame-first-build-ns (ring index)
+  "Nanoseconds the first build of the INDEXth frame took. What the frame spent building beyond
+that is the cost of settling."
+  (record-word ring index 9))
+
+(defun frame-update-ns (ring index)
+  "Nanoseconds the variant spent in its update phase in the INDEXth frame."
+  (record-word ring index 10))
+
+(defun frame-layout-ns (ring index)
+  "Nanoseconds the variant spent working out sizes and places in the INDEXth frame."
+  (record-word ring index 11))
+
+(defun frame-paint-ns (ring index)
+  "Nanoseconds the variant spent making the display list in the INDEXth frame."
+  (record-word ring index 12))
+
+(defun frame-gpu-ns (ring index)
+  "Nanoseconds the GPU took for the frame before the INDEXth, whose work the frame waited for."
+  (record-word ring index 13))
 
 (defun frame-duration-ns (ring index)
   "Nanoseconds the INDEXth frame took."

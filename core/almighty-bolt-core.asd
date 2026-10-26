@@ -11,6 +11,8 @@
                (:file "ring")
                (:file "event")
                (:file "stats")
+               (:file "trace")
+               (:file "ring-summary")
                (:file "wheel-lock")
                (:file "text-edit")
                (:file "display-list")
@@ -84,6 +86,8 @@
                  (:file "ring")
                  (:file "event")
                  (:file "stats")
+                 (:file "trace")
+                 (:file "ring-summary")
                  (:file "wheel-lock")
                  (:file "text-edit")
                  (:file "display-list")
@@ -138,6 +142,8 @@
                                                       :almighty-bolt-core/t/ring
                                                       :almighty-bolt-core/t/event
                                                       :almighty-bolt-core/t/stats
+                                                      :almighty-bolt-core/t/trace
+                                                      :almighty-bolt-core/t/ring-summary
                                                       :almighty-bolt-core/t/wheel-lock
                                                       :almighty-bolt-core/t/text-edit
                                                       :almighty-bolt-core/t/display-list

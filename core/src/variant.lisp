@@ -1,7 +1,8 @@
 (defpackage #:almighty-bolt-core/variant
   (:use #:cl)
   (:import-from #:almighty-bolt-core/clock
-                #:now-ns)
+                #:now-ns
+                #:real-time-source)
   (:export #:variant
            #:handle-event
            #:frame
@@ -17,6 +18,16 @@
            #:context-build-number
            #:context-frame-requested
            #:context-requester
+           #:context-phases-p
+           #:context-phase-ns
+           #:+phase-update+
+           #:+phase-layout+
+           #:+phase-paint+
+           #:+phase-first-build+
+           #:+phase-all-builds+
+           #:+phase-slots+
+           #:reset-phases
+           #:with-phase
            #:context-now-ns
            #:request-frame
            #:take-frame-request
@@ -85,6 +96,18 @@ returns NIL until the machine interface (H3) needs it.")
 
 ;;; --- what the core gives a variant ---
 
+(defconstant +phase-update+ 0
+  "The phase of a build that brings the variant's structure up to date with the application:
+what a retained variant's tickers do, what a reactive one's signals and reconciler do, and
+calling the interface function of an immediate one.")
+(defconstant +phase-layout+ 1 "The phase in which sizes and places are worked out.")
+(defconstant +phase-paint+ 2 "The phase in which the display list is made.")
+(defconstant +phase-first-build+ 3
+  "Not a phase of a variant: the time of the first build of a frame, set by SETTLE-FRAME.")
+(defconstant +phase-all-builds+ 4
+  "Not a phase of a variant: the time of all the builds of a frame, set by SETTLE-FRAME.")
+(defconstant +phase-slots+ 5)
+
 (defstruct (context (:constructor make-context (&key width height scale requester)))
   "What a variant can see of the host, made once and updated in place by the host.
 WIDTH and HEIGHT are the size of the drawing area in points and SCALE the pixels
@@ -96,7 +119,35 @@ within the frame. REQUESTER is what REQUEST-FRAME calls; the host replaces it."
   (frame-number 0 :type fixnum)
   (build-number 0 :type fixnum)
   (frame-requested nil :type boolean)
-  (requester #'flag-frame-request :type function))
+  (requester #'flag-frame-request :type function)
+  ;; Instrumentation (the charter's phases): when PHASES-P is true, WITH-PHASE adds the real
+  ;; time of what it runs to a slot of PHASE-NS, and SETTLE-FRAME times its builds. The host
+  ;; clears the slots at the start of a frame and reads them at the end.
+  (phases-p nil :type boolean)
+  (phase-ns (make-array +phase-slots+ :element-type '(unsigned-byte 64) :initial-element 0)
+   :type (simple-array (unsigned-byte 64) (*)) :read-only t))
+
+(defun reset-phases (context)
+  "Clear the times that WITH-PHASE and SETTLE-FRAME have added up."
+  (fill (context-phase-ns context) 0)
+  nil)
+
+(defmacro with-phase ((context phase) &body body)
+  "Run BODY and, if CONTEXT's instrumentation is on, add the real time it took (not the
+core clock, which replay makes virtual) to PHASE (+PHASE-UPDATE+, +PHASE-LAYOUT+ or
++PHASE-PAINT+). Off, it costs one test of a flag. Returns the values of BODY."
+  (let ((c (gensym "CONTEXT"))
+        (start (gensym "START"))
+        (f (gensym "BODY")))
+    `(let ((,c ,context))
+       (flet ((,f () ,@body))
+         (declare (dynamic-extent #',f))
+         (if (context-phases-p ,c)
+             (let ((,start (real-time-source)))
+               (multiple-value-prog1 (,f)
+                 (incf (aref (context-phase-ns ,c) ,phase)
+                       (the (unsigned-byte 62) (- (real-time-source) ,start)))))
+             (,f))))))
 
 (defun flag-frame-request (context)
   "The default requester: note that a frame is wanted."

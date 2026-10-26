@@ -1,10 +1,11 @@
 (defpackage #:almighty-bolt-core/platform/macos/host
   (:use #:cl)
   (:import-from #:almighty-bolt-core/clock
-                #:now-ns)
+                #:real-time-source)
   (:import-from #:almighty-bolt-core/ring
                 #:make-frame-ring
-                #:record-frame)
+                #:record-frame
+                #:record-frame-details)
   (:import-from #:almighty-bolt-core/display-list
                 #:make-display-list)
   (:import-from #:almighty-bolt-core/variant
@@ -15,6 +16,13 @@
                 #:context-frame-number
                 #:context-requester
                 #:context-frame-requested
+                #:context-phases-p
+                #:context-phase-ns
+                #:reset-phases
+                #:+phase-update+
+                #:+phase-layout+
+                #:+phase-paint+
+                #:+phase-first-build+
                 #:take-frame-request
                 #:deliver-event
                 #:context-font
@@ -57,7 +65,8 @@
                 #:make-renderer
                 #:renderer-atlas
                 #:render-display-list
-                #:wait-for-last-frame)
+                #:wait-for-last-frame
+                #:last-frame-gpu-ns)
   (:import-from #:almighty-bolt-core/render/metal/draw-text
                 #:push-line)
   (:export #:host
@@ -160,13 +169,18 @@ flag set."
             (t (setf (context-frame-requested (host-context host)) t))))))
 
 (defun make-host (variant device pixel-format
-                  &key (capacity 65536) (ring-capacity 4096) (scale 2))
+                  &key (capacity 65536) (ring-capacity 4096) (scale 2) phases)
   "A host for VARIANT drawing with DEVICE into targets of PIXEL-FORMAT, with no
 window yet. CAPACITY is the most commands a frame may hold. SCALE is the pixels a
 point that the glyph atlas is rasterized at, which is the scale text must be drawn
-at. RUN-VARIANT makes one with a window; tests make one and call RUN-FRAME."
+at. With PHASES, the instrumentation is on: the variant's update, layout and paint
+times, the first build, garbage collection and the GPU's time go into the ring as well
+(see WITH-PHASE). RUN-VARIANT makes one with a window; tests make one and call RUN-FRAME."
   (let* ((renderer (make-renderer device pixel-format :capacity capacity :scale scale))
-         (context (make-mac-context :width 0f0 :height 0f0 :scale 1f0 :renderer renderer))
+         (context (let ((context (make-mac-context :width 0f0 :height 0f0 :scale 1f0
+                                                    :renderer renderer)))
+                    (setf (context-phases-p context) (and phases t))
+                    context))
          (host (%make-host :variant variant
                            :context context
                            :renderer renderer
@@ -209,9 +223,14 @@ no drawable. Must run inside an autorelease pool."
   (let ((context (host-context host))
         (ring (host-ring host))
         (again nil)
-        (start (now-ns))
-        (consed-before (the (unsigned-byte 64) (sb-ext:get-bytes-consed))))
-    (declare (type (unsigned-byte 64) start consed-before))
+        (start (real-time-source))
+        (consed-before (the (unsigned-byte 64) (sb-ext:get-bytes-consed)))
+        (gc-before sb-ext:*gc-run-time*)
+        (previous-gpu-ns 0))
+    (declare (type (unsigned-byte 64) start consed-before previous-gpu-ns)
+             (type fixnum gc-before))
+    (when (context-phases-p context)
+      (reset-phases context))
     (start-drawing host)
     (unwind-protect
          (progn
@@ -221,18 +240,32 @@ no drawable. Must run inside an autorelease pool."
            (incf (context-frame-number context))
            (multiple-value-bind (builds capped)
                (settle-frame (host-variant host) context (host-display-list host))
-             (let ((built (now-ns)))
+             (let ((built (real-time-source)))
                (wait-for-last-frame (host-renderer host))
+               ;; The frame before has finished, and its command buffer says how long it took.
+               (when (context-phases-p context)
+                 (setf previous-gpu-ns (last-frame-gpu-ns (host-renderer host))))
                (multiple-value-bind (pass drawable) (funcall (host-acquire host))
-                 (let ((acquired (now-ns)))
+                 (let ((acquired (real-time-source)))
                    (unless (zerop pass)
                      (render-display-list (host-renderer host) (host-display-list host)
                                           pass drawable width height scale))
-                   (let ((done (now-ns)))
+                   (let ((done (real-time-source)))
                      (record-frame ring start done consed-before
                                    (the (unsigned-byte 64) (sb-ext:get-bytes-consed))
                                    (- built start) (- acquired built) (- done acquired)
-                                   builds capped)))))))
+                                   builds capped)
+                     (when (context-phases-p context)
+                       (let ((slots (context-phase-ns context)))
+                         (record-frame-details
+                          ring
+                          :gc-ns (* (max 0 (- sb-ext:*gc-run-time* gc-before))
+                                    #.(floor 1000000000 internal-time-units-per-second))
+                          :first-build-ns (aref slots +phase-first-build+)
+                          :update-ns (aref slots +phase-update+)
+                          :layout-ns (aref slots +phase-layout+)
+                          :paint-ns (aref slots +phase-paint+)
+                          :gpu-ns previous-gpu-ns)))))))))
       (setf again (stop-drawing host)))
     (when again
       (funcall (the function (host-wake host))))

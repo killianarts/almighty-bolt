@@ -148,3 +148,40 @@
     (assert-eql 2f0 (variant:context-scale context))
     ;; The context asks the host again for its frames once the replay is over.
     (assert-eq before (variant:context-requester context))))
+
+;;; --- frames made by a function of the caller's ---
+
+(define-test a-frame-function-makes-every-frame-in-place-of-the-settle-loop ()
+  (let* ((variant (make-instance 'support:button-variant))
+         (context (support:make-test-context))
+         (list (dl:make-display-list :capacity 4096))
+         (calls 0)
+         (result (player:replay (click-script) variant context
+                                :display-list list
+                                :frame-function (lambda ()
+                                                  (incf calls)
+                                                  (dl:clear-display-list list)
+                                                  (variant:frame variant context list)
+                                                  (values 1 nil))))
+         (plain (player:replay (click-script) (make-instance 'support:button-variant)
+                               (support:make-test-context))))
+    (assert-eql (player:replay-result-frames result) calls)
+    (assert-eql 4 calls)
+    ;; The list that is drawn is the one given, and it holds the last frame.
+    (assert-eql (player:replay-result-list result) list)
+    (assert-eql (dl:display-list-hash list) (cdr (aref (player:replay-result-hashes result) 3)))
+    ;; The frames are those the settle loop makes.
+    (assert-equalp (player:replay-result-hashes plain) (player:replay-result-hashes result))))
+
+(define-test the-builds-a-frame-function-reports-are-counted ()
+  (let* ((variant (make-instance 'support:button-variant))
+         (context (support:make-test-context))
+         (list (dl:make-display-list :capacity 4096))
+         (result (player:replay (click-script) variant context
+                                :display-list list
+                                :frame-function (lambda ()
+                                                  (dl:clear-display-list list)
+                                                  (variant:frame variant context list)
+                                                  (values 2 nil)))))
+    (assert-eql 8 (player:replay-result-builds result))))
+

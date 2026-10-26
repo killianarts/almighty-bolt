@@ -167,3 +167,45 @@
       (ring:with-recorded-frame (frame-ring)
         nil))
     (assert-true (< (- (sb-ext:get-bytes-consed) before) 1000000))))
+
+;;; --- the details of Phase 3 ---
+
+(define-test the-details-come-back-with-the-record-and-leave-the-rest ()
+  (let ((frame-ring (ring:make-frame-ring :capacity 4)))
+    (ring:record-frame frame-ring 10 90 100 150 40 30 10 2 nil)
+    (ring:record-frame-details frame-ring :gc-ns 5 :first-build-ns 25 :update-ns 3
+                                          :layout-ns 11 :paint-ns 7 :gpu-ns 900)
+    (assert-eql 5 (ring:frame-gc-ns frame-ring 0))
+    (assert-eql 25 (ring:frame-first-build-ns frame-ring 0))
+    (assert-eql 3 (ring:frame-update-ns frame-ring 0))
+    (assert-eql 11 (ring:frame-layout-ns frame-ring 0))
+    (assert-eql 7 (ring:frame-paint-ns frame-ring 0))
+    (assert-eql 900 (ring:frame-gpu-ns frame-ring 0))
+    (assert-eql 40 (ring:frame-build-ns frame-ring 0))
+    (assert-eql 2 (ring:frame-builds frame-ring 0))))
+
+(define-test the-details-go-with-the-last-record-even-when-the-ring-has-wrapped ()
+  (let ((frame-ring (ring:make-frame-ring :capacity 2)))
+    (dotimes (i 3)
+      (ring:record-frame frame-ring i (1+ i) 0 0)
+      (ring:record-frame-details frame-ring :layout-ns (* 100 (1+ i))))
+    (assert-eql 200 (ring:frame-layout-ns frame-ring 0))
+    (assert-eql 300 (ring:frame-layout-ns frame-ring 1))))
+
+(define-test a-record-without-details-has-none-even-over-an-older-one ()
+  (let ((frame-ring (ring:make-frame-ring :capacity 1)))
+    (ring:record-frame frame-ring 1 2 0 0)
+    (ring:record-frame-details frame-ring :gc-ns 9 :paint-ns 9 :gpu-ns 9)
+    (ring:record-frame frame-ring 3 4 0 0)
+    (assert-eql 0 (ring:frame-gc-ns frame-ring 0))
+    (assert-eql 0 (ring:frame-paint-ns frame-ring 0))
+    (assert-eql 0 (ring:frame-gpu-ns frame-ring 0))))
+
+(define-test recording-details-does-not-allocate ()
+  (let ((frame-ring (ring:make-frame-ring :capacity 1024))
+        (before (sb-ext:get-bytes-consed)))
+    (dotimes (i 500000)
+      (ring:record-frame frame-ring i (+ i 100) 100 200 40 30 10 2 nil)
+      (ring:record-frame-details frame-ring :gc-ns i :first-build-ns 3 :layout-ns 4 :paint-ns 5))
+    (assert-true (< (- (sb-ext:get-bytes-consed) before) 1000000))))
+

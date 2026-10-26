@@ -132,3 +132,34 @@ debugging policy that allocates."
       ;; 200,000 builds. Sixteen bytes a build would be 3.2 MB.
       (let ((delta (- (sb-ext:get-bytes-consed) before)))
         (assert-true (< delta 500000) delta)))))
+
+;;; --- timing the builds ---
+
+(defclass sleeping-variant (variant:variant)
+  ((sleeps :initarg :sleeps :accessor sleeps)))
+
+(defmethod variant:frame ((variant sleeping-variant) context list)
+  (declare (ignore list))
+  (sleep (pop (sleeps variant)))
+  (< (variant:context-build-number context) 2))
+
+(define-test with-the-instrumentation-on-the-first-build-and-all-of-them-are-timed ()
+  (let ((variant (make-instance 'sleeping-variant :sleeps '(0.01 0.03)))
+        (context (variant:make-context))
+        (list (dl:make-display-list :capacity 4)))
+    (setf (variant:context-phases-p context) t)
+    (assert-eql 2 (settle:settle-frame variant context list))
+    (let ((slots (variant:context-phase-ns context)))
+      (assert-true (<= 8000000 (aref slots variant:+phase-first-build+) 25000000))
+      (assert-true (>= (aref slots variant:+phase-all-builds+) 35000000))
+      (assert-true (> (aref slots variant:+phase-all-builds+)
+                      (* 2 (aref slots variant:+phase-first-build+)))))))
+
+(define-test with-the-instrumentation-off-the-builds-are-not-timed ()
+  (let ((variant (make-instance 'sleeping-variant :sleeps '(0.01 0.01)))
+        (context (variant:make-context))
+        (list (dl:make-display-list :capacity 4)))
+    (settle:settle-frame variant context list)
+    (assert-eql 0 (aref (variant:context-phase-ns context) variant:+phase-first-build+))
+    (assert-eql 0 (aref (variant:context-phase-ns context) variant:+phase-all-builds+))))
+

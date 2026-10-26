@@ -11,6 +11,10 @@
                 #:context-scale
                 #:context-height
                 #:context-now-ns
+                #:with-phase
+                #:+phase-update+
+                #:+phase-layout+
+                #:+phase-paint+
                 #:push-rect
                 #:make-display-list
                 #:display-list-capacity
@@ -247,20 +251,22 @@ frame presented, round."
                                (= (ui-last-scale ui) scale)
                                (= (ui-last-layout-hash ui) (ui-frame-layout-hash ui))
                                (= (length (ui-saved-geometry ui)) (* 4 (ui-count ui))))))
-         (if same-layout
-             (restore-geometry ui)
-             (progn (layout-box root context 0f0 width 0f0 height)
-                    (setf (box-x root) 0f0 (box-y root) 0f0)
-                    (remember-geometry ui)))
-         (cond
-           ((and same-layout (= (ui-last-paint-hash ui) (ui-frame-paint-hash ui)))
-            (replace-display-list list (ui-last-list ui)))
-           (t
-            (push-rect list 0 0 width height +background+)
-            (paint-box ui root context list 0f0 0f0)
-            (when (< (display-list-capacity (ui-last-list ui)) (display-list-capacity list))
-              (setf (ui-last-list ui) (make-display-list :capacity (display-list-capacity list))))
-            (replace-display-list (ui-last-list ui) list)))
+         (with-phase (context +phase-layout+)
+           (if same-layout
+               (restore-geometry ui)
+               (progn (layout-box root context 0f0 width 0f0 height)
+                      (setf (box-x root) 0f0 (box-y root) 0f0)
+                      (remember-geometry ui))))
+         (with-phase (context +phase-paint+)
+           (cond
+             ((and same-layout (= (ui-last-paint-hash ui) (ui-frame-paint-hash ui)))
+              (replace-display-list list (ui-last-list ui)))
+             (t
+              (push-rect list 0 0 width height +background+)
+              (paint-box ui root context list 0f0 0f0)
+              (when (< (display-list-capacity (ui-last-list ui)) (display-list-capacity list))
+                (setf (ui-last-list ui) (make-display-list :capacity (display-list-capacity list))))
+              (replace-display-list (ui-last-list ui) list))))
          (setf (ui-last-layout-hash ui) (ui-frame-layout-hash ui)
                (ui-last-paint-hash ui) (ui-frame-paint-hash ui)
                (ui-last-width ui) width
@@ -272,10 +278,11 @@ frame presented, round."
     (when (<= (almighty-bolt-core:context-build-number context) 1)
       (setf (more-input variant) (begin-frame-input ui))
       (move-focus ui))
-    (begin-build ui context)
-    (let ((*ui* ui))
-      (funcall (app variant)))
-    (compute-hashes ui)
+    (with-phase (context +phase-update+)
+      (begin-build ui context)
+      (let ((*ui* ui))
+        (funcall (app variant)))
+      (compute-hashes ui))
     (let ((consumed (ui-consumed ui))
           (last-build (>= (almighty-bolt-core:context-build-number context) +max-builds+)))
       (cond

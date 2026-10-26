@@ -193,3 +193,59 @@ debugging policy that allocates."
       (let ((delta (- (sb-ext:get-bytes-consed) before)))
         (assert-eql 201000 (event-count variant))
         (assert-true (< delta 500000) delta)))))
+
+;;; --- the phases of a build ---
+
+(defvar *sink* nil
+  "Keeps the work of a test from being optimized away.")
+
+(defun slot-ns (context slot)
+  (aref (variant:context-phase-ns context) slot))
+
+(define-test a-phase-adds-the-real-time-of-its-body-when-the-instrumentation-is-on ()
+  (let ((context (variant:make-context)))
+    (setf (variant:context-phases-p context) t)
+    (variant:with-phase (context variant:+phase-layout+) (sleep 0.02))
+    (variant:with-phase (context variant:+phase-layout+) (sleep 0.02))
+    (assert-true (>= (slot-ns context variant:+phase-layout+) 35000000))
+    (assert-eql 0 (slot-ns context variant:+phase-paint+))
+    (assert-eql 0 (slot-ns context variant:+phase-update+))))
+
+(define-test a-phase-does-nothing-when-the-instrumentation-is-off ()
+  (let ((context (variant:make-context)))
+    (variant:with-phase (context variant:+phase-paint+) (sleep 0.01))
+    (assert-equalp (make-array variant:+phase-slots+ :element-type '(unsigned-byte 64)
+                                                    :initial-element 0)
+                   (variant:context-phase-ns context))))
+
+(define-test a-phase-returns-the-values-of-its-body ()
+  (let ((context (variant:make-context)))
+    (dolist (on '(nil t))
+      (setf (variant:context-phases-p context) on)
+      (assert-equal '(1 2 3)
+                    (multiple-value-list
+                     (variant:with-phase (context variant:+phase-update+) (values 1 2 3)))))))
+
+(define-test a-phase-is-timed-on-the-real-clock-whatever-the-core-clock-says ()
+  (let ((context (variant:make-context))
+        (virtual (clock:make-virtual-clock 1000)))
+    (setf (variant:context-phases-p context) t)
+    (clock:with-time-source ((clock:virtual-clock-source virtual))
+      (variant:with-phase (context variant:+phase-layout+) (sleep 0.02)))
+    (assert-true (>= (slot-ns context variant:+phase-layout+) 15000000))))
+
+(define-test resetting-the-phases-clears-them ()
+  (let ((context (variant:make-context)))
+    (setf (variant:context-phases-p context) t)
+    (variant:with-phase (context variant:+phase-layout+) (sleep 0.005))
+    (variant:reset-phases context)
+    (assert-eql 0 (slot-ns context variant:+phase-layout+))))
+
+(define-test a-phase-allocates-nothing-on-or-off ()
+  (let ((context (variant:make-context)))
+    (dolist (on '(nil t))
+      (setf (variant:context-phases-p context) on)
+      (let ((before (sb-ext:get-bytes-consed)))
+        (dotimes (i 300000)
+          (variant:with-phase (context variant:+phase-layout+) (setf *sink* i)))
+        (assert-true (< (- (sb-ext:get-bytes-consed) before) 1000000) on)))))

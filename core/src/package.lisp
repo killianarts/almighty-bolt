@@ -37,7 +37,18 @@
                 #:frame-encode-ns
                 #:frame-builds
                 #:frame-capped-p
+                #:record-frame-details
+                #:frame-gc-ns
+                #:frame-first-build-ns
+                #:frame-update-ns
+                #:frame-layout-ns
+                #:frame-paint-ns
+                #:frame-gpu-ns
                 #:map-frames)
+  (:import-from #:almighty-bolt-core/trace
+                #:write-trace)
+  (:import-from #:almighty-bolt-core/ring-summary
+                #:summarize-ring)
   (:import-from #:almighty-bolt-core/event
                 #:event
                 #:event-timestamp
@@ -173,6 +184,16 @@
                 #:context-build-number
                 #:context-frame-requested
                 #:context-requester
+                #:context-phases-p
+                #:context-phase-ns
+                #:+phase-update+
+                #:+phase-layout+
+                #:+phase-paint+
+                #:+phase-first-build+
+                #:+phase-all-builds+
+                #:+phase-slots+
+                #:reset-phases
+                #:with-phase
                 #:context-now-ns
                 #:request-frame
                 #:take-frame-request
@@ -283,7 +304,16 @@
            #:frame-encode-ns
            #:frame-builds
            #:frame-capped-p
+           #:record-frame-details
+           #:frame-gc-ns
+           #:frame-first-build-ns
+           #:frame-update-ns
+           #:frame-layout-ns
+           #:frame-paint-ns
+           #:frame-gpu-ns
            #:map-frames
+           #:write-trace
+           #:summarize-ring
            #:event
            #:event-timestamp
            #:+key-up+
@@ -413,6 +443,16 @@
            #:context-build-number
            #:context-frame-requested
            #:context-requester
+           #:context-phases-p
+           #:context-phase-ns
+           #:+phase-update+
+           #:+phase-layout+
+           #:+phase-paint+
+           #:+phase-first-build+
+           #:+phase-all-builds+
+           #:+phase-slots+
+           #:reset-phases
+           #:with-phase
            #:context-now-ns
            #:request-frame
            #:take-frame-request

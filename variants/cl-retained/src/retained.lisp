@@ -10,6 +10,10 @@
                 #:context-width
                 #:context-height
                 #:context-now-ns
+                #:with-phase
+                #:+phase-update+
+                #:+phase-layout+
+                #:+phase-paint+
                 #:push-rect
                 #:pointer-event
                 #:pointer-event-kind
@@ -136,26 +140,29 @@ as they are needed and no longer."
          (width (context-width context))
          (height (context-height context)))
     (setf (session-context session) context)
-    (let ((again nil)
-          (now (context-now-ns context)))
-      (dolist (ticker (session-tickers session))
-        (when (funcall ticker now)
-          (setf again t)))
-      (when again
-        (request-frame context)))
+    (with-phase (context +phase-update+)
+      (let ((again nil)
+            (now (context-now-ns context)))
+        (dolist (ticker (session-tickers session))
+          (when (funcall ticker now)
+            (setf again t)))
+        (when again
+          (request-frame context))))
     ;; Sizes are worked out when something that can change them did, or the window did.
-    (when (or (tree-state-layout-dirty state)
-              (/= width (laid-out-width variant))
-              (/= height (laid-out-height variant)))
-      (layout-node root context 0f0 width 0f0 height)
-      (setf (node-x root) 0f0
-            (node-y root) 0f0
-            (laid-out-width variant) width
-            (laid-out-height variant) height
-            (tree-state-layout-dirty state) nil))
-    (push-rect list 0 0 width height +background+)
-    (let ((*paint-caching* (retained-variant-caching variant)))
-      (paint-node root context list 0f0 0f0))
+    (with-phase (context +phase-layout+)
+      (when (or (tree-state-layout-dirty state)
+                (/= width (laid-out-width variant))
+                (/= height (laid-out-height variant)))
+        (layout-node root context 0f0 width 0f0 height)
+        (setf (node-x root) 0f0
+              (node-y root) 0f0
+              (laid-out-width variant) width
+              (laid-out-height variant) height
+              (tree-state-layout-dirty state) nil)))
+    (with-phase (context +phase-paint+)
+      (push-rect list 0 0 width height +background+)
+      (let ((*paint-caching* (retained-variant-caching variant)))
+        (paint-node root context list 0f0 0f0)))
     ;; Building changed no state the core must settle, so the frame is settled.
     nil))
 
