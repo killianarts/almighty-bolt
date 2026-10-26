@@ -50,4 +50,17 @@
           (s:click-control host :grid :fx 0.2 :fy 0.2)
           (s:type-string host "=1+2")
           (s:key-press host #\Return)))
+  ;; The stress apps (decision record 0025).
+  (snap variant :dashboard
+        (lambda (host) (declare (ignore host)) nil))
+  (snap variant :rows
+        (lambda (host)
+          (s:click-control host :list :fy 0.2)
+          (dotimes (i 3) (s:key-press host (code-char #xF701)))))
+  (snap variant :editor
+        (lambda (host)
+          (s:click-control host :editor :fx 0.4 :fy 0.2)
+          (s:type-string host "typed here")
+          (dotimes (i 12)
+            (s:key-press host (code-char #xF703) :modifiers 1))))
   (format t "~&Wrote ~(~a~) snapshots.~%" variant))
