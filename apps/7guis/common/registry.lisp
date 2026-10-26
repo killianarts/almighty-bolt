@@ -20,7 +20,7 @@
 ;;; that the launcher and the acceptance tests can run any of them by name without
 ;;; knowing which variant it is.
 
-(defparameter +tasks+ '(:counter :temperature :flight :timer :crud :circles :cells :layout))
+(defparameter +tasks+ '(:counter :temperature :flight :timer :crud :circles :cells :layout :dialog))
 (defparameter +variants+ '(:retained :reactive :immediate))
 
 (defstruct (app (:constructor make-app (variant task constructor width height title)))
@@ -36,8 +36,11 @@
 (defun register-app (variant task constructor &key (width 400) (height 300) title)
   "Record that VARIANT has an app for TASK, made by calling CONSTRUCTOR, which runs in a
 window WIDTH by HEIGHT points."
-  (check-type variant (member :retained :reactive :immediate))
-  (check-type task (member :counter :temperature :flight :timer :crud :circles :cells :layout))
+  ;; :cursor is the experiment of record 0022, not a variant of the comparison: it is not in
+  ;; +VARIANTS+, so the acceptance tests of the seven tasks do not run it.
+  (check-type variant (member :retained :reactive :immediate :cursor))
+  (check-type task (member :counter :temperature :flight :timer :crud :circles :cells :layout
+                           :dialog))
   (setf *apps* (remove-if (lambda (app) (and (eq (app-variant app) variant) (eq (app-task app) task)))
                           *apps*))
   (push (make-app variant task constructor width height

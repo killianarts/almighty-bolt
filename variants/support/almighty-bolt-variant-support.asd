@@ -5,4 +5,5 @@
   :maintainer "Micah Killian <micah@almightylisp.com>"
   :license "MIT"
   :depends-on ("almighty-bolt-core")
-  :components ((:file "fake-context")))
+  :components ((:file "fake-context")
+               (:file "compare")))

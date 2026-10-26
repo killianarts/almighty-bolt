@@ -1,4 +1,4 @@
-.PHONY: deps shim test spike-a spike-b spike-c spike-d spike-e bench-metal bench-text bench-null bench-retained bench-compare bench-layout bench-run bench-report snapshots replay 7guis 7guis-smoke clean
+.PHONY: deps shim test spike-a spike-b spike-c spike-d spike-e bench-metal bench-text bench-null bench-retained bench-compare bench-layout bench-cursor snapshots-cursor bench-run bench-report snapshots replay 7guis 7guis-smoke clean
 
 # ASDF looks only in this tree (project and vendored/), never in ~/common-lisp/.
 SBCL = sbcl --noinform --non-interactive --no-sysinit --no-userinit
@@ -31,6 +31,7 @@ test:
 	$(SBCL) $(REGISTRY) --eval '(asdf:test-system "almighty-bolt-variant-retained")'
 	$(SBCL) $(REGISTRY) --eval '(asdf:test-system "almighty-bolt-variant-reactive")'
 	$(SBCL) $(REGISTRY) --eval '(asdf:test-system "almighty-bolt-variant-immediate")'
+	$(SBCL) $(REGISTRY) --eval '(asdf:test-system "almighty-bolt-variant-cursor")'
 	$(SBCL) $(REGISTRY) --eval '(asdf:test-system "almighty-bolt-7guis")'
 	$(SBCL) $(REGISTRY) --eval '(asdf:test-system "almighty-bolt-7guis/acceptance")'
 
@@ -91,9 +92,18 @@ bench-report:
 bench-layout:
 	WHICH=layout $(SBCL) $(REGISTRY) --load bench/run.lisp
 
+# The cursor experiment (record 0022): the layout spike and the dialog screen in the cursor
+# front end in each mode, against the box tree, with the fake text and with the real engine.
+bench-cursor:
+	WHICH=cursor $(SBCL) $(REGISTRY) --load bench/run.lisp
+
 # A picture of each task of a variant after a few events: make snapshots VARIANT=immediate OUT=/tmp/shots/
 snapshots:
 	VARIANT=$(VARIANT) OUT=$(OUT) sbcl --noinform --non-interactive --no-sysinit --no-userinit --load scripts/snapshot-apps.lisp
+
+# Pictures of the cursor experiment (record 0022): make snapshots-cursor OUT=/tmp/shots/
+snapshots-cursor:
+	OUT=$(OUT) sbcl --noinform --non-interactive --no-sysinit --no-userinit --load scripts/snapshot-cursor.lisp
 
 # A 7GUIs task of a variant in a window: make 7guis VARIANT=retained TASK=counter
 # LOG=1 prints the presses, releases and keys that reach it and what is under the

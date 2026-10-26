@@ -10,6 +10,8 @@
 (let ((which (or (uiop:getenv "WHICH") "")))
   (cond ((string-equal which "layout")
          (funcall (intern "MAIN" "ALMIGHTY-BOLT-BENCH/LAYOUT-SPIKE")))
+        ((string-equal which "cursor")
+         (funcall (intern "MAIN" "ALMIGHTY-BOLT-BENCH/CURSOR-SPIKE")))
         ((string-equal which "results")
          (funcall (intern "MAIN" "ALMIGHTY-BOLT-BENCH/RESULTS")))
         ((string-equal which "report")
