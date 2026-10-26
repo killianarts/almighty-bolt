@@ -158,16 +158,44 @@ What the numbers say, against what I expected:
   =append= cost.
 - Expected: the concepts do not change, and the frames do not differ. Found: both hold.
 
-What remains is what 0024's edits pointed at, now with the syntax made equal. In the retained
-dashboard it is =values= and =bars= (the handles), the loop that makes the 72 widgets and keeps
-them, and =tick=, which writes each of them and says the chart is stale; in the reactive one it is a
-signal for each tile, a signal for the chart, the components that read them and the ticker that
-writes them; in the immediate one it is nothing, because the description reads the model. The
-immediate variant has the work of knowing what changed too: it does it for every widget in every
-frame, and the library holds what a widget remembers between frames, keyed by its id. That is a
-trade of lines of code for work done in every frame, which the stress apps' timings show (the
-dashboard's build in the immediate variant is the most expensive of the three), and not a free
-simplification.
+Where the rest of the gap is, counted as far as it can be (tokens, after the port; the immediate
+variant's files are 337 tokens of package form and 1568 of body):
+
+  |                                      | retained | reactive |
+  |--------------------------------------+----------+----------|
+  | gap of the whole file to immediate   |      582 |      522 |
+  | the package form (imports)           |       97 |       70 |
+  | callback signatures (declare ignore) |       77 |       33 |
+  | the rest                             |      408 |      419 |
+
+- The package form is 434 and 407 tokens in retained and reactive against 337 in immediate: a
+  retained app imports from three to five packages of its variant (the nodes, the widgets, the
+  inputs, the variant, and now the builder), a reactive one from four, an immediate one from two.
+  That is the shape of the libraries' interfaces and not of the apps' logic: 17 % and 13 % of the
+  gap.
+- A handler of the retained canvas is given the canvas it belongs to, and one of the reactive canvas
+  is given its data, which an app that does not want them must say it ignores: 26 and 13 such
+  declarations in the ten apps, against 4 in the immediate variant (89, 45 and 12 tokens). After
+  taking the immediate variant's own away that is 77 and 33 tokens, 16 % and 7 % of the gap of the
+  body.
+- The rest, 408 and 419 tokens, 70 % and 80 %, I did not split. By my reading it is the code that
+  keeps the widgets or the signals in step with the model (the handles, the setters, the signals,
+  the tickers), and the event model: a handler that is named and given to a widget, against an
+  =(when (button ...))= where the widget is described. The syntax of the tree that the macros could
+  reach is in these numbers too: it is the 6 and 19 tokens they took off the body, and is not more
+  than a few per cent.
+
+By my reading, and not by a count, what remains of the rest is what 0024's edits pointed at, now
+with the syntax made equal. In the retained dashboard it is =values= and =bars= (the handles), the
+loop that makes the 72 widgets and keeps them, and =tick=, which writes each of them and says the
+chart is stale; in the reactive one it is a signal for each tile, a signal for the chart, the
+components that read them and the ticker that writes them; in the immediate one it is nothing,
+because the description reads the model. The immediate variant has the work of knowing what changed
+too: it does it for every widget in every frame, and the library holds what a widget remembers
+between frames, keyed by its id. That is a trade of lines of code for work done in every frame,
+which the timings should show and show only a little: the dashboard's build in the driver takes 43
+us in the retained variant, clearly less, and 70 and 75 in the reactive and the immediate, which are
+close. It is not a free simplification, but this does not measure its price.
 
 Not tried, and what it would change:
 - Macros in which a widget called in the body puts itself in, as in the immediate variant (so that
@@ -201,13 +229,15 @@ signal is.
   immediate variants read directly.
 
 ** What I take from both
-The reading of the immediate apps as simpler is right and is not about the syntax. It is that the
-variant has no state of its own to keep in step with the model, and the code that keeps the other
-two in step is the difference. That is the thing H2 is about, and it was already there in 0024's
-change-cost edits; the macros show it by taking the syntax away as an explanation. What the syntax
-does change is how the code reads: the nesting of the three variants' trees is now the same, which
-matters to whoever scores the usability rubric, who would otherwise be comparing macros with
-function calls. That is the argument for merging the port, and the cost is that every size recorded
-in 0024 and 0025 and the facts sheet of the rubric would then have to be quoted twice. Micah decides
-(record 0026).
-
+The reading of the immediate apps as simpler is right, and the syntax of the tree explains almost
+none of it: at most 4 % of the body's gap. A measurable slice is how the libraries are laid out,
+which is not about approach: the package form (13 to 17 % of the gap of the whole file) and the
+signatures of callbacks (7 to 16 % of the gap of the body). The largest part, 70 to 80 %, I take by
+reading to be the code that keeps widgets or signals in step with the model and the event model,
+which is what H2 is about and what 0024's edits pointed at; I have not measured it apart from the
+rest. What the syntax does change is how the code reads: the nesting of the three variants' trees is
+now the same, which matters to whoever scores the usability rubric, who would otherwise be comparing
+macros with function calls. That is the argument for merging the port. The costs are that every size
+recorded in 0024 and 0025 and the facts sheet of the rubric would have to be quoted twice, and that
+the patches of E1 to E5 (=results/change-cost/=) would no longer apply to the apps, so a sixth edit
+would not be like for like unless the five were made again. Micah decides (record 0026).

@@ -54,9 +54,9 @@ immediate variant was not changed:
   widen retained's gap by 10 % and leave reactive's alone. Ten lines in each
   variant are the cost of the macros being in a package of their own (one more
   IMPORT-FROM clause in each app); without them reactive's gap is 8 % smaller.
-  The dashboards gain three lines each, where I expected ten. At least 96 % of
-  the gap is not the syntax of the tree. The concepts (97, 102 and 73) do not
-  change.
+  The dashboards gain three lines each, where I expected ten. The syntax of the
+  tree is at most 4 % of the gap of the body. The concepts (97, 102 and 73) do
+  not change.
 - A frame conses the same bytes and takes the same time before and after, in the
   two apps that animate: the dashboard 623, 9435 and 3537 bytes (retained,
   reactive, immediate) and the timer 33, 98 and 590.
@@ -65,32 +65,46 @@ immediate variant was not changed:
   conses 10058 bytes against 9435 (+6.6 %) and takes 74.2 us against 70.1 (+5.8
   %). It removes the loop that copies the model into 36 signals and moves its
   work into the model.
-- What is left in the retained and reactive dashboards, with the syntax made the
-  same, is the code that keeps the widgets or the signals in step with the model
-  (the handles and the loop that writes them; the signals, the components that
-  read them and the ticker that writes them). In the immediate dashboard there
-  is none, because the description reads the model; the work of finding what
-  changed is done in every frame by the library, which is why its dashboard
-  build is the most expensive of the three (43.4, 70.1 and 74.6 us for retained,
-  reactive and immediate, in the driver).
+Where the rest of the gap is, in tokens of the whole file, after the port
+(retained, reactive): the gap is 582 and 522; the package form is 97 and 70 of
+it (an app imports from three to five packages of the retained variant, four of
+the reactive and two of the immediate); the callbacks' signatures are 77 and 33
+(a handler that must say it ignores the canvas or the data it is given: 26 and
+13 declarations in the ten apps against 4); and 408 and 419, 70 % and 80 %, are
+the rest, which I did not split.
+- By my reading the rest is the code that keeps the widgets or the signals in
+  step with the model (in the dashboard: the handles and the loop that writes
+  them; the signals, the components that read them and the ticker that writes
+  them) and the event model (a named handler given to a widget, against =(when
+  (button ...))= where the widget is described). The immediate dashboard has no
+  code of the first kind, because the description reads the model; the library
+  does the work of finding what changed in every frame. What that costs in time
+  is small: the dashboard's build in the driver is 43.4, 70.1 and 74.6 us
+  (retained, reactive, immediate), so retained is clearly cheaper and the other
+  two are close.
 
 * Decision
 Proposed: H2 stays OPEN. What this adds is that the size gap of 0024 is not the
-syntax of the tree: it is the code that keeps the state in step with the
-widgets, which is what H2 supposed, and the immediate variant pays for it in
-work per frame and not in lines. The answer to the question that began this: the
-models are not shaped for the immediate variant; the shared editor controller
-returns whether it changed something, which the immediate variant discards, and
-a signal cannot see a model that changes in place, which the reactive variant
-has to work around.
+syntax of the tree (at most 4 % of the body's gap). A measurable part is how the
+libraries are laid out, which is not about approach: the package form (13 to 17
+% of the gap of the whole file) and the signatures of callbacks (7 to 16 % of
+the gap of the body). Most of it, 70 to 80 %, I take by reading to be the code
+that keeps the state in step with the widgets and the event model, which is what
+H2 supposed; I did not measure it apart from the rest. The answer to the
+question that began this: the models are not shaped for the immediate variant;
+the shared editor controller returns whether it changed something, which the
+immediate variant discards, and a signal cannot see a model that changes in
+place, which the reactive variant has to work around.
 
 Proposed, for Micah to choose (the work is on the branch =builder-macros=, which
 starts at 4cb93b8, not merged and not pushed):
 - (a) Merge the builder layer and the port. The three variants' trees then read
   the same, which is what whoever scores the usability rubric should be
-  comparing. The cost is that every size quoted in 0024, 0025 and the rubric's
+  comparing. The costs are that every size quoted in 0024, 0025 and the rubric's
   facts sheet (=notes/usability-rubric.org=) changes (retained +15 lines,
-  reactive 0), so they would be quoted before and after. I recommend this.
+  reactive 0), so they would be quoted before and after; and that the patches of
+  E1 to E5 (=results/change-cost/=) no longer apply to the apps, so a sixth edit
+  would not be like for like unless the five were made again. I recommend this.
 - (b) Merge the layer and its tests, and leave the apps of record as they are.
   Nothing that was measured changes; new apps can use the macros, and the rubric
   compares function calls with macros.
