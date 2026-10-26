@@ -7,7 +7,11 @@
 
 (asdf:load-system "almighty-bolt-bench")
 
-(let ((which (uiop:getenv "WHICH")))
-  (funcall (intern "MAIN" (if (and which (string-equal which "layout"))
-                              "ALMIGHTY-BOLT-BENCH/LAYOUT-SPIKE"
-                              "ALMIGHTY-BOLT-BENCH/COMPARE"))))
+(let ((which (or (uiop:getenv "WHICH") "")))
+  (cond ((string-equal which "layout")
+         (funcall (intern "MAIN" "ALMIGHTY-BOLT-BENCH/LAYOUT-SPIKE")))
+        ((string-equal which "results")
+         (funcall (intern "MAIN" "ALMIGHTY-BOLT-BENCH/RESULTS")))
+        ((string-equal which "report")
+         (funcall (intern "REPORT" "ALMIGHTY-BOLT-BENCH/RESULTS")))
+        (t (funcall (intern "MAIN" "ALMIGHTY-BOLT-BENCH/COMPARE")))))

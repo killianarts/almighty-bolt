@@ -2,6 +2,7 @@
   (:use #:cl)
   (:import-from #:almighty-bolt-core/clock
                 #:*time-source*
+                #:real-time-source
                 #:make-virtual-clock
                 #:virtual-clock-ns
                 #:virtual-clock-source
@@ -37,6 +38,9 @@
            #:replay-result-hashes
            #:replay-result-checkpoints
            #:replay-result-list
+           #:replay-result-samples
+           #:replay-result-bytes
+           #:replay-result-gc-ns
            #:replay-ok-p
            #:checkpoint-result
            #:checkpoint-result-name
@@ -83,10 +87,14 @@ of the settled frame."
       (eql (checkpoint-result-expected checkpoint) (checkpoint-result-actual checkpoint))))
 
 (defstruct (replay-result (:constructor make-replay-result
-                              (frames builds capped hashes checkpoints list)))
+                              (frames builds capped hashes checkpoints list samples bytes gc-ns)))
   "What a replay did: frames built, builds in them, frames that hit the settle cap, a vector of
-(time . hash) for each frame in order, the checkpoints in order, and the last frame's list."
-  frames builds capped hashes checkpoints list)
+(time . hash) for each frame in order, the checkpoints in order, and the last frame's list.
+When it was measured (see REPLAY), also a vector with a list (NANOSECONDS BUILDS BYTES) for each
+frame: the real time it took to build, the builds it needed and the bytes consed while it was
+built (which, being read from a counter that moves a region at a time, are only good summed over
+many frames); and the bytes consed and nanoseconds of garbage collection in all of the replay."
+  frames builds capped hashes checkpoints list samples bytes gc-ns)
 
 (defun replay-ok-p (result)
   "True if every checkpoint passed and no frame hit the settle cap."
@@ -114,11 +122,13 @@ of the settled frame."
                    (remove-keys options :target :fx :fy)))))))
 
 (defun replay (script variant context
-               &key frame-interval-ns (capacity 65536))
+               &key frame-interval-ns (capacity 65536) measure)
   "Replay SCRIPT into VARIANT, whose frames are built with CONTEXT (which must have the text
 support the variant needs). The context's size and scale are set from the script's header
 if it has them. Returns a REPLAY-RESULT. Signals REPLAY-TARGET-MISSING for a target the
-variant does not show."
+variant does not show. With MEASURE, the time each frame takes to build is noted, on the
+real clock though the script's is virtual, with the bytes consed and the time spent in
+garbage collection over the whole replay; the replay is otherwise the same."
   (let* ((header (script-header script))
          (interval (or frame-interval-ns (getf header :frame-interval-ns)
                        +default-frame-interval-ns+))
@@ -127,6 +137,9 @@ variant does not show."
          (hashes (make-array 64 :adjustable t :fill-pointer 0))
          (checkpoints '())
          (frames 0) (builds 0) (capped 0)
+         (samples (make-array 64 :adjustable t :fill-pointer 0))
+         (bytes-before (sb-ext:get-bytes-consed))
+         (gc-before sb-ext:*gc-run-time*)
          (old-requester (context-requester context)))
     (when (getf header :width) (setf (context-width context) (float (getf header :width) 1f0)))
     (when (getf header :height) (setf (context-height context) (float (getf header :height) 1f0)))
@@ -140,8 +153,17 @@ variant does not show."
                     (build ()
                       (take-frame-request context)
                       (multiple-value-bind (n capped-p)
-                          (handler-bind ((settle-cap-reached #'muffle-warning))
-                            (settle-frame variant context list))
+                          (let ((start (and measure (real-time-source)))
+                                (consed (and measure (sb-ext:get-bytes-consed))))
+                            (multiple-value-bind (n capped-p)
+                                (handler-bind ((settle-cap-reached #'muffle-warning))
+                                  (settle-frame variant context list))
+                              (when measure
+                                (vector-push-extend
+                                 (list (- (real-time-source) start) n
+                                       (- (sb-ext:get-bytes-consed) consed))
+                                 samples))
+                              (values n capped-p)))
                         (incf frames)
                         (incf builds n)
                         (when capped-p (incf capped))
@@ -183,7 +205,10 @@ variant does not show."
              (dolist (entry (script-entries script))
                (do-entry entry))))
       (setf (context-requester context) old-requester))
-    (make-replay-result frames builds capped hashes (nreverse checkpoints) list)))
+    (make-replay-result frames builds capped hashes (nreverse checkpoints) list samples
+                        (- (sb-ext:get-bytes-consed) bytes-before)
+                        (round (* (- sb-ext:*gc-run-time* gc-before) 1000000000)
+                               internal-time-units-per-second))))
 
 ;;; --- making checkpoints ---
 

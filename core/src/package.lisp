@@ -100,6 +100,10 @@
                 #:focus-event
                 #:make-focus-event
                 #:focus-event-focused-p)
+  (:import-from #:almighty-bolt-core/stats
+                #:percentile
+                #:median
+                #:summarize)
   (:import-from #:almighty-bolt-core/wheel-lock
                 #:axis-lock
                 #:make-axis-lock
@@ -210,6 +214,9 @@
                 #:replay-result-hashes
                 #:replay-result-checkpoints
                 #:replay-result-list
+                #:replay-result-samples
+                #:replay-result-bytes
+                #:replay-result-gc-ns
                 #:replay-ok-p
                 #:checkpoint-result
                 #:checkpoint-result-name
@@ -312,6 +319,9 @@
            #:wheel-event-modifiers
            #:+points-per-line+
            #:wheel-event-lines
+           #:percentile
+           #:median
+           #:summarize
            #:axis-lock
            #:make-axis-lock
            #:lock-wheel
@@ -441,6 +451,9 @@
            #:replay-result-hashes
            #:replay-result-checkpoints
            #:replay-result-list
+           #:replay-result-samples
+           #:replay-result-bytes
+           #:replay-result-gc-ns
            #:replay-ok-p
            #:checkpoint-result
            #:checkpoint-result-name

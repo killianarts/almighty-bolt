@@ -50,6 +50,22 @@
       (assert-equalp (player:replay-result-hashes a) (player:replay-result-hashes b))
       (assert-true (plusp (length (player:replay-result-hashes a)))))))
 
+(define-test a-measured-replay-notes-what-each-frame-took-and-an-unmeasured-one-nothing ()
+  (let* ((measured (player:replay (click-script) (make-instance 'support:button-variant)
+                                  (support:make-test-context) :measure t))
+         (plain (player:replay (click-script) (make-instance 'support:button-variant)
+                               (support:make-test-context))))
+    (assert-eql (player:replay-result-frames measured) (length (player:replay-result-samples measured)))
+    (assert-true (every (lambda (sample)
+                          (destructuring-bind (nanoseconds builds bytes) sample
+                            (and (>= nanoseconds 0) (>= builds 1) (>= bytes 0))))
+                        (player:replay-result-samples measured)))
+    (assert-true (>= (player:replay-result-bytes measured) 0))
+    (assert-true (>= (player:replay-result-gc-ns measured) 0))
+    (assert-eql 0 (length (player:replay-result-samples plain)))
+    ;; Measuring changes nothing a script can see.
+    (assert-equalp (player:replay-result-hashes measured) (player:replay-result-hashes plain))))
+
 (define-test the-frames-differ-when-the-state-does ()
   (let* ((result (player:replay (click-script) (make-instance 'support:button-variant)
                                 (support:make-test-context)))

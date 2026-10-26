@@ -1,0 +1,16 @@
+#+TITLE: Benchmark results
+
+One file per run of a script in one variant, written by =make bench-run= (the harness of
+=bench/results.lisp=; decision record 0021). A record is a single s-expression:
+=(:almighty-bolt-result 1 :date .. :commit .. :dirty .. :variant .. :app .. :script ..
+:machine (..) :repetitions .. :warmups .. :runs (..) :summary (..))=. =:runs= holds the raw
+samples of every repetition (the build time of each frame in nanoseconds, the builds it took,
+the bytes consed while it was built), =:summary= what they say. The first frame of a run is
+cold and is summarized apart; the rest are what the medians and percentiles are of.
+
+A record is never edited. A later run of the same variant, app and script supersedes it, and
+=make bench-report= prints the latest of each. What is measured is the variant's build of a
+frame, on the real clock, with the real text engine and no window: not the host's waiting for
+the display, nor its encoding. The numbers are of the machine in =:machine=; compare records
+only from the same machine and, as the protocol says, treat differences within the spread of
+the repetitions as ties.

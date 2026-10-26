@@ -10,4 +10,5 @@
                "almighty-bolt-7guis/retained" "almighty-bolt-7guis/reactive"
                "almighty-bolt-7guis/immediate")
   :components ((:file "compare" :if-feature :darwin)
-               (:file "layout-spike" :if-feature :darwin)))
+               (:file "layout-spike" :if-feature :darwin)
+               (:file "results" :if-feature :darwin)))

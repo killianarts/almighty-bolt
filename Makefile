@@ -1,4 +1,4 @@
-.PHONY: deps shim test spike-a spike-b spike-c spike-d spike-e bench-metal bench-text bench-null bench-retained bench-compare bench-layout snapshots replay 7guis 7guis-smoke clean
+.PHONY: deps shim test spike-a spike-b spike-c spike-d spike-e bench-metal bench-text bench-null bench-retained bench-compare bench-layout bench-run bench-report snapshots replay 7guis 7guis-smoke clean
 
 # ASDF looks only in this tree (project and vendored/), never in ~/common-lisp/.
 SBCL = sbcl --noinform --non-interactive --no-sysinit --no-userinit
@@ -77,6 +77,15 @@ bench-retained:
 # What a frame costs in each of the three variants on the same screen.
 bench-compare:
 	$(SBCL) $(REGISTRY) --load bench/run.lisp
+
+# The benchmark protocol on the example replay scripts: every variant, REPS repetitions (10)
+# after WARMUPS (3), a result record for each in results/ (OUT=dir), never edited, only
+# superseded. bench-report prints the latest record of each run.
+bench-run:
+	WHICH=results $(SBCL) $(REGISTRY) --load bench/run.lisp
+
+bench-report:
+	WHICH=report $(SBCL) $(REGISTRY) --load bench/run.lisp
 
 # The layout spike (H6) in the three variants, with the real text engine.
 bench-layout:

@@ -1263,3 +1263,24 @@ display list in all three at every width.
   =;= and not =&&=, committed and pushed anyway. The source was right and the next full run passed.
   Commit only after the exit status of the tests.
 - The text engine dominates a frame that needs layout, so the variants cannot be told apart by it.
+
+* 2026-10-26 — The benchmark harness
+** What I did
+=core/src/stats.lisp= (median, percentiles, summary), a =:measure= option on =replay=, and the
+harness of =bench/results.lisp=: =make bench-run= plays each example script in each variant 10 times
+after 3 warm-ups, stops if two runs draw different frames, and writes a record per run in
+=results/=; =make bench-report= prints them (0021, proposed).
+** What I measured
+Medians of a frame's build after the first, in microseconds, with builds a frame: counter-clicks
+0.6, 0.7, 1.8 (retained, reactive, immediate; 1.00, 1.00, 1.91); timer-reset 1.0, 1.5, 2.3;
+cells-edit 13.5, 15.1, 31.4 (the immediate variant builds twice for each event a widget takes).
+Steady frames allocate nothing in the counter and cells scripts in retained and immediate; the
+immediate variant allocates about 1.65 MB in its first frame.
+** What I learned
+- The first frame had to be reported apart: it made a short immediate run look as if it allocated
+  139 KB a frame.
+- The numbers are of the build only. The charter's frame time, startup, idle CPU, memory, image
+  size, compile time, trace output and CI are not here.
+** Next
+Longer scripts, so that the medians are of hundreds of frames; the host's phases beside the
+build; the same harness over the layout spike and the other stress apps.
