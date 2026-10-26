@@ -1475,3 +1475,32 @@ was copied and sorted; and an observer reuses the conses of the signals it read 
 Dashboard 27.6 KB to 9.4 KB a frame; an arrow key in the editor 1.5 KB to 0.6 KB; typing prose 2.9
 KB to 2.2 KB. A canvas that replaces the root of the tree is still not followed by the retained
 variant that holds it (a test found it, and it was so before).
+
+* 2026-10-26 — Phase 3: the benchmarks again, after the allocation work
+** What I did
+make bench-run (headless and host, all six scripts, 10 repetitions after 3 warm-ups),
+bench-overhead, new executables and bench-app for all ten tasks (5 launches, 10 s windows) and
+bench-compile, at commit 8e95a86 on the same machine, one after the other with nothing else running.
+70 records, which supersede those of a9f36a4 and 6bc0e8b.
+** What I measured
+Bytes a frame in the build (headless, before and now): the editor session 2512, 4235 and 11697
+(retained, reactive, immediate) to 335, 1337 and 1052; the dashboard in reactive 27508 to 9033; the
+other scripts the same within a few percent (the cells script's 546 and 1091 to 0 and 0). The time
+of the build is the same (the editor 45, 48 and 188 us; the dashboard 48, 75 and 85), which the
+allocation work was not meant to change. Through the host the build of a frame in the editor is 116,
+133 and 278 us before and 80, 96 and 266 now, the rows 101, 113 and 200 to 74, 86 and 156, the
+dashboard 143, 207 and 242 to 131, 199 and 224: shaping text got cheaper. In windows every task but
+the dashboard draws no frame and uses no CPU when left alone in all three variants; the animating
+dashboard uses 8.2, 9.5 and 8.8% of a core before and 5.5, 6.4 and 6.4% now. Startup is 188 to 220
+ms (201 to 258 before), the heap the same to 0.3 MB. Compile times and the instrumentation's
+overhead (0 to 0.2 us) are unchanged.
+** Read with care
+The dashboard's drop in CPU is in the retained variant as well, whose app I did not change, so it is
+likelier the text engine (the labels' text) or the state of the machine than the reactive work, and
+I did not separate them. The startup times fell by 10 to 25% in all but one app, also for apps that
+nothing touched; the same doubt. The host's frame time for the counter and the cells scripts is 340
+to 510 us before and 450 to 760 now in all three variants alike (the wait for the GPU, which the
+README says changes with the state of the machine by a factor of two or three), so only the build
+columns are compared. The immediate variant's build still includes the handling of events and the
+others' does not (record 0025 (d)), so its columns are not like for like with theirs.
+
