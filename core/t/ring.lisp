@@ -174,13 +174,15 @@
   (let ((frame-ring (ring:make-frame-ring :capacity 4)))
     (ring:record-frame frame-ring 10 90 100 150 40 30 10 2 nil)
     (ring:record-frame-details frame-ring :gc-ns 5 :first-build-ns 25 :update-ns 3
-                                          :layout-ns 11 :paint-ns 7 :gpu-ns 900)
+                                          :layout-ns 11 :paint-ns 7 :gpu-ns 900
+                                          :all-builds-ns 38)
     (assert-eql 5 (ring:frame-gc-ns frame-ring 0))
     (assert-eql 25 (ring:frame-first-build-ns frame-ring 0))
     (assert-eql 3 (ring:frame-update-ns frame-ring 0))
     (assert-eql 11 (ring:frame-layout-ns frame-ring 0))
     (assert-eql 7 (ring:frame-paint-ns frame-ring 0))
     (assert-eql 900 (ring:frame-gpu-ns frame-ring 0))
+    (assert-eql 38 (ring:frame-all-builds-ns frame-ring 0))
     (assert-eql 40 (ring:frame-build-ns frame-ring 0))
     (assert-eql 2 (ring:frame-builds frame-ring 0))))
 

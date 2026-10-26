@@ -44,6 +44,7 @@
                 #:frame-layout-ns
                 #:frame-paint-ns
                 #:frame-gpu-ns
+                #:frame-all-builds-ns
                 #:map-frames)
   (:import-from #:almighty-bolt-core/trace
                 #:write-trace)
@@ -311,6 +312,7 @@
            #:frame-layout-ns
            #:frame-paint-ns
            #:frame-gpu-ns
+           #:frame-all-builds-ns
            #:map-frames
            #:write-trace
            #:summarize-ring

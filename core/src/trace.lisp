@@ -12,6 +12,7 @@
                 #:frame-capped-p
                 #:frame-gc-ns
                 #:frame-first-build-ns
+                #:frame-all-builds-ns
                 #:frame-update-ns
                 #:frame-layout-ns
                 #:frame-paint-ns
@@ -57,7 +58,8 @@ as one, and anything else as a string."
            (build (frame-build-ns ring i))
            (wait (frame-drawable-wait-ns ring i))
            (encode (frame-encode-ns ring i))
-           (first-build (frame-first-build-ns ring i)))
+           (first-build (frame-first-build-ns ring i))
+           (all-builds (frame-all-builds-ns ring i)))
       (write-slice stream nil "frame" start (frame-duration-ns ring i)
                    (list (list "builds" (frame-builds ring i))
                          (list "capped" (if (frame-capped-p ring i) "yes" "no"))
@@ -68,7 +70,9 @@ as one, and anything else as a string."
         (write-slice stream nil "build" start build
                      (list (list "first_build_us" (microseconds first-build))
                            (list "extra_builds_us"
-                                 (microseconds (max 0 (- build first-build))))))
+                                 (microseconds (if (plusp first-build)
+                                                   (max 0 (- all-builds first-build))
+                                                   0)))))
         (let ((at start))
           (loop :for (part duration) :in (list (list "update" (frame-update-ns ring i))
                                                (list "layout" (frame-layout-ns ring i))

@@ -13,6 +13,8 @@
         ((string-equal which "cursor")
          (asdf:load-system "almighty-bolt-bench/cursor")
          (funcall (intern "MAIN" "ALMIGHTY-BOLT-BENCH/CURSOR-SPIKE")))
+        ((string-equal which "overhead")
+         (funcall (intern "OVERHEAD-MAIN" "ALMIGHTY-BOLT-BENCH/RESULTS")))
         ((string-equal which "results")
          (funcall (intern "MAIN" "ALMIGHTY-BOLT-BENCH/RESULTS")))
         ((string-equal which "report")

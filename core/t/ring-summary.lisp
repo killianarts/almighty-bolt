@@ -10,8 +10,8 @@
 (defun frame (ring start duration builds capped first-build build wait encode
               &key (layout 0) (paint 0) (gc 0) (bytes 0))
   (ring:record-frame ring start (+ start duration) 0 bytes build wait encode builds capped)
-  (ring:record-frame-details ring :first-build-ns first-build :layout-ns layout :paint-ns paint
-                                  :gc-ns gc))
+  (ring:record-frame-details ring :first-build-ns first-build :all-builds-ns (- build 100)
+                                  :layout-ns layout :paint-ns paint :gc-ns gc))
 
 (defun a-ring ()
   (let ((ring (ring:make-frame-ring :capacity 16)))
@@ -44,13 +44,15 @@
     (assert-equal '((1 . 1) (2 . 1) (3 . 1)) (getf builds :histogram))
     (assert-eql 1 (getf builds :cap-hits))))
 
-(define-test the-cost-of-settling-is-the-build-beyond-the-first ()
+(define-test the-cost-of-settling-is-the-builds-beyond-the-first ()
   (let ((settle (getf (summary:summarize-ring (a-ring) :skip 1) :settle)))
-    ;; Extra builds: 0, 500 and 1000 ns over frames of 400, 1000 and 1500 ns of building.
+    ;; The variant's builds took 300, 900 and 1400 ns (the host's build times less 100 for the
+    ;; settle loop's own work), the first builds 400, 500 and 500: extra 0 (a first build the
+    ;; same as all of them is not less), 400 and 900.
     (assert-eql 2 (getf settle :frames-with-extra-builds))
-    (assert-equal 500 (getf (getf settle :extra-build-ns) :median))
-    (assert-equal 1000 (getf (getf settle :extra-build-ns) :max))
-    (assert-true (< (abs (- (getf settle :share-of-build) (/ 1500 2900.0))) 1e-4))))
+    (assert-equal 400 (getf (getf settle :extra-build-ns) :median))
+    (assert-equal 900 (getf (getf settle :extra-build-ns) :max))
+    (assert-true (< (abs (- (getf settle :share-of-build) (/ 1300 2600.0))) 1e-4))))
 
 (define-test garbage-collection-and-bytes-are-summed-and-averaged ()
   (let ((result (summary:summarize-ring (a-ring) :skip 1)))

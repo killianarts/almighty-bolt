@@ -13,6 +13,7 @@
                 #:frame-capped-p
                 #:frame-gc-ns
                 #:frame-first-build-ns
+                #:frame-all-builds-ns
                 #:frame-update-ns
                 #:frame-layout-ns
                 #:frame-paint-ns
@@ -31,8 +32,8 @@
 :frames, and the summary (see SUMMARIZE) in nanoseconds of :duration, :build, :wait, :encode,
 :update, :layout, :paint and :gpu; :builds with :mean, :max, :histogram (a list of (builds .
 frames)) and :cap-hits; :settle with :extra-build-ns (a summary over the frames, of what the
-builds after the first took), :frames-with-extra-builds and :share-of-build (the part of all
-the build time that was in extra builds); :gc-ns (the sum) and :bytes-per-frame."
+builds after the first took, from the time of all the variant's builds), :frames-with-extra-builds
+and :share-of-build (the part of the time of all the builds that was in extra builds); :gc-ns (the sum) and :bytes-per-frame."
   (let* ((count (max 0 (- (frame-ring-count ring) skip)))
          (indices (loop :for i :from skip :below (frame-ring-count ring) :collect i)))
     (when (plusp count)
@@ -45,10 +46,11 @@ the build time that was in extra builds); :gc-ns (the sum) and :bytes-per-frame.
                                                :collect (cons n frames))
                                          #'< :key #'car)))
                (build-ns (column #'frame-build-ns))
+               (all-builds-ns (column #'frame-all-builds-ns))
                (first-build-ns (column #'frame-first-build-ns))
                (extra (mapcar (lambda (all first) (if (plusp first) (max 0 (- all first)) 0))
-                              build-ns first-build-ns))
-               (total-build (reduce #'+ build-ns)))
+                              all-builds-ns first-build-ns))
+               (total-build (reduce #'+ all-builds-ns)))
           (list :frames count
                 :duration (summarize (column #'frame-duration-ns))
                 :build (summarize build-ns)

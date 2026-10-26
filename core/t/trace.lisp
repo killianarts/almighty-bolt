@@ -13,7 +13,8 @@
     ;; Frame 1: 1000 us, builds 600 (first 400), wait 300, encode 100; update 50, layout 200,
     ;; paint 250 of the build.
     (ring:record-frame frame-ring 5000000 6000000 100 900 600000 300000 100000 2 nil)
-    (ring:record-frame-details frame-ring :gc-ns 2000 :first-build-ns 400000 :update-ns 50000
+    (ring:record-frame-details frame-ring :gc-ns 2000 :first-build-ns 400000
+                                          :all-builds-ns 580000 :update-ns 50000
                                           :layout-ns 200000 :paint-ns 250000 :gpu-ns 123000)
     ;; Frame 2: no phases timed by the variant, one build, capped.
     (ring:record-frame frame-ring 7000000 7500000 900 900 400000 0 100000 3 t)
@@ -64,7 +65,8 @@
     (assert-true (search "\"builds\":3" text))
     (assert-true (search "\"capped\":\"yes\"" text))
     (assert-true (search "\"first_build_us\":400.000" text))
-    (assert-true (search "\"extra_builds_us\":200.000" text))
+    ;; All builds 580 us, the first 400: the settle loop's own 20 us are not an extra build.
+    (assert-true (search "\"extra_builds_us\":180.000" text))
     (assert-true (search "\"gpu_us_of_frame_before\":123.000" text))))
 
 (define-test it-returns-the-number-of-frames ()

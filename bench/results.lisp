@@ -7,12 +7,22 @@
                 #:with-autorelease-pool)
   (:import-from #:almighty-bolt-core/platform/macos/host
                 #:make-host
-                #:host-context)
+                #:host-context
+                #:host-variant
+                #:host-ring
+                #:host-display-list
+                #:host-acquire
+                #:run-frame)
   (:import-from #:almighty-bolt-core/render/metal/device
                 #:default-device)
   (:import-from #:almighty-bolt-core/render/metal/target
-                #:+pixel-format-bgra8-unorm+)
+                #:+pixel-format-bgra8-unorm+
+                #:make-offscreen-target
+                #:offscreen-target-descriptor)
+  (:import-from #:almighty-bolt-variant-null/null
+                #:make-null-variant)
   (:export #:main
+           #:overhead-main
            #:report))
 
 (in-package #:almighty-bolt-bench/results)
@@ -24,6 +34,14 @@
 ;;; build (the settle loop) on the real clock, with the real text engine and no window or GPU, so
 ;;; the host's waiting and encoding are not in it. A record has the commit, the machine, the raw
 ;;; samples of every repetition and the summary.
+;;;
+;;; There are two kinds of run. The headless one (above) times only the variant's build. The host
+;;; one (decision record 0023) plays the script through the host's own frame, RUN-FRAME, into an
+;;; off-screen texture with the real renderer: the frame is the variant's build (with its update,
+;;; layout and paint phases), the wait for the GPU's frame before, and the encoding, and the ring
+;;; has the garbage collection, the first build against the rest, and the GPU's time besides.
+;;; There is no window, so no vsync and no wait for a drawable: those numbers are not those of a
+;;; window and are not to be compared with them.
 
 (defparameter +variants+ '(:retained :reactive :immediate))
 
@@ -110,16 +128,97 @@ bytes consed in a frame."
           :gc-ns-per-run (/ (reduce #'+ (mapcar (lambda (run) (getf run :gc-ns)) runs))
                             (length runs) 1.0))))
 
+(defparameter +ring-columns+
+  '(:start-ns :end-ns :build-ns :wait-ns :encode-ns :builds :capped :bytes :gc-ns :first-build-ns
+    :update-ns :layout-ns :paint-ns :gpu-ns)
+  "What a repetition of a host run keeps of each frame of the ring, in this order.")
+
+(defun frame-row (ring index)
+  (list (core:frame-start-ns ring index) (core:frame-end-ns ring index)
+        (core:frame-build-ns ring index) (core:frame-drawable-wait-ns ring index)
+        (core:frame-encode-ns ring index) (core:frame-builds ring index)
+        (if (core:frame-capped-p ring index) 1 0) (core:frame-bytes-consed ring index)
+        (core:frame-gc-ns ring index) (core:frame-first-build-ns ring index)
+        (core:frame-update-ns ring index) (core:frame-layout-ns ring index)
+        (core:frame-paint-ns ring index) (core:frame-gpu-ns ring index)))
+
+(defun host-run-once (script variant task host)
+  "Play SCRIPT into a new app of VARIANT and TASK through HOST's frame, drawing into an
+off-screen texture of the script's size. Returns the replay result and the rows of the host's
+ring, one for each frame (see +RING-COLUMNS+)."
+  (let* ((header (core:script-header script))
+         (scale 2)
+         (device (default-device))
+         (target (make-offscreen-target device (* scale (getf header :width 400))
+                                        (* scale (getf header :height 300))))
+         (pass (offscreen-target-descriptor target))
+         (context (host-context host))
+         (ring (host-ring host))
+         (object (funcall (registry:app-constructor (registry:find-app variant task)))))
+    (setf (host-variant host) object
+          (host-acquire host) (lambda () (values pass 0))
+          (core:context-scale context) (float scale 1f0))
+    (core:clear-frame-ring ring)
+    (let ((result (core:replay script object context
+                               :display-list (host-display-list host)
+                               :frame-function
+                               (lambda ()
+                                 (with-autorelease-pool
+                                   (run-frame host (core:context-width context)
+                                              (core:context-height context)
+                                              (core:context-scale context)))
+                                 (let ((last (1- (core:frame-ring-count ring))))
+                                   (values (core:frame-builds ring last)
+                                           (core:frame-capped-p ring last)))))))
+      (values result (loop :for i :below (core:frame-ring-count ring) :collect (frame-row ring i))))))
+
+(defun measure-host-script (script variant task host &key (repetitions 10) (warmups 3))
+  "A host replay of SCRIPT WARMUPS times thrown away and then REPETITIONS times kept. Returns
+the repetitions as lists of frame rows. An error if two runs draw different frames."
+  (dotimes (i warmups)
+    (host-run-once script variant task host))
+  (let ((runs '()) (reference nil))
+    (dotimes (i repetitions)
+      (multiple-value-bind (result rows) (host-run-once script variant task host)
+        (let ((hashes (map 'vector #'cdr (core:replay-result-hashes result))))
+          (cond ((null reference) (setf reference hashes))
+                ((not (equalp reference hashes))
+                 (error "Two host runs of the script gave different frames in ~(~a ~a~)." variant task))))
+        (push rows runs)))
+    (nreverse runs)))
+
+(defun rows-ring (runs)
+  "One ring with the frames of every repetition but the first frame of each, which is cold."
+  (let ((ring (core:make-frame-ring :capacity (max 1 (reduce #'+ (mapcar #'length runs))))))
+    (dolist (rows runs ring)
+      (dolist (row (rest rows))
+        (destructuring-bind (start end build wait encode builds capped bytes gc first update layout
+                             paint gpu)
+            row
+          (core:record-frame ring start end 0 bytes build wait encode builds (plusp capped))
+          (core:record-frame-details ring :gc-ns gc :first-build-ns first :update-ns update
+                                          :layout-ns layout :paint-ns paint :gpu-ns gpu))))))
+
+(defun host-summary (runs)
+  "What the repetitions of a host run say: the summary of the ring that all their frames, the
+first of each run apart, make (see SUMMARIZE-RING), and the first frames' build time."
+  (let ((summary (core:summarize-ring (rows-ring runs))))
+    (list* :frames-per-run (length (first runs))
+           :first-frame-build-ns (core:summarize
+                                  (mapcar (lambda (rows) (third (first rows))) runs))
+           summary)))
+
 (defun write-record (directory record)
   (ensure-directories-exist directory)
-  (let ((path (merge-pathnames (format nil "~a-~a-~(~a~)-~(~a~)-~a.sexp" (getf record :date)
+  (let ((path (merge-pathnames (format nil "~a-~a-~(~a~)-~(~a~)-~a~a.sexp" (getf record :date)
                                        (or (getf record :commit) "unknown") (getf record :variant)
-                                       (getf record :app) (getf record :script-name))
+                                       (getf record :app) (getf record :script-name)
+                                       (case (getf record :mode) (:host "-host") (:overhead "-overhead") (t "")))
                                directory)))
     (with-open-file (stream path :direction :output :if-exists :error :external-format :utf-8)
       (with-standard-io-syntax
         (let ((*print-case* :downcase) (*print-pretty* nil))
-          (prin1 (list* :almighty-bolt-result 1 record) stream)
+          (prin1 (list* :almighty-bolt-result 2 record) stream)
           (terpri stream))))
     path))
 
@@ -137,40 +236,182 @@ bytes consed in a frame."
             (microseconds (getf (getf (getf summary :first-frame) :build-ns) :median))
             (getf (getf summary :first-frame) :bytes))))
 
+(defun print-host-line (variant app script-name summary)
+  (flet ((us (key part) (microseconds (getf (getf summary key) part))))
+    (format t "~&~(~10a ~8a~) ~22a frame ~7,1f us (p95 ~7,1f)  build ~7,1f  update ~6,1f layout ~6,1f paint ~6,1f  wait ~7,1f  encode ~6,1f  gpu ~7,1f   builds ~,2f/~d  extra ~4,1f%~%"
+            variant app script-name (us :duration :median) (us :duration :p95) (us :build :median)
+            (us :update :median) (us :layout :median) (us :paint :median) (us :wait :median)
+            (us :encode :median) (us :gpu :median)
+            (getf (getf summary :builds) :mean) (getf (getf summary :builds) :max)
+            (* 100 (getf (getf summary :settle) :share-of-build)))))
+
 (defun script-paths ()
   (let ((directory (or (uiop:getenv "SCRIPTS") "apps/7guis/replay/")))
     (directory (merge-pathnames "*.script" (uiop:ensure-directory-pathname directory)))))
+
+(defun headless-run (scripts repetitions warmups directory date source machine)
+  "The build of every variant on every script, with the real text engine and no renderer."
+  (with-masked-float-traps
+    (with-autorelease-pool
+      (let* ((host (make-host (make-instance 'core:variant) (default-device)
+                              +pixel-format-bgra8-unorm+ :capacity 1024 :scale 2))
+             (context (host-context host)))
+        (format t "~&Headless: ~d repetitions after ~d warm-ups; the time is of the variant's build of a frame~%"
+                repetitions warmups)
+        (dolist (path scripts)
+          (let* ((script (core:load-script path))
+                 (task (getf (core:script-header script) :app))
+                 (name (pathname-name path)))
+            (dolist (variant +variants+)
+              (let* ((runs (measure-script script variant task context
+                                           :repetitions repetitions :warmups warmups))
+                     (summary (summary runs))
+                     (record (append (list :date date) source
+                                     (list :mode :headless :variant variant :app task
+                                           :script-name name
+                                           :script (namestring (enough-namestring path))
+                                           :machine machine :repetitions repetitions
+                                           :warmups warmups :runs runs :summary summary))))
+                (print-line variant task name summary)
+                (write-record directory record)))))))))
+
+(defun host-run (scripts repetitions warmups directory date source machine)
+  "Every variant on every script through the host's frame into an off-screen texture, with the
+instrumentation on."
+  (with-masked-float-traps
+    (with-autorelease-pool
+      (let ((host (make-host (make-instance 'core:variant) (default-device)
+                             +pixel-format-bgra8-unorm+ :capacity 65536 :ring-capacity 65536
+                                                        :scale 2 :phases t)))
+        (format t "~&Host: ~d repetitions after ~d warm-ups; frames through the host into an off-screen texture (no vsync, no drawable): not a window's numbers~%"
+                repetitions warmups)
+        (dolist (path scripts)
+          (let* ((script (core:load-script path))
+                 (task (getf (core:script-header script) :app))
+                 (name (pathname-name path)))
+            (dolist (variant +variants+)
+              (let* ((runs (measure-host-script script variant task host
+                                                :repetitions repetitions :warmups warmups))
+                     (summary (host-summary runs))
+                     (record (append (list :date date) source
+                                     (list :mode :host :variant variant :app task
+                                           :script-name name
+                                           :script (namestring (enough-namestring path))
+                                           :machine machine :repetitions repetitions
+                                           :warmups warmups :columns +ring-columns+
+                                           :runs runs :summary summary))))
+                (print-host-line variant task name summary)
+                (write-record directory record)))))))))
 
 (defun main ()
   (let* ((repetitions (environment-number "REPS" 10))
          (warmups (environment-number "WARMUPS" 3))
          (directory (uiop:ensure-directory-pathname (or (uiop:getenv "OUT") "results/")))
+         (mode (string-downcase (or (uiop:getenv "MODE") "both")))
          (date (timestamp))
          (source (source-state))
-         (machine (machine-profile)))
+         (machine (machine-profile))
+         (scripts (script-paths)))
+    (when (member mode '("headless" "both") :test #'string=)
+      (headless-run scripts repetitions warmups directory date source machine))
+    (when (member mode '("host" "both") :test #'string=)
+      (host-run scripts repetitions warmups directory date source machine))
+    (format t "~&Records written to ~a~%" directory)))
+
+(defun median-build-ns (result)
+  "The median build time of the frames of a measured replay after the first."
+  (core:median (subseq (map 'vector #'first (core:replay-result-samples result)) 1)))
+
+(defun overhead-headless (scripts repetitions context)
+  "For each variant and script, what the instrumentation (the phases and the timing of the
+builds) adds to the build of a frame: the median of a run's median build time with it off and
+on, in rounds that do one and then the other (the other first in every second round)."
+  (let ((rows '()))
+    (dolist (path scripts (nreverse rows))
+      (let* ((script (core:load-script path))
+             (task (getf (core:script-header script) :app))
+             (name (pathname-name path)))
+        (dolist (variant +variants+)
+          (let ((off '()) (on '()))
+            (flet ((run (phases)
+                     (setf (core:context-phases-p context) phases)
+                     (let ((result (run-once script variant task context)))
+                       (setf (core:context-phases-p context) nil)
+                       (median-build-ns result))))
+              (dotimes (i 3) (run nil) (run t))                       ; warm up both
+              (dotimes (i repetitions)
+                (if (evenp i)
+                    (progn (push (run nil) off) (push (run t) on))
+                    (progn (push (run t) on) (push (run nil) off)))))
+            (let* ((off-median (core:median off))
+                   (on-median (core:median on)))
+              (push (list :variant variant :app task :script-name name
+                          :off-ns off-median :on-ns on-median
+                          :added-ns (- on-median off-median)
+                          :added-share (/ (- on-median off-median) (max 1 off-median) 1.0)
+                          :off-runs (coerce (reverse off) 'vector)
+                          :on-runs (coerce (reverse on) 'vector))
+                    rows))))))))
+
+(defun overhead-null (repetitions frames)
+  "The null variant through the host, off-screen, with the instrumentation off and on: the
+median over repetitions of a run's median frame time and build time. The null variant does
+nothing in a build, so the difference is the instrumentation's own."
+  (let* ((host (make-host (make-null-variant)
+                          (default-device) +pixel-format-bgra8-unorm+
+                          :capacity 4096 :ring-capacity (+ frames 16) :scale 2))
+         (context (host-context host))
+         (ring (host-ring host))
+         (device (default-device))
+         (target (make-offscreen-target device 1200 800))
+         (pass (offscreen-target-descriptor target))
+         (off '()) (on '()))
+    (setf (host-acquire host) (lambda () (values pass 0)))
+    (flet ((run (phases)
+             (setf (core:context-phases-p context) phases)
+             (core:clear-frame-ring ring)
+             (dotimes (i frames)
+               (with-autorelease-pool (run-frame host 600f0 400f0 2f0)))
+             (setf (core:context-phases-p context) nil)
+             (let ((summary (core:summarize-ring ring :skip 10)))
+               (list (getf (getf summary :duration) :median)
+                     (getf (getf summary :build) :median)))))
+      (dotimes (i 2) (run nil) (run t))
+      (dotimes (i repetitions)
+        (if (evenp i)
+            (progn (push (run nil) off) (push (run t) on))
+            (progn (push (run t) on) (push (run nil) off)))))
+    (flet ((med (runs index) (core:median (mapcar (lambda (run) (nth index run)) runs))))
+      (list :frames-per-run frames
+            :frame-off-ns (med off 0) :frame-on-ns (med on 0)
+            :build-off-ns (med off 1) :build-on-ns (med on 1)))))
+
+(defun overhead-main ()
+  "Measure what the instrumentation costs, write the record, and say it."
+  (let* ((repetitions (environment-number "REPS" 10))
+         (directory (uiop:ensure-directory-pathname (or (uiop:getenv "OUT") "results/")))
+         (date (timestamp)) (source (source-state)) (machine (machine-profile)))
     (with-masked-float-traps
       (with-autorelease-pool
-        (let* ((host (make-host (make-instance 'core:variant) (default-device)
-                                +pixel-format-bgra8-unorm+ :capacity 1024 :scale 2))
-               (context (host-context host)))
-          (format t "~&~d repetitions after ~d warm-ups; the time is of the variant's build of a frame~%"
-                  repetitions warmups)
-          (dolist (path (script-paths))
-            (let* ((script (core:load-script path))
-                   (task (getf (core:script-header script) :app))
-                   (name (pathname-name path)))
-              (dolist (variant +variants+)
-                (let* ((runs (measure-script script variant task context
-                                             :repetitions repetitions :warmups warmups))
-                       (summary (summary runs))
-                       (record (append (list :date date) source
-                                       (list :variant variant :app task :script-name name
-                                             :script (namestring (enough-namestring path))
-                                             :machine machine :repetitions repetitions
-                                             :warmups warmups :runs runs :summary summary))))
-                  (print-line variant task name summary)
-                  (write-record directory record))))))))
-    (format t "~&Records written to ~a~%" directory)))
+        (let* ((context (host-context (make-host (make-instance 'core:variant) (default-device)
+                                                 +pixel-format-bgra8-unorm+ :capacity 1024 :scale 2)))
+               (headless (overhead-headless (script-paths) repetitions context))
+               (null (overhead-null repetitions 1000)))
+          (format t "~&What the instrumentation adds (phases, build timing), median of ~d runs:~%" repetitions)
+          (dolist (row headless)
+            (format t "~&  ~(~10a ~8a~) ~22a build ~7,3f us off, ~7,3f us on: +~6,3f us (~,1f%)~%"
+                    (getf row :variant) (getf row :app) (getf row :script-name)
+                    (/ (getf row :off-ns) 1000.0) (/ (getf row :on-ns) 1000.0)
+                    (/ (getf row :added-ns) 1000.0) (* 100 (getf row :added-share))))
+          (format t "~&  null variant through the host (~d frames a run): frame ~,1f us off, ~,1f us on; build ~,3f us off, ~,3f us on~%"
+                  (getf null :frames-per-run) (/ (getf null :frame-off-ns) 1000.0)
+                  (/ (getf null :frame-on-ns) 1000.0) (/ (getf null :build-off-ns) 1000.0)
+                  (/ (getf null :build-on-ns) 1000.0))
+          (write-record directory
+                        (append (list :date date) source
+                                (list :mode :overhead :variant :all :app :instrumentation
+                                      :script-name "overhead" :machine machine
+                                      :repetitions repetitions :headless headless :null null))))))))
 
 (defun latest-records (directory)
   "The most recent record for each variant, app and script in DIRECTORY."
@@ -182,7 +423,8 @@ bytes consed in a frame."
                (form (with-open-file (stream path :external-format :utf-8) (read stream))))
           (when (eq (first form) :almighty-bolt-result)
             (let ((record (cddr form)))
-              (setf (gethash (list (getf record :variant) (getf record :app) (getf record :script-name))
+              (setf (gethash (list (or (getf record :mode) :headless) (getf record :variant)
+                                   (getf record :app) (getf record :script-name))
                              latest)
                     record))))))
     (let ((records '()))
@@ -191,10 +433,28 @@ bytes consed in a frame."
                                                        (getf r :app) (getf r :variant)))))))
 
 (defun report ()
-  "Print the latest record of each run in =results/= (or OUT=)."
+  "Print the latest record of each run in =results/= (or OUT=), the headless ones and then the
+host ones."
   (let ((records (latest-records (or (uiop:getenv "OUT") "results/"))))
-    (format t "~&~d runs; the median of a frame's build, the spread of the repetitions' medians~%"
-            (length records))
-    (dolist (record records)
-      (print-line (getf record :variant) (getf record :app) (getf record :script-name)
-                  (getf record :summary)))))
+    (dolist (record (remove-if-not (lambda (record) (eq (getf record :mode) :overhead)) records))
+      (format t "~&~%overhead of the instrumentation, in microseconds of a frame's build:~%")
+      (dolist (row (getf record :headless))
+        (format t "~&  ~(~10a ~8a~) ~22a off ~7,3f on ~7,3f  +~6,3f (~,1f%)~%"
+                (getf row :variant) (getf row :app) (getf row :script-name)
+                (/ (getf row :off-ns) 1000.0) (/ (getf row :on-ns) 1000.0)
+                (/ (getf row :added-ns) 1000.0) (* 100 (getf row :added-share))))
+      (let ((null (getf record :null)))
+        (format t "~&  null variant through the host: frame ~,1f us off, ~,1f us on~%"
+                (/ (getf null :frame-off-ns) 1000.0) (/ (getf null :frame-on-ns) 1000.0))))
+    (dolist (mode '(:headless :host))
+      (let ((of-mode (remove-if-not (lambda (record) (eq (or (getf record :mode) :headless) mode))
+                                    records)))
+        (when of-mode
+          (format t "~&~%~(~a~): ~d runs; ~a~%" mode (length of-mode)
+                  (if (eq mode :headless)
+                      "the median of a frame's build, the spread of the repetitions' medians"
+                      "medians, in microseconds, of the frames after the first of each run"))
+          (dolist (record of-mode)
+            (funcall (if (eq mode :host) #'print-host-line #'print-line)
+                     (getf record :variant) (getf record :app) (getf record :script-name)
+                     (getf record :summary))))))))

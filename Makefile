@@ -1,4 +1,4 @@
-.PHONY: deps shim test spike-a spike-b spike-c spike-d spike-e bench-metal bench-text bench-null bench-retained bench-compare bench-layout test-cursor bench-cursor snapshots-cursor bench-run bench-report snapshots replay 7guis 7guis-smoke clean
+.PHONY: deps shim test spike-a spike-b spike-c spike-d spike-e bench-metal bench-text bench-null bench-retained bench-compare bench-layout test-cursor bench-cursor snapshots-cursor bench-run bench-overhead bench-report snapshots replay 7guis 7guis-smoke clean
 
 # ASDF looks only in this tree (project and vendored/), never in ~/common-lisp/.
 SBCL = sbcl --noinform --non-interactive --no-sysinit --no-userinit
@@ -83,6 +83,11 @@ bench-compare:
 # superseded. bench-report prints the latest record of each run.
 bench-run:
 	WHICH=results $(SBCL) $(REGISTRY) --load bench/run.lisp
+
+# What the instrumentation costs: the phases and build timing on and off, on the example scripts
+# in each variant and on the null variant through the host. Written to results/ as a record.
+bench-overhead:
+	WHICH=overhead $(SBCL) $(REGISTRY) --load bench/run.lisp
 
 bench-report:
 	WHICH=report $(SBCL) $(REGISTRY) --load bench/run.lisp

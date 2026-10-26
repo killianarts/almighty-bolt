@@ -28,6 +28,7 @@
            #:frame-layout-ns
            #:frame-paint-ns
            #:frame-gpu-ns
+           #:frame-all-builds-ns
            #:map-frames))
 
 (in-package #:almighty-bolt-core/ring)
@@ -43,7 +44,8 @@
 ;;; filled in by RECORD-FRAME-DETAILS, hold what the instrumentation of Phase 3 adds: the time
 ;;; spent in garbage collection, the time of the first build (the rest of the build time is
 ;;; the cost of settling), the time the variant spent in its update, layout and paint phases,
-;;; the GPU's time for the frame before, and two words not yet used. When the ring is full the
+;;; the GPU's time for the frame before, the time of all the builds (the host's build time also
+;;; has what the settle loop itself costs), and a word not yet used. When the ring is full the
 ;;; oldest record is overwritten.
 ;;;
 ;;; SB-EXT:GET-BYTES-CONSED only advances when an allocation region is closed
@@ -119,11 +121,11 @@ how many times the variant built it, and CAPPED whether the settle cap was hit."
 
 (declaim (inline record-frame-details))
 (defun record-frame-details (ring &key (gc-ns 0) (first-build-ns 0) (update-ns 0) (layout-ns 0)
-                                    (paint-ns 0) (gpu-ns 0))
+                                    (paint-ns 0) (gpu-ns 0) (all-builds-ns 0))
   "Set the words after the first eight of the record that RECORD-FRAME wrote last. Does not
 allocate."
   (declare (type frame-ring ring)
-           (type u64 gc-ns first-build-ns update-ns layout-ns paint-ns gpu-ns))
+           (type u64 gc-ns first-build-ns update-ns layout-ns paint-ns gpu-ns all-builds-ns))
   (let* ((capacity (frame-ring-capacity ring))
          (head (frame-ring-head ring))
          (last (if (zerop head) (1- capacity) (1- head)))
@@ -135,7 +137,7 @@ allocate."
           (aref data (+ base 11)) layout-ns
           (aref data (+ base 12)) paint-ns
           (aref data (+ base 13)) gpu-ns
-          (aref data (+ base 14)) 0
+          (aref data (+ base 14)) all-builds-ns
           (aref data (+ base 15)) 0)
     nil))
 
@@ -222,6 +224,11 @@ that is the cost of settling."
 (defun frame-gpu-ns (ring index)
   "Nanoseconds the GPU took for the frame before the INDEXth, whose work the frame waited for."
   (record-word ring index 13))
+
+(defun frame-all-builds-ns (ring index)
+  "Nanoseconds the INDEXth frame spent in the variant's FRAME, in all its builds. What it spent
+beyond the first build is the cost of settling."
+  (record-word ring index 14))
 
 (defun frame-duration-ns (ring index)
   "Nanoseconds the INDEXth frame took."

@@ -360,7 +360,10 @@ reads the count."
     (let ((ring (host:host-ring host)))
       (assert-eql 3 (ring:frame-builds ring 0))
       (assert-true (plusp (ring:frame-first-build-ns ring 0)))
-      (assert-true (> (ring:frame-build-ns ring 0) (ring:frame-first-build-ns ring 0))))))
+      (assert-true (> (ring:frame-build-ns ring 0) (ring:frame-first-build-ns ring 0)))
+      ;; All three builds, which the settle loop's own work is not part of.
+      (assert-true (> (ring:frame-all-builds-ns ring 0) (ring:frame-first-build-ns ring 0)))
+      (assert-true (<= (ring:frame-all-builds-ns ring 0) (ring:frame-build-ns ring 0))))))
 
 (define-test running-frames-with-the-instrumentation-on-allocates-nothing ()
   (with-host (host target (make-instance 'busy-variant) :capacity 256 :phases t)

@@ -23,6 +23,7 @@
                 #:+phase-layout+
                 #:+phase-paint+
                 #:+phase-first-build+
+                #:+phase-all-builds+
                 #:take-frame-request
                 #:deliver-event
                 #:context-font
@@ -133,7 +134,9 @@ glyph atlas. FONTS keeps the fonts made, by name and then by size."
 ;;; --- the host ---
 
 (defstruct (host (:constructor %make-host))
-  (variant nil :read-only t)
+  ;; The variant the host builds. A replay that draws sets it for each run, so that one host's
+  ;; renderer and glyph atlas stay warm from run to run.
+  (variant nil)
   (context nil :read-only t)
   (display-list nil :read-only t)
   (renderer nil :read-only t)
@@ -265,6 +268,7 @@ no drawable. Must run inside an autorelease pool."
                           :update-ns (aref slots +phase-update+)
                           :layout-ns (aref slots +phase-layout+)
                           :paint-ns (aref slots +phase-paint+)
+                          :all-builds-ns (aref slots +phase-all-builds+)
                           :gpu-ns previous-gpu-ns)))))))))
       (setf again (stop-drawing host)))
     (when again
