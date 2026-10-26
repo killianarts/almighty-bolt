@@ -1,0 +1,151 @@
+#+TITLE: The stress apps in McCLIM: where the nice API comes from, and what it does not have
+
+Micah asked for the three stress apps (dashboard, million rows, text editor) in McCLIM, built
+with what McCLIM comes with: where a widget is missing, the app is left unfinished and the
+reason is reported, and nothing is added. Then the question that follows: McCLIM has a rather nice
+user-facing API on a retained UI, and we cannot build one like it. Is the core architecture the
+source of our verbose API, is ours incomplete, or does McCLIM lack features that we have?
+This file says how I will find out and what I expect, before any McCLIM code is written.
+Written 2026-10-26 on the branch =mcclim=, from =4cb93b8= (=phase-2=).
+
+* What I checked first (reading, before the method)
+McCLIM 0.9.9 as in Quicklisp (mcclim-20250622-git), SBCL 2.6.3, macOS 26.5.1 arm64.
+- It loads (=(ql:quickload :mcclim)=, 11 s with everything compiled) and opens a window on
+  XQuartz through the CLX backend (=CLX-TTF-PORT=). There is no Cocoa backend in the tree
+  (=Backends/= has CLX, CLX-fb, Null, PDF, PostScript, RasterImage, SVG). So every McCLIM number
+  here is X11 through XQuartz, not Metal, and none is comparable with a frame of ours.
+- Its gadgets (=Core/clim-core/gadgets/=): =push-button toggle-button check-box radio-box
+  slider scroll-bar text-field text-editor-pane list-pane option-pane label-pane= and the layout
+  panes. There is no progress or meter gadget. =list-pane= (=generic-list-pane=) paints only the
+  items in the region it is asked to paint, but builds a vector of all its item strings and
+  values, and measures every string for its width, when it first lays out.
+- The CLX backend has no input-method code (no XIM; read, not tried). Drei has no line-number
+  gutter (read: the only =line-number= is on buffers and marks).
+- It has a timer-like mechanism (=clime:schedule-pulse-event=, a pulse event that a pane's
+  =handle-event= receives) but its own demo defines new pane classes to use it. At the frame
+  level there is no frame clock, no per-frame ticker.
+- Wheel, click and key input arrive as gestures (=:scroll-up=, =:select=, keystroke accelerators)
+  that command tables and presentation translators bind to commands.
+
+* Where I think the nice API comes from
+The file =other-frameworks/task-board.lisp= (the McCLIM sample, from earlier) is the code that the
+impression of a nice retained API most likely comes from, and it is not a widget tree. It is a
+/display function/ that describes a pane again whenever it is redisplayed (that is the immediate
+style of authoring), over a retained /output record/ tree; =updating-output= with a =:unique-id= and
+a =:cache-value= keeps the records whose value has not changed (that is keyed reconciliation, as
+the reactive variant does), and the /presentation/ system turns a click on a record into a typed
+command (that is hit-testing and event routing done by the framework). McCLIM's gadgets are the
+retained part, and they are used with callbacks and =(setf gadget-value)=, which is wiring.
+So the claim I will test is: the architecture that makes McCLIM's API nice is the output-record
+and presentation layer, not the gadget tree, and an app that has all of its state in a display
+function has no wiring in it.
+
+* The line: what counts as adding functionality
+Allowed: anything McCLIM exports and documents, used as it is documented: frames, panes, gadgets,
+layout macros, drawing functions in a display function (the equivalent of our =canvas=), command
+tables, gestures, presentations, =updating-output=, =redisplay-frame-pane=, a Lisp thread that
+asks for a redisplay.
+Not allowed: a new gadget or pane class, a patch to McCLIM or to a backend, input-method or font
+code, a virtual list that I write, a progress widget. When a part of an app needs one of those, the
+app stops there and the file says what is missing and why.
+Substitutions that I make and list so Micah can disagree:
+| ours                     | McCLIM                                        | status                      |
+|--------------------------+-----------------------------------------------+-----------------------------|
+| label                    | =label-pane=, or text in a display function   | built in                    |
+| progress (tile bar)      | none                                          | drawn by =draw-rectangle*=  |
+| canvas (chart, rows)     | application pane with a display function      | built in                    |
+| padding, panel, row, col | =spacing outlining horizontally vertically=   | built in                    |
+|                          | =formatting-table=                            |                             |
+| ticker (animation)       | none at frame level                           | a thread that redisplays    |
+| focus, keys, wheel       | keystroke accelerators, gestures, commands    | built in                    |
+| scroll bar (rows)        | =scroll-bar= gadget, =scroller-pane=          | built in (ours is drawn in  |
+|                          |                                               | the canvas by hand)         |
+| list of rows             | =list-pane= (eager items)                     | built in, partial           |
+| text editor              | =text-editor= gadget (Drei)                   | built in, partial           |
+| input method, marked text| none in the CLX backend                       | missing: left unfinished    |
+| line-number gutter       | none in Drei                                  | missing: left unfinished    |
+The tile bar is the one close call: drawing a rectangle is a McCLIM primitive and the display
+function is where a McCLIM app draws, so I draw it and list it here. If it should have been
+left out, it is four lines.
+
+* What is shared and what is not
+- Shared with the three variants, as they share it: the models (=model.lisp=), which are pure
+  Lisp: the dashboard's values by step and its history, the rows' texts by index and the keys'
+  arithmetic, the editor's gap buffer and its editing. (A McCLIM user would not write a gap buffer:
+  the editor uses the =text-editor= gadget and does not touch the editor model. See below.)
+- Not shared: the painters (=paint.lisp=) push to our display list, so McCLIM draws with its own
+  functions; and =editor/control.lisp= takes our key events. The McCLIM files hold their own
+  drawing and their own input handling.
+- So the sizes are reported two ways. The app file alone, which is what 0024 and 0026 counted
+  (our painters and controller are not in it), is the way that favours the variants. The app and
+  everything that it needs that is not the model (the painter and the controller for ours) is the
+  way that does not. Both are in the tables.
+
+* Method
+1. The apps are in =apps/stress/{dashboard,rows,editor}/mcclim*.lisp=, one package per file, classic
+   ASDF, in a system of their own, =almighty-bolt-stress/mcclim=, which =make test= and =make
+   image= never load. They are not registered with the variants' registry: McCLIM runs its own
+   frame loop, and the acceptance driver (display lists, hit targets) does not apply to it.
+2. The packages use =(:use #:cl)= and exact =:import-from= lists from =clim=, =clim-lisp= and
+   =clim-extensions=, as the variants' apps do, so that the package form costs the same and the
+   concepts can be counted (the distinct symbols imported from the CLIM packages: not the same
+   thing as the variants' count, since McCLIM's vocabulary is large and general; reported as such).
+3. Checks: each app runs headless (McCLIM's null port) and in a window on XQuartz, and has tests
+   of what it does (lisp-unit2), in a system of their own (=almighty-bolt-stress/mcclim/tests=).
+4. Size: lines (=scripts/app-size.lisp= definition) and tokens (all, and after the first form;
+   =scripts/app-tokens.lisp='s definition, on the branch =builder-macros=; the counter is copied
+   into =scripts/mcclim-size.lisp=), against the variants at =4cb93b8= and against the same apps
+   on =builder-macros=, because 0026 has not been decided.
+5. Where the changing state of each app lives, by reading, in lines: in a display function that
+   is run again (no wiring), in gadgets that are set (wiring), or in the app's own variables.
+6. A second dashboard, in McCLIM too, with gadgets (a =label-pane= for every text, a
+   deactivated =slider= for every bar, the chart still in a display function) and the state
+   pushed to them with =(setf gadget-label)= and =(setf gadget-value)=. Same library, other
+   architecture. Its bars are a substitution of a worse kind (a slider is interactive and has a
+   knob), listed as such.
+7. Cost: McCLIM only. Per frame of the dashboard, the time and the bytes consed of a redisplay on
+   the null port (output records made, nothing sent to a server), and frames a second through
+   XQuartz. Not compared with our frames, which are display lists to Metal. For the rows, the
+   time and memory of making a =list-pane= of 1,000, 10,000, 100,000 and 1,000,000 items, and the
+   time to its first paint. For the editor, the time to open the sample document at 20,000 and at
+   200,000 lines, and a key's latency.
+
+* What I expect
+Written before anything is run, so that it can be wrong.
+- *Dashboard, display function.* Every tile changes in every frame, so =updating-output= has
+  nothing to keep and nothing is clicked: this is the case in which McCLIM's nice parts are not
+  used. I expect the app to look like our immediate version, not smaller: the app file with the
+  chart drawn inline 60 to 90 lines, and the body tokens between the immediate dashboard's (111)
+  and the retained one's (193), plus the painter. Counting what the variants share (their
+  painter, 36 lines), the McCLIM dashboard is within 25 % either side of the immediate
+  one (92 lines).
+- *Dashboard, gadgets.* 25 to 40 % larger than the display-function one, because the wiring is
+  back: the same shape as the retained dashboard (78 lines), 12 or more lines of =setf=.
+- *Cost.* A frame of the dashboard makes about 900 output records (36 tiles of three, and the
+  chart's 720 bars). I expect the null-port redisplay to cost at least ten times the time and the
+  bytes of one of our headless frames (about 70 microseconds and 9 KB), and the XQuartz window
+  not to hold 60 frames a second. If it is under five times, I am wrong.
+- *Rows.* A =list-pane= of a million items is the pattern that a McCLIM user would write, and it
+  has to build a million strings and measure each. I expect more than a second to make it and more
+  than five seconds to its first paint, so that the app is unusable at a million and fine at ten
+  thousand. And the list-pane has one string per row: no columns, no stripes, no right-aligned
+  value, no row-status line, no arrow-key movement. Those parts stay unfinished.
+- *Editor.* The =text-editor= gadget opens 20,000 lines. At 200,000 I expect it to be slow to
+  open (seconds). It has no input method and no gutter, so those two stay unfinished, and the
+  status line needs wiring that a gadget does not give (what is the caret's line?), which I
+  expect to leave undone or done with a polling thread, and to say which.
+- *The size of the whole.* Over the three apps, with painters and controller counted, McCLIM is
+  within 25 % of the immediate variant's total either way. If it is smaller by more than a
+  third, then more of the API is McCLIM's architecture than I think.
+- *The answer.* The nice API is the output-record and presentation layer (the display-function
+  style with =updating-output=, commands and translators), which is an immediate way of writing
+  over a retained structure that diffs; it is not the gadget tree, whose use looks like our
+  retained variant. McCLIM lacks, for these apps: virtual scrolling, a frame clock, columns in a
+  list, input methods, a progress bar, and speed. We lack: the presentation/command layer, a list
+  and a scroll bar as widgets, forms (check box, radio), and the keyed record cache. What would
+  show me wrong: the gadget dashboard being no larger than the display-function one (then the
+  wiring is not what costs), or the McCLIM apps being much smaller than the immediate ones even
+  when nothing is clicked.
+
+* Reporting
+Results below this line, appended after the runs, with what was wrong in the expectations above.
