@@ -87,8 +87,8 @@
 
 (d:define-acceptance undo-restores-both-fields-when-the-other-one-was-edited :temperature
   (enter driver :celsius "5")
-  (enter driver :fahrenheit "50")
-  (assert-equal "10" (d:text-in driver :celsius))
+  (enter driver :fahrenheit "5")
+  (assert-equal "-15" (d:text-in driver :celsius))
   (d:click driver :undo)
   (assert-equal "5" (d:text-in driver :celsius))
   (assert-equal "41" (d:text-in driver :fahrenheit)))
