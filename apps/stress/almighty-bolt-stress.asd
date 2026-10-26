@@ -48,6 +48,13 @@
                (:module "rows" :components ((:file "reactive")))
                (:module "editor" :components ((:file "reactive")))))
 
+(defsystem "almighty-bolt-stress/reactive-signals"
+  :description "The reactive dashboard with a model of signals, in place of the one of reactive (notes/builder-macros.org)"
+  :depends-on ("almighty-bolt-stress/reactive")
+  :serial t
+  :components ((:module "dashboard"
+                :components ((:file "signal-model") (:file "reactive-signals")))))
+
 (defsystem "almighty-bolt-stress/immediate"
   :description "The stress apps in the immediate variant"
   :depends-on ("almighty-bolt-stress" "almighty-bolt-7guis" "almighty-bolt-variant-immediate")

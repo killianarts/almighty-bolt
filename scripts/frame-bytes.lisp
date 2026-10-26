@@ -1,6 +1,9 @@
 (require :asdf)
 (asdf:load-system "almighty-bolt-7guis/acceptance")
 (asdf:load-system "almighty-bolt-stress/acceptance")
+(dolist (name (uiop:split-string (or (uiop:getenv "SYSTEMS") "") :separator " "))
+  (when (plusp (length name))
+    (asdf:load-system name)))
 
 (defpackage #:almighty-bolt-scripts/frame-bytes
   (:use #:cl)

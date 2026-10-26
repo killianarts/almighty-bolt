@@ -31,15 +31,23 @@ its own; result records already hold the machine profile.
 - Step 3 done (stress apps): input-method hooks (commit 0563338), the dashboard, the million rows and
   the text editor in all three variants with unit and acceptance tests, replay scripts, results
   (headless, host, windows), the bounded line cache; record 0025 proposed.
+- Micah's question after step 3 (why the immediate apps look simpler): two experiments on the branch
+  =builder-macros= (builder macros for retained and reactive; a reactive dashboard of signals). Record
+  0026 proposed; the method and what I expected are in =notes/builder-macros.org=.
 
 * Review queue
 (records proposed in this run)
+- 0026 Builder macros (Micah's question about why the immediate apps look simpler): H2 stays open; the
+  syntax accounts for at most 4% of the size gap; three options for the branch =builder-macros=.
 - 0025 Stress apps (step 3): H1 and H3 stay open; three small interface changes for Micah to choose.
 - 0024 Change cost and size (step 2): H2 stays open; the method is the protocol.
 - 0023 Instrumentation and metrics (step 1): the instrumentation is a run-time flag, not a build-time
   switch; executables per variant; the protocol of the metrics.
 
 * Open decisions for Micah
+- 0026: merge the builder macros and the port of the ten apps (my recommendation), or the macros only,
+  or neither. Not merged and not pushed; the branch =builder-macros= has the evidence. If the port is
+  merged, the sizes of 0024 and 0025 and the rubric's facts sheet are quoted before and after.
 - 0023: instrumentation switched on at run time (a flag in the context), not at build time as the
   charter says. Measured cost: 40 to 230 ns a frame.
 - Step 2, E4: no variant has a checkbox, so the switch is a two-option choice standing where a

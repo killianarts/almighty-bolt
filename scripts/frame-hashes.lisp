@@ -1,6 +1,9 @@
 (require :asdf)
 (asdf:load-system "almighty-bolt-7guis/acceptance")
 (asdf:load-system "almighty-bolt-stress/acceptance")
+(dolist (name (uiop:split-string (or (uiop:getenv "SYSTEMS") "") :separator " "))
+  (when (plusp (length name))
+    (asdf:load-system name)))
 
 (defpackage #:almighty-bolt-scripts/frame-hashes
   (:use #:cl)
@@ -17,7 +20,9 @@
 ;;;;   VARIANTS="retained reactive" sbcl --noinform --non-interactive --no-sysinit --no-userinit \
 ;;;;     --eval '(require :asdf)' --eval '(asdf:initialize-source-registry (list :source-registry
 ;;;;     (list :tree (uiop:getcwd)) :ignore-inherited-configuration))' --load scripts/frame-hashes.lisp
-;;;; Each line is: variant task step hash commands.
+;;;; Each line is: variant task step hash commands. SYSTEMS="a-system another" loads systems after
+;;;; the apps, which can put another version of an app in place of one (almighty-bolt-stress/
+;;;; reactive-signals does, for the reactive dashboard).
 
 (defparameter +down+ (code-char #xF701))
 

@@ -98,3 +98,116 @@ are given as lines and as a share of the gap, per variant, for the seven 7GUIs t
 three stress tasks. The loop difference is reported as it is. The result goes to the devlog, and
 whether the macros belong in the libraries is a proposed record, for Micah to decide: merging
 them into the apps of record changes what 0024 measured.
+
+* Results (2026-10-26, on =builder-macros=; the text above was committed first, in 85b84bb)
+** Experiment 1: the macros
+Checks first. The 168 frame hashes of the three variants (56 each: every app, a battery of events, a
+resize) are the same before and after the port (=scripts/frame-hashes.lisp=, which gave the same
+lines twice before anything was changed). =make test= passes, with 17 new tests of the macros (the
+children are the values of the forms, in order, each form evaluated once; a list is spliced in; NIL
+is left out; a container of one child wants one form; each macro builds what its function builds,
+compared by layout in the retained variant and by EQUALP in the reactive). A frame of the two apps
+that animate conses the same bytes before and after in the acceptance driver
+(=scripts/frame-bytes.lisp=, 2000 frames; the fake context, so the text engine is not in it):
+dashboard 623, 9435 and 3537 bytes (retained, reactive, immediate); timer 33, 98 and 590. The time
+of a frame is the same within a repeat (43.4 against 43.5 us; 70.1 against 69.5; the immediate
+variant was not changed).
+
+Lines of code (=scripts/app-size.lisp=), before the port and after; immediate was not changed:
+
+  | tasks         | retained    | reactive    | immediate |
+  |---------------+-------------+-------------+-----------|
+  | seven 7GUIs   | 576 -> 590  | 547 -> 550  | 475       |
+  | three stress  | 240 -> 241  | 244 -> 241  | 185       |
+  | all ten       | 816 -> 831  | 791 -> 791  | 660       |
+  | gap, all ten  | 156 -> 171  | 131 -> 131  |           |
+
+Tokens (=scripts/app-tokens.lisp=: the symbols, numbers and strings, without comments, white space
+and parentheses, so a child put on a line of its own does not count). The body is all of a file but
+its DEFPACKAGE:
+
+  | all ten, tokens      | retained      | reactive      | immediate |
+  |----------------------+---------------+---------------+-----------|
+  | whole file           | 2473 -> 2487  | 2426 -> 2427  | 1905      |
+  | body                 | 2059 -> 2053  | 2039 -> 2020  | 1568      |
+  | gap of the body      |  491 ->  485  |  471 ->  452  |           |
+
+- The concepts, the symbols imported from the variants' packages, are the same: 97, 102 and 73.
+- The size of the port itself (=scripts/diff-size.lisp=, 85b84bb to b2e882a, the apps only, white
+  space not counted): retained 100 lines added and 85 removed, in 36 hunks; reactive 136 and 136, in
+  61 hunks.
+- Of the lines added, ten in each variant are the cost of the macros being in a package of their
+  own: an app that takes its containers from the builder has one more IMPORT-FROM clause. Without
+  them retained is 821 (the gap 161) and reactive 781 (the gap 121). The immediate variant's macros
+  are in its widgets package and cost nothing of the kind; putting these in WIDGETS and VIEWS in
+  place of the functions would too, and would break every caller that passes a container as a
+  function, which is why it was not done.
+- The dashboards, where the children are computed and the functions needed =(apply #'row (append
+  (loop ...) (list :gap ...)))=, gain 3 lines each (78 to 75, 83 to 80) and 6 and 9 tokens. The
+  other apps are one line longer, or the same, or in the retained circles 7 longer because I put
+  each child of the dialog and of the root stack on a line of its own where they had shared lines.
+  That is the layout of my port and not of the macros, and is what the token count is for.
+
+What the numbers say, against what I expected:
+- Expected: totals move by less than 5 %, and more than 85 % of the gap remains. Found: retained
+  +1.8 % in lines and reactive 0 %; in tokens of the body the macros close 1.2 % of retained's gap
+  to immediate and 4.0 % of reactive's, and in lines they widen retained's by 10 % and leave
+  reactive's alone (or close 8 % of it without the import clause). So at least 96 % of the gap is
+  not the syntax of the tree.
+- Expected: the dashboards gain about ten lines. Found: three. I overestimated what the =apply= and
+  =append= cost.
+- Expected: the concepts do not change, and the frames do not differ. Found: both hold.
+
+What remains is what 0024's edits pointed at, now with the syntax made equal. In the retained
+dashboard it is =values= and =bars= (the handles), the loop that makes the 72 widgets and keeps
+them, and =tick=, which writes each of them and says the chart is stale; in the reactive one it is a
+signal for each tile, a signal for the chart, the components that read them and the ticker that
+writes them; in the immediate one it is nothing, because the description reads the model. The
+immediate variant has the work of knowing what changed too: it does it for every widget in every
+frame, and the library holds what a widget remembers between frames, keyed by its id. That is a
+trade of lines of code for work done in every frame, which the stress apps' timings show (the
+dashboard's build in the immediate variant is the most expensive of the three), and not a free
+simplification.
+
+Not tried, and what it would change:
+- Macros in which a widget called in the body puts itself in, as in the immediate variant (so that
+  =dotimes= works and nothing is built first and assembled last). The retained apps build their
+  widgets first because they need handles to change them later; the handle stays, so the saving
+  would be the assembly forms, which are a line each.
+- A =defmacro= for the wiring (a macro that makes the handles and the updater of a tile). That is a
+  different library, not a different syntax.
+
+** Experiment 2: a reactive dashboard of signals
+=apps/stress/dashboard/signal-model.lisp= and =reactive-signals.lisp=, in a system of their own
+(=almighty-bolt-stress/reactive-signals=, not part of =make test=) that puts its app in place of the
+reactive dashboard when it is loaded: the step is one signal, the ticker writes it, and the value of
+each tile is a COMPUTED of it that the label and the bar read. The history of the chart is not a
+value a signal can hold, so the shared model still keeps it and is brought to the step before the
+signal is.
+- The frames are the same: the 56 hashes of the reactive variant, four of them the dashboard's, and
+  the dashboard's eight acceptance tests pass with it running (checked by asking the registry which
+  constructor it holds).
+- Size: the app goes from 80 lines to 69 and from 193 body tokens to 149. The model file is 42 lines
+  and 86 body tokens. Together 111 lines and 235 tokens against 80 and 193: more, as expected. What
+  goes from the app is the shim of the plain version (an array of 36 signals, the loop that copies
+  the model into them, the signal that stands for the chart's data, about seven lines); what comes
+  is a structure, four functions and a package form, which the shim did not need.
+- Allocation and time: a frame conses 10058 bytes against 9435 (+6.6 %) and takes 74.2 us against
+  70.1 (+5.8 %), the same in a second run and at 4000 frames. The 620 bytes are about one cons (16
+  bytes) for each of the 36 computed values in a frame; I did not look for where.
+- So a model of signals does not remove the work of telling the variant what changed; it moves it
+  into the model, and it costs a little in every frame. The reactive variant gains from it only if
+  the model is written for it, which is the reverse of the plain defstruct that the retained and
+  immediate variants read directly.
+
+** What I take from both
+The reading of the immediate apps as simpler is right and is not about the syntax. It is that the
+variant has no state of its own to keep in step with the model, and the code that keeps the other
+two in step is the difference. That is the thing H2 is about, and it was already there in 0024's
+change-cost edits; the macros show it by taking the syntax away as an explanation. What the syntax
+does change is how the code reads: the nesting of the three variants' trees is now the same, which
+matters to whoever scores the usability rubric, who would otherwise be comparing macros with
+function calls. That is the argument for merging the port, and the cost is that every size recorded
+in 0024 and 0025 and the facts sheet of the rubric would then have to be quoted twice. Micah decides
+(record 0026).
+
