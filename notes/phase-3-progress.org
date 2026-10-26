@@ -33,10 +33,14 @@ its own; result records already hold the machine profile.
   (headless, host, windows), the bounded line cache; record 0025 proposed.
 - Micah's questions after step 3: builder macros and a signal model (record 0026, branch
   =builder-macros=), then the stress apps in McCLIM (record 0027, branch =mcclim=, from =4cb93b8=):
-  =notes/mcclim-stress-apps.org=, results in =results/mcclim/=. Neither branch is merged or pushed.
+  =notes/mcclim-stress-apps.org=, results in =results/mcclim/=; then three 7GUIs apps in McCLIM (record 0028,
+  =notes/mcclim-7guis.org=). No branch is merged or pushed.
 
 * Review queue
 (records proposed in this run)
+- 0028 7GUIs in McCLIM (branch =mcclim=, not merged): the presentation layer has the least wiring but not by
+  much over our immediate variant, and is longer; H2 stays open; the same choice as 0027, and whether to
+  apply the change-cost edits to the McCLIM versions.
 - 0027 McCLIM (branch =mcclim=, not merged): the stress apps built with what McCLIM comes with, and the
   answer to why its API is nice; H2 stays open; merge, keep on the branch, or optional dependency.
 - 0025 Stress apps (step 3): H1 and H3 stay open; three small interface changes for Micah to choose.
@@ -45,6 +49,8 @@ its own; result records already hold the machine profile.
   switch; executables per variant; the protocol of the metrics.
 
 * Open decisions for Micah
+- 0028: with 0027, merge or keep on the branch; and say if E1, E2, E4 and E5 are to be applied to the McCLIM
+  versions of the crud, flight booker and circles.
 - 0027: merge the McCLIM apps, tests and scripts onto =phase-2= (=make deps= then fetches McCLIM, 80 MB;
   =make test= is untouched), keep them on the branch =mcclim=, or merge with the dependency optional.
 - 0023: instrumentation switched on at run time (a flag in the context), not at build time as the

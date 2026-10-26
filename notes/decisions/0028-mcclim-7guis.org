@@ -1,0 +1,99 @@
+#+TITLE: 0028 — 7GUIs apps in McCLIM: the presentation layer and wiring
+#+DATE: 2026-10-27
+- Status :: proposed
+
+* Context
+0027 found McCLIM's gadgets as long and as wired as our retained variant, and
+that the stress apps never used the layer that makes
+=other-frameworks/task-board.lisp= nice (presentations, translators, typed
+commands, accept, updating-output). Micah asked for the 7GUIs apps that have
+objects and operations (the crud, the circle drawer, the flight booker) in
+McCLIM, to use it. Ours exist in all three variants, so only McCLIM's were
+built. =notes/mcclim-7guis.org= was committed with the method, the definition of
+wiring, a spec map and what I expected before any app, and says in its results
+what was wrong.
+
+* What was done
+- The flight booker (an =:accept-values= pane, a date type of the app), the crud
+  twice (the layer: presented entries, a translator, an =:accept-values= form;
+  and gadgets: a list pane, text fields, buttons, callbacks), and the circle
+  drawer (presented circles, a =blank-area= translator, a =:menu= translator,
+  =accepting-values= in a window of its own), in
+  =apps/7guis/{flight,crud,circles}/mcclim*.lisp=, one system,
+  =almighty-bolt-7guis/mcclim=, which =make test= and =make image= never load.
+  The models are shared; the circle painter is not (it pushes to our display
+  list).
+- 40 tests (=make test-mcclim=, 83 assertions) by the acceptance tests of the
+  other variants, and =scripts/mcclim-7guis-click.lisp= (=make
+  click-mcclim-7guis=), one use of each app on XQuartz with pointer events put
+  in McCLIM's queue; =make mcclim-crud=, =mcclim-crud-gadgets=, =mcclim-flight=,
+  =mcclim-circles= open them. =scripts/mcclim-size.lisp= takes the 7GUIs paths.
+
+* Evidence
+What the spec map came to (of the acceptance tests of each task), and the size
+and the wiring (by reading, with one rule, in lines):
+  | task    | version | met | differently | not met | lines | wiring |
+  |---------+---------+-----+-------------+---------+-------+--------|
+  | crud    | gadgets |  10 |           0 |       0 |   121 |     47 |
+  | crud    | layer   |   8 |           2 |       0 |   101 |     13 |
+  | flight  | layer   |   6 |           3 |       0 |    69 |      5 |
+  | circles | layer   |   8 |           1 |       4 |    91 |      5 |
+Ours, lines and wiring, retained / reactive / immediate: crud 97, 90, 77 and 29,
+14, 13; flight 60, 62, 54 and 24, 16, 9; circles (with the painter) 138, 119,
+116 and 16, 15, 6.
+- The layer has the least wiring in each task, by 0 to 4 lines against the
+  immediate variant and by more against the retained one and McCLIM's own
+  gadgets (13 against 29 and 47 in the crud). It is longer than our immediate
+  variant (crud 31 %, flight 28 %) except for the circles with their painter (22
+  % shorter). Of the 32 tests of the layer's apps, 6 are met differently (a
+  command button that is not drawn is not a grey one; the circles' dialog is a
+  window) and 4 are not met (the circle under the pointer is not grey; the
+  diameter does not change behind the dialog; a click away does not close it; a
+  click on the canvas with the dialog open is queued and draws a circle when it
+  closes).
+- What it needed, found by running it: =:view +textual-dialog-view+= (a text
+  field in an =:accept-values= pane with =:resynchronize-every-pass t= re-enters
+  the display function and the frame's thread dies with a duplicate query
+  identifier); a new =:query-identifier= to fill a field that is on the screen
+  (it keeps its text whatever default it is given); =:display-time
+  :command-loop= for the pane to follow a command; =define-presentation-type=
+  for each struct of the models; a tester on the =blank-area= translator and
+  =:menu nil=. My predictions of size were all too small (the crud was to be 15
+  to 30 % shorter than ours and is 31 % longer); the wiring of the flight booker
+  (5 for 2 to 4) and of the circles (5 for 3 to 6) was close, the crud's was not
+  (13 for 4 to 6) and the gadgets' was far off (47 for 14 to 18).
+
+* Decision
+Proposed: the layer is the immediate way of writing again. Against the retained
+and the gadget way it takes the wiring away; against our immediate variant,
+which describes the screen from the state each time and so has almost none, it
+does not save lines or wiring, it adds the spec of what the layer cannot do (6
+differently, 4 not met), and what it does for free is validation, a red field,
+an option pane, a slider dialog and a menu that greys itself, which in lines is
+8 for the date type and 7 for the dialog against 12 to 25 of ours. So H2 stays
+OPEN, and the answer to Micah's question (whether the nice layer takes the
+wiring away) is: yes against the gadgets and the retained style, no more than
+the immediate variant already does, and at a cost in lines and in gotchas.
+
+Proposed, for Micah to choose (the work is on the branch =mcclim=, which has the
+stress apps and 0027, not merged and not pushed):
+- (a) Merge the branch onto =phase-2= with 0027 and this. =make deps= then
+  fetches McCLIM for everyone (80 MB). Merging it and =builder-macros= conflicts
+  mildly in the devlog and the progress file. I recommend it, as for 0027.
+- (b) Keep it on the branch.
+- (c) Apply the change-cost edits E1, E2, E4 and E5 to the McCLIM versions first
+  (an Email field in the crud, an optional return date, a hidden filter row, a
+  dialog in two columns), which is the test of whether an edit is cheaper
+  through the layer. Not done; it can be done on this branch.
+
+* Consequences
+- Easier: the comparison of McCLIM and ours now has two kinds of app (stress and
+  7GUIs), a rule for wiring and a spec map to hold a size beside. The question
+  of whether presentations help can be put to an edit.
+- Harder: the =:accept-values= pane of McCLIM master is new (merged 2026) and
+  four things in it needed work-arounds; a later McCLIM may change them, and the
+  tests call McCLIM's unexported =av-change-query= and =av-execute-action=.
+- Open: typing into a field through X (injected keys did not reach the input
+  editor); the highlight under a real pointer; the seven other tasks; the models
+  as =defclass= (which would drop the =define-presentation-type= lines); E1 to
+  E5 on these versions; whether the wiring counts survive another reader.

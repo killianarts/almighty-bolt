@@ -1540,3 +1540,32 @@ counts are by reading. Presentations, translators and =updating-output=, which m
 =other-frameworks/task-board.lisp= nice, are used by no stress app, so what is said of them is from
 reading; the SDL2 backend (which sends an input method's events) was not run; the rows with our own
 list box were not made. One run of the rows hung once in about twenty, and was not found again.
+
+* 2026-10-27 — Three 7GUIs apps in McCLIM: does the presentation layer take the wiring away
+** What I did
+Micah asked why the stress apps did not use presentations, translators, typed commands and
+=updating-output= (nothing in them to click on and operate on) and then for the 7GUIs apps that have such
+objects, in McCLIM: the crud, the circle drawer and the flight booker. Ours exist in all three variants, so
+only McCLIM's were built. The method, a definition of wiring, a spec map and my expectations were committed
+first (=notes/mcclim-7guis.org=, e58c3c5), after trying in the scratchpad how a =blank-area= translator, a
+translator on the =:menu= gesture and an =:accept-values= pane behave on McCLIM master. Then the flight booker
+(an =:accept-values= pane and a date type), the crud twice (presentations, a translator, a form; and gadgets)
+and the circle drawer (presented circles, translators, =accepting-values= in a window of its own), 40 tests, a
+click script for XQuartz, make targets, and record 0028.
+** What I measured
+Spec map (met / differently / not met): crud with gadgets 10/0/0, crud with the layer 8/2/0, flight 6/3/0,
+circles 8/1/4. Lines, McCLIM layer against our immediate variant: crud 101 and 77, flight 69 and 54, circles 91
+and 116 with the painter. Wiring by reading, in lines, retained / reactive / immediate / layer: crud 29, 14, 13,
+13 (the gadgets 47); flight 24, 16, 9, 5; circles 16, 15, 6, 5. On XQuartz, pointer events in McCLIM's queue
+picked a crud row (fields filled, buttons drawn), drew circles, opened the dialog, set a diameter of 120 and
+closed it with OK, and pressed Book; a click on the canvas with the dialog open was queued and drew a circle after it closed.
+** Read with care
+My size predictions were all too small (the crud was to be 15 to 30 % shorter and is 31 % longer than ours),
+and one of the three conditions I gave for being wrong holds. The wiring counts are mine, by one rule, by
+reading. The layer needed four things that nothing in McCLIM's documentation says, found by running it: a
+text field in an =:accept-values= pane with =:resynchronize-every-pass t= kills the frame's thread at start
+(the nested display repeats a query identifier), a field on the screen keeps its text whatever default it is
+given, the pane does not follow a command unless =:display-time :command-loop=, and a struct is not a
+presentation type. Text typed through injected keys never reached the input editor, so the tests give a
+field its text by McCLIM's unexported =av-change-query= and click a button by =av-execute-action=. One edit
+(E1, E2, E4, E5 on these versions) would be the change-cost test and was not done.

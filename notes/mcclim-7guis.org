@@ -147,3 +147,142 @@ McCLIM versions would be the change-cost test of the layer. That is not part of 
 
 * Reporting
 Results below this line, appended after the runs, with what was wrong in the expectations above.
+
+* Results (2026-10-27)
+What was run: the same McCLIM master (=dcde4bc=, from =vend get=), SBCL 2.6.3, the null port and
+XQuartz. Built: =flight/mcclim.lisp=, =crud/mcclim.lisp= and =crud/mcclim-gadgets.lisp=,
+=circles/mcclim.lisp= (system =almighty-bolt-7guis/mcclim=), 40 tests (=make test-mcclim=: flight 9,
+crud 21, circles 10; 83 assertions), =scripts/mcclim-7guis-click.lisp= (=make click-mcclim-7guis=)
+that uses each app once on XQuartz with pointer events put in McCLIM's queue (not X events), =make
+mcclim-crud= and its three siblings that open them. The raw numbers are in
+=results/mcclim/20261027-mcclim-7guis.txt=.
+
+** What the layer needed, found on the way (each is a line or an option in an app)
+- =accept= of a string makes a text field gadget, and in an =:accept-values= pane with
+  =:resynchronize-every-pass t= the field calls its callback as it is made, which runs the display
+  function again inside itself, and the frame's thread dies with "ACCEPT-VALUES :QUERY-IDENTIFIER
+  "Name" is not unique." at start (both the flight booker's dates, once they inherit from string,
+  and the crud's fields). The apps ask for =:view +textual-dialog-view+ =, an input editor in the
+  pane, which does not. This is McCLIM master, 24 October; I did not report it.
+- A field that is on the screen keeps what is in it whatever default it is given, and there is no
+  call to put a value in it. The crud fills its fields when an entry is picked by giving each field
+  a new =:query-identifier= that has the picked id in it, so that it is a new field with the new
+  default. Without that the pick set the frame's slots and the next display wrote the old text back.
+- An =:accept-values= pane is redisplayed only when it says so: after a command (the crud's
+  =com-pick=) it needs =:display-time :command-loop=, or its fields and buttons do not follow the
+  command.
+- =accept= gives back the text as it is and a type of NIL when a field does not parse, and McCLIM
+  draws the field's line in red (=av-query-ink=: red when selected, dark red otherwise); so the
+  display function sees the validity, and the red is not code.
+- A =defstruct= needs =define-presentation-type= to be presented (the models are structs); a
+  =defclass= does not. A click on a presentation that has no translator for the gesture falls
+  through to the pane's =blank-area= translator, so a click on a circle draws another unless the
+  translator has a tester; the secondary button's translator (=:gesture :menu=) fires directly and
+  the =blank-area= one has to say =:menu nil= or it is in a menu that a right click on empty ground
+  opens.
+- =execute-frame-command= called from another thread has the frame's thread do it later, and that
+  thread then redisplays at the same time as the caller. The tests call the command function in
+  their own thread, and redisplay as the frame's loop does.
+- Text typed in a field of an =:accept-values= pane could not be put in with injected key events
+  (the click selected the field, the keys went nowhere; I did not find why). The tests give a field
+  its text by =av-change-query=, which is what the input editor and the gadgets call when a text is
+  accepted, and a click on a button by =av-execute-action=, which is what the click's action calls;
+  both are not exported. What the XQuartz script clicks are the buttons, the rows and the canvas.
+- The compile has 4 style warnings, 3 from the expansion of =define-presentation-method= ("Cannot
+  find type for specializer") and 1 from my first use of a setter that McCLIM does not have (fixed);
+  the apps now compile with only the 3 of McCLIM's macro.
+
+** The spec map
+By the acceptance tests of =apps/7guis/t/acceptance/=. The first two rows are the tests of the apps
+with the layer and with gadgets; "differently" says how in the test's name (a =--differently=
+suffix).
+  | task    | version | tests | met | met differently | not met | I expected (met/differently/not) |
+  |---------+---------+-------+-----+-----------------+---------+----------------------------------|
+  | crud    | gadgets | 10    | 10  | 0               | 0       | 10/0/0                           |
+  | crud    | layer   | 10    | 8   | 2               | 0       | 8/2/0                            |
+  | flight  | layer   | 9     | 6   | 3               | 0       | 5/4/0                            |
+  | circles | layer   | 13    | 8   | 1               | 4       | 7/3/3                            |
+- Crud with the layer, differently: Update and Delete are not on the screen with nobody picked, and
+  Create is not with both fields empty (command buttons that are not drawn, not buttons that are
+  grey). A click on a row picks it (XQuartz: the row in bold, the fields "Max" and "Mustermann",
+  Create, Update and Delete drawn).
+- Flight: the return date is not asked for a one-way flight, and Book is not offered for a return
+  before the start or for a start that is not a date (3 tests, differently); an invalid date is red;
+  changing anything clears the message (4 lines); Book on XQuartz: the message appears.
+- Circles, met: starts empty; a click on empty ground draws a circle of 40 at the place (the place
+  is exact: 100, 80); a click on a circle draws nothing; undo and redo, and a draw after an undo
+  ends the redo (the model's); a click of the secondary button on empty ground opens nothing; a
+  dialog that changes nothing leaves nothing to undo. Differently: the dialog is a window of its own
+  (a slider from 5 to 200 at the circle's diameter, OK and Cancel; on XQuartz the slider at 120 and
+  OK made the circle 120). Not met: the circle under the pointer is not grey (an injected pointer
+  motion over a circle showed no highlight either); the diameter does not change behind the dialog;
+  a click away does not close it and keep the change; and the canvas is not shut while the dialog is
+  open: a click on it is queued and the circle is drawn when the dialog closes (XQuartz: a click at
+  300, 200 with the dialog open gave a circle there after OK).
+
+** Size, and the wiring
+Lines, tokens and body tokens by =scripts/mcclim-size.lisp=; the circles with the painter (29 lines)
+added to ours. The wiring is by reading with the rule above, in lines (the lines are listed in the
+raw file).
+  |                                                | retained | reactive | immediate | McCLIM layer | McCLIM gadgets |
+  |------------------------------------------------+----------+----------+-----------+--------------+----------------|
+  | crud: lines, body tokens                       | 97, 271  | 90, 264  | 77, 212   | 101, 292     | 121, 385       |
+  | crud: wiring lines                             | 29       | 14       | 13        | 13           | 47             |
+  | flight: lines, body tokens                     | 60, 142  | 62, 150  | 54, 121   | 69, 183      |                |
+  | flight: wiring lines                           | 24       | 16       | 9         | 5            |                |
+  | circles: lines, body tokens (with the painter) | 138, 393 | 119, 368 | 116, 319  | 91, 232      |                |
+  | circles: wiring lines                          | 16       | 15       | 6         | 5            |                |
+- The layer is not shorter than our immediate variant: the crud is 31 % longer (101 lines against
+  77), the flight booker 28 % (69 against 54), the circle drawer 5 % longer than the immediate file
+  alone (91 against 87) and 22 % shorter with its painter (116). Against the retained variant it is
+  4 % longer for the crud, 15 % for the flight booker, and 34 % shorter for the circles with their
+  painter. The gadget crud is the longest, 121 lines.
+- The layer has the least wiring of the versions in each task, but not by much: 13, 5 and 5 lines
+  against the immediate variant's 13, 9 and 6, the reactive's 14, 16 and 15, the retained's 29, 24
+  and 16. The crud is tied with immediate. Against the same library's gadgets it is 13 lines against
+  47: what the layer takes away is what the gadgets need, a refresh function and its callbacks, and
+  the immediate variant never had it.
+- What it gives for free, by lines: the flight booker's date type is 8 lines and replaces the
+  =:invalid= expression in each field and the enabled state of the second; the circles' dialog is
+  =ask-diameter=, 7 lines, a slider, OK and Cancel, where ours is a scrim, a panel, a slider, a
+  button and the state that opens and closes it (12 to 25 lines); the undo and redo are in McCLIM's
+  menu bar, greyed when they cannot be used, by 2 lines.
+
+** What I take from it
+The question was whether the presentation layer takes the wiring away. It does, against the retained
+and the gadget way of writing (29 and 47 lines in the crud against 13), and by a margin that is not
+there against our immediate variant (13, tied) and the reactive (14): the immediate variant, which
+has no layer and no retained widgets, already has almost none, because the screen is described from
+the state each time. So the layer is the immediate way of writing again, and a nicer one for a
+flight booker and a dialog; it is not a saving over it in lines, and it needed gotcha lines of its
+own (the view, the query identifiers, the display time) that I counted in the wiring. The layer's
+own cost is spec: of the 32 tests, 6 are met differently and 4 not met. This is three apps by one
+author who has read McCLIM's source for a week, and the counts are mine.
+
+** What was wrong in what I expected
+- Expected: The crud with the layer 15 to 30 % shorter than our immediate crud, with 4 to 6 lines of
+  wiring. Found: 31 % longer (101 against 77), 13 lines of wiring. Wrong, and the first of my three
+  conditions for being wrong.
+- Expected: The gadget crud 85 to 100 lines with 14 to 18 of wiring. Found: 121 lines and 47 of
+  wiring. Wrong: the gadgets are the most work of all, mostly the refresh function and the
+  callbacks.
+- Expected: The flight booker 40 to 50 lines with 2 to 4 of wiring. Found: 69 lines (the size
+  was wrong), 5 of wiring (close).
+- Expected: The circles 60 to 80 lines with 3 to 6 of wiring. Found: 91 lines, 5 of wiring.
+- Expected: The spec: crud 8/2/0, flight 5/4/0, circles 7/3/3. Found: crud 8/2/0, flight 6/3/0,
+  circles 8/1/4: a click on the canvas while the dialog is open is not shut out, which I had said
+  only "may be".
+- Expected: The layer would be as ready as the dashboard of the stress apps showed. Found: It
+  stopped at start for want of a view (the nested display), needed its fields re-keyed to be filled,
+  and needed its pane told to redisplay after a command. Three things that the documentation of an
+  =:accept-values= pane does not say, found by running it.
+
+** Not done
+- The change-cost edits E1, E2, E4 and E5 on the McCLIM versions: the test of whether an edit is
+  cheaper through the layer. Offered.
+- Typing into a field through X (the injected keys did not reach the input editor); the grey
+  highlight under a real pointer; the seven other tasks; a =defclass= model in place of the structs
+  (which would save the =define-presentation-type= lines).
+- The wiring counts are mine, by one rule, and the nine files of ours were counted by the same
+  reading as the five of McCLIM; someone else would count some lines differently (a count of tokens,
+  which I did not make, would favour the layer less: its option lines are long).

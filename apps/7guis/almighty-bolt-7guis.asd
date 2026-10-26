@@ -167,3 +167,34 @@
                         (uiop:symbol-call :lisp-unit2 :print-summary db))
                       (when bad
                         (error "~d cursor experiment test~:p failed." (length bad))))))
+
+(defsystem "almighty-bolt-7guis/mcclim"
+  :description "Three of the 7GUIs tasks in McCLIM (notes/mcclim-7guis.org); not part of make test or make image"
+  :license "MIT"
+  :depends-on ("almighty-bolt-7guis" "mcclim")
+  :serial t
+  :components ((:module "flight" :components ((:file "mcclim")))
+               (:module "crud" :components ((:file "mcclim") (:file "mcclim-gadgets")))
+               (:module "circles" :components ((:file "mcclim")))))
+
+(defsystem "almighty-bolt-7guis/mcclim/tests"
+  :depends-on ("almighty-bolt-7guis/mcclim" "almighty-bolt-stress/mcclim/tests" "lisp-unit2")
+  :components ((:module "t"
+                :components ((:module "mcclim"
+                              :serial t
+                              :components ((:file "support") (:file "flight") (:file "crud")
+                                           (:file "circles"))))))
+  :perform (test-op (o s)
+                    (let* ((results
+                             (loop :for package :in '(:almighty-bolt-7guis/t/mcclim/flight
+                                                      :almighty-bolt-7guis/t/mcclim/crud
+                                                      :almighty-bolt-7guis/t/mcclim/circles)
+                                   :collect (uiop:symbol-call :lisp-unit2 :run-tests
+                                                              :package package)))
+                           (bad (loop :for db :in results
+                                      :append (uiop:symbol-call :lisp-unit2 :failed db)
+                                      :append (uiop:symbol-call :lisp-unit2 :errors db))))
+                      (dolist (db results)
+                        (uiop:symbol-call :lisp-unit2 :print-summary db))
+                      (when bad
+                        (error "~d McCLIM 7GUIs test~:p failed." (length bad))))))

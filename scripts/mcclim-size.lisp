@@ -20,6 +20,7 @@
 ;;;; longer), and McCLIM's from the current directory.
 
 (defparameter +tasks+ '("dashboard" "rows" "editor"))
+(defparameter +7guis-tasks+ '("crud" "flight" "circles"))
 
 (defun lines-of-code (path)
   (with-open-file (stream path)
@@ -94,8 +95,8 @@ starts with one of PACKAGE-PREFIXES."
               (pushnew (cons package (string-upcase (string symbol))) symbols :test #'equal))))))
     (length symbols)))
 
-(defun path (task name &optional (root (or (uiop:getenv "VARIANT_ROOT") "")))
-  (format nil "~aapps/stress/~a/~a.lisp" root task name))
+(defun path (task name &optional (root (or (uiop:getenv "VARIANT_ROOT") "")) (suite "stress"))
+  (format nil "~aapps/~a/~a/~a.lisp" root suite task name))
 
 (defun row (label paths concepts)
   "LABEL, then the lines, all tokens and body tokens of the files at PATHS together."
@@ -126,6 +127,22 @@ starts with one of PACKAGE-PREFIXES."
     (row "mcclim gadgets, app file" (list own)
          (imported-from own '("CLIM" "CLIM-EXTENSIONS")))
     (row "mcclim gadgets + the display file"
-         (list own (path "dashboard" "mcclim" "")) nil)))
+         (list own (path "dashboard" "mcclim" "")) nil))
+  (format t "~&~%The 7GUIs apps (apps/7guis/)~%")
+  (dolist (task +7guis-tasks+)
+    (format t "~&~a~%" task)
+    (dolist (variant '("retained" "reactive" "immediate"))
+      (let ((own (path task variant (or (uiop:getenv "VARIANT_ROOT") "") "7guis")))
+        (row (format nil "~a, app file" variant) (list own)
+             (imported-from own '("ALMIGHTY-BOLT-VARIANT-")))
+        (row (format nil "~a, app + shared painter" variant)
+             (remove-if-not #'probe-file
+                            (list own (path task "paint" (or (uiop:getenv "VARIANT_ROOT") "") "7guis")))
+             nil)))
+    (dolist (file '("mcclim" "mcclim-gadgets"))
+      (let ((own (path task file "" "7guis")))
+        (when (probe-file own)
+          (row (format nil "~a, app file" file) (list own)
+               (imported-from own '("CLIM" "CLIM-EXTENSIONS"))))))))
 
 (main)

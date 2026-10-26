@@ -1,4 +1,4 @@
-.PHONY: deps shim test test-mcclim bench-mcclim mcclim-dashboard mcclim-gadgets mcclim-rows mcclim-editor spike-a spike-b spike-c spike-d spike-e bench-metal bench-text bench-null bench-retained bench-compare bench-layout image test-cursor bench-cursor snapshots-cursor bench-run bench-overhead bench-app bench-compile bench-report snapshots replay 7guis 7guis-smoke clean
+.PHONY: deps shim test test-mcclim click-mcclim-7guis bench-mcclim mcclim-dashboard mcclim-gadgets mcclim-rows mcclim-editor mcclim-crud mcclim-crud-gadgets mcclim-flight mcclim-circles spike-a spike-b spike-c spike-d spike-e bench-metal bench-text bench-null bench-retained bench-compare bench-layout image test-cursor bench-cursor snapshots-cursor bench-run bench-overhead bench-app bench-compile bench-report snapshots replay 7guis 7guis-smoke clean
 
 # ASDF looks only in this tree (project and vendored/), never in ~/common-lisp/.
 SBCL = sbcl --noinform --non-interactive --no-sysinit --no-userinit
@@ -169,6 +169,7 @@ MCCLIM_LOAD = --eval '(asdf:load-system "almighty-bolt-stress/mcclim")'
 # lines (20,000 by default: six seconds to open and eight for each typed character, so try
 # EDITOR_LINES=200); the rows open 1,000,000 items (four seconds).
 MCCLIM_RUN = DISPLAY=$${DISPLAY:-:0} $(SBCL_MCCLIM) $(REGISTRY) $(MCCLIM_LOAD)
+MCCLIM_RUN_7GUIS = DISPLAY=$${DISPLAY:-:0} $(SBCL_MCCLIM) $(REGISTRY) --eval '(asdf:load-system "almighty-bolt-7guis/mcclim")'
 
 mcclim-dashboard:
 	$(MCCLIM_RUN) --eval '(almighty-bolt-stress/dashboard/mcclim:run-dashboard)'
@@ -182,8 +183,27 @@ mcclim-rows:
 mcclim-editor:
 	$(MCCLIM_RUN) --eval '(almighty-bolt-stress/editor/mcclim:run-editor)'
 
+mcclim-crud:
+	$(MCCLIM_RUN_7GUIS) --eval '(almighty-bolt-7guis/crud/mcclim:run-crud)'
+
+mcclim-crud-gadgets:
+	$(MCCLIM_RUN_7GUIS) --eval '(almighty-bolt-7guis/crud/mcclim-gadgets:run-crud)'
+
+mcclim-flight:
+	$(MCCLIM_RUN_7GUIS) --eval '(almighty-bolt-7guis/flight/mcclim:run-flight)'
+
+mcclim-circles:
+	$(MCCLIM_RUN_7GUIS) --eval '(almighty-bolt-7guis/circles/mcclim:run-circles)'
+
+# One use of each 7GUIs app on XQuartz, with pointer events put in McCLIM's queue (SHOTS=dir for screenshots).
+click-mcclim-7guis:
+	for app in flight crud circles; do \
+	  APP=$$app DISPLAY=$${DISPLAY:-:0} $(SBCL_MCCLIM) $(REGISTRY) --eval '(asdf:load-system "almighty-bolt-7guis/mcclim")' \
+	    --load scripts/mcclim-7guis-click.lisp; done
+
 test-mcclim:
 	$(SBCL_MCCLIM) $(REGISTRY) --eval '(asdf:test-system "almighty-bolt-stress/mcclim/tests")'
+	$(SBCL_MCCLIM) $(REGISTRY) --eval '(asdf:test-system "almighty-bolt-7guis/mcclim/tests")'
 
 # One RESULT line per number. Sizes of rows and lines are the ones in the note; the editor at 20,000
 # lines takes minutes (a typed character takes seconds).

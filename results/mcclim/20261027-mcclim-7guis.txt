@@ -1,0 +1,67 @@
+# Three 7GUIs apps in McCLIM (notes/mcclim-7guis.org), 2026-10-27
+# McCLIM master dcde4bce4c5ccbd64372673ed9de9059afa720cf, SBCL 2.6.3, arm64, macOS 26.5.1, McCLIM's null port and XQuartz (800x600)
+
+## sizes (sbcl --script scripts/mcclim-size.lisp, the 7GUIs part)
+The 7GUIs apps (apps/7guis/)
+crud
+  retained, app file                     97    313    271 12      
+  retained, app + shared painter         97    313    271 -       
+  reactive, app file                     90    302    264 11      
+  reactive, app + shared painter         90    302    264 -       
+  immediate, app file                    77    244    212 8       
+  immediate, app + shared painter        77    244    212 -       
+  mcclim, app file                      101    341    302 17      
+  mcclim-gadgets, app file              121    423    385 16      
+flight
+  retained, app file                     60    177    142 12      
+  retained, app + shared painter         60    177    142 -       
+  reactive, app file                     62    181    150 10      
+  reactive, app + shared painter         62    181    150 -       
+  immediate, app file                    54    147    121 7       
+  immediate, app + shared painter        54    147    121 -       
+  mcclim, app file                       69    214    183 14      
+circles
+  retained, app file                    109    339    288 16      
+  retained, app + shared painter        138    462    393 -       
+  reactive, app file                     90    308    263 15      
+  reactive, app + shared painter        119    431    368 -       
+  immediate, app file                    87    254    214 12      
+  immediate, app + shared painter       116    377    319 -       
+  mcclim, app file                       89    267    228 15      
+
+## wiring, by reading, in lines (rule in the note; lines are of the files at this commit)
+crud
+  retained   29  handles 44-45; refresh-buttons 48-52; refresh-list 54,56-60; pick 61-66; (refresh-list) at 72, 76, 82; clearing 80-81;
+                 on-change lambdas 84, 87, 89; first refresh 93
+  reactive   14  signals 10-15 (6); on-change lambdas 38, 46, 50-51; pick copies 31-32; clearing 26-27   [lines of the file after the package form]
+  immediate  13  copy-backs (when changed (setf ..)) x3 = 6; pick copy 5; clearing 2
+  mcclim     13  :resynchronize-every-pass 56; picked-entry 63-66; show-entries keys 98-99; com-pick 107-110; clearing 92-93
+  gadgets    47  pane 63-64; shown 66-68; refresh 73-89 (18); on-filter 91-93; on-field 95-97; on-pick 99-107; refresh calls 116, 123, 132;
+                 clearing 130-131; callback registrations 43, 45, 48, 49
+flight
+  retained   24  handles 37; refresh 40-50; changed 51-54; book-it 55-58; first refresh 64; on-change lines 59-61
+  reactive   16  signals 35-40; edit 41-44; on-change copies 50-52, 55, 60; message setf 63
+  immediate   9  copy-backs 3 x 3
+  mcclim      5  seen slot and its check 4; :resynchronize-every-pass 1
+circles
+  retained   16  handles 55; refresh 56-59; invalidate/visible/refresh calls 69, 74, 81, 87-89, 95-96, 99, 114-115
+  reactive   15  signals 51-54; data list 83-84; draw unpacking 45-48; slider copy 93; exit 86; hover 60-62
+  immediate   6  hover 3; slider copy 2; exit 1
+  mcclim      5  command-enabled 2; updating-output keys 2; :incremental-redisplay 1
+
+## tests (make test-mcclim, the 7GUIs part): flight 9 tests 16 assertions; crud 21 tests 46; circles 10 tests 21; all pass
+
+## real pointer events through McCLIM's queue, on XQuartz (scratchpad scripts), and what they showed
+verify-flight.out:buttons: 1
+verify-flight.out:message after the click on Book: "Booked a one-way flight on 27.03.2026."
+verify-crud.out:rows: 3
+verify-crud.out:after a click on the second row: picked 1 name "Max" surname "Mustermann"
+verify-crud.out:buttons offered now: 3
+verify-circles2.out:dialogs: 1
+verify-circles2.out:while the dialog is open, after a click on the canvas: ((100 80 40))
+verify-circles2.out:after OK: ((100 80 40) (300 200 40)) dialogs 0
+verify-circles.out:circles: ((100 80 40) (250 150 40))
+verify-circles.out:dialogs: 1
+verify-circles.out:sliders 1
+verify-circles.out:dialog buttons: 2
+verify-circles.out:after OK: ((100 80 120) (250 150 40)) dialogs 0
