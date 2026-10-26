@@ -7,6 +7,7 @@
                 #:entry-id
                 #:entry-name
                 #:entry-surname
+                #:entry-email
                 #:entry-display
                 #:entries-list
                 #:entries-find
@@ -41,7 +42,7 @@
 (defun make-crud ()
   (let ((entries (make-entries '("Hans" "Emil") '("Max" "Mustermann") '("Roman" "Tisch")))
         (selected nil)
-        (filter nil) (list nil) (name nil) (surname nil)
+        (filter nil) (list nil) (name nil) (surname nil) (email nil)
         (create nil) (update nil) (delete nil))
     (labels ((shown ()
                (entries-filtered entries (text-field-text filter)))
@@ -49,7 +50,8 @@
                (setf (node-enabled update) (and selected t)
                      (node-enabled delete) (and selected t)
                      (node-enabled create) (plusp (+ (length (text-field-text name))
-                                                     (length (text-field-text surname))))))
+                                                     (length (text-field-text surname))
+                                                     (length (text-field-text email))))))
              (refresh-list ()
                (let ((shown (shown)))
                  ;; A selection that the filter hides is dropped.
@@ -62,23 +64,26 @@
                (let ((entry (nth index (shown))))
                  (setf selected (entry-id entry)
                        (text-field-text name) (entry-name entry)
-                       (text-field-text surname) (entry-surname entry))
+                       (text-field-text surname) (entry-surname entry)
+                       (text-field-text email) (entry-email entry))
                  (refresh-buttons)))
              (create-entry ()
                (multiple-value-bind (new entry)
-                   (entries-add entries (text-field-text name) (text-field-text surname))
+                   (entries-add entries (text-field-text name) (text-field-text surname)
+                                (text-field-text email))
                  (setf entries new
                        selected (entry-id entry))
                  (refresh-list)))
              (update-entry ()
                (setf entries (entries-update entries selected (text-field-text name)
-                                             (text-field-text surname)))
+                                             (text-field-text surname) (text-field-text email)))
                (refresh-list))
              (delete-entry ()
                (setf entries (entries-remove entries selected)
                      selected nil
                      (text-field-text name) ""
-                     (text-field-text surname) "")
+                     (text-field-text surname) ""
+                     (text-field-text email) "")
                (refresh-list)))
       (setf filter (text-field :id :filter :width 160
                                :on-change (lambda (text) (declare (ignore text)) (refresh-list)))
@@ -87,6 +92,8 @@
                              :on-change (lambda (text) (declare (ignore text)) (refresh-buttons)))
             surname (text-field :id :surname :width 160
                                 :on-change (lambda (text) (declare (ignore text)) (refresh-buttons)))
+            email (text-field :id :email :width 160
+                              :on-change (lambda (text) (declare (ignore text)) (refresh-buttons)))
             create (button "Create" :id :create :on-click #'create-entry)
             update (button "Update" :id :update :on-click #'update-entry)
             delete (button "Delete" :id :delete :on-click #'delete-entry))
@@ -96,6 +103,7 @@
                         (row list
                              (column (row (label "Name:") name :gap 10 :cross-align :center)
                                      (row (label "Surname:") surname :gap 10 :cross-align :center)
+                                     (row (label "Email:") email :gap 10 :cross-align :center)
                                      :gap 10)
                              :gap 20)
                         (row create update delete :gap 10)
