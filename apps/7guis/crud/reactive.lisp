@@ -24,6 +24,7 @@
                 #:column
                 #:row
                 #:text-field
+                #:choice
                 #:list-box)
   (:import-from #:almighty-bolt-variant-reactive/reactive
                 #:make-reactive-variant)
@@ -39,10 +40,13 @@
   (let* ((entries (make-signal (make-entries '("Hans" "Emil") '("Max" "Mustermann")
                                              '("Roman" "Tisch"))))
          (filter (make-signal ""))
+         (filter-index (make-signal 0))
          (picked (make-signal nil))
          (name (make-signal ""))
          (surname (make-signal ""))
-         (shown (computed (entries-filtered (value entries) (value filter))))
+         (shown (computed (if (zerop (value filter-index))
+                              (entries-filtered (value entries) (value filter))
+                              (entries-list (value entries)))))
          (picked-entry (computed (find (value picked) (value shown) :key #'entry-id))))
     (flet ((create ()
              (multiple-value-bind (new entry) (entries-add (value entries) (value name) (value surname))
@@ -64,10 +68,15 @@
       (make-reactive-variant
        (lambda ()
          (padding
-          (column (row (label "Filter prefix:")
-                       (text-field :id :filter :width 160 :value (value filter)
-                                   :on-change (lambda (text) (setf (value filter) text)))
-                       :gap 10 :cross-align :center)
+          (column (choice '("filter on" "filter off") :id :filter-switch
+                                                      :selected (value filter-index)
+                                                      :on-change (lambda (index)
+                                                                   (setf (value filter-index) index)))
+                  (when (zerop (value filter-index))
+                    (row (label "Filter prefix:")
+                         (text-field :id :filter :width 160 :value (value filter)
+                                     :on-change (lambda (text) (setf (value filter) text)))
+                         :gap 10 :cross-align :center))
                   (row (list-box :id :list :width 220 :rows 6
                                  :items (mapcar #'entry-display (value shown))
                                  :selected (position (value picked) (value shown) :key #'entry-id)
