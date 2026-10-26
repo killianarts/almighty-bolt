@@ -7,6 +7,7 @@
                 #:entry-id
                 #:entry-name
                 #:entry-surname
+                #:entry-email
                 #:entry-display
                 #:entries-find
                 #:entries-add
@@ -42,25 +43,29 @@
          (picked (make-signal nil))
          (name (make-signal ""))
          (surname (make-signal ""))
+         (email (make-signal ""))
          (shown (computed (entries-filtered (value entries) (value filter))))
          (picked-entry (computed (find (value picked) (value shown) :key #'entry-id))))
     (flet ((create ()
-             (multiple-value-bind (new entry) (entries-add (value entries) (value name) (value surname))
+             (multiple-value-bind (new entry) (entries-add (value entries) (value name) (value surname)
+                                                                (value email))
                (setf (value entries) new
                      (value picked) (entry-id entry))))
            (update ()
              (setf (value entries) (entries-update (value entries) (value picked) (value name)
-                                                   (value surname))))
+                                                   (value surname) (value email))))
            (delete-picked ()
              (setf (value entries) (entries-remove (value entries) (value picked))
                    (value picked) nil
                    (value name) ""
-                   (value surname) ""))
+                   (value surname) ""
+                   (value email) ""))
            (pick (index)
              (let ((entry (nth index (value shown))))
                (setf (value picked) (entry-id entry)
                      (value name) (entry-name entry)
-                     (value surname) (entry-surname entry)))))
+                     (value surname) (entry-surname entry)
+                     (value email) (entry-email entry)))))
       (make-reactive-variant
        (lambda ()
          (padding
@@ -81,11 +86,16 @@
                                                 :on-change (lambda (text)
                                                              (setf (value surname) text)))
                                     :gap 10 :cross-align :center)
+                               (row (label "Email:")
+                                    (text-field :id :email :width 160 :value (value email)
+                                                :on-change (lambda (text) (setf (value email) text)))
+                                    :gap 10 :cross-align :center)
                                :gap 10)
                        :gap 20)
                   (row (button "Create" :id :create :on-click #'create
                                         :enabled (plusp (+ (length (value name))
-                                                           (length (value surname)))))
+                                                           (length (value surname))
+                                                           (length (value email)))))
                        (button "Update" :id :update :on-click #'update
                                         :enabled (and (value picked-entry) t))
                        (button "Delete" :id :delete :on-click #'delete-picked
