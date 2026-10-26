@@ -422,3 +422,52 @@
     (let ((builds (build variant)))
       (assert-eql 1 builds)
       (assert-true (plusp (core:display-list-count *list*))))))
+
+;;; --- text and composition for a canvas that has the keyboard ---
+
+(defun text (variant string)
+  (core:handle-event variant (core:make-text-input-event :timestamp 0 :text string)))
+
+(defun composition (variant kind text &optional (start 0) (length 0))
+  (core:handle-event variant (core:make-composition-event :timestamp 0 :kind kind :text text
+                                                          :selection-start start
+                                                          :selection-length length)))
+
+(define-test a-canvas-with-the-keyboard-gets-keys-text-and-composition-in-order ()
+  (let* ((events '())
+         (variant (show (lambda ()
+                          (dolist (event (w:canvas :board 100 80
+                                                   (lambda (list context width height)
+                                                     (declare (ignore list context width height)))
+                                                   :focusable t))
+                            (push (case (first event)
+                                    (:key (list :key (core:key-event-logical-key (second event))))
+                                    (t event))
+                                  events))))))
+    (multiple-value-bind (x y) (core:lookup-target variant :board)
+      (pointer variant :move (+ x 30) (+ y 40)) (build variant)
+      (pointer variant :down (+ x 30) (+ y 40) :button 0 :buttons 1) (build variant)
+      (pointer variant :up (+ x 30) (+ y 40) :button 0) (build variant)
+      (setf events '())
+      (key variant #\Backspace)
+      (text variant "x")
+      (composition variant :started "に" 1 0)
+      (composition variant :committed "日")
+      (key variant #\Return)
+      (build variant)
+      (assert-equal '((:key #\Backspace) (:text "x") (:composition :started "に" 1 0)
+                      (:composition :committed "日" 0 0) (:key #\Return))
+                    (reverse events)))))
+
+(define-test a-canvas-without-the-keyboard-gets-no-text ()
+  (let* ((events '())
+         (variant (show (lambda ()
+                          (dolist (event (w:canvas :board 100 80
+                                                   (lambda (list context width height)
+                                                     (declare (ignore list context width height)))
+                                                   :focusable t))
+                            (push event events))))))
+    (text variant "x")
+    (build variant)
+    (assert-equal '() events)))
+

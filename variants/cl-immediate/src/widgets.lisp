@@ -47,6 +47,8 @@
                 #:ui-released
                 #:ui-moved
                 #:ui-keys
+                #:ui-inputs
+                #:consume-input
                 #:ui-states
                 #:open-box
                 #:close-box
@@ -581,7 +583,8 @@ NIL) marked. Returns the index now and whether the person changed it this frame.
 context, and the width and height, and draws from the top left of the area, which it clips
 to; if what it draws is what it drew last frame, nothing more is done for it. Returns the
 events for the canvas, oldest first: (:press x y button click-count), (:move x y), (:drag x y),
-(:release x y inside-p), (:key event), (:wheel dx dy) and (:exit), with points in the canvas."
+(:release x y inside-p), (:key event), (:text string), (:composition kind text selection-start selection-length), (:wheel dx
+dy) and (:exit), with points in the canvas."
   (let* ((ui *ui*)
          (box (open-box ui :canvas :id id))
          (key (box-key box))
@@ -622,9 +625,24 @@ events for the canvas, oldest first: (:press x y button click-count), (:move x y
       (push (list :exit) events))
     (setf (canvas-state-was-hot state) hot)
     (when (and focusable (= (ui-focus ui) key))
-      (dolist (event (copy-list (ui-keys ui)))
-        (consume-key ui event)
-        (push (list :key event) events)))
+      (dolist (event (copy-list (ui-inputs ui)))
+        (typecase event
+          (almighty-bolt-core:key-event
+           ;; A key that a widget took is gone from the keys, and is not the canvas's.
+           (when (member event (ui-keys ui) :test #'eq)
+             (consume-key ui event)
+             (consume-input ui event)
+             (push (list :key event) events)))
+          (almighty-bolt-core:text-input-event
+           (consume-input ui event)
+           (push (list :text (almighty-bolt-core:text-input-event-text event)) events))
+          (almighty-bolt-core:composition-event
+           (consume-input ui event)
+           (push (list :composition (almighty-bolt-core:composition-event-kind event)
+                       (almighty-bolt-core:composition-event-text event)
+                       (almighty-bolt-core:composition-event-selection-start event)
+                       (almighty-bolt-core:composition-event-selection-length event))
+                 events)))))
     ;; What it draws now, compared with what it drew before.
     (let ((fragment (canvas-state-fragment state)))
       (loop

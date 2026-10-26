@@ -103,7 +103,7 @@
 ;;; --- making nodes ---
 
 (defstruct (canvas-box (:conc-name box-))
-  data paint on-press on-move on-exit on-drag on-release on-key on-wheel)
+  data paint on-press on-move on-exit on-drag on-release on-key on-text on-composition on-wheel)
 
 (defun resync (element)
   "Describe the component ELEMENT is part of again, which puts back what a field shows if
@@ -194,6 +194,14 @@ state says even if the handler did not change it."
                           :on-key (lambda (canvas event)
                                     (declare (ignore canvas))
                                     (and (box-on-key box) (funcall (box-on-key box) event)))
+                          :on-text (lambda (canvas text)
+                                     (declare (ignore canvas))
+                                     (and (box-on-text box) (funcall (box-on-text box) text)))
+                          :on-composition (lambda (canvas kind text start length)
+                                            (declare (ignore canvas))
+                                            (and (box-on-composition box)
+                                                 (funcall (box-on-composition box) kind text start
+                                                          length)))
                           :on-wheel (lambda (canvas dx dy)
                                       (declare (ignore canvas))
                                       (and (box-on-wheel box)
@@ -219,6 +227,8 @@ changed."
           (box-on-drag box) (view-prop view :on-drag)
           (box-on-release box) (view-prop view :on-release)
           (box-on-key box) (view-prop view :on-key)
+          (box-on-text box) (view-prop view :on-text)
+          (box-on-composition box) (view-prop view :on-composition)
           (box-on-wheel box) (view-prop view :on-wheel))
     changed))
 

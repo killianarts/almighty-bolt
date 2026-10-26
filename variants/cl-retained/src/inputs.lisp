@@ -66,6 +66,8 @@
                 #:pointer-release
                 #:pointer-wheel
                 #:key-input
+                #:text-input
+                #:composition-input
                 #:session-context
                 #:session-click-count)
   (:export #:text-field
@@ -619,22 +621,28 @@ and the list stays scrolled as far as it can. Calls no handler."
   (on-drag nil :type (or null function))
   (on-release nil :type (or null function))
   (on-key nil :type (or null function))
+  (on-text nil :type (or null function))
+  (on-composition nil :type (or null function))
   (on-wheel nil :type (or null function))
   (focusable nil :type boolean))
 
 (defun canvas (&key id (width 300) (height 200) paint on-press on-move on-exit on-drag
-                 on-release on-key on-wheel focusable (flex 0))
+                 on-release on-key on-text on-composition on-wheel focusable (flex 0))
   "An area of WIDTH by HEIGHT points that the app draws and handles events for. PAINT is
 called with the canvas, the context, the display list and the top left and size of the
 area, and appends commands. ON-PRESS and ON-DRAG are called with the canvas and a point in
 the canvas, and ON-PRESS with the button as well (0 for the primary one); ON-MOVE with
 the canvas and a point as the pointer moves over it, and ON-EXIT with the canvas when it
 leaves; ON-RELEASE with the canvas, a point and whether the pointer is over it; ON-KEY with the canvas and the key
-event (returning true if it used the key); ON-WHEEL with the canvas and the movement.
+event (returning true if it used the key); ON-TEXT with the canvas and the text that the
+input handling says to insert; ON-COMPOSITION with the canvas, the kind (:started, :changed or
+:committed), the text, and the start and length of the selection in it; ON-WHEEL with the canvas
+and the movement.
 The canvas keeps what PAINT drew until CANVAS-INVALIDATE says it changed."
   (%make-canvas :id id :width (float width 1f0) :height (float height 1f0) :paint paint
                 :on-press on-press :on-move on-move :on-exit on-exit :on-drag on-drag
-                :on-release on-release :on-key on-key
+                :on-release on-release :on-key on-key :on-text on-text
+                :on-composition on-composition
                 :on-wheel on-wheel :focusable (and focusable t) :flex (float flex 1f0)
                 :cacheable t))
 
@@ -692,3 +700,13 @@ The canvas keeps what PAINT drew until CANVAS-INVALIDATE says it changed."
   (declare (ignore session))
   (and (canvas-on-key canvas)
        (funcall (canvas-on-key canvas) canvas event)))
+
+(defmethod text-input ((canvas canvas) session text)
+  (declare (ignore session))
+  (and (canvas-on-text canvas)
+       (funcall (canvas-on-text canvas) canvas text)))
+
+(defmethod composition-input ((canvas canvas) session kind text selection-start selection-length)
+  (declare (ignore session))
+  (and (canvas-on-composition canvas)
+       (funcall (canvas-on-composition canvas) canvas kind text selection-start selection-length)))

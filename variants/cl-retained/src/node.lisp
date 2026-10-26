@@ -44,6 +44,8 @@
            #:pointer-release
            #:pointer-wheel
            #:key-input
+           #:text-input
+           #:composition-input
            #:node-focus-on-click-p
            #:*paint-caching*
            #:invalidate-paint
@@ -315,6 +317,21 @@ lines (a trackpad's points divided by the points a line is worth, 24, the height
 row of a list). Returns true if it used them.")
   (:method ((node node) session dx dy)
     (declare (ignore session dx dy))
+    nil))
+
+(defgeneric text-input (node session text)
+  (:documentation "Text that the operating system's input handling says is to be inserted, for
+NODE, which has the keyboard focus. Returns true if it used it.")
+  (:method ((node node) session text)
+    (declare (ignore session text))
+    nil))
+
+(defgeneric composition-input (node session kind text selection-start selection-length)
+  (:documentation "Input method composition, for NODE, which has the keyboard focus: KIND is
+:started, :changed or :committed, TEXT what is composed (or, committed, what it became), and the
+selection in it is in characters. Returns true if it used it.")
+  (:method ((node node) session kind text selection-start selection-length)
+    (declare (ignore session kind text selection-start selection-length))
     nil))
 
 (defgeneric key-input (node session event)

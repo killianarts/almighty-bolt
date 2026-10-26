@@ -27,6 +27,8 @@
                 #:key-event-kind
                 #:key-event-logical-key
                 #:key-event-modifiers
+                #:text-input-event
+                #:composition-event
                 #:modifier-down-p
                 #:+modifier-shift+
                 #:make-display-list)
@@ -52,6 +54,8 @@
            #:ui-secondary-pressed
            #:ui-moved
            #:ui-keys
+           #:ui-inputs
+           #:consume-input
            #:ui-wheel-dx
            #:ui-wheel-dy
            #:ui-queue
@@ -152,6 +156,10 @@
   (secondary-pressed nil)
   (moved nil)
   (keys '() :type list)
+  ;; Everything typed this frame, in the order it came: the key events (which are also in KEYS, for
+  ;; the widgets that take keys) and the text and composition events of the input method. A canvas
+  ;; takes them from here, so that a key and the text after it stay in order.
+  (inputs '() :type list)
   (wheel-dx 0f0 :type single-float)
   (wheel-dy 0f0 :type single-float)
   ;; Which way the trackpad gesture in progress is going, so that a swipe goes one way.
@@ -276,6 +284,9 @@ over nothing in particular is not, and everything that a widget could use is."
      (when (eq (key-event-kind event) :down)
        (enqueue ui event)
        t))
+    ((or text-input-event composition-event)
+     (enqueue ui event)
+     t)
     (t nil)))
 
 (defun enqueue (ui event)
@@ -359,7 +370,10 @@ were left."
                                                               +modifier-shift+)
                                              :backward
                                              :forward))
-               (setf (ui-keys ui) (nconc (ui-keys ui) (list event)))))))
+               (setf (ui-keys ui) (nconc (ui-keys ui) (list event))
+                     (ui-inputs ui) (nconc (ui-inputs ui) (list event)))))
+          ((or text-input-event composition-event)
+           (setf (ui-inputs ui) (nconc (ui-inputs ui) (list event))))))
       (pop queue))
     (setf (ui-queue ui) queue)
     (compute-hot ui)
@@ -377,6 +391,7 @@ were left."
         (ui-secondary-pressed ui) nil
         (ui-moved ui) nil
         (ui-keys ui) '()
+        (ui-inputs ui) '()
         (ui-wheel-dx ui) 0f0
         (ui-wheel-dy ui) 0f0))
 
@@ -411,6 +426,12 @@ were left."
 (defun consume-key (ui event)
   "Take the key EVENT from the frame's keys."
   (setf (ui-keys ui) (delete event (ui-keys ui) :test #'eq :count 1)
+        (ui-consumed ui) t)
+  event)
+
+(defun consume-input (ui event)
+  "Take EVENT, a text or composition event, from what was typed this frame."
+  (setf (ui-inputs ui) (delete event (ui-inputs ui) :test #'eq :count 1)
         (ui-consumed ui) t)
   event)
 

@@ -26,6 +26,13 @@
                 #:wheel-event-y
                 #:make-axis-lock
                 #:lock-wheel
+                #:text-input-event
+                #:text-input-event-text
+                #:composition-event
+                #:composition-event-kind
+                #:composition-event-text
+                #:composition-event-selection-start
+                #:composition-event-selection-length
                 #:key-event
                 #:key-event-kind
                 #:key-event-logical-key
@@ -67,6 +74,8 @@
                 #:pointer-release
                 #:pointer-wheel
                 #:key-input
+                #:text-input
+                #:composition-input
                 #:node-at
                 #:interactive-at
                 #:find-node
@@ -286,12 +295,25 @@ the next focusable node in the order the tree is painted, wrapping round."
                                   (not (modifier-down-p (key-event-modifiers event)
                                                         +modifier-shift+)))))))))
 
+(defun handle-text (variant event)
+  (let ((focus (session-focus (retained-variant-session variant))))
+    (when focus
+      (typecase event
+        (text-input-event
+         (text-input focus (retained-variant-session variant) (text-input-event-text event)))
+        (composition-event
+         (composition-input focus (retained-variant-session variant)
+                            (composition-event-kind event) (composition-event-text event)
+                            (composition-event-selection-start event)
+                            (composition-event-selection-length event)))))))
+
 (defmethod handle-event ((variant retained-variant) event)
   (let ((state (state variant)))
     (setf (tree-state-changed state) nil)
     (typecase event
       (pointer-event (handle-pointer variant event))
       (wheel-event (handle-wheel variant event))
-      (key-event (handle-key variant event)))
+      (key-event (handle-key variant event))
+      ((or text-input-event composition-event) (handle-text variant event)))
     ;; A frame is wanted only if something visible changed.
     (tree-state-changed state)))

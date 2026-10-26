@@ -69,6 +69,11 @@
     (origin (sb-alien:struct cg-point))
     (size (sb-alien:struct cg-size))))
 
+(sb-alien:define-alien-type nil
+  (sb-alien:struct ns-range
+    (location sb-alien:unsigned-long)
+    (length sb-alien:unsigned-long)))
+
 ;;; Classes and selectors
 
 (defun find-objc-class (name &optional (errorp t))
@@ -138,7 +143,8 @@ starts)."
     (ecase type
       (:rect '(sb-alien:struct cg-rect))
       (:size '(sb-alien:struct cg-size))
-      (:point '(sb-alien:struct cg-point))))
+      (:point '(sb-alien:struct cg-point))
+      (:range '(sb-alien:struct ns-range))))
 
   (defun flattened-arguments (type)
     "The number of doubles that a struct argument of TYPE is passed as."
@@ -146,6 +152,7 @@ starts)."
       (:rect 4)
       (:size 2)
       (:point 2)
+      (:range 2)
       (:color 4))))
 
 (defmacro msg-send (return-type receiver selector-name &rest arguments)
@@ -153,16 +160,17 @@ starts)."
 
 Each of ARGUMENTS is (TYPE VALUE). The types are :id :pointer :ulong :long :int
 :uint :ushort :bool :double :float :c-string, and the structures :rect (x y
-width height), :size (width height), :point (x y) and :color (red green blue
-alpha), each written as its numbers: (:rect 0 0 480 320).
+width height), :size (width height), :point (x y), :range (location length) and :color
+(red green blue alpha), each written as its numbers: (:rect 0 0 480 320).
 
-A structure argument is passed as its doubles, one by one. On arm64 a structure
-of up to four doubles travels in the same registers as that many separate
-double arguments, so the callee cannot tell the difference, and nothing has to
-be allocated.
+A structure argument is passed as its numbers, one by one: doubles for a
+rectangle, size, point or colour, unsigned longs for a range. On arm64 a structure
+of up to four doubles, or of two integers, travels in the same registers as that many
+separate arguments, so the callee cannot tell the difference, and nothing has to be
+allocated.
 
-RETURN-TYPE is one of the scalar types, :void, or a structure (:rect, :size or
-:point), for which the numbers come back as multiple values."
+RETURN-TYPE is one of the scalar types, :void, or a structure (:rect, :size, :point
+or :range), for which the numbers come back as multiple values."
   (let ((receiver-var (gensym "RECEIVER"))
         (bindings '())
         (alien-types '())
@@ -178,6 +186,13 @@ RETURN-TYPE is one of the scalar types, :void, or a structure (:rect, :size or
                (push `(,var (the double-float (float ,value 1d0))) bindings)
                (push 'sb-alien:double alien-types)
                (push var call-arguments))))
+          (:range
+           (assert (= (length values) 2) () "A :range argument takes two numbers.")
+           (dolist (value values)
+             (let ((var (gensym "N")))
+               (push `(,var ,value) bindings)
+               (push 'sb-alien:unsigned-long alien-types)
+               (push var call-arguments))))
           (t
            (let ((var (gensym "A")))
              (push `(,var ,(if (eq type :bool) `(if ,(first values) 1 0) (first values)))
@@ -187,7 +202,7 @@ RETURN-TYPE is one of the scalar types, :void, or a structure (:rect, :size or
     (let* ((selector-form (if (stringp selector-name)
                               `(selector ,selector-name)
                               `(register-selector ,selector-name)))
-           (struct-result (member return-type '(:rect :size :point)))
+           (struct-result (member return-type '(:rect :size :point :range)))
            (alien-return (cond ((eq return-type :void) 'sb-alien:void)
                                (struct-result (struct-alien-type return-type))
                                (t (scalar-alien-type return-type))))
@@ -215,6 +230,9 @@ RETURN-TYPE is one of the scalar types, :void, or a structure (:rect, :size or
             (:point (let ((s (gensym "S")))
                       `(let ((,s ,call))
                          (values (sb-alien:slot ,s 'x) (sb-alien:slot ,s 'y)))))
+            (:range (let ((s (gensym "S")))
+                      `(let ((,s ,call))
+                         (values (sb-alien:slot ,s 'location) (sb-alien:slot ,s 'length)))))
             (t call))))))
 
 ;;; Floating point. SBCL traps invalid operations, overflow and division by
@@ -303,6 +321,20 @@ and selector ignored."
                  class name size alignment encoding))
     (error "Could not add the instance variable ~s." name)))
 
+(defun add-protocol (class protocol-name)
+  "Say that CLASS conforms to the protocol called PROTOCOL-NAME, whose methods it has."
+  (let ((protocol (sb-alien:alien-funcall
+                   (sb-alien:extern-alien "objc_getProtocol"
+                                          (function sb-alien:unsigned-long sb-alien:c-string))
+                   protocol-name)))
+    (when (zerop protocol)
+      (error "There is no protocol ~s." protocol-name))
+    (sb-alien:alien-funcall
+     (sb-alien:extern-alien "class_addProtocol"
+                            (function (sb-alien:unsigned 8)
+                                      sb-alien:unsigned-long sb-alien:unsigned-long))
+     class protocol)))
+
 (defun add-class-method (class selector-name encoding callable-name)
   (unless (/= 0 (sb-alien:alien-funcall
                  (sb-alien:extern-alien "class_addMethod"
@@ -313,11 +345,12 @@ and selector ignored."
                  (callable-address callable-name) encoding))
     (error "Could not add the method ~s." selector-name)))
 
-(defun ensure-class (name superclass-name &key ivars methods)
+(defun ensure-class (name superclass-name &key ivars methods protocols)
   "The Objective-C class NAME, made as a subclass of SUPERCLASS-NAME if it does
 not exist yet. IVARS are (name size log2-alignment encoding); METHODS are
 (selector type-encoding callable-name), where the callable is an alien callable
-whose first two arguments are the receiver and the selector.
+whose first two arguments are the receiver and the selector. PROTOCOLS are the names of
+protocols that the class conforms to (it has their methods).
 
 If the class exists already (the file was loaded twice) it is returned as it
 is. Its methods call the callables by name, so redefining a callable takes
@@ -335,6 +368,8 @@ effect."
               :do (add-ivar class ivar-name size alignment encoding))
         (loop :for (selector-name encoding callable-name) :in methods
               :do (add-class-method class selector-name encoding callable-name))
+        (loop :for protocol-name :in protocols
+              :do (add-protocol class protocol-name))
         (sb-alien:alien-funcall
          (sb-alien:extern-alien "objc_registerClassPair"
                                 (function sb-alien:void sb-alien:unsigned-long))
@@ -345,29 +380,29 @@ effect."
 ;;; variable, which is set again.
 
 (defvar *runtime-classes* '()
-  "The specifications (variable name superclass ivars methods) of the classes made with
+  "The specifications (variable name superclass ivars methods protocols) of the classes made with
 DEFINE-RUNTIME-CLASS, oldest last.")
 
 (defvar *startup-hooks* '()
   "Functions that run, oldest last, after the classes are made again when an image starts.")
 
 (defun make-runtime-class (specification)
-  (destructuring-bind (variable name superclass ivars methods) specification
+  (destructuring-bind (variable name superclass ivars methods protocols) specification
     (setf (symbol-value variable)
-          (ensure-class name superclass :ivars ivars :methods methods))))
+          (ensure-class name superclass :ivars ivars :methods methods :protocols protocols))))
 
-(defun register-runtime-class (variable name superclass ivars methods)
-  (let ((specification (list variable name superclass ivars methods)))
+(defun register-runtime-class (variable name superclass ivars methods protocols)
+  (let ((specification (list variable name superclass ivars methods protocols)))
     (setf *runtime-classes*
           (cons specification (remove variable *runtime-classes* :key #'first)))
     (make-runtime-class specification)))
 
-(defmacro define-runtime-class (variable name superclass &key ivars methods)
+(defmacro define-runtime-class (variable name superclass &key ivars methods protocols)
   "Make the class NAME (see ENSURE-CLASS), keep it in VARIABLE, and make it again when an
 image starts."
   `(progn
      (defvar ,variable nil)
-     (register-runtime-class ',variable ,name ,superclass ,ivars ,methods)))
+     (register-runtime-class ',variable ,name ,superclass ,ivars ,methods ,protocols)))
 
 (defmacro define-startup (name &body body)
   "Run BODY now, and again when an image starts, after the classes are made again. NAME

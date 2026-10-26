@@ -136,13 +136,16 @@ the field shows VALUE again afterwards, so a change that ON-CHANGE does not make
                               (commons id flex visible enabled key))))
 
 (defun canvas (&key id (width 300) (height 200) data paint on-press on-move on-exit on-drag
-                 on-release on-key on-wheel focusable (flex 0) (visible t) (enabled t) key)
+                 on-release on-key on-text on-composition on-wheel focusable (flex 0)
+                 (visible t) (enabled t) key)
   "A canvas that PAINT draws from DATA: PAINT is called with DATA, the canvas, the context,
 the display list and the area, and is used again for as long as DATA is the same object.
-The handlers are called as the retained canvas calls them, without the canvas."
+The handlers are called as the retained canvas calls them, without the canvas (ON-TEXT with the
+text; ON-COMPOSITION with the kind, the text and the start and length of the selection)."
   (make-view :canvas (list* :width width :height height :data data :paint paint
                             :on-press on-press :on-move on-move :on-exit on-exit
                             :on-drag on-drag :on-release on-release :on-key on-key
+                            :on-text on-text :on-composition on-composition
                             :on-wheel on-wheel :focusable (and focusable t)
                             (commons id flex visible enabled key))))
 

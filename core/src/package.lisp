@@ -185,6 +185,9 @@
                 #:context-build-number
                 #:context-frame-requested
                 #:context-requester
+                #:context-text-input-p
+                #:context-text-input-rect
+                #:set-text-input-caret
                 #:context-phases-p
                 #:context-phase-ns
                 #:+phase-update+
@@ -445,6 +448,9 @@
            #:context-build-number
            #:context-frame-requested
            #:context-requester
+           #:context-text-input-p
+           #:context-text-input-rect
+           #:set-text-input-caret
            #:context-phases-p
            #:context-phase-ns
            #:+phase-update+

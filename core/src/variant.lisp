@@ -18,6 +18,9 @@
            #:context-build-number
            #:context-frame-requested
            #:context-requester
+           #:context-text-input-p
+           #:context-text-input-rect
+           #:set-text-input-caret
            #:context-phases-p
            #:context-phase-ns
            #:+phase-update+
@@ -123,9 +126,25 @@ within the frame. REQUESTER is what REQUEST-FRAME calls; the host replaces it."
   ;; Instrumentation (the charter's phases): when PHASES-P is true, WITH-PHASE adds the real
   ;; time of what it runs to a slot of PHASE-NS, and SETTLE-FRAME times its builds. The host
   ;; clears the slots at the start of a frame and reads them at the end.
+  ;; Text input (the input method of the operating system): a variant that has something the
+  ;; person is typing into says so, and where the caret is, in points from the top left of the
+  ;; window, as x, y, width and height. The host sends text and composition events, and gives
+  ;; the input method the caret's place to put its candidates by, only while TEXT-INPUT-P.
+  (text-input-p nil :type boolean)
+  (text-input-rect (make-array 4 :element-type 'single-float :initial-element 0f0)
+   :type (simple-array single-float (4)) :read-only t)
   (phases-p nil :type boolean)
   (phase-ns (make-array +phase-slots+ :element-type '(unsigned-byte 64) :initial-element 0)
    :type (simple-array (unsigned-byte 64) (*)) :read-only t))
+
+(defun set-text-input-caret (context x y width height)
+  "Say that something takes text input, with the caret at X, Y and WIDTH by HEIGHT in the window.
+Does not allocate."
+  (declare (type single-float x y width height))
+  (let ((rect (context-text-input-rect context)))
+    (setf (aref rect 0) x (aref rect 1) y (aref rect 2) width (aref rect 3) height
+          (context-text-input-p context) t))
+  nil)
 
 (defun reset-phases (context)
   "Clear the times that WITH-PHASE and SETTLE-FRAME have added up."

@@ -16,6 +16,8 @@
                 #:context-frame-number
                 #:context-requester
                 #:context-frame-requested
+                #:context-text-input-p
+                #:context-text-input-rect
                 #:context-phases-p
                 #:context-phase-ns
                 #:reset-phases
@@ -317,7 +319,15 @@ once the window is up; a driver that finishes should close the window."
               (view (make-metal-view :device device :width width :height height
                                      :on-draw (lambda (view) (draw-view host view))
                                      :event-handler (lambda (event)
-                                                      (host-deliver-event host event))))
+                                                      (host-deliver-event host event))
+                                     :text-input (lambda ()
+                                                   (let* ((context (host-context host))
+                                                          (rect (context-text-input-rect context)))
+                                                     (values (context-text-input-p context)
+                                                             (float (aref rect 0) 1d0)
+                                                             (float (aref rect 1) 1d0)
+                                                             (float (aref rect 2) 1d0)
+                                                             (float (aref rect 3) 1d0))))))
               (object (metal-view-object view)))
          (setf host (make-host variant device (msg-send :ulong object "colorPixelFormat")
                                :capacity capacity

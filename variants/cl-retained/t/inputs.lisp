@@ -420,3 +420,62 @@
       (i:canvas-invalidate canvas)
       (build variant)
       (assert-eql 2 painted))))
+
+;;; --- text and composition for a canvas that has the keyboard ---
+
+(defun text (variant string)
+  (core:handle-event variant (core:make-text-input-event :timestamp 0 :text string)))
+
+(defun composition (variant kind text &optional (start 0) (length 0))
+  (core:handle-event variant (core:make-composition-event :timestamp 0 :kind kind :text text
+                                                          :selection-start start
+                                                          :selection-length length)))
+
+(define-test a-canvas-with-the-keyboard-gets-keys-text-and-composition-in-order ()
+  (let* ((events '())
+         (canvas (i:canvas :id :c :width 100 :height 80 :focusable t
+                           :on-key (lambda (canvas event)
+                                     (declare (ignore canvas))
+                                     (push (list :key (core:key-event-logical-key event)) events)
+                                     t)
+                           :on-text (lambda (canvas string)
+                                      (declare (ignore canvas))
+                                      (push (list :text string) events)
+                                      t)
+                           :on-composition (lambda (canvas kind string start length)
+                                             (declare (ignore canvas))
+                                             (push (list :composition kind string start length)
+                                                   events)
+                                             t)))
+         (variant (show (w:padding canvas :all 10))))
+    (press variant 30 40)
+    (release variant 30 40)
+    (key variant #\Backspace)
+    (text variant "x")
+    (composition variant :started "に" 1 0)
+    (composition variant :changed "にほ" 2 0)
+    (composition variant :committed "日")
+    (key variant #\Return)
+    (assert-equal '((:key #\Backspace) (:text "x") (:composition :started "に" 1 0)
+                    (:composition :changed "にほ" 2 0) (:composition :committed "日" 0 0)
+                    (:key #\Return))
+                  (reverse events))))
+
+(define-test a-canvas-without-the-keyboard-gets-no-text ()
+  (let* ((events '())
+         (canvas (i:canvas :id :c :width 100 :height 80 :focusable t
+                           :on-text (lambda (canvas string)
+                                      (declare (ignore canvas))
+                                      (push string events)
+                                      t)))
+         (variant (show (w:padding canvas :all 10))))
+    (text variant "x")
+    (composition variant :started "に")
+    (assert-equal '() events)))
+
+(define-test a-canvas-that-takes-no-text-does-not-take-it ()
+  (let* ((canvas (i:canvas :id :c :width 100 :height 80 :focusable t))
+         (variant (show (w:padding canvas :all 10))))
+    (press variant 30 40)
+    (assert-false (text variant "x"))))
+
