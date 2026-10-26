@@ -5,6 +5,7 @@
   (:import-from #:almighty-bolt-7guis/flight/model
                 #:date-text-valid-p
                 #:return-date-enabled-p
+                #:return-date-invalid-p
                 #:flight-valid-p
                 #:booking-message)
   (:import-from #:almighty-bolt-variant-reactive/signals
@@ -55,8 +56,7 @@
                                 :on-change (edit start))
                     (text-field :id :return :width 160 :value (value return)
                                 :enabled return-enabled
-                                :invalid (and return-enabled
-                                              (not (date-text-valid-p (value return))))
+                                :invalid (return-date-invalid-p (value flight-kind) (value return))
                                 :on-change (edit return))
                     (button "Book" :id :book :enabled (and (value bookable) t)
                                    :on-click (lambda ()
