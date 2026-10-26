@@ -136,7 +136,7 @@ bytes consed in a frame."
 
 (defparameter +ring-columns+
   '(:start-ns :end-ns :build-ns :wait-ns :encode-ns :builds :capped :bytes :gc-ns :first-build-ns
-    :update-ns :layout-ns :paint-ns :gpu-ns)
+    :update-ns :layout-ns :paint-ns :gpu-ns :all-builds-ns)
   "What a repetition of a host run keeps of each frame of the ring, in this order.")
 
 (defun frame-row (ring index)
@@ -146,7 +146,8 @@ bytes consed in a frame."
         (if (core:frame-capped-p ring index) 1 0) (core:frame-bytes-consed ring index)
         (core:frame-gc-ns ring index) (core:frame-first-build-ns ring index)
         (core:frame-update-ns ring index) (core:frame-layout-ns ring index)
-        (core:frame-paint-ns ring index) (core:frame-gpu-ns ring index)))
+        (core:frame-paint-ns ring index) (core:frame-gpu-ns ring index)
+        (core:frame-all-builds-ns ring index)))
 
 (defun host-run-once (script variant task host)
   "Play SCRIPT into a new app of VARIANT and TASK through HOST's frame, drawing into an
@@ -199,11 +200,12 @@ the repetitions as lists of frame rows. An error if two runs draw different fram
     (dolist (rows runs ring)
       (dolist (row (rest rows))
         (destructuring-bind (start end build wait encode builds capped bytes gc first update layout
-                             paint gpu)
+                             paint gpu all-builds)
             row
           (core:record-frame ring start end 0 bytes build wait encode builds (plusp capped))
           (core:record-frame-details ring :gc-ns gc :first-build-ns first :update-ns update
-                                          :layout-ns layout :paint-ns paint :gpu-ns gpu))))))
+                                          :layout-ns layout :paint-ns paint :gpu-ns gpu
+                                          :all-builds-ns all-builds))))))
 
 (defun host-summary (runs)
   "What the repetitions of a host run say: the summary of the ring that all their frames, the
