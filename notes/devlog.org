@@ -1411,3 +1411,37 @@ run, and not run one variant at a time as =notes/change-cost.org= says.
 ** Not done
 The usability rubric is Micah's to score (=notes/usability-rubric.org=); more edits, edits that are
 not of an app (a widget, an event), a checkbox widget.
+
+* 2026-10-26 — Phase 3, step 3: stress apps and the input method
+** What I did
+The input-method hooks first: the Metal view is an NSTextInputClient (text, composition and the
+caret's rectangle; no C, because define-alien-callable returns NSRange and NSRect). Then three apps
+in each variant, a shared model, painter and (editor) controller and each variant's own file: an
+animated dashboard of 36 tiles and a chart, a list of a million rows, and a text editor on 20,000
+lines (a gap buffer with an index of lines, selection, scrolling, composition, a status line). Unit
+tests, the same acceptance tests for the three variants, replay scripts (apps/stress/replay),
+results (headless, host, and the executables in windows) and record 0025 (proposed).
+** What I measured
+A variant's own file for the app is smallest in the immediate variant in all three (56, 70 and 59
+lines against 78, 88, 74 retained and 83, 87, 74 reactive). The build of a frame is the slowest in
+the immediate variant (editor 188 us against 46 and 48; two builds in every frame that has an
+input), the frame through the host is the same in all three (the GPU's wait is most of it), the rows
+and the editor draw nothing and use no CPU when left alone in all three, and the dashboard uses 8 to
+10% of a core at 60 frames a second in all three. The retained and reactive display lists of the
+editor session hash the same at all 394 checkpoints; the immediate differs in the unused rectangle
+of an unclip.
+** What went wrong on the way
+The million rows grew the heap without bound: the text engine's cache of laid-out lines never let
+anything go; it is now two generations of 4096. The dashboard never goes quiet, so the app metrics
+waited 90 s for it and failed; animating tasks are now measured in the ten seconds after the first
+frame. The editor's first version put the input method's window at the wrong place in the retained
+and reactive variants: a retained canvas that has not changed is drawn from a cache at 0, 0, so its
+painter does not know where it is; all three now ask lookup-target. Several of my own test
+expectations were wrong (a column miscounted, a position after an insert, a click left of the text
+that I expected at the end of a line, a page counted from the wrong line, a long line I expected to
+be longer, a helper that did not set the column a vertical move keeps); each time the code was
+right.
+** Not done
+A real input method tried by a person (Japanese, Chinese, an accent menu); the caret's coordinates
+in the canvas's own (open in 0025); handlers that can measure text; why the dashboard's lists differ
+across variants; an immutable document; H5.

@@ -12,7 +12,12 @@
 ;;;; nodes, signals and views, and the constructor of the variant). From the repository root:
 ;;;;   sbcl --script scripts/app-size.lisp
 
-(defparameter +tasks+ '("counter" "temperature" "flight" "timer" "crud" "circles" "cells"))
+(defparameter +tasks+ '("counter" "temperature" "flight" "timer" "crud" "circles" "cells"
+                        "dashboard" "rows" "editor"))
+(defparameter +stress-tasks+ '("dashboard" "rows" "editor")
+  "The tasks that are in apps/stress/ and not in apps/7guis/ (decision record 0025). The app of
+each variant is its own file, which is the wiring; the model, the painter and the controller that
+all three share are not counted.")
 (defparameter +variants+ '("retained" "reactive" "immediate"))
 
 (defun lines-of-code (path)
@@ -44,7 +49,10 @@
   "A list of (task variant lines concepts)."
   (loop :for task :in +tasks+
         :append (loop :for variant :in +variants+
-                      :collect (let ((path (format nil "apps/7guis/~a/~a.lisp" task variant)))
+                      :collect (let ((path (format nil "apps/~a/~a/~a.lisp"
+                                                       (if (member task +stress-tasks+ :test #'string=)
+                                                           "stress" "7guis")
+                                                       task variant)))
                                  (list task variant (lines-of-code path) (concepts path))))))
 
 (let ((sizes (app-sizes)))
