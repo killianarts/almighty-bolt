@@ -5,6 +5,7 @@
   (:import-from #:almighty-bolt-7guis/flight/model
                 #:date-text-valid-p
                 #:return-date-enabled-p
+                #:return-date-invalid-p
                 #:flight-valid-p
                 #:booking-message)
   (:import-from #:almighty-bolt-variant-retained/node
@@ -41,9 +42,8 @@
                (let ((enabled (return-date-enabled-p (flight-kind))))
                  (setf (node-enabled return) enabled
                        (text-field-invalid start) (not (date-text-valid-p (text-field-text start)))
-                       (text-field-invalid return) (and enabled
-                                                        (not (date-text-valid-p
-                                                              (text-field-text return))))
+                       (text-field-invalid return) (return-date-invalid-p
+                                                    (flight-kind) (text-field-text return))
                        (node-enabled book) (and (flight-valid-p (flight-kind)
                                                                 (text-field-text start)
                                                                 (text-field-text return))
