@@ -1,6 +1,6 @@
 #+TITLE: 0019 — Input replay: scripts, a player on the virtual clock, a recorder
 #+DATE: 2026-10-26
-- Status :: proposed
+- Status :: accepted (Micah, 2026-10-26)
 
 * Context
 The charter (Replay) says what replay is: a script of timestamped events and

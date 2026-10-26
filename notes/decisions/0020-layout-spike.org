@@ -1,6 +1,6 @@
 #+TITLE: 0020 — The layout spike (H6): what it showed
 #+DATE: 2026-10-26
-- Status :: proposed
+- Status :: accepted (Micah, 2026-10-26)
 
 * Context
 H6 expects that an immediate-mode front end cannot reach complex layouts by

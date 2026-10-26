@@ -1284,3 +1284,22 @@ immediate variant allocates about 1.65 MB in its first frame.
 ** Next
 Longer scripts, so that the medians are of hundreds of frames; the host's phases beside the
 build; the same harness over the layout spike and the other stress apps.
+
+* 2026-10-26 — 0019, 0020 and 0021 accepted; a session recorded in a window
+** What happened
+Micah accepted 0019, 0020 and 0021, and ran =make 7guis VARIANT=immediate TASK=counter
+RECORD=/tmp/s.script=, used the window, and ran =make replay= on the file: 20 frames, 38
+builds, none at the settle cap.
+** What I checked
+The file has 88 lines: a focus, an enter, 67 moves and 9 presses with their 9 releases,
+each press carrying the target =:count-button=, the place in it as fractions, and a click
+count (1 and 2, then, after the pointer moved, 1 to 7). That was written by the
+recorder in a real window, so the =RECORD= route that was untried is tried now. The replay
+printed "0 checkpoints", so its "All checkpoints hold" said nothing; I froze the file
+(=FREEZE=, 87 checkpoints, played twice with the same frames) and played the frozen copy in
+retained, reactive and immediate: 87 of 87 hold in each, at 20, 20 and 20 frames (38 builds
+for immediate, 20 for the others). A session recorded in one variant replays in the others.
+** Not done
+Replay in a window (the player runs headless); checkpoints other than hashes; a recording
+of a longer session or of cells.
+

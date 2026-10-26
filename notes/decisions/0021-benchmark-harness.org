@@ -1,6 +1,6 @@
 #+TITLE: 0021 — The benchmark harness: replay, samples, result records
 #+DATE: 2026-10-26
-- Status :: proposed
+- Status :: accepted (Micah, 2026-10-26)
 
 * Context
 Phase 3 starts with the harness. The charter's protocol says: the same machine
@@ -23,21 +23,23 @@ collection time. Replay (0019) gives the input and the virtual clock.
    repetition's raw samples, or one file with only the summary.
 
 * Evidence
-- Option 1 needs a display, and its numbers include the GPU and the compositor, which are
-  the same for every variant; the question the experiment asks is what the variants add.
-  The host records the build, the wait and the encoding in its ring already (0009), so the
-  other phases can be joined later; the build is the phase that differs.
+- Option 1 needs a display, and its numbers include the GPU and the compositor, which
+  are the same for every variant; the question the experiment asks is what the
+  variants add. The host records the build, the wait and the encoding in its ring
+  already (0009), so the other phases can be joined later; the build is the phase that
+  differs.
 - Option 2 runs in the same process as the tests, takes a few seconds a script, and is
   deterministic as to what is drawn: the harness stops with an error if two repetitions
   draw different frames, which is the charter's condition for trusting a measurement.
-- The first frame of a run is not like the others. The immediate variant builds its tables
-  and pools in it and allocates about 1.65 MB there and nothing in the frames after it,
-  and every variant's first frame is slower. Mixed into the samples, the first frame
-  made the immediate counter script allocate 139 KB a frame in a short run.
+- The first frame of a run is not like the others. The immediate variant builds its
+  tables and pools in it and allocates about 1.65 MB there and nothing in the frames
+  after it, and every variant's first frame is slower. Mixed into the samples, the
+  first frame made the immediate counter script allocate 139 KB a frame in a short
+  run.
 - Bytes consed read from SBCL's counter move a region at a time, so a frame's bytes are
   only good summed over many frames.
-- First results (this machine, 10 repetitions after 3 warm-ups; medians of a frame's build
-  after the first, in microseconds; builds a frame, mean):
+- First results (this machine, 10 repetitions after 3 warm-ups; medians of a frame's
+  build after the first, in microseconds; builds a frame, mean):
   | Script         | Retained    | Reactive    | Immediate   |
   |----------------+-------------+-------------+-------------|
   | counter-clicks | 0.6 (1.00)  | 0.7 (1.00)  | 1.8 (1.91)  |
@@ -46,9 +48,10 @@ collection time. Replay (0019) gives the input and the virtual clock.
   The immediate variant differs from the other two by more than the spread of the
   repetitions' medians in every script; the retained and reactive variants are tied or
   close to it on the counter (0.6 to 0.7 against 0.7 to 0.8) and differ a little on the
-  others (13.5 and 15.1, 1.0 and 1.5). Steady
-  frames allocate nothing in the counter and cells scripts in the retained and immediate
-  variants; the timer allocates 0.8 KB a frame in those and 1.4 KB in the reactive one.
+  others (13.5 and 15.1, 1.0 and 1.5).
+  Steady frames allocate nothing in the counter and cells scripts in the retained and
+  immediate variants; the timer allocates 0.8 KB a frame in those and 1.4 KB in the
+  reactive one.
 
 * Decision
 Options 2, 3 (apart) and 4. =core/src/stats.lisp= has the median, the
