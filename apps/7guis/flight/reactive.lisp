@@ -16,6 +16,7 @@
                 #:button
                 #:padding
                 #:column
+                #:row
                 #:text-field
                 #:choice)
   (:import-from #:almighty-bolt-variant-reactive/reactive

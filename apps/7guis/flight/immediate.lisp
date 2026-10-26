@@ -12,6 +12,7 @@
                 #:button
                 #:padding
                 #:column
+                #:row
                 #:text-field
                 #:choice)
   (:import-from #:almighty-bolt-variant-immediate/immediate
@@ -36,27 +37,29 @@
        (let* ((flight-kind (if (zerop kind) :one-way :return))
               (return-enabled (return-date-enabled-p flight-kind)))
          (padding (:all 24)
-           (column (:gap 12)
-             (multiple-value-bind (index changed)
-                 (choice :kind '("one-way flight" "return flight") kind)
-               (when changed
-                 (setf kind index
-                       message "")))
-             (multiple-value-bind (text changed)
-                 (text-field :start start :width 160 :invalid (not (date-text-valid-p start)))
-               (when changed
-                 (setf start text
-                       message "")))
-             (multiple-value-bind (text changed)
-                 (text-field :return return :width 160 :enabled return-enabled
-                                            :invalid (and return-enabled
-                                                          (not (date-text-valid-p return))))
-               (when changed
-                 (setf return text
-                       message "")))
-             (when (button "Book" :id :book
-                                  :enabled (and (flight-valid-p flight-kind start return) t))
-               (setf message (booking-message flight-kind start return)))
-             (label message :id :message))))))))
+           (row (:gap 24)
+             (column (:gap 12)
+               (multiple-value-bind (index changed)
+                   (choice :kind '("one-way flight" "return flight") kind)
+                 (when changed
+                   (setf kind index
+                         message "")))
+               (multiple-value-bind (text changed)
+                   (text-field :start start :width 160 :invalid (not (date-text-valid-p start)))
+                 (when changed
+                   (setf start text
+                         message "")))
+               (multiple-value-bind (text changed)
+                   (text-field :return return :width 160 :enabled return-enabled
+                                              :invalid (and return-enabled
+                                                            (not (date-text-valid-p return))))
+                 (when changed
+                   (setf return text
+                         message ""))))
+             (column (:gap 12)
+               (when (button "Book" :id :book
+                                    :enabled (and (flight-valid-p flight-kind start return) t))
+                 (setf message (booking-message flight-kind start return)))
+               (label message :id :message)))))))))
 
-(register-app :immediate :flight #'make-flight :width 460 :height 290)
+(register-app :immediate :flight #'make-flight :width 700 :height 220)

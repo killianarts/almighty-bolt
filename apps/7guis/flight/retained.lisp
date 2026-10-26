@@ -14,7 +14,8 @@
                 #:label-text
                 #:button
                 #:padding
-                #:column)
+                #:column
+                #:row)
   (:import-from #:almighty-bolt-variant-retained/inputs
                 #:text-field
                 #:text-field-text
