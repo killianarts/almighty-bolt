@@ -121,11 +121,16 @@ includes the handling of events; see below):
   (at least 1024 characters), so that typing does not make the array again; an
   edit inside a line makes that line's string again and not the 24 that show
   (3.4 KB less); the status line is written into one string and not with
-  =format= (about 300 B less). What is left of an edit is Core Text shaping the
-  new line (1.4 KB and 58 bytes a character, which the text engine makes) and,
-  in the reactive variant, its descriptions of the views (a view is a structure
-  and a property list of about 300 bytes, which is why its dashboard conses 27.5
-  KB a frame).
+  =format= (about 300 B less). The text engine then took the rest of what
+  shaping a new line allocated that was not the line: it looked up the names of
+  two constants of Core Text and three of Core Foundation by name for every line
+  (340 bytes each, and slow), and made an array for the positions of each run.
+  They are looked up once now (and again when an image starts) and the array is
+  kept. Shaping 37 characters went from 2.4 KB to 0.9 KB, which is the line's
+  own arrays, and typing prose to 1.8, 2.9 and 1.8 KB an event and from 365 to
+  149 us. What is left of an event is the reactive variant's descriptions of the
+  views (a view is a structure and a property list of about 300 bytes, which is
+  why its dashboard conses 27.5 KB a frame).
 
 In a window, from outside (executables made by =make image=; 5 launches; ten
 seconds after the first frame, or after it was quiet):

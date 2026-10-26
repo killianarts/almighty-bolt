@@ -135,6 +135,12 @@
                         (:pointer (sb-sys:sap-int (sb-alien:alien-sap (sb-alien:addr leading)))))))
       (values width ascent descent))))
 
+(declaim (type (simple-array double-float (*)) *run-points*))
+(defvar *run-points* (make-array 512 :element-type 'double-float)
+  "Where Core Text writes the positions of the glyphs of a run, before they are made single
+floats. It is made larger when a run needs it, and is not for two threads at once, as the cache of
+lines is not.")
+
 (defun fill-glyphs (ct-line glyphs glyph-fonts xs ys)
   "Copy the glyphs of CT-LINE, each run's font and the position of each glyph into
 the arrays, which must be long enough."
@@ -147,7 +153,10 @@ the arrays, which must be long enough."
              (attributes (ccall "CTRunGetAttributes" :ulong (:ulong run)))
              (run-font (ccall "CFDictionaryGetValue" :ulong
                               (:ulong attributes) (:ulong font-key)))
-             (points (make-array (* 2 count) :element-type 'double-float)))
+             (points (progn
+                       (when (< (length *run-points*) (* 2 count))
+                         (setf *run-points* (make-array (* 4 count) :element-type 'double-float)))
+                       *run-points*)))
         ;; A CFRange of zero length means the whole run. The glyphs are written
         ;; straight into our array, at this run's place in it.
         (sb-sys:with-pinned-objects (glyphs points)

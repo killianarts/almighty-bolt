@@ -252,6 +252,37 @@
       (incf total (line:text-line-width (line:get-line font "The quick brown fox"))))
     total))
 
+(define-test shaping-a-new-line-allocates-little-more-than-the-line ()
+  ;; A line of 37 characters is the arrays of its glyphs (18 bytes a glyph), its string and its
+  ;; structure: about 950 bytes. Looking up the names of the system's constants made 340 bytes each,
+  ;; a lookup of them five times a line, and the positions of the glyphs of a run were made in a
+  ;; new array: together 1,400 bytes more.
+  (with-fonts (helvetica menlo)
+    (let ((strings (coerce (loop :for i :below 3000
+                                 :collect (format nil "~d the quick brown fox jumps over" (+ 100000 i)))
+                           'vector)))
+      (assert-eql 37 (length (aref strings 0)))
+      (dotimes (i 100) (line:get-line menlo (aref strings i)))
+      (sb-ext:gc :full t)
+      (let ((before (sb-ext:get-bytes-consed)))
+        (loop :for i :from 100 :below 3000
+              :do (line:get-line menlo (aref strings i)))
+        (let ((each (/ (- (sb-ext:get-bytes-consed) before) 2900.0)))
+          (assert-true (< each 1500) each))))))
+
+(define-test the-glyphs-of-a-line-are-the-same-whether-or-not-the-buffer-for-their-positions-was-big-enough ()
+  ;; The buffer for the positions of a run grows when a run is longer than it; the line that makes
+  ;; it grow and the ones after it must still be right.
+  (with-fonts (helvetica menlo)
+    (let* ((short (line:shape-line menlo "abc"))
+           (long (line:shape-line menlo (make-string 600 :initial-element #\m)))
+           (again (line:shape-line menlo "abc")))
+      (assert-eql 600 (line:text-line-glyph-count long))
+      (assert-true (close-to (* 599 (aref (line:text-line-xs long) 1))
+                             (aref (line:text-line-xs long) 599) 0.5))
+      (assert-equalp (line:text-line-xs short) (line:text-line-xs again))
+      (assert-equalp (line:text-line-glyphs short) (line:text-line-glyphs again)))))
+
 (define-test measuring-a-string-already-seen-allocates-nothing ()
   (with-fonts (helvetica menlo)
     (measure-repeatedly helvetica 10)

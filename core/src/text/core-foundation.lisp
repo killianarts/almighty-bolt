@@ -1,7 +1,9 @@
 (defpackage #:almighty-bolt-core/text/core-foundation
   (:use #:cl)
   (:import-from #:almighty-bolt-core/platform/macos/objc
-                #:ns-string)
+                #:ns-string
+                #:foreign-constant
+                #:foreign-address)
   (:export #:ccall
            #:cf-constant
            #:cf-retain
@@ -53,13 +55,10 @@ doubles, such as a CGPoint, as its doubles."
                               :collect (if (eq type :bool) `(if ,var 1 0) var)))))
           (if (eq return-type :bool) `(/= 0 ,call) call)))))
 
-(defun cf-constant (name)
-  "The value of the Core Foundation constant NAME (a global such as
-kCTFontAttributeName that holds a reference), as an integer."
-  (let ((address (sb-sys:find-dynamic-foreign-symbol-address name)))
-    (unless address
-      (error "There is no Core Foundation constant ~s." name))
-    (sb-sys:sap-ref-64 (sb-sys:int-sap address) 0)))
+(defmacro cf-constant (name)
+  "The value of the Core Foundation constant NAME, a literal string (a global such as
+kCTFontAttributeName that holds a reference), as an integer. It is looked up once."
+  `(foreign-constant ,name))
 
 (declaim (inline cf-retain cf-release))
 (defun cf-retain (object)
@@ -91,5 +90,5 @@ object). The caller owns it and must CF-RELEASE it."
            (:pointer (sb-sys:sap-int (sb-alien:alien-sap keys)))
            (:pointer (sb-sys:sap-int (sb-alien:alien-sap values)))
            (:long 1)
-           (:pointer (sb-sys:find-dynamic-foreign-symbol-address "kCFTypeDictionaryKeyCallBacks"))
-           (:pointer (sb-sys:find-dynamic-foreign-symbol-address "kCFTypeDictionaryValueCallBacks")))))
+           (:pointer (foreign-address "kCFTypeDictionaryKeyCallBacks"))
+           (:pointer (foreign-address "kCFTypeDictionaryValueCallBacks")))))

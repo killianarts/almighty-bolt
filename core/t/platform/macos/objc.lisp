@@ -23,6 +23,35 @@
 
 ;;; --- classes, selectors and strings ---
 
+(define-test a-global-of-a-framework-is-looked-up-once-and-looked-up-again-at-the-start-of-an-image ()
+  ;; CoreText's kCTFontAttributeName is a reference held in a global; the dictionary callbacks are
+  ;; a structure whose address is wanted. Both are cells, which an image that starts fills in again.
+  (flet ((cell-of (kind name)
+           (find-if (lambda (cell) (and (eq (objc::cell-kind cell) kind)
+                                        (string= (objc::cell-name cell) name)))
+                    objc::*cells*)))
+    (let* ((value (objc:foreign-constant "kCTFontAttributeName"))
+           (address (objc:foreign-address "kCFTypeDictionaryKeyCallBacks"))
+           (constant-cell (cell-of :constant "kCTFontAttributeName"))
+           (address-cell (cell-of :address "kCFTypeDictionaryKeyCallBacks")))
+      (assert-true (plusp value))
+      (assert-eql (sb-sys:sap-ref-64 (sb-sys:int-sap (sb-sys:find-dynamic-foreign-symbol-address
+                                                      "kCTFontAttributeName"))
+                                     0)
+                  value)
+      (assert-eql (sb-sys:find-dynamic-foreign-symbol-address "kCFTypeDictionaryKeyCallBacks")
+                  address)
+      (assert-true constant-cell)
+      (assert-true address-cell)
+      ;; An image that has started has the old process's addresses until the cells are resolved.
+      (setf (objc::cell-value constant-cell) 0
+            (objc::cell-value address-cell) 0)
+      (objc::resolve-cell constant-cell)
+      (objc::resolve-cell address-cell)
+      (assert-eql value (objc:foreign-constant "kCTFontAttributeName"))
+      (assert-eql address (objc:foreign-address "kCFTypeDictionaryKeyCallBacks"))
+      (assert-error 'error (objc::resolve-cell (objc::make-cell :constant "NoSuchGlobalAtAll"))))))
+
 (define-test classes-are-integers-and-missing-ones-are-reported ()
   (assert-true (typep (objc:find-objc-class "NSObject") '(unsigned-byte 64)))
   (assert-true (plusp (objc:find-objc-class "NSObject")))

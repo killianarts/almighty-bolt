@@ -5,6 +5,8 @@
            #:register-selector
            #:objc-class
            #:selector
+           #:foreign-constant
+           #:foreign-address
            #:msg-send
            #:with-autorelease-pool
            #:with-masked-float-traps
@@ -94,9 +96,9 @@
    name))
 
 (defstruct (cell (:constructor make-cell (kind name)))
-  "A class or a selector looked up by name, whose address is filled in at load time and
-again when an image starts."
-  (kind :class :type (member :class :selector) :read-only t)
+  "A class, a selector, or a global of a system framework looked up by name, whose address is
+filled in at load time and again when an image starts."
+  (kind :class :type (member :class :selector :constant :address) :read-only t)
   (name "" :type string :read-only t)
   (value 0 :type (unsigned-byte 64)))
 
@@ -107,7 +109,14 @@ again when an image starts."
   (setf (cell-value cell)
         (ecase (cell-kind cell)
           (:class (find-objc-class (cell-name cell)))
-          (:selector (register-selector (cell-name cell))))))
+          (:selector (register-selector (cell-name cell)))
+          (:constant (let ((address (framework-symbol-address (cell-name cell))))
+                       (sb-sys:sap-ref-64 (sb-sys:int-sap address) 0)))
+          (:address (framework-symbol-address (cell-name cell))))))
+
+(defun framework-symbol-address (name)
+  (or (sb-sys:find-dynamic-foreign-symbol-address name)
+      (error "There is no global called ~s in the frameworks that are loaded." name)))
 
 (defun make-resolved-cell (kind name)
   (let ((cell (make-cell kind name)))
@@ -123,6 +132,17 @@ starts)."
 (defmacro selector (name)
   "The selector NAME, looked up once when the code is loaded (and when an image starts)."
   `(cell-value (load-time-value (make-resolved-cell :selector ,name))))
+
+(defmacro foreign-constant (name)
+  "The value of the global NAME of a framework that is loaded (such as kCTFontAttributeName,
+which holds a reference), as an integer, looked up once when the code is loaded (and when an
+image starts). A lookup by name makes garbage each time, and a line of text asks for it twice."
+  `(cell-value (load-time-value (make-resolved-cell :constant ,name))))
+
+(defmacro foreign-address (name)
+  "The address of the global NAME of a framework that is loaded, looked up once like
+FOREIGN-CONSTANT."
+  `(cell-value (load-time-value (make-resolved-cell :address ,name))))
 
 ;;; Sending messages
 

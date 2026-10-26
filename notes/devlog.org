@@ -1456,3 +1456,12 @@ only the edited line's string made again, the status line written without format
 from 7.5, 8.7 and 7.6 KB an event to 3.3, 4.6 and 3.5 KB in retained, reactive and immediate. What
 is left is Core Text shaping a new line (1.4 KB and 58 bytes a character) and reactive's
 descriptions of views (a plist of about 300 bytes a view; 27.5 KB a frame in the dashboard).
+Text engine: shaping a new line looked up the names of five system constants with
+find-dynamic-foreign-symbol-address (340 bytes of garbage and a dlsym each) and made a double-float
+array for every run. The constants are now cells like classes and selectors (foreign-constant and
+foreign-address in objc.lisp, resolved when the code loads and again when an image starts) and the
+positions go through a buffer that is kept. Shaping 37 characters: 2.4 KB to 0.9 KB, what is left
+being the line's own arrays; an editor event typing prose: 365 to 149 us and 3.3, 4.6, 3.5 KB to
+1.8, 2.9, 1.8 KB (retained, reactive, immediate). The buffer is not for two threads at once, as the
+line cache is not. The glyph-fonts array (8 bytes a glyph, mostly the same font) is the next thing
+in a line, and needs the representation of a line changed.
