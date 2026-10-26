@@ -61,6 +61,7 @@
     (unless (and variant task)
       (error "The script's header names no :variant and :app, and VARIANT= does not say."))
     (asdf:load-system (format nil "almighty-bolt-7guis/~(~a~)" variant))
+    (asdf:load-system (format nil "almighty-bolt-stress/~(~a~)" variant))
     (cond
       (freeze
        (let* ((with (core:script-with-checkpoints script))

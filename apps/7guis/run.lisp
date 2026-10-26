@@ -20,5 +20,6 @@
       (record (let ((path (uiop:getenv "RECORD"))) (and path (plusp (length path)) path))))
   (asdf:load-system "almighty-bolt-7guis/launcher")
   (asdf:load-system (format nil "almighty-bolt-7guis/~(~a~)" variant))
+  (asdf:load-system (format nil "almighty-bolt-stress/~(~a~)" variant))
   ;; Runs the event loop on this, the main, thread, and returns when the window closes.
   (funcall (intern "RUN" "ALMIGHTY-BOLT-7GUIS/LAUNCHER") variant task :log log :smoke smoke :record record))

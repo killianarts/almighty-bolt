@@ -3,6 +3,7 @@
  (list :source-registry (list :tree (uiop:getcwd)) :ignore-inherited-configuration))
 (asdf:load-system "almighty-bolt-snapshot")
 (asdf:load-system (format nil "almighty-bolt-7guis/~(~a~)" (uiop:getenv "VARIANT")))
+(asdf:load-system (format nil "almighty-bolt-stress/~(~a~)" (uiop:getenv "VARIANT")))
 
 (defpackage #:almighty-bolt-scripts/snapshot-apps
   (:use #:cl)

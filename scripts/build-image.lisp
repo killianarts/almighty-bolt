@@ -1,7 +1,7 @@
 ;;;; Save an executable of a variant with its apps. From the repository root:
 ;;;;   make image VARIANT=immediate        (writes build/immediate)
-;;;; Run it with TASK=counter build/immediate. The image holds the core, the variant and the seven
-;;;; 7GUIs tasks in it; the task is chosen when it starts.
+;;;; Run it with TASK=counter build/immediate. The image holds the core, the variant, the seven
+;;;; 7GUIs tasks and the stress apps in it; the task is chosen when it starts.
 
 (require :asdf)
 (asdf:initialize-source-registry
@@ -12,6 +12,7 @@
        (out (or (uiop:getenv "OUT") (format nil "build/~a" (string-downcase variant-name)))))
   (asdf:load-system "almighty-bolt-7guis/launcher")
   (asdf:load-system (format nil "almighty-bolt-7guis/~(~a~)" variant-name))
+  (asdf:load-system (format nil "almighty-bolt-stress/~(~a~)" variant-name))
   (ensure-directories-exist out)
   (sb-ext:save-lisp-and-die out
                             :executable t

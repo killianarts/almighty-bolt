@@ -14,7 +14,8 @@
            #:font-descent
            #:font-leading
            #:font-line-height
-           #:font-lines))
+           #:font-lines
+           #:font-older-lines))
 
 (in-package #:almighty-bolt-core/text/font)
 
@@ -32,7 +33,10 @@
   (ascent 0f0 :type single-float :read-only t)
   (descent 0f0 :type single-float :read-only t)
   (leading 0f0 :type single-float :read-only t)
-  (lines (make-hash-table :test 'equal) :read-only t))
+  ;; The lines shaped with this font, in two generations (see GET-LINE in the line module): the
+  ;; ones used lately, and the ones before them.
+  (lines (make-hash-table :test 'equal))
+  (older-lines (make-hash-table :test 'equal)))
 
 (defun font-metrics-from (name size ct-font)
   (%make-font :name name

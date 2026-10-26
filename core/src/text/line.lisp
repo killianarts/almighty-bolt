@@ -11,10 +11,12 @@
   (:import-from #:almighty-bolt-core/text/font
                 #:font
                 #:font-ct-font
-                #:font-lines)
+                #:font-lines
+                #:font-older-lines)
   (:export #:text-line
            #:shape-line
            #:get-line
+           #:*lines-per-generation*
            #:clear-line-cache
            #:text-line-string
            #:text-line-font
@@ -44,7 +46,14 @@
 ;;; A string is shaped once into a TEXT-LINE, which keeps its glyphs, their fonts
 ;;; and positions (what drawing needs) and the Core Text line (what the caret
 ;;; queries need). Lines are cached per font by string, and a lookup that finds
-;;; its line allocates nothing. The cache has no eviction yet.
+;;; its line allocates nothing. The cache is bounded (decision record 0025): it is of two
+;;; generations, the lines used lately and the lines used before, and when the first holds
+;;; *LINES-PER-GENERATION* the second is let go, with its Core Text lines, and the first
+;;; becomes the second. A line that is found in the second is moved to the first. A
+;;; program that draws the same screen again and again keeps its lines, and one that goes
+;;; through a million different strings (the rows of a long list, the lines of a long
+;;; document) keeps the last few thousand. A TEXT-LINE is for use at once: it is not kept
+;;; past the next lookup of another string.
 ;;;
 ;;; Positions and metrics are single floats, in points. Indices are Lisp string
 ;;; indices: Core Text counts UTF-16 units, and the two differ after a character
@@ -181,22 +190,41 @@ shape a string once."
                          :xs xs
                          :ys ys)))))
 
+(defvar *lines-per-generation* 4096
+  "How many lines a font keeps of those it used lately before the older ones are let go.")
+
+(defun release-lines (table)
+  "Release the Core Text lines of TABLE and empty it."
+  (maphash (lambda (string line)
+             (declare (ignore string))
+             (cf-release (text-line-ct-line line)))
+           table)
+  (clrhash table))
+
 (defun get-line (font string)
-  "The TEXT-LINE for STRING in FONT, shaped the first time and kept. Allocates
-nothing when the line is already there."
+  "The TEXT-LINE for STRING in FONT, shaped the first time and kept for a while (see the note
+above on generations). Allocates nothing when the line is already in the first generation."
   (let ((lines (font-lines font)))
     (or (gethash string lines)
-        (let ((line (shape-line font string)))
-          (setf (gethash (text-line-string line) lines) line)))))
+        (let* ((older (font-older-lines font))
+               (line (gethash string older)))
+          (cond (line
+                 ;; Used again: it moves to the generation of the lines used lately.
+                 (remhash (text-line-string line) older)
+                 (setf (gethash (text-line-string line) lines) line))
+                (t
+                 (when (>= (hash-table-count lines) *lines-per-generation*)
+                   ;; The generation before is let go, and this one becomes it.
+                   (release-lines older)
+                   (rotatef (font-lines font) (font-older-lines font))
+                   (setf lines (font-lines font)))
+                 (let ((new (shape-line font string)))
+                   (setf (gethash (text-line-string new) lines) new))))))))
 
 (defun clear-line-cache (font)
   "Forget every line shaped in FONT and release its Core Text lines."
-  (let ((lines (font-lines font)))
-    (maphash (lambda (string line)
-               (declare (ignore string))
-               (cf-release (text-line-ct-line line)))
-             lines)
-    (clrhash lines)))
+  (release-lines (font-lines font))
+  (release-lines (font-older-lines font)))
 
 (defun measure-text (font string)
   "The width, ascent and descent of STRING in FONT, in points, as three values."

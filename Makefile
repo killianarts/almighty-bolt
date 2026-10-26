@@ -33,6 +33,8 @@ test:
 	$(SBCL) $(REGISTRY) --eval '(asdf:test-system "almighty-bolt-variant-immediate")'
 	$(SBCL) $(REGISTRY) --eval '(asdf:test-system "almighty-bolt-7guis")'
 	$(SBCL) $(REGISTRY) --eval '(asdf:test-system "almighty-bolt-7guis/acceptance")'
+	$(SBCL) $(REGISTRY) --eval '(asdf:test-system "almighty-bolt-stress")'
+	$(SBCL) $(REGISTRY) --eval '(asdf:test-system "almighty-bolt-stress/acceptance")'
 
 # Build cl-nextstep's C library, which only Spike A uses (the dylib is not committed).
 shim: vendored/cl-nextstep

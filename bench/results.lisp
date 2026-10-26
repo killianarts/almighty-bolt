@@ -262,8 +262,14 @@ first of each run apart, make (see SUMMARIZE-RING), and the first frames' build 
             (* 100 (getf (getf summary :settle) :share-of-build)))))
 
 (defun script-paths ()
-  (let ((directory (or (uiop:getenv "SCRIPTS") "apps/7guis/replay/")))
-    (directory (merge-pathnames "*.script" (uiop:ensure-directory-pathname directory)))))
+  "The scripts to run: those of SCRIPTS (a directory, or several separated by commas) or, if it
+is not set, those of the 7GUIs tasks and of the stress apps."
+  (let ((directories (let ((value (uiop:getenv "SCRIPTS")))
+                       (if (and value (plusp (length value)))
+                           (uiop:split-string value :separator '(#\,))
+                           '("apps/7guis/replay/" "apps/stress/replay/")))))
+    (loop :for directory :in directories
+          :append (directory (merge-pathnames "*.script" (uiop:ensure-directory-pathname directory))))))
 
 (defun headless-run (scripts repetitions warmups directory date source machine)
   "The build of every variant on every script, with the real text engine and no renderer."

@@ -20,7 +20,8 @@
 ;;; that the launcher and the acceptance tests can run any of them by name without
 ;;; knowing which variant it is.
 
-(defparameter +tasks+ '(:counter :temperature :flight :timer :crud :circles :cells :layout :dialog))
+(defparameter +tasks+ '(:counter :temperature :flight :timer :crud :circles :cells :layout :dialog
+                        :dashboard :rows :editor))
 (defparameter +variants+ '(:retained :reactive :immediate))
 
 (defstruct (app (:constructor make-app (variant task constructor width height title)))
@@ -41,7 +42,7 @@ window WIDTH by HEIGHT points."
   ;; here only so that make 7guis VARIANT=cursor still opens it.
   (check-type variant (member :retained :reactive :immediate :cursor))
   (check-type task (member :counter :temperature :flight :timer :crud :circles :cells :layout
-                           :dialog))
+                           :dialog :dashboard :rows :editor))
   (setf *apps* (remove-if (lambda (app) (and (eq (app-variant app) variant) (eq (app-task app) task)))
                           *apps*))
   (push (make-app variant task constructor width height

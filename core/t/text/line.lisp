@@ -197,6 +197,48 @@
       (line:clear-line-cache helvetica)
       (assert-false (eq line (line:get-line helvetica "Hello"))))))
 
+;;; The cache is of two generations (decision record 0025): what is used lately and what was used
+;;; before; a font holds at most twice *LINES-PER-GENERATION* lines whatever it is asked to shape.
+
+(defun cached (font)
+  (+ (hash-table-count (font:font-lines font)) (hash-table-count (font:font-older-lines font))))
+
+(define-test the-cache-holds-at-most-two-generations-of-lines ()
+  (with-fonts (helvetica menlo)
+    (let ((line:*lines-per-generation* 10))
+      (dotimes (i 500)
+        (line:get-line helvetica (format nil "row ~d" i))
+        (assert-true (<= (cached helvetica) 20) i))
+      (assert-true (>= (cached helvetica) 10)))))
+
+(define-test a-line-that-is-used-again-is-kept-and-one-that-is-not-is-let-go ()
+  (with-fonts (helvetica menlo)
+    (let ((line:*lines-per-generation* 10))
+      (let ((keep (line:get-line helvetica "keep"))
+            (lose (line:get-line helvetica "lose")))
+        ;; Eight more fill the first generation; the next turns it over.
+        (dotimes (i 8) (line:get-line helvetica (format nil "a ~d" i)))
+        (dotimes (i 3) (line:get-line helvetica (format nil "b ~d" i)))
+        ;; "keep" is used now, and comes back to the first generation as it was.
+        (assert-true (eq keep (line:get-line helvetica "keep")))
+        ;; Two more turnovers: "lose" was in the one that went first.
+        (dotimes (i 25) (line:get-line helvetica (format nil "c ~d" i)))
+        (assert-false (eq lose (line:get-line helvetica "lose")))))))
+
+(define-test a-line-shaped-again-after-it-was-let-go-is-the-same-line-to-the-eye ()
+  (with-fonts (helvetica menlo)
+    (let* ((line:*lines-per-generation* 4)
+           (width (line:measure-text helvetica "The same string")))
+      (dotimes (i 100) (line:get-line helvetica (format nil "other ~d" i)))
+      (assert-true (close-to width (line:measure-text helvetica "The same string"))))))
+
+(define-test the-cache-of-another-font-is-not-touched-by-the-turnover-of-this-one ()
+  (with-fonts (helvetica menlo)
+    (let ((line:*lines-per-generation* 5))
+      (let ((mine (line:get-line menlo "mine")))
+        (dotimes (i 200) (line:get-line helvetica (format nil "row ~d" i)))
+        (assert-true (eq mine (line:get-line menlo "mine")))))))
+
 ;;; --- allocation ---
 ;;;
 ;;; The loops are functions compiled with this file: lisp-unit2 evaluates test

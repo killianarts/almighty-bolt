@@ -1,0 +1,3 @@
+(:almighty-bolt-replay 1 :variant :immediate :app :dashboard :width 960 :height 680)
+(0 (:focus :focused-p t))
+(5000000000 (:checkpoint :name "end of five seconds, 300 frames"))

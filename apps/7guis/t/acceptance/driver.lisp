@@ -232,11 +232,12 @@ order they were drawn, as a string."
   (glyph-string (driver-list driver)))
 
 (defun text-in (driver id)
-  "The text drawn inside the control ID."
+  "The text drawn inside the control ID. A glyph is put on a whole pixel, which can be a pixel
+before the edge of a control that is not on one, so the left and top edges count a point early."
   (destructuring-bind (x y width height) (rectangle driver id)
     (glyph-string (driver-list driver)
                   (lambda (gx gy)
-                    (and (<= x gx) (< gx (+ x width)) (<= y gy) (< gy (+ y height)))))))
+                    (and (<= (- x 1) gx) (< gx (+ x width)) (<= (- y 1) gy) (< gy (+ y height)))))))
 
 (defun text-within (driver x y width height)
   "The text drawn inside the rectangle X, Y, WIDTH by HEIGHT of the window."
