@@ -91,3 +91,47 @@
   (assert-true (plusp (length (d:text-in driver :message))))
   (replace-text driver :start "01.01.2027")
   (assert-equal "" (d:text-in driver :message)))
+
+;;; --- E2 (notes/change-cost.org): the return date is optional ---
+
+(defun clear-text (driver id)
+  (d:click driver id)
+  (d:press-key driver #\a :modifiers almighty-bolt-core:+modifier-super+)
+  (d:press-key driver #\Backspace))
+
+(d:define-acceptance a-return-flight-with-no-return-date-is-an-open-return :flight
+  (choose-return-flight driver)
+  (replace-text driver :start "01.05.2026")
+  (clear-text driver :return)
+  (d:click driver :book)
+  (assert-equal "Booked an open return flight from 01.05.2026." (d:text-in driver :message)))
+
+(d:define-acceptance an-open-return-still-needs-a-valid-start-date :flight
+  (choose-return-flight driver)
+  (replace-text driver :start "31.02.2026")
+  (clear-text driver :return)
+  (d:click driver :book)
+  (assert-equal "" (d:text-in driver :message)))
+
+(d:define-acceptance a-return-date-that-is-wrong-still-cannot-be-booked :flight
+  (choose-return-flight driver)
+  (replace-text driver :start "01.05.2026")
+  (replace-text driver :return "08.05.20")
+  (d:click driver :book)
+  (assert-equal "" (d:text-in driver :message))
+  (replace-text driver :return "30.04.2026")
+  (d:click driver :book)
+  (assert-equal "" (d:text-in driver :message)))
+
+(d:define-acceptance an-empty-return-date-does-not-look-invalid :flight
+  (choose-return-flight driver)
+  (replace-text driver :start "01.05.2026")
+  (replace-text driver :return "01.05.2026")
+  (let-go driver)
+  (let ((valid (d:colors-in driver :return)))
+    (clear-text driver :return)
+    (let-go driver)
+    (assert-equal valid (d:colors-in driver :return))
+    (replace-text driver :return "nonsense")
+    (let-go driver)
+    (assert-false (equal valid (d:colors-in driver :return)))))
