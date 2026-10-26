@@ -1,4 +1,4 @@
-.PHONY: deps shim test spike-a spike-b spike-c spike-d spike-e bench-metal bench-text bench-null bench-retained bench-compare bench-layout image test-cursor bench-cursor snapshots-cursor bench-run bench-overhead bench-app bench-compile bench-report snapshots replay 7guis 7guis-smoke clean
+.PHONY: deps shim test test-mcclim bench-mcclim mcclim-dashboard mcclim-gadgets mcclim-rows mcclim-editor spike-a spike-b spike-c spike-d spike-e bench-metal bench-text bench-null bench-retained bench-compare bench-layout image test-cursor bench-cursor snapshots-cursor bench-run bench-overhead bench-app bench-compile bench-report snapshots replay 7guis 7guis-smoke clean
 
 # ASDF looks only in this tree (project and vendored/), never in ~/common-lisp/.
 SBCL = sbcl --noinform --non-interactive --no-sysinit --no-userinit
@@ -157,3 +157,41 @@ spike-e:
 
 clean:
 	find . -name '*.fasl' -not -path './vendored/*' -delete
+
+# The stress apps in McCLIM (notes/mcclim-stress-apps.org). Not part of make test, make image or the
+# variants: `make deps` fetches McCLIM and what it needs into vendored/ (about 80 MB, LGPL-2.1+), and
+# the first load compiles all of it (a few minutes, and more than the default heap). The window runs
+# need XQuartz (DISPLAY=:0); with PORT=null nothing is drawn anywhere.
+SBCL_MCCLIM = sbcl --dynamic-space-size 4096 --noinform --non-interactive --no-sysinit --no-userinit
+MCCLIM_LOAD = --eval '(asdf:load-system "almighty-bolt-stress/mcclim")'
+
+# The apps, in a window on XQuartz (start it first: open -a XQuartz). The editor opens EDITOR_LINES
+# lines (20,000 by default: six seconds to open and eight for each typed character, so try
+# EDITOR_LINES=200); the rows open 1,000,000 items (four seconds).
+MCCLIM_RUN = DISPLAY=$${DISPLAY:-:0} $(SBCL_MCCLIM) $(REGISTRY) $(MCCLIM_LOAD)
+
+mcclim-dashboard:
+	$(MCCLIM_RUN) --eval '(almighty-bolt-stress/dashboard/mcclim:run-dashboard)'
+
+mcclim-gadgets:
+	$(MCCLIM_RUN) --eval '(almighty-bolt-stress/dashboard/mcclim-gadgets:run-gadget-dashboard)'
+
+mcclim-rows:
+	$(MCCLIM_RUN) --eval '(almighty-bolt-stress/rows/mcclim:run-rows)'
+
+mcclim-editor:
+	$(MCCLIM_RUN) --eval '(almighty-bolt-stress/editor/mcclim:run-editor)'
+
+test-mcclim:
+	$(SBCL_MCCLIM) $(REGISTRY) --eval '(asdf:test-system "almighty-bolt-stress/mcclim/tests")'
+
+# One RESULT line per number. Sizes of rows and lines are the ones in the note; the editor at 20,000
+# lines takes minutes (a typed character takes seconds).
+bench-mcclim:
+	sbcl --script scripts/mcclim-size.lisp
+	for task in dashboard board chart gadgets; do for port in null clx; do \
+	  TASK=$$task PORT=$$port $(SBCL_MCCLIM) $(REGISTRY) $(MCCLIM_LOAD) --load scripts/mcclim-measure.lisp || true; done; done
+	for n in 1000 10000 100000 1000000; do \
+	  TASK=rows PORT=clx N=$$n $(SBCL_MCCLIM) $(REGISTRY) $(MCCLIM_LOAD) --load scripts/mcclim-measure.lisp || true; done
+	for mode in after construct; do for n in 200 2000 20000; do \
+	  TASK=editor PORT=clx N=$$n CHARS=3 MODE=$$mode $(SBCL_MCCLIM) $(REGISTRY) $(MCCLIM_LOAD) --load scripts/mcclim-measure.lisp || true; done; done

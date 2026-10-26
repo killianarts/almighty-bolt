@@ -1,0 +1,112 @@
+# McCLIM stress apps: the numbers of notes/mcclim-stress-apps.org (2026-10-26)
+# McCLIM master dcde4bce4c5ccbd64372673ed9de9059afa720cf (vend get), SBCL 2.6.3, arm64, macOS 26.5.1, XQuartz (X screen 800x600) and McCLIM's null port
+# made by: DISPLAY=:0 make bench-mcclim (the dashboard lines from one run, the rows and editor lines from another with the same scripts)
+# the profiles are summarised at the end; the apps are those of the commit that adds this file
+
+## sizes (sbcl --script scripts/mcclim-size.lisp)
+                                     lines  tokens body   concepts
+dashboard
+  retained, app file                     78    236    193 12      
+  retained, app + shared painter etc.    108    361    302 -       
+  reactive, app file                     83    245    202 12      
+  reactive, app + shared painter etc.    113    370    311 -       
+  immediate, app file                    56    150    111 10      
+  immediate, app + shared painter etc.     86    275    220 -       
+  mcclim, app file                      100    330    285 14      
+rows
+  retained, app file                     88    271    231 7       
+  retained, app + shared painter etc.    147    520    453 -       
+  reactive, app file                     87    261    220 8       
+  reactive, app + shared painter etc.    146    510    442 -       
+  immediate, app file                    70    199    163 5       
+  immediate, app + shared painter etc.    129    448    385 -       
+  mcclim, app file                       88    253    209 18      
+editor
+  retained, app file                     74    240    198 7       
+  retained, app + shared painter etc.    319   1099    958 -       
+  reactive, app file                     74    215    172 8       
+  reactive, app + shared painter etc.    319   1074    932 -       
+  immediate, app file                    59    167    129 5       
+  immediate, app + shared painter etc.    304   1026    889 -       
+  mcclim, app file                       25     69     51 5       
+dashboard in gadgets
+  mcclim gadgets, app file               91    267    217 15      
+  mcclim gadgets + the display file     191    597    502 -       
+
+## RESULT lines
+RESULT machine SBCL 2.6.3 ARM64 port null task dashboard n 1000
+RESULT dashboard null step-ms 21.15 bytes-per-step 6731681 steps-per-second-flat-out 47.3
+RESULT dashboard clx step-ms 431.82 bytes-per-step 7400703 steps-per-second-flat-out 2.3
+RESULT board null step-ms 10.16 bytes-per-step 1902292 steps-per-second-flat-out 98.4
+RESULT board clx step-ms 196.68 bytes-per-step 2860922 steps-per-second-flat-out 5.1
+RESULT chart null step-ms 11.23 bytes-per-step 4843133 steps-per-second-flat-out 89.1
+RESULT chart clx step-ms 206.50 bytes-per-step 4830656 steps-per-second-flat-out 4.8
+RESULT gadgets null step-ms 12.22 bytes-per-step 6016905 steps-per-second-flat-out 81.8
+RESULT gadgets clx step-ms 957.34 bytes-per-step 23827030 steps-per-second-flat-out 1.0
+RESULT rows clx 1000 seconds-to-enabled 0.19 bytes-consed-making 225140256 bytes-retained 25627600
+RESULT rows clx 1000 page-down-ms 84.73
+RESULT rows clx 1000 repaint-visible-ms 0.82
+RESULT rows clx 10000 seconds-to-enabled 0.21 bytes-consed-making 236730432 bytes-retained 26490592
+RESULT rows clx 10000 page-down-ms 69.55
+RESULT rows clx 10000 repaint-visible-ms 0.67
+RESULT rows clx 100000 seconds-to-enabled 0.62 bytes-consed-making 353339920 bytes-retained 34342160
+RESULT rows clx 100000 page-down-ms 72.16
+RESULT rows clx 100000 repaint-visible-ms 7.45
+RESULT rows clx 1000000 seconds-to-enabled 4.38 bytes-consed-making 1521214960 bytes-retained 113542352
+RESULT rows clx 1000000 page-down-ms 89.71
+RESULT rows clx 1000000 repaint-visible-ms 0.90
+RESULT editor clx 200 after set-text-seconds 0.05
+RESULT editor clx 200 after bytes-retained 24301072
+RESULT editor clx 200 after gadget-value-ms 0.5
+RESULT editor clx 200 after repaint-ms 3.8
+RESULT editor clx 200 after typed-character-ms 16.5 bytes-per-character 1677408
+RESULT editor clx 2000 after set-text-seconds 0.23
+RESULT editor clx 2000 after bytes-retained 25177808
+RESULT editor clx 2000 after gadget-value-ms 27.7
+RESULT editor clx 2000 after repaint-ms 47.1
+RESULT editor clx 2000 after typed-character-ms 129.3 bytes-per-character 6354837
+RESULT editor clx 20000 after set-text-seconds 8.76
+RESULT editor clx 20000 after bytes-retained 33848352
+RESULT editor clx 20000 after gadget-value-ms 2611.4
+RESULT editor clx 20000 after repaint-ms 2782.1
+RESULT editor clx 20000 after typed-character-ms 8993.5 bytes-per-character 51022469
+RESULT editor clx 200 construct seconds-to-enabled 0.17
+RESULT editor clx 200 construct bytes-retained 24271200
+RESULT editor clx 200 construct gadget-value-ms 0.5
+RESULT editor clx 200 construct repaint-ms 3.5
+RESULT editor clx 200 construct typed-character-ms 20.6 bytes-per-character 1742933
+RESULT editor clx 2000 construct seconds-to-enabled 0.25
+RESULT editor clx 2000 construct bytes-retained 25338880
+RESULT editor clx 2000 construct gadget-value-ms 25.9
+RESULT editor clx 2000 construct repaint-ms 46.1
+RESULT editor clx 2000 construct typed-character-ms 121.5 bytes-per-character 6420880
+RESULT editor clx 20000 construct seconds-to-enabled 6.37
+RESULT editor clx 20000 construct bytes-retained 36452496
+RESULT editor clx 20000 construct gadget-value-ms 2422.3
+RESULT editor clx 20000 construct repaint-ms 2527.4
+RESULT editor clx 20000 construct typed-character-ms 8274.1 bytes-per-character 51020197
+
+## profile: 100 steps of the dashboard on the null port (sb-sprof, cpu), top 8 by self time
+------------------------------------------------------------------------
+   1    452  29.2    461  29.8    452  29.2        -  (SB-PCL::FAST-METHOD RECTANGLES:MINIMUM-BOUND (RECTANGLES:RECTANGLE RECTANGLES:RECTANGLE))
+   2    131   8.5    159  10.3    583  37.7        -  (MAKE-INSTANCE CLIM:STANDARD-BOUNDING-RECTANGLE)
+   3     79   5.1     80   5.2    662  42.8        -  SPATIAL-TREES-IMPL::%MAKE-RECTANGLE
+   4     67   4.3     67   4.3    729  47.1        -  foreign function __bzero
+   5     57   3.7    125   8.1    786  50.8        -  (MAKE-INSTANCE CLIM-INTERNALS::DRAW-RECTANGLE-OUTPUT-RECORD)
+   6     49   3.2     49   3.2    835  54.0        -  SB-PCL::PV-WRAPPERS-FROM-ALL-ARGS
+   7     29   1.9     43   2.8    864  55.9        -  (MAKE-INSTANCE CLIM-INTERNALS::DRAW-TEXT-OUTPUT-RECORD)
+
+## profile: 15 redisplays of the chart through XQuartz (sb-sprof, wall clock), top 4
+------------------------------------------------------------------------
+   1    374  91.4    374  91.4    374  91.4        -  foreign function swtch_pri
+   2      4   1.0      4   1.0    378  92.4        -  SB-THREAD:RELEASE-MUTEX
+   3      3   0.7    383  93.6    381  93.2        -  XLIB::PROCESS-BLOCK
+
+## profile: 2 typed characters in the editor at 20000 lines (sb-sprof, cpu), top 7 by self time
+------------------------------------------------------------------------
+   1   2077  46.7   2081  46.8   2077  46.7        -  (LAMBDA (SB-PCL::.ARG0.) :IN "SYS:SRC;PCL;BRAID.LISP")
+   2    610  13.7    610  13.7   2687  60.4        -  foreign function __bzero
+   3    582  13.1   3720  83.6   3269  73.5        -  (SB-PCL::FAST-METHOD CLUFFER:FIND-LINE (CLUFFER-STANDARD-BUFFER:BUFFER T))
+   4    413   9.3    413   9.3   3682  82.8        -  SB-KERNEL:TWO-ARG-=
+   5    276   6.2    276   6.2   3958  89.0        -  SB-KERNEL:TWO-ARG-<
+   6    246   5.5    246   5.5   4204  94.5        -  CLOSURE-TRAMP

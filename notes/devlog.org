@@ -1504,3 +1504,39 @@ README says changes with the state of the machine by a factor of two or three), 
 columns are compared. The immediate variant's build still includes the handling of events and the
 others' does not (record 0025 (d)), so its columns are not like for like with theirs.
 
+
+* 2026-10-26 — The stress apps in McCLIM, and where its nice API comes from
+** What I did
+Micah asked for the three stress apps in McCLIM, built with what McCLIM comes with (a missing widget
+is left unfinished and explained, never written), and for why McCLIM has a nice API on a retained UI
+that we cannot build: the architecture, an incomplete library of ours, or features that McCLIM lacks.
+Method, the line for "adding functionality" and my expectations were committed first
+(=notes/mcclim-stress-apps.org=, ffda277). =vend get= fetched McCLIM master of 24 October (not the
+Quicklisp copy of June 2025 that I had read, which has no SDL2 backend and no IME extension), 32 more
+libraries and 80 MB in =vendored/=. The dashboard (display functions, and again with gadgets), the
+rows (=list-pane= in a scroller) and the editor (the =text-editor= gadget), 11 tests on McCLIM's null
+port, =scripts/mcclim-size.lisp=, =scripts/mcclim-measure.lisp=, =make test-mcclim=, =make
+bench-mcclim= and a make target to open each app; XQuartz for the windows.
+** What I measured
+Size with the painters and the controller counted (lines, body tokens), retained / reactive /
+immediate / McCLIM: dashboard 108, 302 / 113, 311 / 86, 220 / 100, 285 (the gadget version 112,
+328); rows 147, 453 / 146, 442 / 129, 385 / 88, 209; editor 319, 958 / 319, 932 / 304, 889 / 25, 51.
+Code that puts the model's change into the dashboard's widgets, by reading: 13 retained, 17
+reactive, 0 immediate, 0 McCLIM with display functions, 11 McCLIM with gadgets. A dashboard step on
+McCLIM's null port 21 ms and 6.7 MB (ours 43 to 85 us and 0.6 to 9.4 KB); a profile puts 29 % in the
+spatial tree that indexes the output records, 10 % in their rectangles, 11 % in making them. Through
+XQuartz 2.3 steps a second, 91 % of the time waiting inside CLX (a pane costs about 200 ms whatever
+it draws). A million list items: 4.4 s to a window, 1.5 GB consed, 114 MB kept, then 60 to 125 ms
+for a page down. The editor at 20,000 lines: 6.4 s to open and 8.3 s for one typed character
+(121 ms at 2,000 lines); 84 % of the profile is =cluffer:find-line=, walked for every line by
+=map-over-lines=, more than once for an edit.
+** Read with care
+My first editor was made with the symbol =text-editor= and not the keyword, which McCLIM wraps in a
+viewport; without it the window was as tall as the text and CLX failed. I took that for McCLIM's
+limit until I read the trace; the figures here are of the fixed app. XQuartz's X screen on this
+machine is 800 by 600, so the dashboard's window is cut and the XQuartz figures are for that screen.
+The McCLIM figures are not comparable with a frame of ours (a display list, headless). The state
+counts are by reading. Presentations, translators and =updating-output=, which make
+=other-frameworks/task-board.lisp= nice, are used by no stress app, so what is said of them is from
+reading; the SDL2 backend (which sends an input method's events) was not run; the rows with our own
+list box were not made. One run of the rows hung once in about twenty, and was not found again.

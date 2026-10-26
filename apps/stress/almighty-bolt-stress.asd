@@ -78,3 +78,34 @@
                         (uiop:symbol-call :lisp-unit2 :print-summary db))
                       (when bad
                         (error "~d stress acceptance test~:p failed." (length bad))))))
+
+(defsystem "almighty-bolt-stress/mcclim"
+  :description "The stress apps in McCLIM (notes/mcclim-stress-apps.org); not part of make test or make image"
+  :license "MIT"
+  :depends-on ("almighty-bolt-stress" "mcclim")
+  :serial t
+  :components ((:module "dashboard" :components ((:file "mcclim") (:file "mcclim-gadgets")))
+               (:module "rows" :components ((:file "mcclim")))
+               (:module "editor" :components ((:file "mcclim")))))
+
+(defsystem "almighty-bolt-stress/mcclim/tests"
+  :depends-on ("almighty-bolt-stress/mcclim" "lisp-unit2")
+  :components ((:module "t"
+                :components ((:module "mcclim"
+                              :serial t
+                              :components ((:file "support") (:file "dashboard") (:file "rows")
+                                           (:file "editor"))))))
+  :perform (test-op (o s)
+                    (let* ((results
+                             (loop :for package :in '(:almighty-bolt-stress/t/mcclim/dashboard
+                                                      :almighty-bolt-stress/t/mcclim/rows
+                                                      :almighty-bolt-stress/t/mcclim/editor)
+                                   :collect (uiop:symbol-call :lisp-unit2 :run-tests
+                                                              :package package)))
+                           (bad (loop :for db :in results
+                                      :append (uiop:symbol-call :lisp-unit2 :failed db)
+                                      :append (uiop:symbol-call :lisp-unit2 :errors db))))
+                      (dolist (db results)
+                        (uiop:symbol-call :lisp-unit2 :print-summary db))
+                      (when bad
+                        (error "~d McCLIM stress app test~:p failed." (length bad))))))

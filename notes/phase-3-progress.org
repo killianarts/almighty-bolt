@@ -31,15 +31,22 @@ its own; result records already hold the machine profile.
 - Step 3 done (stress apps): input-method hooks (commit 0563338), the dashboard, the million rows and
   the text editor in all three variants with unit and acceptance tests, replay scripts, results
   (headless, host, windows), the bounded line cache; record 0025 proposed.
+- Micah's questions after step 3: builder macros and a signal model (record 0026, branch
+  =builder-macros=), then the stress apps in McCLIM (record 0027, branch =mcclim=, from =4cb93b8=):
+  =notes/mcclim-stress-apps.org=, results in =results/mcclim/=. Neither branch is merged or pushed.
 
 * Review queue
 (records proposed in this run)
+- 0027 McCLIM (branch =mcclim=, not merged): the stress apps built with what McCLIM comes with, and the
+  answer to why its API is nice; H2 stays open; merge, keep on the branch, or optional dependency.
 - 0025 Stress apps (step 3): H1 and H3 stay open; three small interface changes for Micah to choose.
 - 0024 Change cost and size (step 2): H2 stays open; the method is the protocol.
 - 0023 Instrumentation and metrics (step 1): the instrumentation is a run-time flag, not a build-time
   switch; executables per variant; the protocol of the metrics.
 
 * Open decisions for Micah
+- 0027: merge the McCLIM apps, tests and scripts onto =phase-2= (=make deps= then fetches McCLIM, 80 MB;
+  =make test= is untouched), keep them on the branch =mcclim=, or merge with the dependency optional.
 - 0023: instrumentation switched on at run time (a flag in the context), not at build time as the
   charter says. Measured cost: 40 to 230 ns a frame.
 - Step 2, E4: no variant has a checkbox, so the switch is a two-option choice standing where a

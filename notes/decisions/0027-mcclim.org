@@ -1,0 +1,129 @@
+#+TITLE: 0027 — McCLIM: the stress apps built with what it comes with
+#+DATE: 2026-10-26
+- Status :: proposed
+
+* Context
+Micah asked for the three stress apps in McCLIM, built with the tools that
+McCLIM comes with, leaving an app unfinished where a widget is missing and
+saying why, and asked why McCLIM has a rather nice user-facing API on a retained
+UI and we cannot build something similar: is the core architecture the source of
+our verbose API, is ours incomplete, or does McCLIM lack features that we have.
+=notes/mcclim-stress-apps.org= was committed with the method, the line for what
+counts as adding functionality and what I expected, before any McCLIM code was
+written.
+
+* What was done
+- McCLIM master (=dcde4bc=, 24 October 2026) came into =vendored/= through =vend
+  get=: 32 more libraries, 80 MB, not committed, LGPL-2.1+. It is not the
+  Quicklisp copy (0.9.9) that I read first: it has an SDL2 backend and an IME
+  extension, and the pre-registered note's claim that McCLIM has no input-method
+  code was wrong.
+- The three apps (=apps/stress/{dashboard,rows,editor}/mcclim.lisp=) and a
+  second dashboard with McCLIM's gadgets (=dashboard/mcclim-gadgets.lisp=), in
+  one system, =almighty-bolt-stress/mcclim=, that =make test= and =make image=
+  never load; 11 tests of what they do on McCLIM's null port (=make
+  test-mcclim=); =make mcclim-dashboard= and its three siblings open them on
+  XQuartz; =scripts/mcclim-size.lisp= and =scripts/mcclim-measure.lisp= (=make
+  bench-mcclim=). The shared models are used as they are; the painters and the
+  editor's controller cannot be (they push to our display list), so McCLIM draws
+  and handles input in its own way.
+- Substitutions, listed in the note so that they can be disagreed with: the
+  dashboard's bar is rectangles in the display function (McCLIM has no progress
+  gadget); a thread redisplays (it has no frame clock); the rows' columns are
+  one string aligned by a text style of equal widths; the rows' keys are frame
+  commands with keystrokes.
+
+* Evidence
+What is and is not there, by app:
+- Dashboard: all of it (36 tiles and the chart), except 60 steps a second. Rows:
+  a million rows with click, wheel, scroll bar, keys and status line; no
+  stripes, no real columns, 17-pixel rows, a thumb that is a hair, and it keeps
+  the million. Editor: the =text-editor= gadget, with the sample text, the
+  caret, the selection and the keys; no gutter, no highlight of the line, no
+  status line (the caret's place is internal to McCLIM), no input method on CLX
+  (the gadget handles one, the SDL2 backend sends one; not run).
+Sizes, lines and body tokens, with the painter and the controller that the
+variants share counted (the variants at =4cb93b8=):
+  | app       | retained   | reactive   | immediate  | McCLIM    |
+  |-----------+------------+------------+------------+-----------|
+  | dashboard | 108, 302   | 113, 311   | 86, 220    | 100, 285  |
+  | gadgets   |            |            |            | 112, 328  |
+  | rows      | 147, 453   | 146, 442   | 129, 385   | 88, 209   |
+  | editor    | 319, 958   | 319, 932   | 304, 889   | 25, 51    |
+- The same library in its two architectures differs as ours do: McCLIM's gadget
+  dashboard is 15 % larger than its display-function one and 5 to 9 % larger
+  than our retained and reactive ones, with 11 lines that put the model's change
+  into the widgets (ours 13 and 17); the display-function one is 30 % larger
+  than our immediate dashboard, and has none.
+- What makes McCLIM's rows and editor smaller is the widgets, a list with a
+  scroller and a text editor, which we do not have (we have a list box, no
+  scroll bar, no text area); the criterion that I wrote (over the three apps,
+  smaller by more than a third) fires, at 213 lines against 519, and is the
+  editor's doing: without it 188 against 215.
+Cost, by McCLIM only (the null port makes the records and sends nothing; XQuartz
+is an 800 by 600 screen):
+- A dashboard step: 21.1 ms and 6.7 MB on the null port (ours: 43 to 85
+  microseconds, 0.6 to 9.4 KB); not 60 steps a second even there (47 flat out).
+  Through XQuartz 2.3 steps a second, of which 91 % of the time is waiting in
+  CLX, a pane costing 190 to 210 ms whatever it draws. The profile of the null
+  port: 29 % of the samples in the spatial tree that indexes the output records,
+  10 % in their bounding rectangles, 11 % in making the records.
+- A million rows: 4.38 s to a window, 1521.2 MB consed, 113.5 MB kept; then it
+  works (a repaint of the visible rows takes a millisecond; a page down 60 to
+  125 ms).
+- The editor at 20,000 lines: 6.37 s to open, 8.3 s for one typed character and
+  51.0 MB consed; at 2,000 lines 121.5 ms. 84 % of the profile is
+  =cluffer:find-line=, which =map-over-lines= calls for every line, more than
+  once for one edit (two passes measured, the value for the callback and the
+  repaint; a third by reading).
+Not tried: the SDL2 backend; any app with objects to click on (so presentations,
+translators, commands on typed arguments and =updating-output=, which is what
+=other-frameworks/task-board.lisp= shows, are used by nothing here); the rows
+with our own list box; plain-model twins.
+
+* Decision
+Proposed: the answers to the three questions, as far as these three apps carry
+them, and H2 stays OPEN.
+- The core architecture is not what makes the gadget API verbose: McCLIM's
+  gadgets are as long and need the same wiring as our retained variant. What is
+  nice in McCLIM is a display function (the immediate way of writing) over a
+  retained structure of output records that it indexes and replays, and that
+  structure is both what its other layers are made on and what a step costs (21
+  ms, 6.7 MB, for 900 records). The records are the price of the layers; I did
+  not use the layers.
+- Ours is incomplete in widgets (no scroll bar, scroller, text area, check box
+  or radio group, table) and in a command and presentation layer, and McCLIM's
+  saving in the rows and the editor is those widgets. It is not incomplete in
+  the way of writing: the immediate variant is McCLIM's display function without
+  the records, at 43 to 85 microseconds a frame.
+- McCLIM lacks, for these apps, what we have: a frame that is hundreds of times
+  cheaper, a list that keeps nothing it does not show, an edit that does not
+  walk the document (here more than once). Read: a frame clock, a native macOS
+  window, Metal.
+
+Proposed, for Micah to choose (the work is on the branch =mcclim=, from
+=4cb93b8=, not pushed):
+- (a) Merge it onto =phase-2=. =make deps= then fetches McCLIM, 80 MB and a few
+  minutes, for everyone; =make test= and =make image= do not load it. The
+  comparison stays in the repository with a way to repeat it. I recommend this.
+- (b) Keep it on the branch. =make deps= stays as it was, and anyone who wants
+  the comparison checks the branch out.
+- (c) Merge the apps, tests and scripts but make the McCLIM dependency optional
+  (a separate =make deps-mcclim=); vend reads every =.asd= in the tree, so this
+  means moving the apps to a directory that vend does not scan, which I did not
+  try.
+
+* Consequences
+- Easier: the next comparison has a method, a line for what counts as adding,
+  and scripts; the typical-patterns work (lists, =defclass=) can be set beside
+  McCLIM's, which is built on them and pays for it.
+- Harder: another dependency to keep in step. McCLIM master moves (two days
+  before this it merged an IME extension), and =vend get= takes whatever is
+  current, so the numbers are of one day's tree.
+- Open: the SDL2 backend and a person typing Japanese into McCLIM's editor; the
+  7GUIs crud in McCLIM, which has objects to click on and would say whether the
+  presentation layer removes the wiring; the rows with our list box at a million
+  strings; the cause of the 200 ms that a pane waits for through XQuartz. A
+  measure of the rows hung once in about twenty runs of the same script, with
+  its thread busy; I did not find why, and the script now ends a run that takes
+  too long.
