@@ -1555,14 +1555,17 @@ click script for XQuartz, make targets, and record 0028.
 ** What I measured
 Spec map (met / differently / not met): crud with gadgets 10/0/0, crud with the layer 8/2/0, flight 6/3/0,
 circles 8/1/4. Lines, McCLIM layer against our immediate variant: crud 101 and 77, flight 69 and 54, circles 91
-and 116 with the painter. Wiring by reading, in lines, retained / reactive / immediate / layer: crud 29, 14, 13,
-13 (the gadgets 47); flight 24, 16, 9, 5; circles 16, 15, 6, 5. On XQuartz, pointer events in McCLIM's queue
+and 116 with the painter. Wiring by reading, in lines, retained / reactive / immediate / layer, counted twice (without and with the
+declarations of the state that the screen shows): crud 29 and 30, 14 and 14, 13 and 17, 16 and 20 (the
+gadgets 47 and 48); flight 24, 16, 9 and 13, 8 and 12; circles 16 and 17, 15, 6 and 9, 5. On XQuartz, pointer events in McCLIM's queue
 picked a crud row (fields filled, buttons drawn), drew circles, opened the dialog, set a diameter of 120 and
 closed it with OK, and pressed Book; a click on the canvas with the dialog open was queued and drew a circle after it closed.
 ** Read with care
 My size predictions were all too small (the crud was to be 15 to 30 % shorter and is 31 % longer than ours),
 and one of the three conditions I gave for being wrong holds. The wiring counts are mine, by one rule, by
-reading. The layer needed four things that nothing in McCLIM's documentation says, found by running it: a
+reading, and my first count was uneven (it said the layer had the least wiring; counted alike it is level with
+the immediate variant and two to four times below the retained and the gadgets). The layer needed four things
+that I did not find in McCLIM's manual or examples, found by running it: a
 text field in an =:accept-values= pane with =:resynchronize-every-pass t= kills the frame's thread at start
 (the nested display repeats a query identifier), a field on the screen keeps its text whatever default it is
 given, the pane does not follow a command unless =:display-time :command-loop=, and a struct is not a

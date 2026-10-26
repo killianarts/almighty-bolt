@@ -29,7 +29,9 @@ circles
   immediate, app + shared painter       116    377    319 -       
   mcclim, app file                       89    267    228 15      
 
-## wiring, by reading, in lines (rule in the note; lines are of the files at this commit)
+## wiring, FIRST count, by reading, in lines (rule in the note). It was not even-handed: it counted the immediate variant's
+## copy-backs and the reactive variant's signals but not the McCLIM display function's (setf x (accept ..)) or the layer's slots.
+## The recount is below it. Lines are of the files at this commit.
 crud
   retained   29  handles 44-45; refresh-buttons 48-52; refresh-list 54,56-60; pick 61-66; (refresh-list) at 72, 76, 82; clearing 80-81;
                  on-change lambdas 84, 87, 89; first refresh 93
@@ -49,6 +51,14 @@ circles
   immediate   6  hover 3; slider copy 2; exit 1
   mcclim      5  command-enabled 2; updating-output keys 2; :incremental-redisplay 1
 
+## wiring, RECOUNT. A: the rule as written, with the McCLIM layer's copy-backs (1 line each) added to the first count
+##                B: A plus the declarations of the state that the screen shows on every side (variables, slots, signals, handles)
+crud     retained A 29 B 30 (+ selected 43) | reactive A 14 B 14 | immediate A 13 B 17 (+ filter, picked, name, surname) |
+         layer A 16 B 20 (+3 copy-backs at 70, 75, 78; + slots 50-53) | gadgets A 47 B 48 (+ picked slot 42)
+flight   retained A 24 B 24 | reactive A 16 B 16 | immediate A 9 B 13 (+ kind, start, return, message) |
+         layer A 8 B 12 (+3 copy-backs; + slots kind, start, end, message)
+circles  retained A 16 B 17 (+ hot, adjusting, preview 54) | reactive A 15 B 15 | immediate A 6 B 9 (+ hot, adjusting, preview) | layer A 5 B 5
+
 ## tests (make test-mcclim, the 7GUIs part): flight 9 tests 16 assertions; crud 21 tests 46; circles 10 tests 21; all pass
 
 ## real pointer events through McCLIM's queue, on XQuartz (scratchpad scripts), and what they showed
@@ -65,3 +75,5 @@ verify-circles.out:dialogs: 1
 verify-circles.out:sliders 1
 verify-circles.out:dialog buttons: 2
 verify-circles.out:after OK: ((100 80 120) (250 150 40)) dialogs 0
+(make click-mcclim-7guis, circles) after the slider at 120 and OK: ((100 80 120) (250 150 40) (300 200 40)), 0 dialogs
+(make click-mcclim-7guis, circles) after one undo: ((100 80 120) (250 150 40)); after a second undo (the diameter, in one step): ((100 80 40) (250 150 40))

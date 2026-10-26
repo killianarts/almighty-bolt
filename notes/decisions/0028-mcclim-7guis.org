@@ -31,49 +31,57 @@ what was wrong.
 
 * Evidence
 What the spec map came to (of the acceptance tests of each task), and the size
-and the wiring (by reading, with one rule, in lines):
-  | task    | version | met | differently | not met | lines | wiring |
-  |---------+---------+-----+-------------+---------+-------+--------|
-  | crud    | gadgets |  10 |           0 |       0 |   121 |     47 |
-  | crud    | layer   |   8 |           2 |       0 |   101 |     13 |
-  | flight  | layer   |   6 |           3 |       0 |    69 |      5 |
-  | circles | layer   |   8 |           1 |       4 |    91 |      5 |
-Ours, lines and wiring, retained / reactive / immediate: crud 97, 90, 77 and 29,
-14, 13; flight 60, 62, 54 and 24, 16, 9; circles (with the painter) 138, 119,
-116 and 16, 15, 6.
-- The layer has the least wiring in each task, by 0 to 4 lines against the
-  immediate variant and by more against the retained one and McCLIM's own
-  gadgets (13 against 29 and 47 in the crud). It is longer than our immediate
-  variant (crud 31 %, flight 28 %) except for the circles with their painter (22
-  % shorter). Of the 32 tests of the layer's apps, 6 are met differently (a
-  command button that is not drawn is not a grey one; the circles' dialog is a
-  window) and 4 are not met (the circle under the pointer is not grey; the
-  diameter does not change behind the dialog; a click away does not close it; a
-  click on the canvas with the dialog open is queued and draws a circle when it
-  closes).
-- What it needed, found by running it: =:view +textual-dialog-view+= (a text
-  field in an =:accept-values= pane with =:resynchronize-every-pass t= re-enters
-  the display function and the frame's thread dies with a duplicate query
-  identifier); a new =:query-identifier= to fill a field that is on the screen
-  (it keeps its text whatever default it is given); =:display-time
-  :command-loop= for the pane to follow a command; =define-presentation-type=
-  for each struct of the models; a tester on the =blank-area= translator and
-  =:menu nil=. My predictions of size were all too small (the crud was to be 15
-  to 30 % shorter than ours and is 31 % longer); the wiring of the flight booker
-  (5 for 2 to 4) and of the circles (5 for 3 to 6) was close, the crud's was not
-  (13 for 4 to 6) and the gadgets' was far off (47 for 14 to 18).
+and the wiring (by reading, with one rule, in lines; the wiring twice, without
+and with the declarations of the state that the screen shows on every side,
+because my first count was not even-handed):
+  | task    | version | met | differently | not met | lines | wiring   |
+  |---------+---------+-----+-------------+---------+-------+----------|
+  | crud    | gadgets |  10 |           0 |       0 |   121 | 47, 48   |
+  | crud    | layer   |   8 |           2 |       0 |   101 | 16, 20   |
+  | flight  | layer   |   6 |           3 |       0 |    69 | 8, 12    |
+  | circles | layer   |   8 |           1 |       4 |    91 | 5, 5     |
+Ours, lines and wiring (the two counts), retained / reactive / immediate: crud
+97, 90, 77 and 29 and 30, 14 and 14, 13 and 17; flight 60, 62, 54 and 24 and 24,
+16 and 16, 9 and 13; circles (with the painter) 138, 119, 116 and 16 and 17, 15
+and 15, 6 and 9.
+- The layer is level with our immediate variant in wiring, within 3 or 4 lines
+  either way, and about level with the reactive; the retained variant and
+  McCLIM's own gadgets carry two to four times as much (crud 16 or 20 against 29
+  or 30 and 47 or 48). It is longer than our immediate variant (crud 31 %,
+  flight 28 %) except for the circles with their painter (22 % shorter). Of the
+  32 tests of the layer's apps, 6 are met differently (a command button that is
+  not drawn is not a grey one; the circles' dialog is a window) and 4 are not
+  met (the circle under the pointer is not grey; the diameter does not change
+  behind the dialog; a click away does not close it; a click on the canvas with
+  the dialog open is queued and draws a circle when it closes).
+- What it needed, found by running it (I did not find them in the manual or the
+  examples, and I did not report the startup crash upstream): =:view
+  +textual-dialog-view+= (a text field in an =:accept-values= pane with
+  =:resynchronize-every-pass t= re-enters the display function and the frame's
+  thread dies with a duplicate query identifier); a new =:query-identifier= to
+  fill a field that is on the screen (it keeps its text whatever default it is
+  given); =:display-time :command-loop= for the pane to follow a command;
+  =define-presentation-type= for each struct of the models; a tester on the
+  =blank-area= translator and =:menu nil=. My predictions of size were all too
+  small (the crud was to be 15 to 30 % shorter than ours and is 31 % longer);
+  the wiring of the flight booker (8 or 12 for 2 to 4) was not, that of the
+  circles (5 for 3 to 6) was close, the crud's was not (16 or 20 for 4 to 6) and
+  the gadgets' was far off (47 for 14 to 18).
 
 * Decision
 Proposed: the layer is the immediate way of writing again. Against the retained
-and the gadget way it takes the wiring away; against our immediate variant,
-which describes the screen from the state each time and so has almost none, it
-does not save lines or wiring, it adds the spec of what the layer cannot do (6
-differently, 4 not met), and what it does for free is validation, a red field,
-an option pane, a slider dialog and a menu that greys itself, which in lines is
-8 for the date type and 7 for the dialog against 12 to 25 of ours. So H2 stays
-OPEN, and the answer to Micah's question (whether the nice layer takes the
-wiring away) is: yes against the gadgets and the retained style, no more than
-the immediate variant already does, and at a cost in lines and in gotchas.
+and the gadget way it takes the wiring away (two to four times less); against
+our immediate variant, which describes the screen from the state each time, it
+does not save lines or wiring, and it adds the spec of what the layer cannot do
+(6 differently, 4 not met), and what it does for free is validation, a red
+field, an option pane, a slider dialog and a menu that greys itself, which in
+lines is 8 for the date type and 7 for the dialog against 12 to 25 of ours. So
+H2 stays OPEN, and the answer to Micah's question (whether the nice layer takes
+the wiring away) is: yes against the gadgets and the retained style, no more
+than the immediate variant already does, and at a cost in lines and in gotchas.
+(My first count said that the layer had the least wiring in each task; it
+counted the variants unevenly, was corrected, and the first count is in the raw
+file.)
 
 Proposed, for Micah to choose (the work is on the branch =mcclim=, which has the
 stress apps and 0027, not merged and not pushed):

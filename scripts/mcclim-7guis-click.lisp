@@ -137,7 +137,13 @@
         (click-on pane (first (presentations-of pane "ACCEPT-VALUES-COMMAND-BUTTON"))))
       (sleep 3)
       (say "after the slider at 120 and OK: ~s, ~d dialog~:p" (circles) (length (dialogs)))
-      (shot "circles-frame" "circles-after"))))
+      (shot "circles-frame" "circles-after")
+      ;; The click that the dialog held back drew the third circle; the diameter is one step before.
+      (let ((clim:*application-frame* frame))
+        (funcall 'almighty-bolt-7guis/circles/mcclim::com-undo)
+        (say "after one undo: ~s" (circles))
+        (funcall 'almighty-bolt-7guis/circles/mcclim::com-undo)
+        (say "after a second undo (the diameter, in one step): ~s" (circles))))))
 
 (let ((app (uiop:getenv "APP")))
   (cond ((equal app "flight") (run-flight))

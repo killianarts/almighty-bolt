@@ -162,7 +162,7 @@ mcclim-crud= and its three siblings that open them. The raw numbers are in
   =:resynchronize-every-pass t= the field calls its callback as it is made, which runs the display
   function again inside itself, and the frame's thread dies with "ACCEPT-VALUES :QUERY-IDENTIFIER
   "Name" is not unique." at start (both the flight booker's dates, once they inherit from string,
-  and the crud's fields). The apps ask for =:view +textual-dialog-view+ =, an input editor in the
+  and the crud's fields). The apps ask for =:view +textual-dialog-view+=, an input editor in the
   pane, which does not. This is McCLIM master, 24 October; I did not report it.
 - A field that is on the screen keeps what is in it whatever default it is given, and there is no
   call to put a value in it. The crud fills its fields when an entry is picked by giving each field
@@ -212,7 +212,9 @@ suffix).
 - Circles, met: starts empty; a click on empty ground draws a circle of 40 at the place (the place
   is exact: 100, 80); a click on a circle draws nothing; undo and redo, and a draw after an undo
   ends the redo (the model's); a click of the secondary button on empty ground opens nothing; a
-  dialog that changes nothing leaves nothing to undo. Differently: the dialog is a window of its own
+  dialog that changes nothing leaves nothing to undo; what is done with the slider is one step of undo
+  (XQuartz: OK at 120, then two undos: the circle that the held click drew, then the diameter back to
+  40). Differently: the dialog is a window of its own
   (a slider from 5 to 200 at the circle's diameter, OK and Cancel; on XQuartz the slider at 120 and
   OK made the circle 120). Not met: the circle under the pointer is not grey (an injected pointer
   motion over a circle showed no highlight either); the diameter does not change behind the dialog;
@@ -223,25 +225,37 @@ suffix).
 ** Size, and the wiring
 Lines, tokens and body tokens by =scripts/mcclim-size.lisp=; the circles with the painter (29 lines)
 added to ours. The wiring is by reading with the rule above, in lines (the lines are listed in the
-raw file).
+raw file). It is given twice because my first count was not even-handed: it counted a copy-back in
+the immediate variant (=(when changed (setf filter text))=, 2 lines) and not the McCLIM display
+function's =(setf filter (accept ...))=, which does the same (1 line), and the signals of the reactive
+variant but not the immediate variant's variables or the layer's slots. The first row of each pair is
+the rule as written with the copy-backs of the layer counted; the second adds the declarations of the
+state that the screen shows (variables, slots, signals, handles) on every side. The first count,
+which said that the layer had the least wiring in each task, is in the raw file.
   |                                                | retained | reactive | immediate | McCLIM layer | McCLIM gadgets |
   |------------------------------------------------+----------+----------+-----------+--------------+----------------|
   | crud: lines, body tokens                       | 97, 271  | 90, 264  | 77, 212   | 101, 292     | 121, 385       |
-  | crud: wiring lines                             | 29       | 14       | 13        | 13           | 47             |
+  | crud: wiring, rule as written                  | 29       | 14       | 13        | 16           | 47             |
+  | crud: wiring, with the state's declarations    | 30       | 14       | 17        | 20           | 48             |
   | flight: lines, body tokens                     | 60, 142  | 62, 150  | 54, 121   | 69, 183      |                |
-  | flight: wiring lines                           | 24       | 16       | 9         | 5            |                |
+  | flight: wiring, rule as written                | 24       | 16       | 9         | 8            |                |
+  | flight: wiring, with the state's declarations  | 24       | 16       | 13        | 12           |                |
   | circles: lines, body tokens (with the painter) | 138, 393 | 119, 368 | 116, 319  | 91, 232      |                |
-  | circles: wiring lines                          | 16       | 15       | 6         | 5            |                |
+  | circles: wiring, rule as written               | 16       | 15       | 6         | 5            |                |
+  | circles: wiring, with the state's declarations | 17       | 15       | 9         | 5            |                |
 - The layer is not shorter than our immediate variant: the crud is 31 % longer (101 lines against
   77), the flight booker 28 % (69 against 54), the circle drawer 5 % longer than the immediate file
   alone (91 against 87) and 22 % shorter with its painter (116). Against the retained variant it is
   4 % longer for the crud, 15 % for the flight booker, and 34 % shorter for the circles with their
   painter. The gadget crud is the longest, 121 lines.
-- The layer has the least wiring of the versions in each task, but not by much: 13, 5 and 5 lines
-  against the immediate variant's 13, 9 and 6, the reactive's 14, 16 and 15, the retained's 29, 24
-  and 16. The crud is tied with immediate. Against the same library's gadgets it is 13 lines against
-  47: what the layer takes away is what the gadgets need, a refresh function and its callbacks, and
-  the immediate variant never had it.
+- The layer is level with our immediate variant, within 3 or 4 lines either way (16 and 20 against 13 and 17
+  in the crud, 8 and 12 against 9 and 13 in the flight booker, 5 against 6 and 9 in the circles), and about
+  level with the reactive (14, 16 and 15). The retained variant and the same library's gadgets carry
+  two to four times as much (29 and 47 in the crud, 24 in the flight booker, 16 in the circles). What the layer
+  takes away is what the gadgets need, a refresh function and its callbacks, which the immediate
+  variant never had; it does not take away what the immediate variant has, and in the crud it has a few more
+  lines (the pick copies the entry into the fields, a field needs a key that changes with it, the pane needs
+  to be told to follow a command).
 - What it gives for free, by lines: the flight booker's date type is 8 lines and replaces the
   =:invalid= expression in each field and the enabled state of the second; the circles' dialog is
   =ask-diameter=, 7 lines, a slider, OK and Cancel, where ours is a scrim, a panel, a slider, a
@@ -249,15 +263,15 @@ raw file).
   menu bar, greyed when they cannot be used, by 2 lines.
 
 ** What I take from it
-The question was whether the presentation layer takes the wiring away. It does, against the retained
-and the gadget way of writing (29 and 47 lines in the crud against 13), and by a margin that is not
-there against our immediate variant (13, tied) and the reactive (14): the immediate variant, which
-has no layer and no retained widgets, already has almost none, because the screen is described from
-the state each time. So the layer is the immediate way of writing again, and a nicer one for a
-flight booker and a dialog; it is not a saving over it in lines, and it needed gotcha lines of its
-own (the view, the query identifiers, the display time) that I counted in the wiring. The layer's
-own cost is spec: of the 32 tests, 6 are met differently and 4 not met. This is three apps by one
-author who has read McCLIM's source for a week, and the counts are mine.
+The question was whether the presentation layer takes the wiring away. It does against the retained and
+the gadget way of writing (two to four times less in these three tasks), and it is level with the way that
+has none to take away: our immediate variant, which describes the screen from the state each time, and
+about level with the reactive. So the layer is the immediate way of writing again, with a few things done
+for it (a date that parses and shows red, a slider dialog, a menu that greys itself), and it is not a saving
+over it in lines or in wiring: the apps are longer than ours (the crud 31 %, the flight booker 28 %), and
+they needed lines of their own that I counted in the wiring (the view, the query identifiers, the display
+time). The layer's own cost is spec: of the 32 tests, 6 are met differently and 4 not met. This is three
+apps by one author who has read McCLIM's source for a week, and the counts are mine and were corrected once.
 
 ** What was wrong in what I expected
 - Expected: The crud with the layer 15 to 30 % shorter than our immediate crud, with 4 to 6 lines of
@@ -274,8 +288,8 @@ author who has read McCLIM's source for a week, and the counts are mine.
   only "may be".
 - Expected: The layer would be as ready as the dashboard of the stress apps showed. Found: It
   stopped at start for want of a view (the nested display), needed its fields re-keyed to be filled,
-  and needed its pane told to redisplay after a command. Three things that the documentation of an
-  =:accept-values= pane does not say, found by running it.
+  and needed its pane told to redisplay after a command. Three things that I did not find in McCLIM's manual or examples, found by running
+  it.
 
 ** Not done
 - The change-cost edits E1, E2, E4 and E5 on the McCLIM versions: the test of whether an edit is
