@@ -89,3 +89,37 @@
   (replace-text driver :name "Ronald")
   (d:click driver :update)
   (assert-equal "Tisch, Ronald" (listed driver)))
+
+;;; --- E1 (notes/change-cost.org): an Email field below Surname. The control is :email. ---
+
+(d:define-acceptance email-is-kept-by-create-and-shown-on-picking :crud
+  (replace-text driver :name "Anna")
+  (replace-text driver :surname "Zeus")
+  (replace-text driver :email "anna@zeus.org")
+  (d:click driver :create)
+  (pick-row driver 0)
+  (assert-equal "" (d:text-in driver :email))
+  (pick-row driver 3)
+  (assert-equal "Anna" (d:text-in driver :name))
+  (assert-equal "anna@zeus.org" (d:text-in driver :email)))
+
+(d:define-acceptance update-keeps-a-changed-email :crud
+  (pick-row driver 1)
+  (replace-text driver :email "max@example.org")
+  (d:click driver :update)
+  (pick-row driver 0)
+  (pick-row driver 1)
+  (assert-equal "max@example.org" (d:text-in driver :email))
+  (assert-equal "Mustermann, Max" (subseq (listed driver) 11 26)))
+
+(d:define-acceptance delete-clears-the-email-too :crud
+  (pick-row driver 1)
+  (replace-text driver :email "max@example.org")
+  (d:click driver :update)
+  (d:click driver :delete)
+  (assert-equal "" (d:text-in driver :email)))
+
+(d:define-acceptance create-can-be-pressed-with-only-an-email :crud
+  (replace-text driver :email "someone@example.org")
+  (d:click driver :create)
+  (assert-equal "Emil, HansMustermann, MaxTisch, Roman, " (listed driver)))
