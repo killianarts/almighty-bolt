@@ -1,0 +1,145 @@
+#+TITLE: 0023 — Instrumentation and metrics: phases, settling, images, idle, memory
+#+DATE: 2026-10-26
+- Status :: proposed
+
+* Context
+Step 1 of Phase 3. The harness of 0021 timed only the variant's build, in a loop
+with no renderer. The charter asks for more: the frame split into phases, each
+with its time, garbage and bytes; the cost of settling shown apart; a trace to
+look at single frames; and the metrics of an app on a machine: startup, idle CPU
+and wakeups, memory, image size and compile time, with the idle rule (no variant
+may use CPU when idle) as a floor. Two things had to be found out first: whether
+an executable can be saved at all with AppKit and Metal in it (startup and image
+size are of a saved executable), and whether a callback written in Lisp can
+return a struct (the IME's firstRectForCharacterRange: returns an NSRect, and a
+no for that would have meant a C shim).
+
+* What was built
+- Saved executables. The platform layer could not be saved: the frameworks were
+  loaded with =:dont-save=, and every class and selector was a load-time value
+  of the process that saved the image. A literal class or selector is now a cell
+  that is filled in when the code is loaded and again by =reinitialize-objc= (an
+  init hook); =define-runtime-class= and =define-startup= make the three
+  run-time classes and their ivar offsets again. A test saves a small image in a
+  process of its own and runs it; without the hook it errors. =make image
+  VARIANT=immediate= saves =build/immediate= with the seven tasks in it; the
+  task is chosen by =TASK=.
+- The context carries the instrumentation, off or on (=context-phases-p=).
+  =with-phase= adds the real time (not the core clock, which replay makes
+  virtual) of a variant's update, layout or paint to a slot of the context, and
+  =settle-frame= times its first build and all of them. The host clears the
+  slots at the start of a frame and, with the instrumentation on, puts them in
+  the ring, with the garbage collected and the GPU's time for the frame before.
+  A ring record is 16 words now. The three variants mark their phases: update is
+  what a retained variant's tickers do, what a reactive one's signals and
+  reconciler do, and calling the interface function of an immediate one.
+- =write-trace= writes the ring as Chrome trace JSON (Perfetto reads it;
+  Python's JSON parser reads it in the test), and =summarize-ring= gives the
+  frame and its parts, the builds, the cost of settling (the time of all the
+  variant's builds less that of the first) and the garbage.
+- =replay= can make its frames through a function, so that the host's
+  =run-frame= makes them, with the real renderer, into an off-screen texture.
+  =make bench-run= does both kinds of run, headless (as before) and host, with
+  the variants interleaved in the host runs: one replay in each in turn, ten
+  rounds, because the CPU's and the GPU's speed drift. =make bench-overhead=
+  measures what the instrumentation adds.
+- =make bench-app= starts each variant's executable on each task and measures it
+  from outside: the time to its first presented frame, the frames, CPU and
+  wakeups of ten seconds in which nothing happens (after it has drawn nothing
+  for three seconds), the memory, and the size of the file raw and gzipped.
+  =make bench-compile= compiles each variant in a new process with an empty
+  cache. Results go to =results/= (version 2, see its README).
+
+* Evidence
+- The spikes. A saved executable works with AppKit and Metal once the layer is
+  made again (the alien callables survive). =define-alien-callable= returns an
+  HFA struct by value: a callable that returned a rect was called through a
+  function pointer as C would call it and gave 1, 2, 3, 4, so the IME's
+  rectangle can be returned from Lisp and no C shim is needed. (A callable that
+  returns a double leaves the other three registers as they were, which is what
+  returning an NSRect from one would have done.)
+- Idle, the floor of the charter: in every one of the 21 apps (three variants,
+  seven tasks), a window left alone for ten seconds drew no frame, used 0.0% CPU
+  and made no wakeups (0.1 a second once). The check can fail: the timer,
+  watched while it runs, drew 301 frames in 5 s at 5.5% CPU; once it stopped, 0
+  and 0.0%.
+- Startup, from starting the executable to its first presented frame, the median
+  of five launches over the seven tasks: immediate 200 ms, retained 218,
+  reactive 222 (a first launch after an image is made can be 3 to 4 times
+  slower, and is the one that sets the top of the ranges in the records).
+- Memory, the peak resident size seen and the heap in use: immediate 133 MB and
+  52 MB, retained 142 to 143 MB and 53 to 54 MB, reactive 137 to 145 MB and 55
+  to 56 MB. The resident size after the idle window is not comparable (70 to 145
+  MB): the system compresses the memory of a window that is not used. The
+  executables are 45.6 (retained), 45.7 and 45.9 MB (immediate), 12.9 to 13.0 MB
+  gzipped: the Lisp is nearly all of it.
+- Compile, from an empty cache: the core 3.2 s; the retained library 0.6 s, the
+  reactive library 0.17 s more, the immediate library 0.27 s more; a variant's
+  seven apps 0.04 to 0.07 s; after touching one library file, 0.6 s (retained, a
+  file at the start of its library), 0.15 s, 0.25 s; after touching an app, 0.04
+  to 0.07 s.
+- What the instrumentation costs: 40 to 230 ns a frame on the example scripts,
+  from 0.6% of a cells-edit build to 13% of a counter build (0.7 us), and
+  nothing that shows on the null variant through the host (313.6 us a frame off,
+  309.9 on). The clock ticks in 41.7 ns steps, so a difference of one or two
+  ticks is all that can be seen at that size. Running 5,000 frames with it on
+  allocates nothing.
+- The phases of the scripts counter-clicks, timer-reset and cells-edit, through
+  the host (interleaved, median, microseconds), the build with its update,
+  layout and paint, and the share of the build time that is in builds after the
+  first:
+  | Script  | Variant   | Build | Update | Layout | Paint | Builds | Extra |
+  |---------+-----------+-------+--------+--------+-------+--------+-------|
+  | counter | retained  |   1.6 |    0.0 |    0.1 |   1.0 |   1.00 |    0% |
+  |         | reactive  |   1.8 |    0.1 |    0.1 |   0.9 |   1.00 |    0% |
+  |         | immediate |   3.3 |    1.2 |    0.0 |   1.1 |   1.91 |   66% |
+  | timer   | retained  |   7.5 |    2.1 |    0.2 |   3.4 |   1.00 |    0% |
+  |         | reactive  |  12.0 |    6.0 |    0.2 |   3.4 |   1.00 |    0% |
+  |         | immediate |  13.7 |    6.4 |    0.2 |   4.1 |   1.02 |    2% |
+  | cells   | retained  |  17.3 |    0.0 |    0.8 |  16.1 |   1.00 |    0% |
+  |         | reactive  |  19.9 |    2.1 |    0.8 |  16.6 |   1.00 |    0% |
+  |         | immediate |  40.7 |   35.9 |    1.3 |   2.2 |   2.00 |   51% |
+  The immediate variant's time is in its update (describing the interface again,
+  with the hashes that make layout and paint skippable): its layout and paint
+  cost almost nothing when what was described is what was presented, and it is
+  the only variant that builds more than once for an event (the builds after the
+  first are 51 to 66% of its build time in the two scripts with clicks and
+  typing, because a widget that took input asks for the interface to be
+  described again). The same build costs 3 to 7 times as much in a host run as
+  in the hot loop of the headless run (the timer's retained build is 1.1 us
+  there and 7.5 us here): in a window the CPU has been waiting for the display
+  between frames, and the headless numbers are the best case. All three variants
+  draw the same list in these scripts, so the GPU's time is the same: 52 us for
+  the counter, 85 us for the timer, 224 us for cells.
+
+* Decision
+Proposed, for Micah to accept or change:
+- The instrumentation is switched on at run time, by a flag in the context, and
+  not at build time as the charter says. One image can then measure its own
+  overhead (above), and what is off costs one test of a flag. A build-time
+  switch would be a second build of every variant to compare. If the numbers
+  above are not wanted in a release, the flag stays off, or the macro can be
+  made to expand to nothing.
+- Executables are of a variant with all its tasks, saved after loading, with the
+  Objective-C layer made again at start; the platform layer is kept saveable by
+  the test that saves an image.
+- The protocol for what an app costs a machine: executables, started from
+  outside, first frame by the core clock, idle after three quiet seconds for ten
+  seconds, with =top= and =ps=, the first launch kept apart. Host runs are
+  interleaved by variant. The headless runs stay as the stable measure of the
+  variant's own work; host-run numbers are read across variants within a run.
+
+* Consequences
+- Easier: a frame can be looked at in Perfetto; the cost of settling and of each
+  of the variant's phases is a number; the idle floor is a check that can be run
+  for every app; a saved executable is a thing the project can make.
+- Harder: every ring record is twice as large; the platform layer's classes must
+  be made with =define-runtime-class= and its startup state with
+  =define-startup=, or an image will not start.
+- Open: the host numbers are of an off-screen texture and not of a window (no
+  vsync, no wait for a drawable), and the GPU's speed varies from run to run;
+  the phases a variant defines are three; CI tracking is not done (it needs a
+  runner with a GPU: Micah has an old Mac that is not arm64, which would need
+  the Objective-C layer ported first, because struct arguments are passed as
+  they are on arm64); startup is of a window that opens on a desktop that is
+  already running, with a warm cache after the first launch.

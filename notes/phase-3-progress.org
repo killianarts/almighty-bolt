@@ -23,9 +23,19 @@ its own; result records already hold the machine profile.
 (newest last)
 - Plan checked by the advisor; two spikes first: saving an executable image (startup time and
   image size depend on it) and returning structs from a Lisp callback (the IME's
-  firstRectForCharacterRange).
+  firstRectForCharacterRange). Both work (record 0023).
+- Step 1 done and committed (results in =results/=, record 0023 proposed). Idle floor met by all 21 apps.
+- Step 2 (change cost): specs in =notes/change-cost.org= (worktree =/tmp/almighty-bolt-edits=, branches
+  =change-cost/e1= to =e5=, tests written for all five, edits for E1 to E3 written, nothing run yet
+  for step 2 because the benchmarks needed the machine quiet).
 
 * Review queue
 (records proposed in this run)
+- 0023 Instrumentation and metrics (step 1): the instrumentation is a run-time flag, not a build-time
+  switch; executables per variant; the protocol of the metrics.
 
 * Open decisions for Micah
+- 0023: instrumentation switched on at run time (a flag in the context), not at build time as the
+  charter says. Measured cost: 40 to 230 ns a frame.
+- Step 2, E4: no variant has a checkbox, so the switch is a two-option choice standing where a
+  checkbox would. Say if a checkbox widget is wanted instead (it would be library work in each variant).

@@ -1352,3 +1352,34 @@ variants stays, with its tests (=t/acceptance/dialog.lisp=, 7 tests). The regist
 The charter's H6 is split: H6a (split panels and wrapped text need a tree) is refuted and H6b (a
 container placed by its own size needs a lag, another build or an alternative) is confirmed, with
 content-sized columns of containers not covered.
+
+* 2026-10-26 — Phase 3, step 1: instrumentation and metrics
+** What I did
+Two spikes first (0023, proposed): an executable can be saved with AppKit and Metal in it once the
+Objective-C layer is made again at start (cells for classes and selectors, =define-runtime-class=,
+an init hook, and a test that saves an image and runs it), and =define-alien-callable= returns an
+NSRect from Lisp, so the IME needs no C shim. Then the instrumentation: =with-phase= and the timing
+of builds in the context, a 16-word ring record with GC time, first-build time, update, layout and
+paint and the GPU's time, =write-trace= (Chrome JSON), =summarize-ring=, replay through a frame
+function, host runs in the harness, =make bench-overhead=, =make image=, =make bench-app=, =make
+bench-compile=.
+** What I measured
+All 21 apps (three variants, seven tasks) meet the idle floor: no frame, 0.0% CPU, no wakeups in ten
+seconds. Startup from a saved executable to the first presented frame is 190 to 240 ms (immediate
+200 ms, retained 218, reactive 222). Peak resident size 133 MB (immediate), 142 (retained), 137 to
+145 (reactive). Executables 45.6 to 45.9 MB. The instrumentation costs 40 to 230 ns a frame. In the
+host the immediate variant's time is in its update phase (35.9 us of 40.7 in cells-edit) and 51 to
+66% of its build time is in builds after the first; a build costs 3 to 7 times as much after the CPU
+has waited for the display as in the hot loop.
+** What went wrong on the way
+The first image test passed with the init hook taken out, because the classes of the system are at
+the same address in every process of a boot and my check only looked that a class variable was
+bound; it now sends a message to the run-time class, and errors without the hook. The first host
+records read settling as free: the time of all builds was added to the ring after the harness's
+columns were written. The first host runs gave each variant a different state of the GPU (a GPU time
+of 160 us in one and 400 in another for the same list), so the variants are interleaved now. =touch=
+made a file that was not there (reactive has no widgets.lisp), and a compile time measured nothing;
+the tool checks the file exists.
+** Not done
+CI tracking (needs a runner with a GPU), a trace from a window and not an off-screen host, phases a
+variant defines beyond update, layout and paint.
