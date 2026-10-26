@@ -87,7 +87,9 @@
 
 (d:define-acceptance undo-restores-both-fields-when-the-other-one-was-edited :temperature
   (enter driver :celsius "5")
-  (enter driver :fahrenheit "5")
+  (d:click driver :fahrenheit)
+  (d:press-key driver #\a :modifiers almighty-bolt-core:+modifier-super+)
+  (d:type-text driver "5")
   (assert-equal "-15" (d:text-in driver :celsius))
   (d:click driver :undo)
   (assert-equal "5" (d:text-in driver :celsius))
