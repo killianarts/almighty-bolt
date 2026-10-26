@@ -17,10 +17,16 @@
 ;;; Idle is judged by the frames: the window is left alone until the process has drawn nothing for
 ;;; three seconds (the timer animates until its time is up), and the idle window is the ten seconds
 ;;; after that. The floor of the charter (no variant uses CPU when idle) is met if it draws no
-;;; frame in the window and top reports 0.0% CPU to one decimal place.
+;;; frame in the window and top reports 0.0% CPU to one decimal place. A task that animates for as long
+;;; as it is open (the dashboard) is measured in the ten seconds after its first frame instead, and
+;;; its record says :state :animating.
 
 (defparameter +variants+ '(:retained :reactive :immediate))
 (defparameter +tasks+ '(:counter :temperature :flight :timer :crud :circles :cells))
+(defparameter +animated-tasks+ '(:dashboard)
+  "The tasks that never stop drawing. They cannot be waited on to be quiet, so the window that is
+measured is the first ten seconds after the first frame, and the record says :state :animating: the
+numbers are what the animation costs, not an idle floor.")
 
 (defun image-path (variant)
   (format nil "build/~(~a~)" variant))
@@ -183,13 +189,16 @@ app that is not idle."
       (let ((image (list :bytes (file-size (image-path variant))
                          :gzip-bytes (compressed-size (image-path variant)))))
         (dolist (task tasks)
-          (let* ((first (measure-app variant task :idle-seconds idle-seconds))
+          (let* ((animating (and (member task +animated-tasks+) t))
+                 (first (measure-app variant task :idle-seconds idle-seconds
+                                                  :wait-quiet (not animating)))
                  (startups (cons (getf first :startup-ns)
                                  (loop :repeat (1- repetitions)
                                        :collect (or (startup-only variant task)
                                                     (error "No first frame."))))))
             (let* ((record (append (list :date date) source
                                    (list :mode :app :variant variant :app task :script-name "idle-startup"
+                                         :state (if animating :animating :idle)
                                          :machine machine :repetitions repetitions
                                          :image image
                                          :startup (list :ns startups :median-ns (median-of startups)
@@ -197,8 +206,8 @@ app that is not idle."
                                                         :max-ns (reduce #'max startups))
                                          :idle (getf first :idle) :memory (getf first :memory))))
                    (idle (getf first :idle)))
-              (format t "~&~(~10a ~10a~) startup ~6,1f ms (~,1f to ~,1f)  idle: ~d frames, ~,1f% cpu, ~,1f wakeups/s   rss ~,1f MB (peak ~,1f)  heap ~,1f MB   image ~,1f MB (gzip ~,1f)~%"
-                      variant task (/ (getf (getf record :startup) :median-ns) 1d6)
+              (format t "~&~(~10a ~10a~) ~:[~;[animating] ~]startup ~6,1f ms (~,1f to ~,1f)  idle: ~d frames, ~,1f% cpu, ~,1f wakeups/s   rss ~,1f MB (peak ~,1f)  heap ~,1f MB   image ~,1f MB (gzip ~,1f)~%"
+                      variant task animating (/ (getf (getf record :startup) :median-ns) 1d6)
                       (/ (getf (getf record :startup) :min-ns) 1d6)
                       (/ (getf (getf record :startup) :max-ns) 1d6)
                       (getf idle :frames) (or (getf idle :cpu-percent) -1) (or (getf idle :wakeups-per-second) -1)
