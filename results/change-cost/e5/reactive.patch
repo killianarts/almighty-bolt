@@ -1,0 +1,40 @@
+diff --git a/apps/7guis/flight/reactive.lisp b/apps/7guis/flight/reactive.lisp
+index 75c90f4..f5e71fc 100644
+--- a/apps/7guis/flight/reactive.lisp
++++ b/apps/7guis/flight/reactive.lisp
+@@ -16,6 +16,7 @@
+                 #:button
+                 #:padding
+                 #:column
++                #:row
+                 #:text-field
+                 #:choice)
+   (:import-from #:almighty-bolt-variant-reactive/reactive
+@@ -46,7 +47,7 @@
+        (lambda ()
+          (let ((return-enabled (return-date-enabled-p (value flight-kind))))
+            (padding
+-            (column (choice '("one-way flight" "return flight") :id :kind :selected (value kind)
++            (row (column (choice '("one-way flight" "return flight") :id :kind :selected (value kind)
+                                  :on-change (lambda (index)
+                                               (setf (value kind) index
+                                                     (value message) "")))
+@@ -58,7 +59,8 @@
+                                      :invalid (and return-enabled
+                                                    (not (date-text-valid-p (value return))))
+                                      :on-change (edit return))
+-                    (button "Book" :id :book :enabled (and (value bookable) t)
++                         :gap 12)
++                 (column (button "Book" :id :book :enabled (and (value bookable) t)
+                                         :on-click (lambda ()
+                                                     (setf (value message)
+                                                           (booking-message (value flight-kind)
+@@ -66,6 +68,7 @@
+                                                                            (value return)))))
+                          (label (value message) :id :message)
+                          :gap 12)
++                 :gap 24)
+             :all 24)))))))
+ 
+-(register-app :reactive :flight #'make-flight :width 460 :height 290)
++(register-app :reactive :flight #'make-flight :width 700 :height 220)

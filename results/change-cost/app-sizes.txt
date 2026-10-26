@@ -1,0 +1,9 @@
+task         retained (lines, concepts)  reactive (lines, concepts)  immediate (lines, concepts) 
+counter      27, 6                       29, 9                       23, 5                      
+temperature  36, 6                       41, 7                       38, 5                      
+flight       60, 12                      62, 10                      54, 7                      
+timer        74, 11                      71, 12                      58, 10                     
+crud         97, 12                      90, 11                      77, 8                      
+circles      109, 16                     90, 15                      87, 12                     
+cells        173, 8                      164, 10                     138, 6                     
+total        576, 71                     547, 74                     475, 53                    

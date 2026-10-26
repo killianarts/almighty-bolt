@@ -1,0 +1,64 @@
+diff --git a/apps/7guis/crud/immediate.lisp b/apps/7guis/crud/immediate.lisp
+index bb37e89..be2e747 100644
+--- a/apps/7guis/crud/immediate.lisp
++++ b/apps/7guis/crud/immediate.lisp
+@@ -7,6 +7,7 @@
+                 #:entry-id
+                 #:entry-name
+                 #:entry-surname
++                #:entry-email
+                 #:entry-display
+                 #:entries-add
+                 #:entries-update
+@@ -35,7 +36,8 @@
+         (filter "")
+         (picked nil)
+         (name "")
+-        (surname ""))
++        (surname "")
++        (email ""))
+     (make-immediate-variant
+      (lambda ()
+        (let* ((shown (entries-filtered entries filter))
+@@ -55,7 +57,8 @@
+                    (let ((entry (nth index shown)))
+                      (setf picked (entry-id entry)
+                            name (entry-name entry)
+-                           surname (entry-surname entry)))))
++                           surname (entry-surname entry)
++                           email (entry-email entry)))))
+                (column (:gap 10)
+                  (row (:gap 10 :cross-align :center)
+                    (label "Name:")
+@@ -66,19 +69,26 @@
+                    (label "Surname:")
+                    (multiple-value-bind (text changed) (text-field :surname surname :width 160)
+                      (when changed
+-                       (setf surname text))))))
++                       (setf surname text))))
++                 (row (:gap 10 :cross-align :center)
++                   (label "Email:")
++                   (multiple-value-bind (text changed) (text-field :email email :width 160)
++                     (when changed
++                       (setf email text))))))
+              (row (:gap 10)
+                (when (button "Create" :id :create
+-                                      :enabled (plusp (+ (length name) (length surname))))
+-                 (multiple-value-bind (new entry) (entries-add entries name surname)
++                                      :enabled (plusp (+ (length name) (length surname)
++                                                         (length email))))
++                 (multiple-value-bind (new entry) (entries-add entries name surname email)
+                    (setf entries new
+                          picked (entry-id entry))))
+                (when (button "Update" :id :update :enabled (and picked-entry t))
+-                 (setf entries (entries-update entries picked name surname)))
++                 (setf entries (entries-update entries picked name surname email)))
+                (when (button "Delete" :id :delete :enabled (and picked-entry t))
+                  (setf entries (entries-remove entries picked)
+                        picked nil
+                        name ""
+-                       surname ""))))))))))
++                       surname ""
++                       email ""))))))))))
+ 
+ (register-app :immediate :crud #'make-crud :width 640 :height 280)

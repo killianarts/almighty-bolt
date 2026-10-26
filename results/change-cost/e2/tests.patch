@@ -1,0 +1,79 @@
+diff --git a/apps/7guis/t/acceptance/flight.lisp b/apps/7guis/t/acceptance/flight.lisp
+index bfb4785..00f5ffe 100644
+--- a/apps/7guis/t/acceptance/flight.lisp
++++ b/apps/7guis/t/acceptance/flight.lisp
+@@ -91,3 +91,47 @@
+   (assert-true (plusp (length (d:text-in driver :message))))
+   (replace-text driver :start "01.01.2027")
+   (assert-equal "" (d:text-in driver :message)))
++
++;;; --- E2 (notes/change-cost.org): the return date is optional ---
++
++(defun clear-text (driver id)
++  (d:click driver id)
++  (d:press-key driver #\a :modifiers almighty-bolt-core:+modifier-super+)
++  (d:press-key driver #\Backspace))
++
++(d:define-acceptance a-return-flight-with-no-return-date-is-an-open-return :flight
++  (choose-return-flight driver)
++  (replace-text driver :start "01.05.2026")
++  (clear-text driver :return)
++  (d:click driver :book)
++  (assert-equal "Booked an open return flight from 01.05.2026." (d:text-in driver :message)))
++
++(d:define-acceptance an-open-return-still-needs-a-valid-start-date :flight
++  (choose-return-flight driver)
++  (replace-text driver :start "31.02.2026")
++  (clear-text driver :return)
++  (d:click driver :book)
++  (assert-equal "" (d:text-in driver :message)))
++
++(d:define-acceptance a-return-date-that-is-wrong-still-cannot-be-booked :flight
++  (choose-return-flight driver)
++  (replace-text driver :start "01.05.2026")
++  (replace-text driver :return "08.05.20")
++  (d:click driver :book)
++  (assert-equal "" (d:text-in driver :message))
++  (replace-text driver :return "30.04.2026")
++  (d:click driver :book)
++  (assert-equal "" (d:text-in driver :message)))
++
++(d:define-acceptance an-empty-return-date-does-not-look-invalid :flight
++  (choose-return-flight driver)
++  (replace-text driver :start "01.05.2026")
++  (replace-text driver :return "01.05.2026")
++  (let-go driver)
++  (let ((valid (d:colors-in driver :return)))
++    (clear-text driver :return)
++    (let-go driver)
++    (assert-equal valid (d:colors-in driver :return))
++    (replace-text driver :return "nonsense")
++    (let-go driver)
++    (assert-false (equal valid (d:colors-in driver :return)))))
+diff --git a/apps/7guis/t/flight.lisp b/apps/7guis/t/flight.lisp
+index 8928582..e79da0a 100644
+--- a/apps/7guis/t/flight.lisp
++++ b/apps/7guis/t/flight.lisp
+@@ -34,10 +34,22 @@
+   (assert-false (m:flight-valid-p :return "27.04.2014" "nonsense"))
+   (assert-false (m:flight-valid-p :return "nonsense" "28.04.2014")))
+ 
++(define-test a-return-flight-may-have-no-return-date ()
++  (assert-true (m:flight-valid-p :return "27.04.2014" ""))
++  (assert-false (m:flight-valid-p :return "nonsense" ""))
++  (assert-false (m:return-date-invalid-p :return ""))
++  (assert-false (m:return-date-invalid-p :one-way "nonsense"))
++  (assert-true (m:return-date-invalid-p :return "nonsense"))
++  (assert-false (m:return-date-invalid-p :return "28.04.2014")))
++
+ (define-test only-a-return-flight-has-a-return-date ()
+   (assert-true (m:return-date-enabled-p :return))
+   (assert-false (m:return-date-enabled-p :one-way)))
+ 
++(define-test an-open-return-says-so ()
++  (assert-equal "Booked an open return flight from 27.04.2014."
++                (m:booking-message :return "27.04.2014" "")))
++
+ (define-test the-booking-says-what-was-booked ()
+   (assert-equal "Booked a one-way flight on 27.04.2014."
+                 (m:booking-message :one-way "27.04.2014" "ignored"))

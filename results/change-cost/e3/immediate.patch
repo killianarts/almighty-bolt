@@ -1,0 +1,51 @@
+diff --git a/apps/7guis/temperature/immediate.lisp b/apps/7guis/temperature/immediate.lisp
+index c70c2be..0e37ad1 100644
+--- a/apps/7guis/temperature/immediate.lisp
++++ b/apps/7guis/temperature/immediate.lisp
+@@ -7,6 +7,7 @@
+                 #:fahrenheit-text->celsius-text)
+   (:import-from #:almighty-bolt-variant-immediate/widgets
+                 #:label
++                #:button
+                 #:text-field
+                 #:padding
+                 #:row)
+@@ -18,17 +19,19 @@
+ 
+ ;;; The temperature converter, immediate: the text of each field is a variable the field is
+ ;;; given every frame, and a field that was typed in returns the new text, which is written to
+-;;; both.
++;;; both. Undo has the pairs of texts the fields held before each change.
+ 
+ (defun make-temperature ()
+   (let ((celsius "")
+-        (fahrenheit ""))
++        (fahrenheit "")
++        (history '()))
+     (make-immediate-variant
+      (lambda ()
+        (padding (:all 20)
+          (row (:gap 10 :cross-align :center)
+            (multiple-value-bind (text changed) (text-field :celsius celsius :width 100)
+              (when changed
++               (push (cons celsius fahrenheit) history)
+                (setf celsius text)
+                (let ((other (celsius-text->fahrenheit-text text)))
+                  (when other
+@@ -36,10 +39,15 @@
+            (label "Celsius =")
+            (multiple-value-bind (text changed) (text-field :fahrenheit fahrenheit :width 100)
+              (when changed
++               (push (cons celsius fahrenheit) history)
+                (setf fahrenheit text)
+                (let ((other (fahrenheit-text->celsius-text text)))
+                  (when other
+                    (setf celsius other)))))
+-           (label "Fahrenheit")))))))
++           (label "Fahrenheit")
++           (when (button "Undo" :id :undo :enabled (and history t))
++             (destructuring-bind (old-celsius . old-fahrenheit) (pop history)
++               (setf celsius old-celsius
++                     fahrenheit old-fahrenheit)))))))))
+ 
+ (register-app :immediate :temperature #'make-temperature :width 520 :height 90)

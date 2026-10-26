@@ -1,0 +1,43 @@
+diff --git a/apps/7guis/t/acceptance/crud.lisp b/apps/7guis/t/acceptance/crud.lisp
+index 4daf4cc..ebfb36b 100644
+--- a/apps/7guis/t/acceptance/crud.lisp
++++ b/apps/7guis/t/acceptance/crud.lisp
+@@ -89,3 +89,38 @@
+   (replace-text driver :name "Ronald")
+   (d:click driver :update)
+   (assert-equal "Tisch, Ronald" (listed driver)))
++
++;;; --- E4 (notes/change-cost.org): the filter row is hidden behind a switch. The switch is a
++;;; choice of two options, :filter-switch ("filter on" first); while it is off the row is not on
++;;; the screen and the list shows everybody. ---
++
++(defun filter-shown-p (driver)
++  "True if the filter row is on the screen: its label is drawn."
++  (and (search "Filter prefix" (d:screen-text driver)) t))
++
++(defun turn-filter-off (driver)
++  (d:click-at driver :filter-switch 0.8 0.5))
++
++(defun turn-filter-on (driver)
++  (d:click-at driver :filter-switch 0.15 0.5))
++
++(d:define-acceptance the-filter-row-is-shown-at-first :crud
++  (assert-true (filter-shown-p driver)))
++
++(d:define-acceptance turning-the-switch-off-hides-the-filter-row :crud
++  (turn-filter-off driver)
++  (assert-false (filter-shown-p driver)))
++
++(d:define-acceptance with-the-filter-off-the-list-shows-everybody :crud
++  (replace-text driver :filter "m")
++  (assert-equal "Mustermann, Max" (listed driver))
++  (turn-filter-off driver)
++  (assert-equal "Emil, HansMustermann, MaxTisch, Roman" (listed driver)))
++
++(d:define-acceptance turning-the-filter-on-again-brings-back-the-row-and-what-it-held :crud
++  (replace-text driver :filter "t")
++  (turn-filter-off driver)
++  (turn-filter-on driver)
++  (assert-true (filter-shown-p driver))
++  (assert-equal "t" (d:text-in driver :filter))
++  (assert-equal "Tisch, Roman" (listed driver)))

@@ -1,0 +1,22 @@
+diff --git a/apps/7guis/flight/immediate.lisp b/apps/7guis/flight/immediate.lisp
+index 2af9a59..d400b4a 100644
+--- a/apps/7guis/flight/immediate.lisp
++++ b/apps/7guis/flight/immediate.lisp
+@@ -5,6 +5,7 @@
+   (:import-from #:almighty-bolt-7guis/flight/model
+                 #:date-text-valid-p
+                 #:return-date-enabled-p
++                #:return-date-invalid-p
+                 #:flight-valid-p
+                 #:booking-message)
+   (:import-from #:almighty-bolt-variant-immediate/widgets
+@@ -49,8 +50,7 @@
+                        message "")))
+              (multiple-value-bind (text changed)
+                  (text-field :return return :width 160 :enabled return-enabled
+-                                            :invalid (and return-enabled
+-                                                          (not (date-text-valid-p return))))
++                                            :invalid (return-date-invalid-p flight-kind return))
+                (when changed
+                  (setf return text
+                        message "")))

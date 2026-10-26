@@ -1,0 +1,64 @@
+diff --git a/apps/7guis/crud/model.lisp b/apps/7guis/crud/model.lisp
+index cb9e300..9de5500 100644
+--- a/apps/7guis/crud/model.lisp
++++ b/apps/7guis/crud/model.lisp
+@@ -4,6 +4,7 @@
+            #:entry-id
+            #:entry-name
+            #:entry-surname
++           #:entry-email
+            #:entry-display
+            #:entries
+            #:make-entries
+@@ -16,14 +17,15 @@
+ 
+ (in-package #:almighty-bolt-7guis/crud/model)
+ 
+-;;; The CRUD task's data: a list of people with names and surnames, and the operations on
++;;; The CRUD task's data: a list of people with names, surnames and emails, and the operations on
+ ;;; it, all as values. What is selected and what is typed in the fields is the UI's state,
+ ;;; which is what the variants differ in, and is not here.
+ 
+-(defstruct (entry (:constructor make-entry (id name surname)) (:copier nil))
++(defstruct (entry (:constructor make-entry (id name surname email)) (:copier nil))
+   (id 0 :type fixnum :read-only t)
+   (name "" :type string :read-only t)
+-  (surname "" :type string :read-only t))
++  (surname "" :type string :read-only t)
++  (email "" :type string :read-only t))
+ 
+ (defun entry-display (entry)
+   "How the list shows ENTRY: Surname, Name."
+@@ -33,9 +35,9 @@
+   (list '() :type list :read-only t)
+   (next-id 0 :type fixnum :read-only t))
+ 
+-(defun entries-add (entries name surname)
++(defun entries-add (entries name surname email)
+   "ENTRIES with a new entry at the end, and the entry, as two values."
+-  (let ((entry (make-entry (entries-next-id entries) name surname)))
++  (let ((entry (make-entry (entries-next-id entries) name surname email)))
+     (values (%make-entries (append (entries-list entries) (list entry))
+                            (1+ (entries-next-id entries)))
+             entry)))
+@@ -44,16 +46,16 @@
+   "A list of entries from PAIRS, each (name surname)."
+   (let ((entries (%make-entries '() 0)))
+     (dolist (pair pairs entries)
+-      (setf entries (entries-add entries (first pair) (second pair))))))
++      (setf entries (entries-add entries (first pair) (second pair) "")))))
+ 
+ (defun entries-find (entries id)
+   (find id (entries-list entries) :key #'entry-id))
+ 
+-(defun entries-update (entries id name surname)
+-  "ENTRIES with the entry ID given NAME and SURNAME, in the same place."
++(defun entries-update (entries id name surname email)
++  "ENTRIES with the entry ID given NAME, SURNAME and EMAIL, in the same place."
+   (%make-entries (mapcar (lambda (entry)
+                            (if (= (entry-id entry) id)
+-                               (make-entry id name surname)
++                               (make-entry id name surname email)
+                                entry))
+                          (entries-list entries))
+                  (entries-next-id entries)))
