@@ -114,3 +114,60 @@ observer and a function that gives the count."
     (assert-eql 20 (s:value c))
     (setf (s:value a) 4)
     (assert-eql 50 (s:value c))))
+
+;;; --- tracking makes no garbage when an observer reads the same things again ---
+
+(define-test an-observer-that-reads-the-same-signals-again-makes-no-garbage ()
+  ;; A component is described again for every frame in which its signals change, and each read
+  ;; used to make two conses.
+  (let* ((a (s:make-signal 1)) (b (s:make-signal 2)) (c (s:make-signal 3))
+         (observer (s:make-observer (lambda ()))))
+    (let ((thunk (lambda () (+ (s:value a) (s:value b) (s:value c)))))
+     (flet ((run ()
+             (s:call-observing observer thunk)))
+      (dotimes (i 100) (run))
+      (let ((before (sb-ext:get-bytes-consed)))
+        (dotimes (i 20000) (run))
+        ;; 60,000 reads. Two conses each would be 2 MB.
+        (assert-true (< (- (sb-ext:get-bytes-consed) before) 200000)
+                     (- (sb-ext:get-bytes-consed) before)))))))
+
+(define-test observers-in-any-place-of-a-signals-list-can-stop-reading-it ()
+  ;; The observers of a signal are in the order they began reading; the first, a middle one and
+  ;; the last each stop, and the others are still told, and only once.
+  (let* ((signal (s:make-signal 0))
+         (counts (make-array 4 :initial-element 0))
+         (observers (loop :for i :below 4
+                          :collect (let ((i i))
+                                     (s:make-observer (lambda () (incf (aref counts i))))))))
+    (dolist (observer observers)
+      (s:call-observing observer (lambda () (s:value signal))))
+    (setf (s:value signal) 1)
+    (assert-equalp #(1 1 1 1) counts)
+    ;; The one that read last is first in the list, then the others in turn.
+    (dolist (stopping (list (fourth observers) (second observers) (first observers)))
+      (s:call-observing stopping (lambda () nil))
+      (fill counts 0)
+      (setf (s:value signal) (1+ (s:peek signal)))
+      (assert-eql 0 (aref counts (position stopping observers))))
+    (assert-equalp #(0 0 1 0) counts)
+    ;; An observer that stopped can read it again, and is told.
+    (s:call-observing (first observers) (lambda () (s:value signal)))
+    (fill counts 0)
+    (setf (s:value signal) 100)
+    (assert-equalp #(1 0 1 0) counts)))
+
+(define-test a-run-that-reads-other-signals-moves-the-observer-to-them ()
+  (let* ((signals (loop :repeat 5 :collect (s:make-signal 0)))
+         (told 0)
+         (observer (s:make-observer (lambda () (incf told)))))
+    ;; Each run reads two of the five, walking along them, so that its spare conses are reused
+    ;; for different signals every time.
+    (dotimes (run 10)
+      (let ((read (list (nth (mod run 5) signals) (nth (mod (+ run 1) 5) signals))))
+        (s:call-observing observer (lambda () (dolist (signal read) (s:value signal))))
+        (setf told 0)
+        (loop :for signal :in signals
+              :do (setf (s:value signal) (1+ (s:peek signal))))
+        ;; Two of the five were read, so it is told twice.
+        (assert-eql 2 told run)))))

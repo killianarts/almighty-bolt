@@ -33,7 +33,10 @@
 (defstruct (observer (:constructor make-observer (on-change)) (:copier nil))
   (on-change nil :type function :read-only t)
   (sources '() :type list)
-  (disposed nil :type boolean))
+  (disposed nil :type boolean)
+  ;; Conses that a run gave up, for the next run to use: an observer that reads the same signals
+  ;; again and again (a component described again for each frame) makes no garbage by reading.
+  (spare '() :type list))
 
 (defstruct (source (:constructor nil) (:copier nil))
   (observers '() :type list))
@@ -45,11 +48,27 @@
   "A signal holding INITIAL."
   (%make-signal initial))
 
+(defun take-cons (observer value)
+  "A cons whose car is VALUE, from OBSERVER's spare ones if it has any."
+  (let ((cell (observer-spare observer)))
+    (cond (cell
+           (setf (observer-spare observer) (cdr cell)
+                 (car cell) value
+                 (cdr cell) '())
+           cell)
+          (t (list value)))))
+
 (defun track (source)
   (let ((observer *observer*))
     (when (and observer (not (observer-disposed observer)))
-      (pushnew source (observer-sources observer) :test #'eq)
-      (pushnew observer (source-observers source) :test #'eq))))
+      (unless (member source (observer-sources observer) :test #'eq)
+        (let ((cell (take-cons observer source)))
+          (setf (cdr cell) (observer-sources observer)
+                (observer-sources observer) cell)))
+      (unless (member observer (source-observers source) :test #'eq)
+        (let ((cell (take-cons observer observer)))
+          (setf (cdr cell) (source-observers source)
+                (source-observers source) cell))))))
 
 (defun notify (source)
   "Tell every observer of SOURCE that it changed."
@@ -80,10 +99,32 @@ whatever observer is running."))
   "Replace the value of SIGNAL by the result of calling FUNCTION on it."
   (setf (value signal) (funcall function (signal-%value signal))))
 
+(defun unlink-observer (source observer)
+  "Take OBSERVER out of the observers of SOURCE and return the cons that held it, or NIL."
+  (let ((cell (source-observers source)))
+    (cond ((null cell) nil)
+          ((eq (car cell) observer)
+           (setf (source-observers source) (cdr cell))
+           cell)
+          (t (loop :for previous = cell :then next
+                   :for next = (cdr previous)
+                   :while next
+                   :when (eq (car next) observer)
+                     :do (setf (cdr previous) (cdr next))
+                         (return next))))))
+
 (defun forget-sources (observer)
-  (dolist (source (observer-sources observer))
-    (setf (source-observers source) (delete observer (source-observers source) :test #'eq)))
-  (setf (observer-sources observer) '()))
+  (let ((links (observer-sources observer)))
+    (when links
+      (loop :for link :on links
+            :do (let ((cell (unlink-observer (car link) observer)))
+                  (when cell
+                    (setf (cdr cell) (observer-spare observer)
+                          (observer-spare observer) cell))))
+      ;; The conses of the list of sources are spare too.
+      (setf (cdr (last links)) (observer-spare observer)
+            (observer-spare observer) links
+            (observer-sources observer) '()))))
 
 (defun call-observing (observer thunk)
   "Call THUNK, recording what it reads as the sources of OBSERVER, in place of those of

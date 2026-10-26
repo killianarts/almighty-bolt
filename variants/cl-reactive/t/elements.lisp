@@ -216,3 +216,78 @@
     ;; Nothing the component reads changed, but describing it again puts the text back.
     (e:rebuild root)
     (assert-equal "fixed" (i:text-field-text field))))
+
+;;; --- the description of a view ---
+
+(define-test a-view-says-what-it-was-given-and-the-defaults-for-the-rest ()
+  (let ((plain (v:label "t")))
+    (assert-equal "t" (v:view-prop plain :text))
+    (assert-eql 15 (v:view-prop plain :size))
+    (assert-false (v:view-prop plain :color))
+    (assert-false (v:view-prop plain :id))
+    (assert-eql 0 (v:view-prop plain :flex))
+    (assert-true (v:view-prop plain :visible))
+    (assert-true (v:view-prop plain :enabled))
+    (assert-false (v:view-prop plain :key))
+    ;; A property that its kind does not have is nothing, not an error.
+    (assert-false (v:view-prop plain :fraction))
+    (assert-false (v:view-prop plain :no-such-property)))
+  (let ((given (v:label "u" :id :x :size 20 :color 7 :flex 2 :visible nil :enabled nil :key :k)))
+    (assert-equal "u" (v:view-prop given :text))
+    (assert-eql 20 (v:view-prop given :size))
+    (assert-eql 7 (v:view-prop given :color))
+    (assert-eql :x (v:view-prop given :id))
+    (assert-eql 2 (v:view-prop given :flex))
+    (assert-false (v:view-prop given :visible))
+    (assert-false (v:view-prop given :enabled))
+    (assert-eql :k (v:view-prop given :key)))
+  ;; Each of the four that have defaults can be the only one that differs.
+  (assert-eql 3 (v:view-prop (v:label "t" :flex 3) :flex))
+  (assert-false (v:view-prop (v:label "t" :visible nil) :visible))
+  (assert-true (v:view-prop (v:label "t" :visible nil) :enabled))
+  (assert-eql 0 (v:view-prop (v:label "t" :key 1) :flex))
+  (assert-eql 1 (v:view-prop (v:label "t" :key 1) :key))
+  (let ((progress (v:progress :fraction 1/2 :width 99)))
+    (assert-eql 1/2 (v:view-prop progress :fraction))
+    (assert-eql 99 (v:view-prop progress :width))))
+
+(define-test every-kind-of-view-keeps-the-properties-it-was-given ()
+  (let ((canvas (v:canvas :width 5 :height 6 :data :d :paint :p :on-press :a :on-move :b :on-exit :c
+                          :on-drag :e :on-release :f :on-key :g :on-text :h :on-composition :i
+                          :on-wheel :j :focusable 1)))
+    (loop :for (key value) :on '(:width 5 :height 6 :data :d :paint :p :on-press :a :on-move :b
+                                 :on-exit :c :on-drag :e :on-release :f :on-key :g :on-text :h
+                                 :on-composition :i :on-wheel :j :focusable t)
+            :by #'cddr
+          :do (assert-eql value (v:view-prop canvas key) key)))
+  (let ((field (v:text-field :value "v" :width 9 :on-change :c :on-submit :s :invalid 1)))
+    (assert-equal "v" (v:view-prop field :value))
+    (assert-eql :s (v:view-prop field :on-submit))
+    (assert-eq t (v:view-prop field :invalid)))
+  (let ((panel (v:panel (v:label "c") :all 3 :left 4 :color 8 :radius 2)))
+    (assert-eql 4 (v:view-prop panel :left))
+    (assert-eql 3 (v:view-prop panel :top))
+    (assert-eql 8 (v:view-prop panel :color))
+    (assert-eql 2 (v:view-prop panel :radius))
+    (assert-eql 1 (length (v:view-children panel))))
+  (assert-eql 2 (v:view-prop (v:slider :value 2 :minimum 0 :maximum 9 :on-change :c) :value))
+  (assert-eql 4 (v:view-prop (v:choice '("a" "b") :selected 4) :selected))
+  (assert-eql 3 (v:view-prop (v:list-box :items '(1) :selected 3 :rows 2) :selected))
+  (assert-eql :c (v:view-prop (v:row (v:label "a") :gap 5 :cross-align :c) :cross-align))
+  (assert-eql 2 (length (v:view-children (v:column (v:label "a") nil (v:label "b"))))))
+
+(define-test a-description-of-a-label-and-of-a-canvas-are-small ()
+  ;; A component is described again whenever a signal it read changes, so what a description
+  ;; allocates is paid every frame. A label is a structure of five slots and a vector of three
+  ;; (96 bytes); a canvas has fourteen properties (176). They were 290 and 670 as property lists.
+  (flet ((bytes-for (function)
+           (dotimes (i 1000) (funcall function))
+           (sb-ext:gc :full t)
+           (let ((before (sb-ext:get-bytes-consed)))
+             (dotimes (i 20000) (funcall function))
+             (/ (- (sb-ext:get-bytes-consed) before) 20000.0))))
+    (assert-true (< (bytes-for (lambda () (v:label "t" :id :a))) 130))
+    (assert-true (< (bytes-for (lambda () (v:progress :id :a :fraction 0.5 :width 100))) 110))
+    (assert-true (< (bytes-for (lambda () (v:canvas :id :a :width 5 :height 6 :data 1 :paint :p
+                                                    :on-press :q)))
+                    220))))

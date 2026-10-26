@@ -206,3 +206,48 @@ each of the two components was described."
     (text variant "x")
     (assert-equal '() events)))
 
+
+;;; --- components that are told they changed, and described again ---
+
+(define-test a-component-told-twice-before-a-frame-is-described-once ()
+  (let* ((a (s:make-signal 1))
+         (b (s:make-signal 1))
+         (runs 0)
+         (variant (show (lambda ()
+                          (v:component (lambda ()
+                                         (incf runs)
+                                         (v:label (format nil "~a ~a" (s:value a) (s:value b)))))))))
+    (assert-eql 1 runs)
+    (setf (s:value a) 2
+          (s:value b) 2)
+    (build variant)
+    (assert-eql 2 runs)
+    (assert-equal "2 2" (glyphs (build variant)))
+    ;; Nothing changed, so nothing is described.
+    (assert-eql 2 runs)))
+
+(define-test components-are-described-outermost-first-and-told-again-while-they-are ()
+  ;; The outer component reads OUTER; the inner reads INNER. Both change before the frame: the
+  ;; outer is described first, which makes a new inner (the old one is let go) that reads the
+  ;; new value, and the let-go inner is not described.
+  (let* ((outer (s:make-signal 1))
+         (inner (s:make-signal 10))
+         (order '())
+         (variant (show (lambda ()
+                          (v:padding
+                           (v:component
+                            (lambda ()
+                              (push (list :outer (s:value outer)) order)
+                              (v:column (v:component
+                                         (lambda ()
+                                           (push (list :inner (s:value inner)) order)
+                                           (v:label (format nil "~a" (s:value inner)))))
+                                        :key (s:value outer)))))))))
+    (setf order '())
+    (setf (s:value inner) 11
+          (s:value outer) 2)
+    (build variant)
+    ;; The outer first. Its column has a new key, so the inner is a new one, made with 11, and
+    ;; the old inner, which is no longer on the screen, is not described.
+    (assert-equal '((:outer 2) (:inner 11)) (reverse order))
+    (assert-equal "11" (glyphs (build variant)))))

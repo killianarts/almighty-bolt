@@ -6,7 +6,8 @@
                 #:dispose-observer)
   (:import-from #:almighty-bolt-variant-reactive/views
                 #:view-type
-                #:view-props
+                #:view-id
+                #:view-flex
                 #:view-children
                 #:view-prop)
   (:import-from #:almighty-bolt-variant-retained/theme
@@ -54,6 +55,7 @@
            #:element-node
            #:element-live-p
            #:element-depth
+           #:element-queued
            #:mount
            #:rebuild
            #:unmount))
@@ -68,9 +70,16 @@
 ;;; the node. A COMPONENT element also owns an observer, which tells the variant, through
 ;;; SCHEDULE, that it must be described again when a signal it read changes.
 
-(defstruct (element (:constructor %make-element (view parent owner schedule)) (:copier nil))
+(defstruct (element (:constructor %make-element
+                        (view parent owner schedule
+                         &aux (depth (if parent (1+ (element-depth parent)) 0))))
+                    (:copier nil))
   (view nil)
   (parent nil)
+  ;; How many elements are above this one, which says which of two to describe again first.
+  (depth 0 :type fixnum :read-only t)
+  ;; True while the variant has this element in the list of those to describe again.
+  (queued nil :type boolean)
   ;; The component that this element is part of, which is described again to change it.
   (owner nil)
   (schedule nil :type function :read-only t)
@@ -85,11 +94,6 @@
 
 (defun element-live-p (element)
   (element-live element))
-
-(defun element-depth (element)
-  (loop :for e = (element-parent element) :then (element-parent e)
-        :while e
-        :count t))
 
 (defun element-node (element)
   "The retained node ELEMENT shows: its own, or that of a component's one child."
@@ -251,22 +255,23 @@ changed."
 a view that differs in one of them is a different node.")
 
 (defun same-structure-p (type old new)
-  (every (lambda (key) (equal (getf old key) (getf new key)))
-         (rest (assoc type +structure+))))
+  "True if the views OLD and NEW agree on the properties of TYPE that a node is made with."
+  (loop :for key :in (rest (assoc type +structure+))
+        :always (equal (view-prop old key) (view-prop new key))))
 
 (defun update-node (element old-view new-view)
   "Change the node of ELEMENT from what OLD-VIEW made it to what NEW-VIEW says. Returns
 false, having changed nothing, if it cannot be done (the node must be made again)."
   (let* ((node (element-own-node element))
          (type (view-type new-view))
-         (old (view-props old-view))
-         (new (view-props new-view)))
-    (flet ((p (key) (getf new key)))
+         (old old-view)
+         (new new-view))
+    (flet ((p (key) (view-prop new-view key)))
       (unless (same-structure-p type old new)
         (return-from update-node nil))
-      (unless (eql (getf old :id) (p :id))
+      (unless (eql (view-id old-view) (p :id))
         (setf (node-id node) (p :id)))
-      (unless (eql (getf old :flex) (p :flex))
+      (unless (eql (view-flex old-view) (p :flex))
         (setf (node-flex node) (float (p :flex) 1f0))
         (touch node t))
       (unless (eq (node-visible node) (and (p :visible) t))
@@ -279,12 +284,12 @@ false, having changed nothing, if it cannot be done (the node must be made again
         (:label
          (unless (string= (label-text node) (p :text))
            (setf (label-text node) (p :text)))
-         (unless (eql (p :color) (getf old :color))
+         (unless (eql (p :color) (view-prop old-view :color))
            (setf (label-color node) (or (p :color) +text-color+))))
         (:paragraph
          (unless (string= (paragraph-text node) (p :text))
            (setf (paragraph-text node) (p :text)))
-         (unless (eql (p :color) (getf old :color))
+         (unless (eql (p :color) (view-prop old-view :color))
            (setf (paragraph-color node) (or (p :color) +text-color+))))
         (:button
          (unless (string= (button-text node) (p :text))

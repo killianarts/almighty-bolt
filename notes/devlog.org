@@ -1465,3 +1465,13 @@ being the line's own arrays; an editor event typing prose: 365 to 149 us and 3.3
 1.8, 2.9, 1.8 KB (retained, reactive, immediate). The buffer is not for two threads at once, as the
 line cache is not. The glyph-fonts array (8 bytes a glyph, mostly the same font) is the next thing
 in a line, and needs the representation of a line changed.
+Reactive: attributing the dashboard's 27.6 KB a frame to functions (73 components described again,
+380 bytes each) showed a view's common properties (5 pairs, 160 bytes) and its property list (96
+bytes for a label, 480 for a canvas) as the biggest parts. A view now has id, children and type in
+slots, flex, visible, enabled and key in one vector that is NIL when they are the defaults, and the
+properties of its kind in a vector in the order of +layouts+; the components to describe again are
+two vectors that are swapped (a flag on each element, and its depth kept) in place of a list that
+was copied and sorted; and an observer reuses the conses of the signals it read the last time.
+Dashboard 27.6 KB to 9.4 KB a frame; an arrow key in the editor 1.5 KB to 0.6 KB; typing prose 2.9
+KB to 2.2 KB. A canvas that replaces the root of the tree is still not followed by the retained
+variant that holds it (a test found it, and it was so before).

@@ -128,9 +128,15 @@ includes the handling of events; see below):
   They are looked up once now (and again when an image starts) and the array is
   kept. Shaping 37 characters went from 2.4 KB to 0.9 KB, which is the line's
   own arrays, and typing prose to 1.8, 2.9 and 1.8 KB an event and from 365 to
-  149 us. What is left of an event is the reactive variant's descriptions of the
-  views (a view is a structure and a property list of about 300 bytes, which is
-  why its dashboard conses 27.5 KB a frame).
+  149 us. The reactive variant's descriptions of views were a structure and a
+  property list of about 300 bytes each, made again whenever a signal changes,
+  and its dashboard consed 27.5 KB a frame. A view keeps what every kind has in
+  slots (and the flex, visibility, enablement and key, which are nearly always
+  the defaults, in one vector that is absent then), what its kind has in a
+  vector in a fixed order, and the list of components to describe again and the
+  conses of tracking what a component read are used again: a label is 96 bytes,
+  a canvas 176, the dashboard's frame 9.4 KB and an arrow key in the editor 0.6
+  KB (from 1.5).
 
 In a window, from outside (executables made by =make image=; 5 launches; ten
 seconds after the first frame, or after it was quiet):

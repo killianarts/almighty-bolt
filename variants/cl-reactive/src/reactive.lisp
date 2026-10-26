@@ -17,7 +17,8 @@
                 #:rebuild
                 #:element-node
                 #:element-live-p
-                #:element-depth)
+                #:element-depth
+                #:element-queued)
   (:import-from #:almighty-bolt-variant-retained/retained
                 #:make-retained-variant
                 #:retained-variant-session
@@ -42,8 +43,11 @@
 (defclass reactive-variant (variant)
   ((inner :initarg :inner :accessor reactive-variant-inner)
    (root :accessor root)
-   ;; The components told that a signal they read changed, since they were last described.
-   (dirty :initform '() :accessor dirty)
+   ;; The components told that a signal they read changed, since they were last described: a
+   ;; vector that is filled and emptied again and again, and the one that is not being filled
+   ;; while the others are described, so that none of it is made again in a frame.
+   (dirty :initform (make-array 16 :adjustable t :fill-pointer 0) :accessor dirty)
+   (describing :initform (make-array 16 :adjustable t :fill-pointer 0) :accessor describing)
    (tickers :initform '() :accessor tickers)
    (context :initform nil :accessor context)
    ;; True while an event or a frame is being handled, when asking for a frame is the
@@ -57,7 +61,9 @@ described again whenever a signal it read changes."
   (let* ((variant (make-instance 'reactive-variant))
          (root (mount (component thunk) nil nil
                       (lambda (element)
-                        (pushnew element (dirty variant) :test #'eq)
+                        (unless (element-queued element)
+                          (setf (element-queued element) t)
+                          (vector-push-extend element (dirty variant)))
                         ;; A signal written outside an event or a frame asks for one.
                         (when (and (context variant) (not (busy variant)))
                           (request-frame (context variant)))))))
@@ -79,13 +85,21 @@ signals. If it returns true another frame is asked for."
   "Describe again every component that was told it changed, outermost first, and the ones
 that doing so tells in turn, until none is left."
   (loop :repeat 50
-        :while (dirty variant)
-        :do (let ((batch (sort (copy-list (dirty variant)) #'< :key #'element-depth)))
-              (setf (dirty variant) '())
-              (dolist (element batch)
-                (when (element-live-p element)
-                  (rebuild element)))))
-  (when (dirty variant)
+        :while (plusp (length (dirty variant)))
+        :do (let ((batch (dirty variant)))
+              ;; What describing these tells goes in the other vector.
+              (setf (dirty variant) (describing variant)
+                    (describing variant) batch)
+              (sort batch #'< :key #'element-depth)
+              (dotimes (i (length batch))
+                (setf (element-queued (aref batch i)) nil))
+              (unwind-protect
+                   (dotimes (i (length batch))
+                     (let ((element (aref batch i)))
+                       (when (element-live-p element)
+                         (rebuild element))))
+                (setf (fill-pointer batch) 0))))
+  (when (plusp (length (dirty variant)))
     (error "The components do not settle: they keep changing the signals they read.")))
 
 (defmethod frame ((variant reactive-variant) context list)
@@ -113,7 +127,7 @@ that doing so tells in turn, until none is left."
   (let ((changed (unwind-protect (handle-event (reactive-variant-inner variant) event)
                    (setf (busy variant) nil))))
     ;; What a handler did to the signals needs a frame, whether or not a node changed.
-    (or changed (and (dirty variant) t))))
+    (or changed (plusp (length (dirty variant))))))
 
 (defmethod hit-target ((variant reactive-variant) x y)
   (hit-target (reactive-variant-inner variant) x y))
