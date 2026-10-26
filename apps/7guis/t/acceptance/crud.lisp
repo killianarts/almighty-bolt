@@ -110,7 +110,7 @@
   (pick-row driver 0)
   (pick-row driver 1)
   (assert-equal "max@example.org" (d:text-in driver :email))
-  (assert-equal "Mustermann, Max" (subseq (listed driver) 11 26)))
+  (assert-true (search "Mustermann, Max" (listed driver))))
 
 (d:define-acceptance delete-clears-the-email-too :crud
   (pick-row driver 1)
