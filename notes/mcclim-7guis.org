@@ -1,0 +1,149 @@
+#+TITLE: Three 7GUIs apps in McCLIM: does its presentation layer take the wiring away
+
+=notes/mcclim-stress-apps.org= found that McCLIM's own gadgets are as long and as wired as our
+retained variant, and that the stress apps never used the layer that makes
+=other-frameworks/task-board.lisp= nice: presentations, translators, commands with typed
+arguments, =accept= and =updating-output=. Micah asked for the 7GUIs apps that have objects and
+operations on them (the crud, the circle drawer, the flight booker) in McCLIM, so that the layer
+is used. The apps already exist in the three variants, with tests, sizes and the change-cost
+edits, so only the McCLIM side is built. This file says what is built, how it is counted and
+what I expect, before any of it is written. Written 2026-10-27 on the branch =mcclim=, from
+=98a5274=.
+
+* What I settled first, in the scratchpad (McCLIM master =dcde4bc=, the null port)
+Five mechanisms whose answers change what the apps can be, found by trying them (and, where
+said, by reading the source) and not by recall.
+- A =blank-area= translator is given the click's =x= and =y= (a click at 250 gave 249: the
+  coordinates of the pane, one off in my injected event, which I take for my event and not
+  for McCLIM). A click on a presentation that has no translator for the gesture falls through to the
+  =blank-area= translator of the pane, so "a click on a circle draws nothing" needs a tester on
+  the translator or a translator on the circle.
+- A translator bound to =:gesture :menu= fires its command directly on a right click: there is no menu
+  to choose from, which is what the circle drawer's secondary button wants. (A =blank-area=
+  translator with =:menu t=, its default, would be in the menu that a right click on empty ground
+  makes; so it needs =:menu nil=.)
+- A =defstruct= is not a presentation type (a =defclass= is: =task-board.lisp= has none to
+  define); every shared model here is a =defstruct=, so each type that is presented needs one
+  =define-presentation-type=.
+- An =:accept-values= pane in the layout of a frame keeps its fields on the screen next to the
+  other panes (=Examples/av-dingus.lisp=): its display function calls =accept= and puts what it
+  returns in slots, and =accept-values-command-button= makes a button. =accept= makes a gadget
+  by the type: a =completion= is an option pane, a =boolean= a toggle button, a real with
+  bounds a slider, a string a text field, and anything else (a type of mine) a text input editor
+  that draws its text in another ink when it does not parse. (The mapping of types to gadgets is read
+  from =compute-default-gadget-view=; what I saw running is the =member= as an option pane and the
+  date field's box.)
+- An =accepting-values :own-window t= dialog opens as a frame of its own on the null port, and
+  can be closed from outside; run by the command in the frame's thread it blocks that thread,
+  which is what a modal dialog is.
+
+* What is built
+One package and one file for each, in =apps/7guis/<task>/mcclim*.lisp=, in a system of its own,
+=almighty-bolt-7guis/mcclim=, which =make test= and =make image= never load, and not registered
+with the variants' registry. The models are shared as they are (=crud/model=, =flight/model=,
+=circles/model=, including the undo of the circle drawer, which is the model's and not McCLIM's);
+the circle painter pushes to our display list and cannot be, so the McCLIM circles draw
+themselves.
+- *Crud, with the layer* (=crud/mcclim.lisp=): the entries are presented, each as an object of type
+  =entry=, in a pane whose display function uses =updating-output= keyed by the entry's id; a
+  click is a translator to =com-pick=; the filter, the name and the surname are in an
+  =:accept-values= pane, with Create, Update and Delete as command buttons; the state is in
+  slots of the frame.
+- *Crud, with gadgets* (=crud/mcclim-gadgets.lisp=): a =list-pane=, three =text-field= gadgets and
+  three =push-button= gadgets, with callbacks. The same library in its other architecture, as the
+  dashboard was, and the only twin: the other two apps would need a pane subclass with a
+  =handle-event= method to be written with gadgets (a canvas of circles, a form that paints a field red), which the line below does not
+  allow.
+- *Flight booker, with the layer* (=flight/mcclim.lisp=): an =:accept-values= pane: the kind a
+  =(member :one-way :return)=, the dates of a presentation type =flight-date= whose =accept=
+  method calls the shared =parse-date= and whose =present= method calls =format-date=, a Book
+  command button, and the message.
+- *Circles, with the layer* (=circles/mcclim.lisp=): a pane whose display function presents each
+  circle (type =circle=, drawn with =draw-circle*=) under =updating-output=; a =blank-area=
+  translator to =com-draw= with the click's place; a translator on =circle= with =:gesture :menu=
+  to =com-adjust=, which opens =accepting-values :own-window= with =(accept '(integer 5 200))=
+  (a slider) and, when it is accepted, does one =drawing-resize=; =com-undo= and =com-redo= in a
+  =:command-menu= pane.
+
+* The line, as for the stress apps
+Allowed: everything McCLIM exports and documents, used as documented: commands, translators,
+presentation types, =accept=, =accepting-values=, =updating-output=, gadgets, drawing in a display
+function. A presentation type for the dates, whose methods call the shared =parse-date=, is the
+vocabulary of the app, which is what presentation types are for, and so is allowed; it is listed here and its
+lines are counted in the app. Not allowed: a new gadget or pane class, a =handle-event= method, a
+patch to McCLIM, an undo that is not the model's. =updating-output= is used where there is
+something to keep (the crud's list and the circles), and not elsewhere. Where a part of an app cannot be
+done with this, it stays undone and is said so.
+
+* How it is counted
+- Size by =scripts/mcclim-size.lisp= extended to the 7GUIs paths: lines, tokens (the whole file and
+  after the first form), concepts (the symbols imported from the CLIM packages), with our
+  variants' files next to them, and for the circles with =circles/paint.lisp= (36 lines)
+  added to each variant's, because McCLIM draws in its own file.
+- *Wiring* is the lines whose only job is to keep what is shown in step with the model: handles to
+  widgets kept to be changed later; what sets a widget's text, selection, enabled state or look
+  from the state outside the place where the widget is described; callbacks and handlers that
+  only copy a value between a widget and the state; signals, components and subscriptions made
+  to carry a change. Not counted: the model's operations and their calls, the layout, the
+  predicates that say whether something is valid (called where the widget is described, they are
+  the description), and what handles an event by changing the model. The same rule is applied by
+  reading to the five McCLIM apps and to our nine files of these three tasks, and the lines
+  counted are listed in the results. It is a reading, and the author of the apps reads them.
+- Sizes and wiring are reported only next to the *spec map*: the acceptance tests of each task
+  (=apps/7guis/t/acceptance/=: 10 for the crud, 9 for the flight booker, 13 for the circles),
+  each marked met, met differently (said how) or not met, for each McCLIM version. A version that
+  is shorter because it does not grey out Update is not a saving, so a size is compared only for the
+  tests that both sides meet.
+- McCLIM-side tests (lisp-unit2, McCLIM's null port, in a system of their own): that the display
+  makes presentations of the right type and object, found by walking the output records; the
+  commands called directly; that a translator applies, by McCLIM's own query for the applicable
+  ones; the models' behaviour already has its tests. A click with an injected pointer event
+  through the frame's loop on the null port, and once on XQuartz (an event injected into McCLIM's
+  queue, not one from X: there is no tool here to click an X window) with a screenshot, for each app. The
+  dialog's body is tested apart if the own-window dialog cannot be run headless.
+- No cost is measured: these are not stress apps.
+
+* What I expect
+Written before the apps, so that it can be wrong.
+** The spec map
+| task    | version | met | met differently | not met |
+|---------+---------+-----+-----------------+---------|
+| crud    | gadgets |  10 |               0 |       0 |
+| crud    | layer   |   8 |               2 |       0 |
+| flight  | layer   |   5 |               4 |       0 |
+| circles | layer   |   7 |               3 |       3 |
+- Crud with the layer, differently: Update, Delete and Create are not on the screen when they could not be
+  pressed (a command button that is not displayed, and not one that is grey): 2 tests.
+- Flight: the return field is not shown for a one-way flight (and not greyed), Book is not
+  shown when the flight is invalid (4 tests among those about what cannot be used); "an invalid date
+  looks different" is met by McCLIM's own ink, which may not be red; "changing anything clears the
+  message" is met only with a few lines that notice the change.
+- Circles, differently: the circle under the pointer is not grey but is highlighted by McCLIM's own
+  presentation highlight; the dialog is a window of its own and modal, with OK and Cancel, and not a
+  scrim over the canvas. Not met: the diameter does not change live behind the dialog (the dialog is
+  modal and nothing redisplays under it), clicking away does not close the dialog and keep the change,
+  and "the canvas takes no clicks while the dialog is open" is met only if a click on the other window is
+  not queued (it may be handled after the dialog closes; if it is, it is not met).
+** Size and wiring
+- Crud with the layer is shorter than the immediate crud (77 lines) by 15 to 30 %, with 4 to 6 lines of
+  wiring (the pick copies the entry into the two fields, and the filter's change must redisplay the list); the gadget version is 85 to 100
+  lines, like the retained crud (97), with 14 to 18 lines of wiring (setting the list's items, the
+  fields, the buttons' =gadget-active-p=).
+- Flight with the layer: 40 to 50 lines with the date type (about 25 without it), against 54 to
+  62 of ours: the parsing, the choice and the invalid look are McCLIM's; 2 to 4 lines of wiring (the message).
+- Circles with the layer: 60 to 80 lines, against 87 (immediate) plus 36 (the painter): 35 to 50 % shorter,
+  and it is the dialog (=accept= of a bounded integer is a slider) and the translators that make
+  it so; 3 to 6 lines of wiring (the command menu's enabled state after each change).
+- So: with the layer the wiring is about a quarter of the gadget version's or less, and the apps are
+  shorter than our immediate variant's by what McCLIM does for them (parse, validate, choose, draw
+  a dialog), and they meet less of the spec, by the table above. What would show me wrong: the
+  layer's crud no shorter than our immediate crud, its wiring over half of the gadget version's, or the
+  spec met in fewer than the table says by a wide margin (then the layer is not as ready as I think).
+
+* The edits
+The change-cost edits E1 (an Email field in the crud), E2 (an optional return date), E4 (hide
+the filter) and E5 (a dialog in two columns) are aimed at these three apps, and applying them to the
+McCLIM versions would be the change-cost test of the layer. That is not part of this; it is offered.
+
+* Reporting
+Results below this line, appended after the runs, with what was wrong in the expectations above.
