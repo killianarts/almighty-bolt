@@ -1,6 +1,6 @@
 #+TITLE: 0023 — Instrumentation and metrics: phases, settling, images, idle, memory
 #+DATE: 2026-10-26
-- Status :: proposed
+- Status :: accepted (Micah, 2026-10-27)
 
 * Context
 Step 1 of Phase 3. The harness of 0021 timed only the variant's build, in a loop
