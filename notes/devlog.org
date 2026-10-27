@@ -1585,3 +1585,33 @@ dashboard's four commands that differ across variants (it never calls =push-uncl
 wrote the variants, the apps and these changes. 0025 stays proposed until Micah says (b) is
 declined.
 
+* 2026-10-27 — The editor's keyboard, and E4 with a real checkbox
+** What I did
+- Micah found that the editor took no keys until it was clicked (Japanese input worked after).
+  There were two causes. Nothing in the tree had the keyboard: no test could see it, because every
+  editor acceptance test began with a click; a test with no click failed in the three variants,
+  and a canvas option =:autofocus= fixed it (d367f17). And the window opened inactive when the
+  program was started from a terminal: in a scripted window the view was already the first
+  responder, but the window was not the key window and the application not the active one; macOS
+  14's =activate= did not change that and the deprecated =activateIgnoringOtherApps:= did
+  (6470505; =make 7guis-smoke= now says whether a key would reach the app). The first is shown by
+  the tests; the second by the smoke run, which depends on the session, so Micah has to reopen the
+  editor and type before clicking to confirm that it is fixed.
+- Micah: E4 should use a real checkbox. Written first (notes/change-cost.org), then a checkbox in
+  each variant as library code with tests (retained 54 lines of source, reactive 14, immediate
+  53), then E4 on a branch with the acceptance tests first (12 failing) and the apps in the order
+  immediate, reactive, retained. Record 0029 proposed; results/20261027-e4-checkbox.txt.
+- Micah on the usability rubric: too early for a firm judgement; leaning towards immediate mode but
+  wants to see more. It stays unscored, and this is not a decision on the variant.
+** What I measured
+E4 with the checkbox, in lines of code changed: the shared tests 24, the immediate app 12, the
+reactive 12, the retained 22. The reactive library came out one line under what I expected
+(14 against 15 to 30); every other number was in its range, and none of the three conditions I
+wrote down as making the expectation wrong held.
+** Read with care
+The base is the current tree (the retained apps 15 lines longer since the macro port), so these
+numbers are not like for like with 0024's table; the comparison that is valid is between the
+three variants. The choice made again on this base would tell the checkbox's effect from the
+port's, and is not done. The checkbox's mark is a filled square. One author wrote the variants,
+the widgets and the edit.
+

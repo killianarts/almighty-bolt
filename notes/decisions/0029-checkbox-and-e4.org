@@ -1,0 +1,81 @@
+#+TITLE: 0029 — A checkbox in each variant, and E4 made again with it
+#+DATE: 2026-10-27
+- Status :: proposed
+
+* Context
+0024 made E4 (hide the CRUD's filter row behind a switch) with a choice of two
+options, because no variant had a checkbox, and said a real one would be library
+work in each variant and a change-cost datum of its own. Micah, 2026-10-27: E4
+should use a real checkbox. The method, the interface of the widget, the base
+and what I expected were committed before any code (=notes/change-cost.org=,
+61bb500).
+
+* What was done
+- A checkbox in each variant, one commit each, with tests: retained 8671821,
+  reactive 70b01d9, immediate b39b437. A box with a label; a click on the box or
+  the label that ends over it, or the space bar with the keyboard, changes it;
+  Tab reaches it, a ring shows the keyboard, a disabled one takes nothing.
+  Retained: =(checkbox label :id :checked :on-change)= and =checkbox-checked=.
+  Reactive: =(checkbox label :id :checked :on-change)=, the app owning the state
+  and a refused change undone. Immediate: =(checkbox id label checked)=
+  returning =(values checked changed)=. The mark is a filled square in the box,
+  not a tick. The behaviour was broken on purpose in six places (the space bar,
+  a release outside, the controlled handler, the state written back, a press
+  outside, the mark) and a test failed each time; nothing used the widgets, and
+  the 168 frame hashes of the ten apps were the same.
+- E4 on the branch =change-cost/e4-checkbox= (3c7eb8a, from b39b437), not
+  merged, as the other edits are not: the four acceptance tests first (3 failed
+  and 9 errored in the three variants), then the apps in the order immediate,
+  reactive, retained; the window 40 points taller. Patches in
+  =results/change-cost/e4-checkbox/=; =results/20261027-e4-checkbox.txt= has the
+  tables.
+
+* Evidence
+Lines of code (=scripts/diff-size.lisp=), the library of each variant and then
+the edit:
+  |           | library | its tests | the edit | predicted (library, edit) |
+  |-----------+---------+-----------+----------+---------------------------|
+  | retained  |      54 |        66 |       22 | 50-70, 18-25              |
+  | reactive  |      14 |        41 |       12 | 15-30, 12-18              |
+  | immediate |      53 |        67 |       12 | 35-55, 10-14              |
+The shared tests are 24 lines (predicted 18 to 24).
+- Every number fell in the range I wrote down but one: the reactive library is
+  14, one under. None of the three conditions that I wrote down as making the
+  expectation wrong held: the reactive library is not larger than the immediate
+  one, the immediate edit is not larger than the retained one, and no edit is
+  over 26 lines.
+- The edit is 12 lines in the reactive and immediate variants and 22 in the
+  retained: the retained one needs a handle on the row to hide it (a variable
+  for the row and one for the checkbox, =node-visible=, and the list rewritten
+  when it changes), and the other two say =(when on ...)= where the row is.
+- The reactive checkbox is small because the retained node does the work: a
+  view, an element and two property tables. The retained and immediate ones are
+  the same size, 54 and 53, for different work: a node with layout, painting,
+  pointer and keys; and a kind of box with layout, painting and events.
+
+* Decision
+Proposed: H2 stays OPEN. The checkboxes stay in the libraries (they are product
+code and are on phase-2). What the edit shows is one more edit of the 7GUIs kind
+in which the immediate and reactive variants cost the same and the retained one
+costs about twice as much, which is what the five edits of 0024 leaned towards.
+
+Proposed, for Micah to choose (the edit is on the branch
+=change-cost/e4-checkbox=, local and not pushed):
+- (a) Keep the edit on the branch as evidence, as the other five are. I
+  recommend this.
+- (b) Merge it into the three CRUD apps, so that the apps of record have the
+  checkbox. This changes their sizes again (every size quoted in 0024, 0025 and
+  0026 would be quoted before and after) and the window of the CRUD app.
+- (c) Make E4 with the choice again on this base, so that the effect of a real
+  checkbox can be told from the effect of the macro port: the numbers above are
+  not like for like with 0024's table, because the retained apps are 15 lines
+  longer since 0026.
+
+* Consequences
+- Easier: every variant has a checkbox, with the same behaviour, and later apps
+  can use it; a sixth edit has a base with a widget in it.
+- Harder: three more widgets to keep, 54, 14 and 53 lines, and their tests, 66,
+  41 and 67; the painting of the mark is the same three times.
+- Open: a tick instead of a filled square; whether the checkbox takes the
+  keyboard on a click (the three do not, as the choice does not); one author
+  wrote the variants, the widgets and the edit.

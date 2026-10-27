@@ -1,0 +1,46 @@
+diff --git a/apps/7guis/crud/immediate.lisp b/apps/7guis/crud/immediate.lisp
+index bb37e89..5090793 100644
+--- a/apps/7guis/crud/immediate.lisp
++++ b/apps/7guis/crud/immediate.lisp
+@@ -19,6 +19,7 @@
+                 #:column
+                 #:row
+                 #:text-field
++                #:checkbox
+                 #:list-box)
+   (:import-from #:almighty-bolt-variant-immediate/immediate
+                 #:make-immediate-variant)
+@@ -33,20 +34,25 @@
+ (defun make-crud ()
+   (let ((entries (make-entries '("Hans" "Emil") '("Max" "Mustermann") '("Roman" "Tisch")))
+         (filter "")
++        (filter-on t)
+         (picked nil)
+         (name "")
+         (surname ""))
+     (make-immediate-variant
+      (lambda ()
+-       (let* ((shown (entries-filtered entries filter))
++       (let* ((shown (entries-filtered entries (if filter-on filter "")))
+               (picked-entry (find picked shown :key #'entry-id)))
+          (padding (:all 20)
+            (column (:gap 14)
++             (multiple-value-bind (on changed) (checkbox :filter-switch "Filter" filter-on)
++               (when changed
++                 (setf filter-on on)))
++             (when filter-on
+                (row (:gap 10 :cross-align :center)
+                  (label "Filter prefix:")
+                  (multiple-value-bind (text changed) (text-field :filter filter :width 160)
+                    (when changed
+-                   (setf filter text))))
++                     (setf filter text)))))
+              (row (:gap 20)
+                (multiple-value-bind (index changed)
+                    (list-box :list (mapcar #'entry-display shown)
+@@ -81,4 +87,4 @@
+                        name ""
+                        surname ""))))))))))
+ 
+-(register-app :immediate :crud #'make-crud :width 640 :height 280)
++(register-app :immediate :crud #'make-crud :width 640 :height 320)
