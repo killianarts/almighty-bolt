@@ -1,6 +1,7 @@
 #+TITLE: 0028 — 7GUIs apps in McCLIM: the presentation layer and wiring
 #+DATE: 2026-10-27
-- Status :: proposed
+- Status :: accepted (Micah, 2026-10-27), option (b): kept on this branch
+- Note :: no more McCLIM work unless Micah asks; not merged into phase-2
 
 * Context
 0027 found McCLIM's gadgets as long and as wired as our retained variant, and

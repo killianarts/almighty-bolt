@@ -1,6 +1,7 @@
 #+TITLE: 0027 — McCLIM: the stress apps built with what it comes with
 #+DATE: 2026-10-26
-- Status :: proposed
+- Status :: accepted (Micah, 2026-10-27), option (b): kept on this branch
+- Note :: no more McCLIM work unless Micah asks; not merged into phase-2
 
 * Context
 Micah asked for the three stress apps in McCLIM, built with the tools that

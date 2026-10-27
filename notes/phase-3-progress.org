@@ -39,20 +39,17 @@ its own; result records already hold the machine profile.
 * Review queue
 (records proposed in this run)
 - 0028 7GUIs in McCLIM (branch =mcclim=, not merged): the presentation layer has the least wiring but not by
-  much over our immediate variant, and is longer; H2 stays open; the same choice as 0027, and whether to
-  apply the change-cost edits to the McCLIM versions.
+  much over our immediate variant, and is longer; H2 stays open. Accepted (Micah, 2026-10-27), option
+  (b): kept on the branch; the change-cost edits are not made on the McCLIM versions.
 - 0027 McCLIM (branch =mcclim=, not merged): the stress apps built with what McCLIM comes with, and the
-  answer to why its API is nice; H2 stays open; merge, keep on the branch, or optional dependency.
+  answer to why its API is nice; H2 stays open. Accepted (Micah, 2026-10-27), option (b): kept on the
+  branch. Micah: no more McCLIM work unless asked; McCLIM comes back in a comprehensive comparison.
 - 0025 Stress apps (step 3): H1 and H3 stay open; three small interface changes for Micah to choose.
 - 0024 Change cost and size (step 2): H2 stays open; the method is the protocol.
 - 0023 Instrumentation and metrics (step 1): the instrumentation is a run-time flag, not a build-time
   switch; executables per variant; the protocol of the metrics.
 
 * Open decisions for Micah
-- 0028: with 0027, merge or keep on the branch; and say if E1, E2, E4 and E5 are to be applied to the McCLIM
-  versions of the crud, flight booker and circles.
-- 0027: merge the McCLIM apps, tests and scripts onto =phase-2= (=make deps= then fetches McCLIM, 80 MB;
-  =make test= is untouched), keep them on the branch =mcclim=, or merge with the dependency optional.
 - 0023: instrumentation switched on at run time (a flag in the context), not at build time as the
   charter says. Measured cost: 40 to 230 ns a frame.
 - Step 2, E4: no variant has a checkbox, so the switch is a two-option choice standing where a
