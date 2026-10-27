@@ -57,14 +57,42 @@
                                (support:make-test-context))))
     (assert-eql (player:replay-result-frames measured) (length (player:replay-result-samples measured)))
     (assert-true (every (lambda (sample)
-                          (destructuring-bind (nanoseconds builds bytes) sample
-                            (and (>= nanoseconds 0) (>= builds 1) (>= bytes 0))))
+                          (destructuring-bind (nanoseconds builds bytes event-ns event-bytes events)
+                              sample
+                            (and (>= nanoseconds 0) (>= builds 1) (>= bytes 0)
+                                 (>= event-ns 0) (>= event-bytes 0) (>= events 0))))
                         (player:replay-result-samples measured)))
     (assert-true (>= (player:replay-result-bytes measured) 0))
     (assert-true (>= (player:replay-result-gc-ns measured) 0))
     (assert-eql 0 (length (player:replay-result-samples plain)))
     ;; Measuring changes nothing a script can see.
     (assert-equalp (player:replay-result-hashes measured) (player:replay-result-hashes plain))))
+
+(defclass slow-handler-variant (support:button-variant) ()
+  (:documentation "A button whose HANDLE-EVENT takes about two milliseconds."))
+
+(defmethod variant:handle-event :before ((variant slow-handler-variant) event)
+  (declare (ignore event))
+  (sleep 0.002))
+
+(define-test a-measured-frame-carries-the-time-and-the-number-of-the-events-before-it ()
+  (let* ((result (player:replay (click-script) (make-instance 'slow-handler-variant)
+                                (support:make-test-context) :measure t))
+         (samples (coerce (player:replay-result-samples result) 'list)))
+    ;; The first frame has no events before it; each of the three that follow has the move and
+    ;; the press that asked for it (and, after the first, the release before the move).
+    (assert-equal '(0 2 3 3) (mapcar #'sixth samples))
+    (loop :for sample :in (rest samples)
+          :do (destructuring-bind (frame-ns builds bytes event-ns event-bytes events) sample
+                (declare (ignore builds bytes event-bytes))
+                (assert-true (>= event-ns (* events 1800000)) sample)
+                ;; What the events took is not in what the frame took.
+                (assert-true (< frame-ns 1800000) sample)))))
+
+(define-test an-unmeasured-replay-delivers-the-same-events ()
+  (let ((variant (make-instance 'slow-handler-variant)))
+    (player:replay (click-script) variant (support:make-test-context))
+    (assert-eql 3 (support:button-count variant))))
 
 (define-test the-frames-differ-when-the-state-does ()
   (let* ((result (player:replay (click-script) (make-instance 'support:button-variant)

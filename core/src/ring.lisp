@@ -29,6 +29,8 @@
            #:frame-paint-ns
            #:frame-gpu-ns
            #:frame-all-builds-ns
+           #:frame-events-ns
+           #:frame-events
            #:map-frames))
 
 (in-package #:almighty-bolt-core/ring)
@@ -45,8 +47,10 @@
 ;;; spent in garbage collection, the time of the first build (the rest of the build time is
 ;;; the cost of settling), the time the variant spent in its update, layout and paint phases,
 ;;; the GPU's time for the frame before, the time of all the builds (the host's build time also
-;;; has what the settle loop itself costs), and a word not yet used. When the ring is full the
-;;; oldest record is overwritten.
+;;; has what the settle loop itself costs), and the events: the time the variant spent handling
+;;; the events delivered since the frame before and how many there were (they share a word, the
+;;; time in its low 40 bits, 18 minutes, and the count above). When the ring is full the oldest
+;;; record is overwritten.
 ;;;
 ;;; SB-EXT:GET-BYTES-CONSED only advances when an allocation region is closed
 ;;; (tens of kilobytes at a time), so one frame's consing reads as zero or as a
@@ -55,6 +59,9 @@
 (deftype u64 () '(unsigned-byte 64))
 
 (defconstant +words-per-record+ 16)
+(defconstant +events-ns-bits+ 40)
+(defconstant +events-ns-mask+ (1- (ash 1 +events-ns-bits+)))
+(defconstant +events-mask+ (1- (ash 1 (- 64 +events-ns-bits+))))
 
 (defstruct (frame-ring (:constructor %make-frame-ring (capacity data)))
   (capacity 1 :type (integer 1 #.(floor array-dimension-limit +words-per-record+))
@@ -121,11 +128,15 @@ how many times the variant built it, and CAPPED whether the settle cap was hit."
 
 (declaim (inline record-frame-details))
 (defun record-frame-details (ring &key (gc-ns 0) (first-build-ns 0) (update-ns 0) (layout-ns 0)
-                                    (paint-ns 0) (gpu-ns 0) (all-builds-ns 0))
-  "Set the words after the first eight of the record that RECORD-FRAME wrote last. Does not
-allocate."
+                                    (paint-ns 0) (gpu-ns 0) (all-builds-ns 0) (events-ns 0)
+                                    (events 0))
+  "Set the words after the first eight of the record that RECORD-FRAME wrote last. EVENTS-NS and
+EVENTS are the time the variant spent handling the events delivered since the frame before, and
+how many there were; a time past 18 minutes or a count past 16 million is kept as that. Does
+not allocate."
   (declare (type frame-ring ring)
-           (type u64 gc-ns first-build-ns update-ns layout-ns paint-ns gpu-ns all-builds-ns))
+           (type u64 gc-ns first-build-ns update-ns layout-ns paint-ns gpu-ns all-builds-ns
+                 events-ns events))
   (let* ((capacity (frame-ring-capacity ring))
          (head (frame-ring-head ring))
          (last (if (zerop head) (1- capacity) (1- head)))
@@ -138,7 +149,8 @@ allocate."
           (aref data (+ base 12)) paint-ns
           (aref data (+ base 13)) gpu-ns
           (aref data (+ base 14)) all-builds-ns
-          (aref data (+ base 15)) 0)
+          (aref data (+ base 15)) (logior (min events-ns +events-ns-mask+)
+                                          (ash (min events +events-mask+) +events-ns-bits+)))
     nil))
 
 (defmacro with-recorded-frame ((ring) &body body)
@@ -229,6 +241,16 @@ that is the cost of settling."
   "Nanoseconds the INDEXth frame spent in the variant's FRAME, in all its builds. What it spent
 beyond the first build is the cost of settling."
   (record-word ring index 14))
+
+(defun frame-events-ns (ring index)
+  "Nanoseconds the variant spent handling the events delivered between the frame before the
+INDEXth and it (zero if the instrumentation was off)."
+  (ldb (byte +events-ns-bits+ 0) (record-word ring index 15)))
+
+(defun frame-events (ring index)
+  "How many events were delivered between the frame before the INDEXth and it (zero if the
+instrumentation was off)."
+  (ldb (byte (- 64 +events-ns-bits+) +events-ns-bits+) (record-word ring index 15)))
 
 (defun frame-duration-ns (ring index)
   "Nanoseconds the INDEXth frame took."

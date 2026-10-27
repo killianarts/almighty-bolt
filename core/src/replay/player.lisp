@@ -90,10 +90,12 @@ of the settled frame."
                               (frames builds capped hashes checkpoints list samples bytes gc-ns)))
   "What a replay did: frames built, builds in them, frames that hit the settle cap, a vector of
 (time . hash) for each frame in order, the checkpoints in order, and the last frame's list.
-When it was measured (see REPLAY), also a vector with a list (NANOSECONDS BUILDS BYTES) for each
-frame: the real time it took to build, the builds it needed and the bytes consed while it was
-built (which, being read from a counter that moves a region at a time, are only good summed over
-many frames); and the bytes consed and nanoseconds of garbage collection in all of the replay."
+When it was measured (see REPLAY), also a vector with a list (NANOSECONDS BUILDS BYTES
+EVENT-NANOSECONDS EVENT-BYTES EVENTS) for each frame: the real time it took to build, the builds it
+needed and the bytes consed while it was built (which, being read from a counter that moves a
+region at a time, are only good summed over many frames), and the same for the events delivered
+since the frame before, which a variant may handle in HANDLE-EVENT or in the frame, and how many
+there were; and the bytes consed and nanoseconds of garbage collection in all of the replay."
   frames builds capped hashes checkpoints list samples bytes gc-ns)
 
 (defun replay-ok-p (result)
@@ -127,8 +129,9 @@ many frames); and the bytes consed and nanoseconds of garbage collection in all 
 support the variant needs). The context's size and scale are set from the script's header
 if it has them. Returns a REPLAY-RESULT. Signals REPLAY-TARGET-MISSING for a target the
 variant does not show. With MEASURE, the time each frame takes to build is noted, on the
-real clock though the script's is virtual, with the bytes consed and the time spent in
-garbage collection over the whole replay; the replay is otherwise the same.
+real clock though the script's is virtual, with the time and bytes of delivering the events
+that came before it, and the bytes consed and the time spent in garbage collection over the
+whole replay; the replay is otherwise the same.
 
 FRAME-FUNCTION, a function of no arguments, makes each frame in place of SETTLE-FRAME and returns
 the builds and whether the cap was hit, as SETTLE-FRAME does. The host's RUN-FRAME is what it
@@ -143,6 +146,7 @@ the player knows of time is still the script's, and the host's ring is on the re
          (hashes (make-array 64 :adjustable t :fill-pointer 0))
          (checkpoints '())
          (frames 0) (builds 0) (capped 0)
+         (event-ns 0) (event-bytes 0) (events 0)
          (samples (make-array 64 :adjustable t :fill-pointer 0))
          (bytes-before (sb-ext:get-bytes-consed))
          (gc-before sb-ext:*gc-run-time*)
@@ -169,8 +173,10 @@ the player knows of time is still the script's, and the host's ring is on the re
                               (when measure
                                 (vector-push-extend
                                  (list (- (real-time-source) start) n
-                                       (- (sb-ext:get-bytes-consed) consed))
-                                 samples))
+                                       (- (sb-ext:get-bytes-consed) consed)
+                                       event-ns event-bytes events)
+                                 samples)
+                                (setf event-ns 0 event-bytes 0 events 0))
                               (values n capped-p)))
                         (incf frames)
                         (incf builds n)
@@ -179,6 +185,16 @@ the player knows of time is still the script's, and the host's ring is on the re
                     (build-if-asked ()
                       (when (context-frame-requested context)
                         (build)))
+                    (deliver (event)
+                      ;; The event is made before the clock starts: that is the replay's work.
+                      (if measure
+                          (let ((start (real-time-source))
+                                (consed (sb-ext:get-bytes-consed)))
+                            (deliver-event variant context event)
+                            (incf event-ns (- (real-time-source) start))
+                            (incf event-bytes (- (sb-ext:get-bytes-consed) consed))
+                            (incf events))
+                          (deliver-event variant context event)))
                     (advance-to (target)
                       (loop :for now = (now)
                             :while (< now target)
@@ -205,7 +221,7 @@ the player knows of time is still the script's, and the host's ring is on the re
                                        (context-height context) (float (getf options :height) 1f0)))
                                 (:scale
                                  (setf (context-scale context) (float (getf options :scale) 1f0))))
-                              (deliver-event variant context (form-event form (now)))
+                              (deliver (form-event form (now)))
                               (when (member (first form) '(:resize :scale))
                                 (request-frame context))
                               (build-if-asked))))))

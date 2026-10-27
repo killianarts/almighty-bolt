@@ -354,6 +354,42 @@ reads the count."
         (assert-eql 0 (ring:frame-first-build-ns ring i))
         (assert-eql 0 (ring:frame-gpu-ns ring i))))))
 
+;;; A variant that does its work in HANDLE-EVENT, as the retained and reactive variants do (the
+;;; immediate one does it in the frame): about two milliseconds for an event.
+(defclass slow-event-variant (variant:variant) ())
+
+(defmethod variant:handle-event ((variant slow-event-variant) event)
+  (declare (ignore event))
+  (sleep 0.002)
+  t)
+
+(defmethod variant:frame ((variant slow-event-variant) context list)
+  (dl:push-rect list 10 10 20 20 (dl:pack-color 255 0 0))
+  nil)
+
+(define-test with-the-instrumentation-on-a-frame-has-the-events-delivered-before-it ()
+  (with-host (host target (make-instance 'slow-event-variant) :phases t)
+    (draw host)
+    (dotimes (i 3)
+      (host:host-deliver-event host (event:make-focus-event :timestamp 0 :focused-p t)))
+    (draw host)
+    (draw host)
+    (let ((ring (host:host-ring host)))
+      (assert-equal '(0 3 0) (loop :for i :below 3 :collect (ring:frame-events ring i)))
+      (assert-true (>= (ring:frame-events-ns ring 1) 5400000) (ring:frame-events-ns ring 1))
+      ;; What the events took is not in what the build of the frame took.
+      (assert-true (< (ring:frame-build-ns ring 1) 1800000) (ring:frame-build-ns ring 1))
+      (assert-eql 0 (ring:frame-events-ns ring 0))
+      (assert-eql 0 (ring:frame-events-ns ring 2)))))
+
+(define-test with-the-instrumentation-off-a-frame-has-no-events ()
+  (with-host (host target (make-instance 'slow-event-variant))
+    (host:host-deliver-event host (event:make-focus-event :timestamp 0 :focused-p t))
+    (draw host)
+    (let ((ring (host:host-ring host)))
+      (assert-eql 0 (ring:frame-events ring 0))
+      (assert-eql 0 (ring:frame-events-ns ring 0)))))
+
 (define-test the-builds-of-a-frame-that-settles-show-the-cost-of-settling ()
   (with-host (host target (make-instance 'scripted-variant :script '(t t nil)) :phases t)
     (draw host)

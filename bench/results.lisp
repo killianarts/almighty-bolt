@@ -84,9 +84,11 @@
 
 (defun measure-script (script variant task context &key (repetitions 10) (warmups 3))
   "Replay SCRIPT in VARIANT's app of TASK WARMUPS times and then REPETITIONS times, measured.
-Returns the repetitions, each a plist of its frames' build nanoseconds and builds, the bytes
-consed and garbage collection nanoseconds, and the hashes of its frames. An error if two runs
-draw different frames."
+Returns the repetitions, each a plist of its frames' build nanoseconds and builds, the time,
+bytes and number of the events delivered before each frame (a variant handles an event in
+HANDLE-EVENT or in the frame, so a frame's cost is its build and its events), the bytes consed
+and garbage collection nanoseconds, and the hashes of its frames. An error if two runs draw
+different frames."
   (dotimes (i warmups)
     (run-once script variant task context))
   (let ((runs '()) (reference nil))
@@ -99,6 +101,9 @@ draw different frames."
         (push (list :build-ns (map 'vector #'first (core:replay-result-samples result))
                     :builds (map 'vector #'second (core:replay-result-samples result))
                     :frame-bytes (map 'vector #'third (core:replay-result-samples result))
+                    :event-ns (map 'vector #'fourth (core:replay-result-samples result))
+                    :event-bytes (map 'vector #'fifth (core:replay-result-samples result))
+                    :events (map 'vector #'sixth (core:replay-result-samples result))
                     :bytes (core:replay-result-bytes result)
                     :gc-ns (core:replay-result-gc-ns result)
                     :frames (core:replay-result-frames result)
@@ -113,12 +118,18 @@ draw different frames."
   "What the repetitions say. The first frame of a run is a cold one (a new variant builds its
 tables in it) and is summarized apart; the rest are the frames that are measured: their build
 times, the median of each repetition and how far those spread, the builds in a frame, and the
-bytes consed in a frame."
+bytes consed in a frame. :build-ns and :bytes-per-frame are of the build only, as they were in
+the records before the events were counted; :event-ns, :events-per-frame, :with-events-ns (the
+build and the events delivered before it, in each frame) and :bytes-per-frame-with-events say
+what the build alone leaves out."
   (let* ((rest (lambda (key) (mapcar (lambda (run) (after-the-first (getf run key))) runs)))
          (all (apply #'concatenate 'vector (funcall rest :build-ns)))
          (medians (mapcar #'core:median (funcall rest :build-ns)))
          (builds (apply #'concatenate 'vector (funcall rest :builds)))
-         (frame-bytes (apply #'concatenate 'vector (funcall rest :frame-bytes))))
+         (frame-bytes (apply #'concatenate 'vector (funcall rest :frame-bytes)))
+         (event-ns (apply #'concatenate 'vector (funcall rest :event-ns)))
+         (event-bytes (apply #'concatenate 'vector (funcall rest :event-bytes)))
+         (events (apply #'concatenate 'vector (funcall rest :events))))
     (list :frames-per-run (getf (first runs) :frames)
           :first-frame (list :build-ns (core:summarize
                                         (mapcar (lambda (run) (aref (getf run :build-ns) 0)) runs))
@@ -131,12 +142,17 @@ bytes consed in a frame."
           :builds (list :mean (/ (reduce #'+ builds) (length builds) 1.0) :max (reduce #'max builds)
                         :cap-hits (reduce #'+ (mapcar (lambda (run) (getf run :capped)) runs)))
           :bytes-per-frame (/ (reduce #'+ frame-bytes) (length frame-bytes) 1.0)
+          :event-ns (core:summarize event-ns)
+          :events-per-frame (/ (reduce #'+ events) (length events) 1.0)
+          :with-events-ns (core:summarize (map 'vector #'+ all event-ns))
+          :bytes-per-frame-with-events (/ (+ (reduce #'+ frame-bytes) (reduce #'+ event-bytes))
+                                          (length frame-bytes) 1.0)
           :gc-ns-per-run (/ (reduce #'+ (mapcar (lambda (run) (getf run :gc-ns)) runs))
                             (length runs) 1.0))))
 
 (defparameter +ring-columns+
   '(:start-ns :end-ns :build-ns :wait-ns :encode-ns :builds :capped :bytes :gc-ns :first-build-ns
-    :update-ns :layout-ns :paint-ns :gpu-ns :all-builds-ns)
+    :update-ns :layout-ns :paint-ns :gpu-ns :all-builds-ns :events-ns :events)
   "What a repetition of a host run keeps of each frame of the ring, in this order.")
 
 (defun frame-row (ring index)
@@ -147,7 +163,8 @@ bytes consed in a frame."
         (core:frame-gc-ns ring index) (core:frame-first-build-ns ring index)
         (core:frame-update-ns ring index) (core:frame-layout-ns ring index)
         (core:frame-paint-ns ring index) (core:frame-gpu-ns ring index)
-        (core:frame-all-builds-ns ring index)))
+        (core:frame-all-builds-ns ring index) (core:frame-events-ns ring index)
+        (core:frame-events ring index)))
 
 (defun host-run-once (script variant task host)
   "Play SCRIPT into a new app of VARIANT and TASK through HOST's frame, drawing into an
@@ -208,12 +225,13 @@ lists of frame rows. An error if two runs of a variant draw different frames."
     (dolist (rows runs ring)
       (dolist (row (rest rows))
         (destructuring-bind (start end build wait encode builds capped bytes gc first update layout
-                             paint gpu all-builds)
+                             paint gpu all-builds events-ns events)
             row
           (core:record-frame ring start end 0 bytes build wait encode builds (plusp capped))
           (core:record-frame-details ring :gc-ns gc :first-build-ns first :update-ns update
                                           :layout-ns layout :paint-ns paint :gpu-ns gpu
-                                          :all-builds-ns all-builds))))))
+                                          :all-builds-ns all-builds :events-ns events-ns
+                                          :events events))))))
 
 (defun host-summary (runs)
   "What the repetitions of a host run say: the summary of the ring that all their frames, the
@@ -244,22 +262,25 @@ first of each run apart, make (see SUMMARIZE-RING), and the first frames' build 
 (defun print-line (variant app script-name summary)
   (let ((ns (getf summary :build-ns)) (spread (getf summary :run-medians-ns))
         (builds (getf summary :builds)))
-    (format t "~&~(~10a ~8a~) ~22a ~7,1f us (~,1f to ~,1f)  p95 ~7,1f  p99 ~7,1f  max ~8,1f   builds ~,2f/~d  ~7,0f B/frame   first frame ~7,1f us ~8,0f B~%"
+    (format t "~&~(~10a ~8a~) ~22a ~7,1f us (~,1f to ~,1f)  p95 ~7,1f  p99 ~7,1f  max ~8,1f   builds ~,2f/~d  ~7,0f B/frame   first frame ~7,1f us ~8,0f B   with events ~7,1f us ~7,0f B (~,2f events)~%"
             variant app script-name (microseconds (getf ns :median))
             (microseconds (getf spread :min)) (microseconds (getf spread :max))
             (microseconds (getf ns :p95)) (microseconds (getf ns :p99)) (microseconds (getf ns :max))
             (getf builds :mean) (getf builds :max) (getf summary :bytes-per-frame)
             (microseconds (getf (getf (getf summary :first-frame) :build-ns) :median))
-            (getf (getf summary :first-frame) :bytes))))
+            (getf (getf summary :first-frame) :bytes)
+            (microseconds (getf (getf summary :with-events-ns) :median))
+            (getf summary :bytes-per-frame-with-events) (getf summary :events-per-frame))))
 
 (defun print-host-line (variant app script-name summary)
   (flet ((us (key part) (microseconds (getf (getf summary key) part))))
-    (format t "~&~(~10a ~8a~) ~22a frame ~7,1f us (p95 ~7,1f)  build ~7,1f  update ~6,1f layout ~6,1f paint ~6,1f  wait ~7,1f  encode ~6,1f  gpu ~7,1f   builds ~,2f/~d  extra ~4,1f%~%"
+    (format t "~&~(~10a ~8a~) ~22a frame ~7,1f us (p95 ~7,1f)  build ~7,1f  update ~6,1f layout ~6,1f paint ~6,1f  wait ~7,1f  encode ~6,1f  gpu ~7,1f   builds ~,2f/~d  extra ~4,1f%   events ~6,1f (~,2f)~%"
             variant app script-name (us :duration :median) (us :duration :p95) (us :build :median)
             (us :update :median) (us :layout :median) (us :paint :median) (us :wait :median)
             (us :encode :median) (us :gpu :median)
             (getf (getf summary :builds) :mean) (getf (getf summary :builds) :max)
-            (* 100 (getf (getf summary :settle) :share-of-build)))))
+            (* 100 (getf (getf summary :settle) :share-of-build))
+            (us :events :median) (getf summary :events-per-frame))))
 
 (defun script-paths ()
   "The scripts to run: those of SCRIPTS (a directory, or several separated by commas) or, if it

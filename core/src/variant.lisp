@@ -24,6 +24,9 @@
            #:place-text-input-caret
            #:with-painting
            #:context-painting
+           #:context-events-ns
+           #:context-events
+           #:take-events
            #:context-phases-p
            #:context-phase-ns
            #:+phase-update+
@@ -144,6 +147,12 @@ within the frame. REQUESTER is what REQUEST-FRAME calls; the host replaces it."
    :type (simple-array single-float (4)) :read-only t)
   (text-input-canvas nil)
   (painting nil)
+  ;; The cost of events, when PHASES-P: the time DELIVER-EVENT spent in the variant's HANDLE-EVENT
+  ;; and the number of events since TAKE-EVENTS (the host takes them with each frame, so that the
+  ;; frame and the events that came before it are one cost, whichever variant does the work in
+  ;; HANDLE-EVENT and whichever in FRAME).
+  (events-ns 0 :type (unsigned-byte 62))
+  (events 0 :type (unsigned-byte 62))
   (phases-p nil :type boolean)
   (phase-ns (make-array +phase-slots+ :element-type '(unsigned-byte 64) :initial-element 0)
    :type (simple-array (unsigned-byte 64) (*)) :read-only t))
@@ -233,10 +242,26 @@ runs its own loop; this is how it asks for the next frame of an animation."
 
 (defun deliver-event (variant context event)
   "Offer EVENT to VARIANT and, if it wants a frame, request one. Returns true if a
-frame was requested."
-  (when (handle-event variant event)
+frame was requested. With the context's instrumentation on, the real time that
+HANDLE-EVENT took is added to the context's events (see TAKE-EVENTS)."
+  (when (if (context-phases-p context)
+            (let ((start (real-time-source)))
+              (multiple-value-prog1 (handle-event variant event)
+                (incf (context-events-ns context) (- (real-time-source) start))
+                (incf (context-events context))))
+            (handle-event variant event))
     (request-frame context)
     t))
+
+(defun take-events (context)
+  "The real time in nanoseconds that DELIVER-EVENT has spent in HANDLE-EVENT, and the number of
+events it handled, since the last call, as two values; and forget them. They are counted only
+while the context's instrumentation is on. Does not allocate."
+  (let ((ns (context-events-ns context))
+        (events (context-events context)))
+    (setf (context-events-ns context) 0
+          (context-events context) 0)
+    (values ns events)))
 
 ;;; --- text, which the host supplies ---
 ;;;

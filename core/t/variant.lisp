@@ -250,6 +250,61 @@ debugging policy that allocates."
           (variant:with-phase (context variant:+phase-layout+) (setf *sink* i)))
         (assert-true (< (- (sb-ext:get-bytes-consed) before) 1000000) on)))))
 
+;;; --- the cost of events ---
+
+(defclass slow-variant (variant:variant) ()
+  (:documentation "A variant whose HANDLE-EVENT takes about a millisecond."))
+
+(defmethod variant:handle-event ((variant slow-variant) event)
+  (declare (ignore event))
+  (sleep 0.001)
+  nil)
+
+(define-test delivering-events-adds-their-time-and-number-when-the-instrumentation-is-on ()
+  (let ((variant (make-instance 'slow-variant))
+        (context (variant:make-context)))
+    (setf (variant:context-phases-p context) t)
+    (dotimes (i 3)
+      (variant:deliver-event variant context (an-event)))
+    (multiple-value-bind (ns events) (variant:take-events context)
+      (assert-eql 3 events)
+      (assert-true (>= ns 2700000) ns))
+    ;; Taking forgets them.
+    (assert-equal '(0 0) (multiple-value-list (variant:take-events context)))))
+
+(define-test delivering-events-notes-nothing-when-the-instrumentation-is-off ()
+  (let ((variant (make-instance 'slow-variant))
+        (context (variant:make-context)))
+    (dotimes (i 3)
+      (variant:deliver-event variant context (an-event)))
+    (assert-equal '(0 0) (multiple-value-list (variant:take-events context)))))
+
+(define-test an-event-that-wants-a-frame-still-requests-one-when-it-is-timed ()
+  (let ((variant (make-instance 'recording-variant :wants-frame t))
+        (context (variant:make-context)))
+    (setf (variant:context-phases-p context) t)
+    (assert-true (variant:deliver-event variant context (an-event)))
+    (assert-true (variant:take-frame-request context))
+    (assert-eql 1 (nth-value 1 (variant:take-events context)))))
+
+(defun deliver-timed (variant context event count)
+  "Compiled with this file, as DELIVER-MANY is."
+  (declare (type fixnum count))
+  (dotimes (i count)
+    (variant:deliver-event variant context event)
+    (variant:take-frame-request context)
+    (variant:take-events context)))
+
+(define-test timing-events-allocates-nothing ()
+  (let ((variant (make-instance 'counting-variant))
+        (context (variant:make-context))
+        (event (an-event)))
+    (setf (variant:context-phases-p context) t)
+    (deliver-timed variant context event 1000)
+    (let ((before (sb-ext:get-bytes-consed)))
+      (deliver-timed variant context event 200000)
+      (assert-true (< (- (sb-ext:get-bytes-consed) before) 500000)))))
+
 ;;; --- the caret of text input ---
 
 ;;; A variant whose canvases are where it says, and that counts how often it is asked.

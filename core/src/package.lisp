@@ -45,6 +45,8 @@
                 #:frame-paint-ns
                 #:frame-gpu-ns
                 #:frame-all-builds-ns
+                #:frame-events-ns
+                #:frame-events
                 #:map-frames)
   (:import-from #:almighty-bolt-core/trace
                 #:write-trace)
@@ -191,6 +193,9 @@
                 #:place-text-input-caret
                 #:with-painting
                 #:context-painting
+                #:context-events-ns
+                #:context-events
+                #:take-events
                 #:context-phases-p
                 #:context-phase-ns
                 #:+phase-update+
@@ -319,6 +324,8 @@
            #:frame-paint-ns
            #:frame-gpu-ns
            #:frame-all-builds-ns
+           #:frame-events-ns
+           #:frame-events
            #:map-frames
            #:write-trace
            #:summarize-ring
@@ -457,6 +464,9 @@
            #:place-text-input-caret
            #:with-painting
            #:context-painting
+           #:context-events-ns
+           #:context-events
+           #:take-events
            #:context-phases-p
            #:context-phase-ns
            #:+phase-update+

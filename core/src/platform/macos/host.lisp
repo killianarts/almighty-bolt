@@ -28,6 +28,7 @@
                 #:+phase-all-builds+
                 #:take-frame-request
                 #:deliver-event
+                #:take-events
                 #:context-font
                 #:context-measure
                 #:context-break-lines
@@ -262,16 +263,19 @@ no drawable. Must run inside an autorelease pool."
                                    builds capped)
                      (when (context-phases-p context)
                        (let ((slots (context-phase-ns context)))
-                         (record-frame-details
-                          ring
-                          :gc-ns (* (max 0 (- sb-ext:*gc-run-time* gc-before))
-                                    #.(floor 1000000000 internal-time-units-per-second))
-                          :first-build-ns (aref slots +phase-first-build+)
-                          :update-ns (aref slots +phase-update+)
-                          :layout-ns (aref slots +phase-layout+)
-                          :paint-ns (aref slots +phase-paint+)
-                          :all-builds-ns (aref slots +phase-all-builds+)
-                          :gpu-ns previous-gpu-ns)))))))))
+                         (multiple-value-bind (events-ns events) (take-events context)
+                           (record-frame-details
+                            ring
+                            :gc-ns (* (max 0 (- sb-ext:*gc-run-time* gc-before))
+                                      #.(floor 1000000000 internal-time-units-per-second))
+                            :first-build-ns (aref slots +phase-first-build+)
+                            :update-ns (aref slots +phase-update+)
+                            :layout-ns (aref slots +phase-layout+)
+                            :paint-ns (aref slots +phase-paint+)
+                            :all-builds-ns (aref slots +phase-all-builds+)
+                            :gpu-ns previous-gpu-ns
+                            :events-ns events-ns
+                            :events events))))))))))
       (setf again (stop-drawing host)))
     (when again
       (funcall (the function (host-wake host))))

@@ -13,6 +13,8 @@
                 #:frame-capped-p
                 #:frame-gc-ns
                 #:frame-first-build-ns
+                #:frame-events-ns
+                #:frame-events
                 #:frame-all-builds-ns
                 #:frame-update-ns
                 #:frame-layout-ns
@@ -30,7 +32,8 @@
 (defun summarize-ring (ring &key (skip 0))
   "A plist for the frames of RING after the first SKIP of them (the first frame is cold):
 :frames, and the summary (see SUMMARIZE) in nanoseconds of :duration, :build, :wait, :encode,
-:update, :layout, :paint and :gpu; :builds with :mean, :max, :histogram (a list of (builds .
+:update, :layout, :paint, :gpu and :events (the variant's handling of the events delivered since
+the frame before; :events-per-frame is their number, a mean); :builds with :mean, :max, :histogram (a list of (builds .
 frames)) and :cap-hits; :settle with :extra-build-ns (a summary over the frames, of what the
 builds after the first took, from the time of all the variant's builds), :frames-with-extra-builds
 and :share-of-build (the part of the time of all the builds that was in extra builds); :gc-ns (the sum) and :bytes-per-frame."
@@ -60,6 +63,8 @@ and :share-of-build (the part of the time of all the builds that was in extra bu
                 :layout (summarize (column #'frame-layout-ns))
                 :paint (summarize (column #'frame-paint-ns))
                 :gpu (summarize (column #'frame-gpu-ns))
+                :events (summarize (column #'frame-events-ns))
+                :events-per-frame (/ (reduce #'+ (column #'frame-events)) count 1.0)
                 :builds (list :mean (/ (reduce #'+ builds) count 1.0)
                               :max (reduce #'max builds)
                               :histogram builds-histogram

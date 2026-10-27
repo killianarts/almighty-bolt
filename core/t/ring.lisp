@@ -186,6 +186,27 @@
     (assert-eql 40 (ring:frame-build-ns frame-ring 0))
     (assert-eql 2 (ring:frame-builds frame-ring 0))))
 
+(define-test the-events-of-a-frame-share-a-word-and-leave-the-other-details-alone ()
+  (let ((frame-ring (ring:make-frame-ring :capacity 4)))
+    (ring:record-frame frame-ring 10 90 100 150 40 30 10 2 nil)
+    (ring:record-frame-details frame-ring :all-builds-ns 38 :events-ns 123456 :events 7)
+    (assert-eql 123456 (ring:frame-events-ns frame-ring 0))
+    (assert-eql 7 (ring:frame-events frame-ring 0))
+    (assert-eql 38 (ring:frame-all-builds-ns frame-ring 0))
+    ;; Without events they are zero, also over an older record that had some.
+    (ring:record-frame frame-ring 20 90 100 150 40 30 10 2 nil)
+    (ring:record-frame-details frame-ring :all-builds-ns 1)
+    (assert-eql 0 (ring:frame-events-ns frame-ring 1))
+    (assert-eql 0 (ring:frame-events frame-ring 1))))
+
+(define-test a-time-or-a-count-of-events-too-large-for-its-bits-is-kept-as-the-largest
+    ()
+  (let ((frame-ring (ring:make-frame-ring :capacity 2)))
+    (ring:record-frame frame-ring 1 2 0 0)
+    (ring:record-frame-details frame-ring :events-ns (expt 2 50) :events (expt 2 40))
+    (assert-eql (1- (expt 2 40)) (ring:frame-events-ns frame-ring 0))
+    (assert-eql (1- (expt 2 24)) (ring:frame-events frame-ring 0))))
+
 (define-test the-details-go-with-the-last-record-even-when-the-ring-has-wrapped ()
   (let ((frame-ring (ring:make-frame-ring :capacity 2)))
     (dotimes (i 3)
@@ -208,6 +229,7 @@
         (before (sb-ext:get-bytes-consed)))
     (dotimes (i 500000)
       (ring:record-frame frame-ring i (+ i 100) 100 200 40 30 10 2 nil)
-      (ring:record-frame-details frame-ring :gc-ns i :first-build-ns 3 :layout-ns 4 :paint-ns 5))
+      (ring:record-frame-details frame-ring :gc-ns i :first-build-ns 3 :layout-ns 4 :paint-ns 5
+                                            :events-ns 6 :events 2))
     (assert-true (< (- (sb-ext:get-bytes-consed) before) 1000000))))
 
