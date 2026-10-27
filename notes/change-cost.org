@@ -62,3 +62,53 @@ Target: the flight booker, which is a column of five controls. The kind of fligh
 date and the return date stay in a column on the left; the Book button and the message go in a
 column on the right, beginning at the height of the first row.
 Order: reactive, retained, immediate.
+
+* E4 again, with a real checkbox (2026-10-27)
+Written 2026-10-27 before the checkbox or the edit exists, on =phase-2= at =6470505=. Micah: "E4
+should use a real checkbox." Decision record 0024 (accepted) has E4 as it was made, with a choice
+of two options standing where a checkbox would; the text of E4 above is left as it is because
+0024 points at it.
+
+** What is different
+- The switch is a checkbox labelled "Filter", with the id =:filter-switch=, checked at first (the
+  row is shown). A click on the box or on its label toggles it; the space bar toggles it when it
+  has the keyboard; Tab reaches it. Unchecked: the row "Filter prefix: [field]" is not on the
+  screen, the list shows every entry whatever the field holds, and the filter's text is kept;
+  checked again, the row comes back with its text and the list is filtered by it. The checkbox
+  stays where it is (above the filter row) in both states.
+- The checkbox is a widget that no variant has. It is made first, in each variant, as library code
+  with its own tests and its own commit, and counted apart from the edit: that is the "change-cost
+  datum of its own" that 0024 said it would be. One interface in the three: retained, a node with
+  =checkbox-checked= and an =:on-change= given the new state; reactive, a view with =:checked= and
+  =:on-change= (the app owns the state, as it does for the other widgets); immediate,
+  =(checkbox id label checked)= returning =(values checked changed)=, as =text-field= does.
+- The acceptance tests are the four of E4 with the switch changed: one click turns the filter off,
+  another turns it on. They are written first and fail in the three variants before any app is
+  changed. The unit tests of the widget (click, space, label, disabled, Tab) are in each variant.
+
+** Base, and what can be compared
+- The base is the current tree, whose apps have been ported to the builder macros (record 0026,
+  option (a)): the retained apps are 15 lines longer than they were at =c435ab6=. So this edit is
+  not like for like with the table of 0024. What is valid is the three variants against each other
+  on this base. Whether a real checkbox makes the edit cheaper than the choice did would need E4
+  with the choice made again on this base; that is not done here.
+- Counted as in 0024 (=scripts/diff-size.lisp=: lines of code added and removed, no blank lines or
+  comments, no change of white space): the shared tests, then each variant's app; the library of
+  each variant apart, source and tests. Patches in =results/change-cost/e4-checkbox/=. One author
+  wrote the variants, the widgets and the edit.
+- Order of the variants, rotated from E4's own (retained, immediate, reactive): immediate, reactive,
+  retained.
+
+** What I expect
+- The library: the retained checkbox is the largest (a node with layout, painting, the pointer and
+  the keys: 50 to 70 lines of source), the immediate next (a box kind and its painting and events:
+  35 to 55), the reactive the smallest (a view and a node made from the retained one: 15 to 30,
+  because the retained node does the work).
+- The edit, in lines of code changed in the app: immediate 10 to 14, reactive 12 to 18, retained
+  18 to 25; the tests 18 to 24. The retained app is still the largest, because it needs a handle on
+  the row to show and hide it; the checkbox saves each variant a few lines over the choice (no list
+  of options, no fractions to click at).
+- It is wrong, as a statement about the variants, if the reactive library is larger than the
+  immediate one, if the immediate app's edit is larger than the retained one's, or if any
+  variant's edit comes out more than 26 lines (the largest of the choice's, on the old base).
+
