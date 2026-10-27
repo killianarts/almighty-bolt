@@ -1,6 +1,7 @@
 #+TITLE: 0025 — Stress apps: the dashboard, the million rows and the text editor
 #+DATE: 2026-10-26
-- Status :: proposed
+- Status :: accepted (Micah, 2026-10-27), with (a), (c) and (d); (b) declined
+- Done :: (a) 4170b59, (c) dcdccaf, (d) 49d2d9d and e2c0e50 (the results)
 
 * Context
 Step 3 of Phase 3: three apps that the seven small ones do not stress, each in
