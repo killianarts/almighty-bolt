@@ -73,7 +73,7 @@
                (label (status-text document) :id :status))
              (component ()
                (canvas :id :editor :width +editor-width+
-                       :height +editor-height+ :focusable t
+                       :height +editor-height+ :focusable t :autofocus t
                        :paint #'draw :data (value changes)
                        :on-press #'press :on-drag #'drag :on-key #'key
                        :on-text #'text :on-composition #'compose

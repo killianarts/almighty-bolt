@@ -61,6 +61,7 @@
                 #:node-interactive-p
                 #:node-focusable-p
                 #:node-focus-on-click-p
+                #:node-autofocus-p
                 #:pointer-press
                 #:pointer-move
                 #:pointer-exit
@@ -626,10 +627,11 @@ and the list stays scrolled as far as it can. Calls no handler."
   (on-text nil :type (or null function))
   (on-composition nil :type (or null function))
   (on-wheel nil :type (or null function))
-  (focusable nil :type boolean))
+  (focusable nil :type boolean)
+  (autofocus nil :type boolean))
 
 (defun canvas (&key id (width 300) (height 200) paint on-press on-move on-exit on-drag
-                 on-release on-key on-text on-composition on-wheel focusable (flex 0))
+                 on-release on-key on-text on-composition on-wheel focusable autofocus (flex 0))
   "An area of WIDTH by HEIGHT points that the app draws and handles events for. PAINT is
 called with the canvas, the context, the display list and the top left and size of the
 area, and appends commands. Every handler is called with the canvas and the context first
@@ -640,12 +642,15 @@ ON-RELEASE a point and whether the pointer is over the canvas; ON-KEY the key ev
 (returning true if it used the key); ON-TEXT the text that the input handling says to
 insert; ON-COMPOSITION the kind (:started, :changed or :committed), the text, and the start
 and length of the selection in it; ON-WHEEL the movement.
-The canvas keeps what PAINT drew until CANVAS-INVALIDATE says it changed."
+The canvas keeps what PAINT drew until CANVAS-INVALIDATE says it changed. A FOCUSABLE canvas
+that is also AUTOFOCUS has the keyboard when the window opens (unless another node asked first),
+so that a person can type without clicking."
   (%make-canvas :id id :width (float width 1f0) :height (float height 1f0) :paint paint
                 :on-press on-press :on-move on-move :on-exit on-exit :on-drag on-drag
                 :on-release on-release :on-key on-key :on-text on-text
                 :on-composition on-composition
-                :on-wheel on-wheel :focusable (and focusable t) :flex (float flex 1f0)
+                :on-wheel on-wheel :focusable (and focusable t) :autofocus (and autofocus t)
+                :flex (float flex 1f0)
                 :cacheable t))
 
 (defun canvas-invalidate (canvas)
@@ -654,6 +659,7 @@ The canvas keeps what PAINT drew until CANVAS-INVALIDATE says it changed."
 
 (defmethod node-interactive-p ((canvas canvas)) t)
 (defmethod node-focusable-p ((canvas canvas)) (canvas-focusable canvas))
+(defmethod node-autofocus-p ((canvas canvas)) (canvas-autofocus canvas))
 (defmethod node-focus-on-click-p ((canvas canvas)) (canvas-focusable canvas))
 
 (defmethod layout-node ((canvas canvas) context min-w max-w min-h max-h)

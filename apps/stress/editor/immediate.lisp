@@ -55,7 +55,7 @@
            (column (:gap 12)
              (label (status-text document) :id :status)
              (dolist (event (canvas :editor +editor-width+ +editor-height+ #'draw
-                                    :focusable t))
+                                    :focusable t :autofocus t))
                (handle event)))))))))
 
 (register-app :immediate :editor #'make-editor-app :width 740 :height 560)

@@ -60,7 +60,7 @@
     (:choice :options :selected :on-change)
     (:list-box :items :selected :rows :width :on-select)
     (:canvas :width :height :data :paint :on-press :on-move :on-exit :on-drag :on-release :on-key
-     :on-text :on-composition :on-wheel :focusable)
+     :on-text :on-composition :on-wheel :focusable :autofocus)
     (:component :thunk))
   "For each kind of view, the names of its properties, in the order they are in the vector of a
 view's PROPS. A description is made again whenever what it reads changes, and the vector is a
@@ -183,7 +183,7 @@ the field shows VALUE again afterwards, so a change that ON-CHANGE does not make
              nil id flex visible enabled key))
 
 (defun canvas (&key id (width 300) (height 200) data paint on-press on-move on-exit on-drag
-                 on-release on-key on-text on-composition on-wheel focusable (flex 0)
+                 on-release on-key on-text on-composition on-wheel focusable autofocus (flex 0)
                  (visible t) (enabled t) key)
   "A canvas that PAINT draws from DATA: PAINT is called with DATA, the canvas, the context,
 the display list and the area, and is used again for as long as DATA is the same object.
@@ -191,9 +191,11 @@ The handlers are called as the retained canvas calls them, with the context firs
 measures text) and without the canvas: ON-PRESS with a point, the button and the click count;
 ON-MOVE and ON-DRAG with a point; ON-EXIT with nothing more; ON-RELEASE with a point and whether the
 pointer is over the canvas; ON-KEY with the key event; ON-TEXT with the text; ON-COMPOSITION with
-the kind, the text and the start and length of the selection; ON-WHEEL with the movement."
+the kind, the text and the start and length of the selection; ON-WHEEL with the movement. A
+FOCUSABLE canvas that is also AUTOFOCUS has the keyboard when the window opens."
   (make-view :canvas (vector width height data paint on-press on-move on-exit on-drag on-release
-                             on-key on-text on-composition on-wheel (and focusable t))
+                             on-key on-text on-composition on-wheel (and focusable t)
+                             (and autofocus t))
              nil id flex visible enabled key))
 
 (defun component (thunk &key key)

@@ -71,6 +71,7 @@
                (paint-editor context list x y width height document)))
       (setf status (label (status-text document) :id :status)
             editor (canvas :id :editor :width +editor-width+ :height +editor-height+ :focusable t
+                           :autofocus t
                            :paint #'paint :on-press #'press :on-drag #'drag :on-key #'key
                            :on-text #'text :on-composition #'compose :on-wheel #'scroll))
       (make-retained-variant

@@ -47,6 +47,7 @@
                 #:ui-boxes
                 #:ui-hot
                 #:ui-focus
+                #:ui-started
                 #:ui-consumed
                 #:ui-rects
                 #:ui-id-rects
@@ -298,6 +299,7 @@ frame presented, round."
          t)
         (t
          (lay-out-and-paint variant context list)
+         (setf (ui-started ui) t)
          (end-frame-input ui)
          (when (more-input variant)
            (request-frame context))

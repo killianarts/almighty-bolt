@@ -40,6 +40,13 @@
   (assert-false (shows-p driver 24))
   (assert-true (search "23" (screen driver))))
 
+(d:define-acceptance the-editor-takes-the-keyboard-as-soon-as-it-opens :editor
+  ;; Nothing is clicked first: the editor is the one thing that takes keys, so it has them.
+  (d:press-key driver core:+key-down+)
+  (assert-equal (at 2 1) (status driver))
+  (d:input-text driver "ab")
+  (assert-equal (at 2 3) (status driver)))
+
 (d:define-acceptance a-click-puts-the-caret-on-the-line-and-column-it-is-at :editor
   (click-at driver 2 3)
   (assert-equal (at 3 4) (status driver))

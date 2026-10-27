@@ -254,10 +254,10 @@
 (define-test every-kind-of-view-keeps-the-properties-it-was-given ()
   (let ((canvas (v:canvas :width 5 :height 6 :data :d :paint :p :on-press :a :on-move :b :on-exit :c
                           :on-drag :e :on-release :f :on-key :g :on-text :h :on-composition :i
-                          :on-wheel :j :focusable 1)))
+                          :on-wheel :j :focusable 1 :autofocus 1)))
     (loop :for (key value) :on '(:width 5 :height 6 :data :d :paint :p :on-press :a :on-move :b
                                  :on-exit :c :on-drag :e :on-release :f :on-key :g :on-text :h
-                                 :on-composition :i :on-wheel :j :focusable t)
+                                 :on-composition :i :on-wheel :j :focusable t :autofocus t)
             :by #'cddr
           :do (assert-eql value (v:view-prop canvas key) key)))
   (let ((field (v:text-field :value "v" :width 9 :on-change :c :on-submit :s :invalid 1)))

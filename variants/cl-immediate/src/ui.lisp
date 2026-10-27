@@ -45,6 +45,7 @@
            #:ui-hot
            #:ui-active
            #:ui-focus
+           #:ui-started
            #:ui-pointer-x
            #:ui-pointer-y
            #:ui-down
@@ -170,6 +171,9 @@
   (hot 0 :type fixnum)
   (active 0 :type fixnum)
   (focus 0 :type fixnum)
+  ;; True once a frame has been laid out and drawn: the window has opened, and a canvas that asks
+  ;; for the keyboard (AUTOFOCUS) can no longer be given it for that.
+  (started nil)
   (tab-pending nil)
   ;; True if the keyboard is where it is because the pointer pressed there (a field), so that
   ;; a press anywhere else takes it away; a button the keyboard went to by Tab keeps it.

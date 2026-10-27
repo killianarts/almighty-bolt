@@ -66,6 +66,7 @@
                 #:layout-node
                 #:paint-node
                 #:focusable-p
+                #:node-autofocus-p
                 #:node-focus-on-click-p
                 #:pointer-press
                 #:pointer-move
@@ -108,6 +109,8 @@
    (laid-out-width :initform -1f0 :type single-float :accessor laid-out-width)
    (laid-out-height :initform -1f0 :type single-float :accessor laid-out-height)
    (session :initform (make-session) :reader retained-variant-session)
+   ;; True once the first frame has given the keyboard to a node that asked for it.
+   (autofocus-done :initform nil :accessor autofocus-done)
    ;; Which way the trackpad gesture in progress is going, so that a swipe goes one way.
    (wheel-lock :initform (make-axis-lock) :reader retained-variant-wheel-lock))
   (:documentation "A variant that keeps a tree of nodes."))
@@ -149,6 +152,15 @@ as they are needed and no longer."
          (width (context-width context))
          (height (context-height context)))
     (setf (session-context session) context)
+    (unless (autofocus-done variant)
+      (setf (autofocus-done variant) t)
+      (unless (session-focus session)
+        (block asking
+          (map-nodes (lambda (node)
+                       (when (and (node-autofocus-p node) (focusable-p node))
+                         (focus-node session node)
+                         (return-from asking)))
+                     root))))
     (with-phase (context +phase-update+)
       (let ((again nil)
             (now (context-now-ns context)))

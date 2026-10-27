@@ -39,6 +39,7 @@
                 #:ui-hot
                 #:ui-active
                 #:ui-focus
+                #:ui-started
                 #:ui-pointer-x
                 #:ui-pointer-y
                 #:ui-down
@@ -579,14 +580,15 @@ NIL) marked. Returns the index now and whether the person changed it this frame.
   (fragment (make-display-list :capacity 256))
   (was-hot nil))
 
-(defun canvas (id width height painter &key focusable (flex 0))
+(defun canvas (id width height painter &key focusable autofocus (flex 0))
   "An area of WIDTH by HEIGHT. PAINTER is called every frame with the list to append to, the
 context, and the width and height, and draws from the top left of the area, which it clips
 to; if what it draws is what it drew last frame, nothing more is done for it. Returns the
 events for the canvas, oldest first: (:press x y button click-count), (:move x y), (:drag x y),
 (:release x y inside-p), (:key event), (:text string), (:composition kind text selection-start
 selection-length), (:wheel dx dy) and (:exit), with points in the canvas. The code that handles
-them can ask CURRENT-CONTEXT for the context, which measures text."
+them can ask CURRENT-CONTEXT for the context, which measures text. A FOCUSABLE canvas that is
+also AUTOFOCUS has the keyboard when the window opens, if nothing has it by then."
   (let* ((ui *ui*)
          (box (open-box ui :canvas :id id))
          (key (box-key box))
@@ -594,6 +596,8 @@ them can ask CURRENT-CONTEXT for the context, which measures text."
          (events '())
          (rect (rect-of ui key))
          (hot (= (ui-hot ui) key)))
+    (when (and autofocus focusable (not (ui-started ui)) (zerop (ui-focus ui)))
+      (setf (ui-focus ui) key))
     (setf (box-interactive box) t
           (box-focusable box) focusable
           (box-moves box) t

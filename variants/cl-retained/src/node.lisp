@@ -62,6 +62,7 @@
            #:paint-node
            #:node-interactive-p
            #:node-focusable-p
+           #:node-autofocus-p
            #:activate
            #:node-at
            #:interactive-at
@@ -259,6 +260,11 @@ to a point."
 
 (defgeneric node-focusable-p (node)
   (:documentation "True if NODE can have the keyboard focus.")
+  (:method ((node node)) nil))
+
+(defgeneric node-autofocus-p (node)
+  (:documentation "True if NODE asks for the keyboard focus when the window opens (if nothing else
+has it by then). The first frame gives it to the first node in the tree that asks and can have it.")
   (:method ((node node)) nil))
 
 (defgeneric activate (node)

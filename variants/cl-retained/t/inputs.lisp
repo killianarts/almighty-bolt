@@ -421,6 +421,43 @@
       (build variant)
       (assert-eql 2 painted))))
 
+;;; --- a canvas that asks for the keyboard ---
+
+(define-test a-canvas-that-asks-for-the-keyboard-has-it-when-the-window-opens ()
+  (let* ((keys '())
+         (field (i:text-field :id :f :width 120))
+         (asking (i:canvas :id :a :width 100 :height 40 :focusable t :autofocus t
+                           :on-key (lambda (canvas context event)
+                                     (declare (ignore canvas context))
+                                     (push (core:key-event-logical-key event) keys)
+                                     t)))
+         (also (i:canvas :id :b :width 100 :height 40 :focusable t :autofocus t))
+         (variant (show (w:column field asking also :gap 10))))
+    ;; The first that asks has it, before anything is clicked.
+    (assert-true (eq asking (retained:retained-variant-focus variant)))
+    (assert-true (n:node-focused asking))
+    (key variant #\q)
+    (assert-equal '(#\q) keys)
+    ;; A click elsewhere takes it, and later frames do not take it back.
+    (multiple-value-bind (x y) (core:lookup-target variant :f)
+      (press variant (+ x 5) (+ y 5))
+      (release variant (+ x 5) (+ y 5)))
+    (build variant)
+    (build variant)
+    (assert-true (eq field (retained:retained-variant-focus variant)))
+    ;; A click on nothing leaves it with nothing, and the canvas does not take it back.
+    (press variant 390 290)
+    (release variant 390 290)
+    (build variant)
+    (build variant)
+    (assert-false (retained:retained-variant-focus variant))))
+
+(define-test a-canvas-that-does-not-ask-or-cannot-have-the-keyboard-is-not-given-it ()
+  (let* ((plain (i:canvas :id :a :width 100 :height 40 :focusable t))
+         (unfocusable (i:canvas :id :b :width 100 :height 40 :autofocus t))
+         (variant (show (w:column plain unfocusable :gap 10))))
+    (assert-false (retained:retained-variant-focus variant))))
+
 ;;; --- the caret of a canvas that takes text ---
 
 (defun settle (variant)

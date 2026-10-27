@@ -440,6 +440,57 @@
     (assert-equal '(:move :press :release) (reverse (mapcar #'first seen)))
     (assert-true (every (lambda (entry) (eq *context* (second entry))) seen))))
 
+;;; --- a canvas that asks for the keyboard ---
+
+(defun keys-a-canvas-gets (&key autofocus (focusable t))
+  "Open a window with a canvas, press q, and return what the canvas was given."
+  (let* ((seen '())
+         (variant (show (lambda ()
+                          (dolist (event (w:canvas :board 100 80
+                                                   (lambda (list context width height)
+                                                     (declare (ignore list context width height))
+                                                     nil)
+                                                   :focusable focusable :autofocus autofocus))
+                            (push (first event) seen))))))
+    (key variant #\q)
+    (build variant)
+    (reverse seen)))
+
+(define-test a-canvas-that-asks-for-the-keyboard-has-it-when-the-window-opens ()
+  (assert-equal '(:key) (keys-a-canvas-gets :autofocus t)))
+
+(define-test a-canvas-that-does-not-ask-or-cannot-have-the-keyboard-is-not-given-it ()
+  (assert-equal '() (keys-a-canvas-gets))
+  (assert-equal '() (keys-a-canvas-gets :autofocus t :focusable nil)))
+
+(define-test the-keyboard-an-autofocus-canvas-had-is-not-taken-back-after-a-click-elsewhere ()
+  (let* ((seen '())
+         (variant (show (lambda ()
+                          (w:row ()
+                            (multiple-value-bind (text changed) (w:text-field :f "" :width 120)
+                              (declare (ignore text changed)))
+                            (dolist (event (w:canvas :board 100 80
+                                                     (lambda (list context width height)
+                                                       (declare (ignore list context width height))
+                                                       nil)
+                                                     :focusable t :autofocus t))
+                              (push (first event) seen)))))))
+    (multiple-value-bind (x y width height) (core:lookup-target variant :f)
+      (let ((px (+ x (/ width 2))) (py (+ y (/ height 2))))
+        (pointer variant :move px py) (build variant)
+        (pointer variant :down px py :button 0 :buttons 1) (build variant)
+        (pointer variant :up px py :button 0) (build variant)))
+    (setf seen '())
+    (key variant #\q) (build variant) (build variant)
+    ;; The field has the keyboard now: the canvas gets no key.
+    (assert-false (member :key seen))
+    ;; A click on nothing leaves it with nothing, and the canvas does not take it back.
+    (pointer variant :move 390 290) (build variant)
+    (pointer variant :down 390 290 :button 0 :buttons 1) (build variant)
+    (pointer variant :up 390 290 :button 0) (build variant)
+    (key variant #\q) (build variant) (build variant)
+    (assert-false (member :key seen))))
+
 ;;; --- the caret of a canvas that takes text ---
 
 (define-test the-caret-a-canvas-said-is-in-the-window-as-the-canvas-is-in-this-frame ()

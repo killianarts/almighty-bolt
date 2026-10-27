@@ -49,11 +49,15 @@ its own; result records already hold the machine profile.
   (Micah, 2026-10-27), as is 0011.
 
 * Open decisions for Micah
-- Step 2, E4: no variant has a checkbox, so the switch is a two-option choice standing where a
-  checkbox would. Say if a checkbox widget is wanted instead (it would be library work in each variant).
-- A real input method has to be tried by a person: =TASK=editor build/immediate= after =make image
-  VARIANT=immediate=, then switch to a Japanese or Chinese keyboard and type; the candidate window
-  should be beside the caret.
+- Step 2, E4: Micah, 2026-10-27: E4 should use a real checkbox. To do: a checkbox widget in each
+  variant (counted apart as library code) and E4 made again with it; 0024 is accepted with the
+  two-option choice, so the new numbers go in a note of their own.
+- The usability rubric (=notes/usability-rubric.org=) stays unscored. Micah, 2026-10-27: too early
+  for a firm judgement on usability; leaning towards immediate mode, wants to see more before
+  deciding. This is not a decision on the variant.
+- The input method has been tried by a person (Micah, 2026-10-27): Japanese input works in the
+  editor. Found at the same time: the editor took no keys until it was clicked. Fixed with an
+  =:autofocus= option on the canvas of each variant (the editor asks for it).
 - Pushed: phase-2 to origin on 2026-10-27, with this commit (tests pass at each). Local only: the
   branches =mcclim=, =builder-macros= (its commits are in phase-2) and =change-cost/e1= to =e5=.
 - Decided 2026-10-27 and done, one commit each (=4170b59=, =dcdccaf=, =49d2d9d=): 0025 (a)

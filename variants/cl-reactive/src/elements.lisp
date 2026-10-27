@@ -173,7 +173,7 @@ state says even if the handler did not change it."
                 (let ((box (make-canvas-box)))
                   (setf (element-box element) box)
                   (canvas :id id :flex flex :width (p :width) :height (p :height)
-                          :focusable (p :focusable)
+                          :focusable (p :focusable) :autofocus (p :autofocus)
                           :paint (lambda (canvas context list x y w h)
                                    (when (box-paint box)
                                      (funcall (box-paint box) (box-data box) canvas context list
@@ -255,7 +255,7 @@ changed."
     (:slider :minimum :maximum :width)
     (:choice :options)
     (:list-box :rows :width)
-    (:canvas :width :height :focusable))
+    (:canvas :width :height :focusable :autofocus))
   "For each kind of view, the properties that the node is made with and cannot be changed:
 a view that differs in one of them is a different node.")
 

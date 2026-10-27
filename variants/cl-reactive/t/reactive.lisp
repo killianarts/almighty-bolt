@@ -162,6 +162,28 @@ each of the two components was described."
                   (setf (s:value signal) (1+ now))
                   (v:column (v:label (princ-to-string now)))))))))
 
+;;; --- a canvas that asks for the keyboard ---
+
+(defun keys-a-canvas-gets (&key autofocus (focusable t))
+  "Open a window with a canvas, press q, and return what the canvas was given."
+  (let* ((keys '())
+         (variant (show (lambda ()
+                          (v:canvas :id :board :width 100 :height 80 :focusable focusable
+                                    :autofocus autofocus
+                                    :on-key (lambda (context event)
+                                              (declare (ignore context))
+                                              (push (core:key-event-logical-key event) keys)
+                                              t))))))
+    (key variant #\q)
+    (reverse keys)))
+
+(define-test a-canvas-that-asks-for-the-keyboard-has-it-when-the-window-opens ()
+  (assert-equal '(#\q) (keys-a-canvas-gets :autofocus t)))
+
+(define-test a-canvas-that-does-not-ask-or-cannot-have-the-keyboard-is-not-given-it ()
+  (assert-equal '() (keys-a-canvas-gets))
+  (assert-equal '() (keys-a-canvas-gets :autofocus t :focusable nil)))
+
 ;;; --- the caret of a canvas that takes text ---
 
 (define-test the-caret-a-canvas-said-follows-it-when-it-moves-and-is-not-painted-again ()
