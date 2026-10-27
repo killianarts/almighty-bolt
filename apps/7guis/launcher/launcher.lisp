@@ -36,6 +36,7 @@
   (:import-from #:almighty-bolt-core/platform/macos/host
                 #:run-variant
                 #:host-ring
+                #:host-keyboard-state
                 #:close-host-window)
   (:import-from #:almighty-bolt-7guis/common/registry
                 #:find-app
@@ -131,6 +132,11 @@ the next of these."
     (sleep 1.5)
     (format t "~&drew ~d frames in the first second; ~d more in 1.5 s of nobody at the window~%"
             first (- (frame-ring-total (host-ring host)) first))
+    (multiple-value-bind (responder key active) (host-keyboard-state host)
+      (format t "~&keyboard: the view is the first responder ~a, the window is the key window ~a, ~
+                 the application is active ~a~%" responder key active)
+      (unless (and responder key active)
+        (format t "~&WARNING: a key typed now would not reach the app until the window is clicked~%")))
     (finish-output)
     (close-host-window host)))
 

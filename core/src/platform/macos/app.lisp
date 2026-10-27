@@ -56,11 +56,16 @@ process's name."
     (release key)))
 
 (defun activate (app)
-  "Bring the application to the front. macOS 14 added -activate and deprecated
--activateIgnoringOtherApps:, so use the new one where it exists."
-  (if (msg-send :bool app "respondsToSelector:" (:ulong (register-selector "activate")))
-      (msg-send :void app "activate")
-      (msg-send :void app "activateIgnoringOtherApps:" (:bool t))))
+  "Make the application the active one, whoever was, so that its window is the key window and
+keys reach it. macOS 14 added -activate and deprecated -activateIgnoringOtherApps:, but -activate
+is cooperative: for a program that a terminal started it leaves the application inactive, the
+window not the key window and the keys going to the terminal until the window is clicked (found
+on macOS 26 with =make 7guis-smoke=). The old message still does it, so it is the one to use
+where it exists."
+  (if (msg-send :bool app "respondsToSelector:"
+                (:ulong (register-selector "activateIgnoringOtherApps:")))
+      (msg-send :void app "activateIgnoringOtherApps:" (:bool t))
+      (msg-send :void app "activate")))
 
 (defun run-application (setup)
   "Start the application and run its event loop on the calling thread, which must

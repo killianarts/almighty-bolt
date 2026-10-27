@@ -136,7 +136,8 @@ image:
 # LOG=1 prints the presses, releases and keys that reach it and what is under the
 # pointer. RECORD=session.script writes what you do as a replay script, after each press,
 # release and key (make replay SCRIPT=session.script plays it back). 7guis-smoke opens it, draws,
-# waits and reports, with nobody at the window.
+# waits and reports, with nobody at the window, and says whether a key typed would reach it (the view
+# is the first responder, the window is the key window and the application is active).
 7guis:
 	VARIANT=$(VARIANT) TASK=$(TASK) LOG=$(LOG) RECORD=$(RECORD) CURSOR_MODE=$(CURSOR_MODE) $(SBCL_APP) $(REGISTRY) --load apps/7guis/run.lisp
 

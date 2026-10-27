@@ -56,8 +56,13 @@ its own; result records already hold the machine profile.
   for a firm judgement on usability; leaning towards immediate mode, wants to see more before
   deciding. This is not a decision on the variant.
 - The input method has been tried by a person (Micah, 2026-10-27): Japanese input works in the
-  editor. Found at the same time: the editor took no keys until it was clicked. Fixed with an
-  =:autofocus= option on the canvas of each variant (the editor asks for it).
+  editor. Found at the same time: the editor took no keys until it was clicked. Two causes, both
+  fixed: nothing in the tree had the keyboard (an =:autofocus= option on the canvas of each
+  variant; the editor asks for it), and the window opened inactive when started from a terminal
+  (=activate=, macOS 14's cooperative message, left the application inactive and the window not
+  the key window, so keys went to the terminal; =activateIgnoringOtherApps:= does it).
+  =make 7guis-smoke= now says whether a key would reach the app. Micah is to reopen the editor
+  and type before clicking to confirm.
 - Pushed: phase-2 to origin on 2026-10-27, with this commit (tests pass at each). Local only: the
   branches =mcclim=, =builder-macros= (its commits are in phase-2) and =change-cost/e1= to =e5=.
 - Decided 2026-10-27 and done, one commit each (=4170b59=, =dcdccaf=, =49d2d9d=): 0025 (a)

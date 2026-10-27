@@ -39,9 +39,11 @@
   (:import-from #:almighty-bolt-core/settle
                 #:settle-frame)
   (:import-from #:almighty-bolt-core/platform/macos/objc
-                #:msg-send)
+                #:msg-send
+                #:objc-class)
   (:import-from #:almighty-bolt-core/platform/macos/main-queue
-                #:on-main-thread-p)
+                #:on-main-thread-p
+                #:call-on-main)
   (:import-from #:almighty-bolt-core/platform/macos/app
                 #:run-application)
   (:import-from #:almighty-bolt-core/platform/macos/window
@@ -49,6 +51,7 @@
                 #:set-content-view
                 #:show-window
                 #:close-window
+                #:window-object
                 #:window-scale-factor)
   (:import-from #:almighty-bolt-core/platform/macos/view
                 #:make-metal-view
@@ -87,6 +90,7 @@
            #:run-frame
            #:host-deliver-event
            #:close-host-window
+           #:host-keyboard-state
            #:run-variant))
 
 (in-package #:almighty-bolt-core/platform/macos/host)
@@ -307,6 +311,20 @@ no drawable. Must run inside an autorelease pool."
   "Close the host's window as the user would, which ends the application. Safe from
 any thread."
   (close-window (host-window host)))
+
+(defun host-keyboard-state (host)
+  "Where a key would go, as three values that are true or false: whether the host's view is the
+first responder of its window, whether the window is the key window, and whether the application
+is the active one. A person can type into the variant only when all three are true. Safe from any
+thread."
+  (call-on-main
+   (lambda ()
+     (let ((window (window-object (host-window host)))
+           (view (metal-view-object (host-view host)))
+           (app (msg-send :id (objc-class "NSApplication") "sharedApplication")))
+       (values (eql (msg-send :id window "firstResponder") view)
+               (and (msg-send :bool window "isKeyWindow") t)
+               (and (msg-send :bool app "isActive") t))))))
 
 (defun run-variant (variant &key (title "almighty-bolt") (width 800) (height 600)
                               driver (capacity 65536))
