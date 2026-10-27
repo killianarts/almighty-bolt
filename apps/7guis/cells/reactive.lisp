@@ -38,13 +38,14 @@
                 #:make-signal
                 #:value
                 #:update)
-  (:import-from #:almighty-bolt-variant-reactive/views
-                #:label
+  (:import-from #:almighty-bolt-variant-reactive/builder
                 #:padding
                 #:column
                 #:row
-                #:canvas
                 #:component)
+  (:import-from #:almighty-bolt-variant-reactive/views
+                #:label
+                #:canvas)
   (:import-from #:almighty-bolt-variant-reactive/reactive
                 #:make-reactive-variant)
   (:export #:make-cells))
@@ -149,27 +150,26 @@
                           edited)))))))
       (make-reactive-variant
        (lambda ()
-         (padding
-          (column (row (label "Cell:")
-                       (component (lambda ()
-                                    (label (format-ref (value column) (value row))
-                                           :id :cell-name)))
-                       (label "Contents:")
-                       (component (lambda ()
-                                    (value version)
-                                    (label (if (value editing)
-                                               (text-state-string (value editing))
-                                               (sheet-text sheet (value column) (value row)))
-                                           :id :formula)))
-                       :gap 10 :cross-align :center)
-                  (component (lambda ()
-                               (canvas :id :grid :width +grid-width+ :height +grid-height+
-                                       :focusable t :paint #'draw
-                                       :data (list sheet (value column) (value row)
-                                                   (value first-column) (value first-row)
-                                                   (value editing) (value version))
-                                       :on-press #'press :on-key #'key :on-wheel #'scroll)))
-                  :gap 12)
-          :all 20))))))
+         (padding (:all 20)
+           (column (:gap 12)
+             (row (:gap 10 :cross-align :center)
+               (label "Cell:")
+               (component ()
+                 (label (format-ref (value column) (value row))
+                        :id :cell-name))
+               (label "Contents:")
+               (component ()
+                 (value version)
+                 (label (if (value editing)
+                            (text-state-string (value editing))
+                            (sheet-text sheet (value column) (value row)))
+                        :id :formula)))
+             (component ()
+               (canvas :id :grid :width +grid-width+ :height +grid-height+
+                       :focusable t :paint #'draw
+                       :data (list sheet (value column) (value row)
+                                   (value first-column) (value first-row)
+                                   (value editing) (value version))
+                       :on-press #'press :on-key #'key :on-wheel #'scroll)))))))))
 
 (register-app :reactive :cells #'make-cells :width 640 :height 440)

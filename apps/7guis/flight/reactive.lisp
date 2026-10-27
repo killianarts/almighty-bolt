@@ -11,11 +11,12 @@
                 #:make-signal
                 #:value
                 #:computed)
+  (:import-from #:almighty-bolt-variant-reactive/builder
+                #:padding
+                #:column)
   (:import-from #:almighty-bolt-variant-reactive/views
                 #:label
                 #:button
-                #:padding
-                #:column
                 #:text-field
                 #:choice)
   (:import-from #:almighty-bolt-variant-reactive/reactive
@@ -45,27 +46,26 @@
       (make-reactive-variant
        (lambda ()
          (let ((return-enabled (return-date-enabled-p (value flight-kind))))
-           (padding
-            (column (choice '("one-way flight" "return flight") :id :kind :selected (value kind)
-                                                                :on-change (lambda (index)
-                                                                             (setf (value kind) index
-                                                                                   (value message) "")))
-                    (text-field :id :start :width 160 :value (value start)
-                                :invalid (not (date-text-valid-p (value start)))
-                                :on-change (edit start))
-                    (text-field :id :return :width 160 :value (value return)
-                                :enabled return-enabled
-                                :invalid (and return-enabled
-                                              (not (date-text-valid-p (value return))))
-                                :on-change (edit return))
-                    (button "Book" :id :book :enabled (and (value bookable) t)
-                                   :on-click (lambda ()
-                                               (setf (value message)
-                                                     (booking-message (value flight-kind)
-                                                                      (value start)
-                                                                      (value return)))))
-                    (label (value message) :id :message)
-                    :gap 12)
-            :all 24)))))))
+           (padding (:all 24)
+             (column (:gap 12)
+               (choice '("one-way flight" "return flight") :id :kind :selected (value kind)
+                                                           :on-change (lambda (index)
+                                                                        (setf (value kind) index
+                                                                              (value message) "")))
+               (text-field :id :start :width 160 :value (value start)
+                           :invalid (not (date-text-valid-p (value start)))
+                           :on-change (edit start))
+               (text-field :id :return :width 160 :value (value return)
+                           :enabled return-enabled
+                           :invalid (and return-enabled
+                                         (not (date-text-valid-p (value return))))
+                           :on-change (edit return))
+               (button "Book" :id :book :enabled (and (value bookable) t)
+                              :on-click (lambda ()
+                                          (setf (value message)
+                                                (booking-message (value flight-kind)
+                                                                 (value start)
+                                                                 (value return)))))
+               (label (value message) :id :message)))))))))
 
 (register-app :reactive :flight #'make-flight :width 460 :height 290)

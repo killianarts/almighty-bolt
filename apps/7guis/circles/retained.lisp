@@ -21,16 +21,17 @@
   (:import-from #:almighty-bolt-variant-retained/node
                 #:node-enabled
                 #:node-visible)
-  (:import-from #:almighty-bolt-variant-retained/widgets
-                #:label
-                #:button
+  (:import-from #:almighty-bolt-variant-retained/builder
                 #:padding
                 #:panel
                 #:center
                 #:stack
-                #:scrim
                 #:column
                 #:row)
+  (:import-from #:almighty-bolt-variant-retained/widgets
+                #:label
+                #:button
+                #:scrim)
   (:import-from #:almighty-bolt-variant-retained/inputs
                 #:slider
                 #:slider-value
@@ -105,16 +106,22 @@
                            :on-press #'press :on-move #'hover :on-exit #'leave)
             diameter-slider (slider :id :diameter :minimum 5 :maximum 200 :value 40 :width 220
                                     :on-change #'adjust)
-            overlay (stack (scrim :id :scrim :on-press #'close-dialog)
-                           (center (panel (column (label "Adjust diameter" :id :dialog-title)
-                                                  diameter-slider
-                                                  (button "Done" :id :done :on-click #'close-dialog)
-                                                  :gap 14)
-                                          :all 18 :id :dialog))))
+            overlay (stack ()
+                      (scrim :id :scrim :on-press #'close-dialog)
+                      (center ()
+                        (panel (:all 18 :id :dialog)
+                          (column (:gap 14)
+                            (label "Adjust diameter" :id :dialog-title)
+                            diameter-slider
+                            (button "Done" :id :done :on-click #'close-dialog))))))
       (setf (node-visible overlay) nil)
       (refresh)
       (make-retained-variant
-       (stack (padding (column (row undo redo :gap 10) canvas :gap 12) :all 16)
-              overlay)))))
+       (stack ()
+         (padding (:all 16)
+           (column (:gap 12)
+             (row (:gap 10) undo redo)
+             canvas))
+         overlay)))))
 
 (register-app :retained :circles #'make-circles :width 420 :height 340)

@@ -19,16 +19,17 @@
                 #:make-signal
                 #:value
                 #:update)
-  (:import-from #:almighty-bolt-variant-reactive/views
-                #:label
-                #:button
+  (:import-from #:almighty-bolt-variant-reactive/builder
                 #:padding
                 #:panel
                 #:center
                 #:stack
-                #:scrim
                 #:column
-                #:row
+                #:row)
+  (:import-from #:almighty-bolt-variant-reactive/views
+                #:label
+                #:button
+                #:scrim
                 #:slider
                 #:canvas)
   (:import-from #:almighty-bolt-variant-reactive/reactive
@@ -72,28 +73,28 @@
                             (value adjusting) (circle-id circle)))))))
       (make-reactive-variant
        (lambda ()
-         (stack
-          (padding
-           (column (row (button "Undo" :id :undo :enabled (drawing-can-undo-p (value drawing))
-                                       :on-click (lambda () (update drawing #'drawing-undo)))
-                        (button "Redo" :id :redo :enabled (drawing-can-redo-p (value drawing))
-                                       :on-click (lambda () (update drawing #'drawing-redo)))
-                        :gap 10)
-                   (canvas :id :canvas :width 388 :height 260 :paint #'draw
-                           :data (list (value drawing) (value hot) (value adjusting)
-                                       (value preview))
-                           :on-press #'press :on-move #'hover
-                           :on-exit (lambda () (setf (value hot) nil)))
-                   :gap 12)
-           :all 16)
-          (stack (scrim :id :scrim :on-press #'close-dialog)
-                 (center (panel (column (label "Adjust diameter" :id :dialog-title)
-                                        (slider :id :diameter :minimum 5 :maximum 200 :width 220
-                                                :value (value preview)
-                                                :on-change (lambda (new) (setf (value preview) new)))
-                                        (button "Done" :id :done :on-click #'close-dialog)
-                                        :gap 14)
-                                :all 18 :id :dialog))
-                 :visible (and (value adjusting) t))))))))
+         (stack ()
+           (padding (:all 16)
+             (column (:gap 12)
+               (row (:gap 10)
+                 (button "Undo" :id :undo :enabled (drawing-can-undo-p (value drawing))
+                                :on-click (lambda () (update drawing #'drawing-undo)))
+                 (button "Redo" :id :redo :enabled (drawing-can-redo-p (value drawing))
+                                :on-click (lambda () (update drawing #'drawing-redo))))
+               (canvas :id :canvas :width 388 :height 260 :paint #'draw
+                       :data (list (value drawing) (value hot) (value adjusting)
+                                   (value preview))
+                       :on-press #'press :on-move #'hover
+                       :on-exit (lambda () (setf (value hot) nil)))))
+           (stack (:visible (and (value adjusting) t))
+             (scrim :id :scrim :on-press #'close-dialog)
+             (center ()
+               (panel (:all 18 :id :dialog)
+                 (column (:gap 14)
+                   (label "Adjust diameter" :id :dialog-title)
+                   (slider :id :diameter :minimum 5 :maximum 200 :width 220
+                           :value (value preview)
+                           :on-change (lambda (new) (setf (value preview) new)))
+                   (button "Done" :id :done :on-click #'close-dialog)))))))))))
 
 (register-app :reactive :circles #'make-circles :width 420 :height 340)

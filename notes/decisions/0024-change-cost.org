@@ -1,6 +1,6 @@
 #+TITLE: 0024 — Change cost and size: what five edits cost in each variant
 #+DATE: 2026-10-26
-- Status :: proposed
+- Status :: accepted (Micah, 2026-10-27)
 
 * Context
 Step 2 of Phase 3: H2 says that immediate mode with a cache gives the smallest

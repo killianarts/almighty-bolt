@@ -55,12 +55,13 @@
                 #:cell-top
                 #:cell-at
                 #:clamp-first)
-  (:import-from #:almighty-bolt-variant-retained/widgets
-                #:label
-                #:label-text
+  (:import-from #:almighty-bolt-variant-retained/builder
                 #:padding
                 #:column
                 #:row)
+  (:import-from #:almighty-bolt-variant-retained/widgets
+                #:label
+                #:label-text)
   (:import-from #:almighty-bolt-variant-retained/inputs
                 #:canvas
                 #:canvas-invalidate)
@@ -175,10 +176,10 @@
                          :paint #'paint :on-press #'press :on-key #'key :on-wheel #'scroll))
       (refresh)
       (make-retained-variant
-       (padding (column (row (label "Cell:") name (label "Contents:") contents
-                             :gap 10 :cross-align :center)
-                        grid
-                        :gap 12)
-                :all 20)))))
+       (padding (:all 20)
+         (column (:gap 12)
+           (row (:gap 10 :cross-align :center)
+             (label "Cell:") name (label "Contents:") contents)
+           grid))))))
 
 (register-app :retained :cells #'make-cells :width 640 :height 440)

@@ -18,11 +18,12 @@
                 #:editor-wheel
                 #:editor-press
                 #:editor-drag)
-  (:import-from #:almighty-bolt-variant-retained/widgets
-                #:label
-                #:label-text
+  (:import-from #:almighty-bolt-variant-retained/builder
                 #:padding
                 #:column)
+  (:import-from #:almighty-bolt-variant-retained/widgets
+                #:label
+                #:label-text)
   (:import-from #:almighty-bolt-variant-retained/inputs
                 #:canvas
                 #:canvas-invalidate)
@@ -79,6 +80,7 @@
                            :on-text #'text :on-composition #'compose :on-wheel #'scroll))
       (setf variant
             (make-retained-variant
-             (padding (column status editor :gap 12) :all 20))))))
+             (padding (:all 20)
+               (column (:gap 12) status editor)))))))
 
 (register-app :retained :editor #'make-editor-app :width 740 :height 560)

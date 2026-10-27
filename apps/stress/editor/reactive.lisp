@@ -21,12 +21,13 @@
   (:import-from #:almighty-bolt-variant-reactive/signals
                 #:make-signal
                 #:value)
-  (:import-from #:almighty-bolt-variant-reactive/views
-                #:label
+  (:import-from #:almighty-bolt-variant-reactive/builder
                 #:padding
                 #:column
-                #:canvas
                 #:component)
+  (:import-from #:almighty-bolt-variant-reactive/views
+                #:label
+                #:canvas)
   (:import-from #:almighty-bolt-variant-reactive/reactive
                 #:make-reactive-variant)
   (:export #:make-editor-app))
@@ -66,18 +67,17 @@
       (setf variant
             (make-reactive-variant
              (lambda ()
-               (padding
-                (column (component (lambda ()
-                                     (value changes)
-                                     (label (status-text document) :id :status)))
-                        (component (lambda ()
-                                     (canvas :id :editor :width +editor-width+
-                                             :height +editor-height+ :focusable t
-                                             :paint #'draw :data (value changes)
-                                             :on-press #'press :on-drag #'drag :on-key #'key
-                                             :on-text #'text :on-composition #'compose
-                                             :on-wheel #'scroll)))
-                        :gap 12)
-                :all 20)))))))
+               (padding (:all 20)
+                 (column (:gap 12)
+                   (component ()
+                     (value changes)
+                     (label (status-text document) :id :status))
+                   (component ()
+                     (canvas :id :editor :width +editor-width+
+                             :height +editor-height+ :focusable t
+                             :paint #'draw :data (value changes)
+                             :on-press #'press :on-drag #'drag :on-key #'key
+                             :on-text #'text :on-composition #'compose
+                             :on-wheel #'scroll))))))))))
 
 (register-app :reactive :editor #'make-editor-app :width 740 :height 560)

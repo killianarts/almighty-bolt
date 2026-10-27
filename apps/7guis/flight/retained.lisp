@@ -9,12 +9,13 @@
                 #:booking-message)
   (:import-from #:almighty-bolt-variant-retained/node
                 #:node-enabled)
+  (:import-from #:almighty-bolt-variant-retained/builder
+                #:padding
+                #:column)
   (:import-from #:almighty-bolt-variant-retained/widgets
                 #:label
                 #:label-text
-                #:button
-                #:padding
-                #:column)
+                #:button)
   (:import-from #:almighty-bolt-variant-retained/inputs
                 #:text-field
                 #:text-field-text
@@ -62,7 +63,8 @@
             book (button "Book" :id :book :on-click #'book-it)
             message (label "" :id :message))
       (refresh)
-      (make-retained-variant (padding (column kind start return book message :gap 12)
-                                      :all 24)))))
+      (make-retained-variant
+       (padding (:all 24)
+         (column (:gap 12) kind start return book message))))))
 
 (register-app :retained :flight #'make-flight :width 460 :height 290)

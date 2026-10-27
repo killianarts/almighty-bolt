@@ -31,32 +31,35 @@ its own; result records already hold the machine profile.
 - Step 3 done (stress apps): input-method hooks (commit 0563338), the dashboard, the million rows and
   the text editor in all three variants with unit and acceptance tests, replay scripts, results
   (headless, host, windows), the bounded line cache; record 0025 proposed.
+- Micah's question after step 3 (why the immediate apps look simpler): two experiments on the branch
+  =builder-macros= (builder macros for retained and reactive; a reactive dashboard of signals). Record
+  0026 proposed; the method and what I expected are in =notes/builder-macros.org=.
 
 * Review queue
 (records proposed in this run)
-- 0025 Stress apps (step 3): H1 and H3 stay open; three small interface changes for Micah to choose.
-- 0024 Change cost and size (step 2): H2 stays open; the method is the protocol.
+- 0026 Builder macros (Micah's question about why the immediate apps look simpler): H2 stays open; the
+  syntax accounts for at most 4% of the size gap. Accepted (Micah, 2026-10-27), option (a): the builder
+  layer and the port of the ten apps are merged; the signal-model files stay on =builder-macros=.
+- 0025 Stress apps (step 3): H1 and H3 stay open; four small interface changes. Micah chose (a), (c) and (d) on 2026-10-27;
+  still proposed until (b) is confirmed as declined.
+- 0024 Change cost and size (step 2): H2 stays open; the method is the protocol. Accepted (Micah,
+  2026-10-27).
 - 0023 Instrumentation and metrics (step 1): the instrumentation is a run-time flag, not a build-time
   switch; executables per variant; the protocol of the metrics. Accepted
   (Micah, 2026-10-27), as is 0011.
 
 * Open decisions for Micah
-- 0023 (accepted 2026-10-27): instrumentation switched on at run time (a flag in the context), not
-  at build time as the charter says. Measured cost: 40 to 230 ns a frame.
 - Step 2, E4: no variant has a checkbox, so the switch is a two-option choice standing where a
   checkbox would. Say if a checkbox widget is wanted instead (it would be library work in each variant).
-- 0025 (a): =set-text-input-caret= in the canvas's own coordinates, the variant adding the canvas's place
-  (now each app asks =lookup-target=, because a retained canvas is drawn from a cache at 0, 0).
-- 0025 (b): an unclip keeps no rectangle, so that display lists and their hashes are the same across
-  variants (they now differ in that one field; the dashboard's differ in four commands, not looked into).
-- 0025 (c): handlers get the context (or the canvas keeps its laid-out lines), if an editor in a
-  proportional font is wanted; the editor now stores the width of a character.
 - A real input method has to be tried by a person: =TASK=editor build/immediate= after =make image
   VARIANT=immediate=, then switch to a Japanese or Chinese keyboard and type; the candidate window
   should be beside the caret.
 - Not pushed: all commits since =7f11e02= are local (tests pass at each).
-- 0025 (d): the harness counts the frame but not =handle-event=, and an immediate app handles events
-  inside the frame, so its build looks slower and allocates more than the others'. Counting both for
-  every variant is a change to the host and headless runs, and the records of the 7GUIs scripts and of
-  0021 and 0023 would be run again. (Found by asking why the immediate editor allocates more; 0025 says
-  so.)
+- Decided 2026-10-27, to do, one commit each: 0025 (a) =set-text-input-caret= in the canvas's own
+  coordinates, the variant adding the canvas's place; (c) handlers get the context; (d) the harness
+  counts =handle-event= with the frame, for every variant (results go to a new file: the build
+  tables of 0021 and 0023 are of the frame only). 0025 (b), an unclip that keeps no rectangle, is
+  not wanted (one variant will be the library, so display lists need not match across variants);
+  the dashboard's four differing commands are not looked into.
+- 0027 and 0028 (McCLIM, branch =mcclim=, not merged): left proposed. Micah, 2026-10-27: do not make
+  E1, E2, E4 and E5 on the McCLIM apps now; McCLIM comes back in a comprehensive comparison.

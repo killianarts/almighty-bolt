@@ -24,6 +24,13 @@ and use 71, 74 and 53 distinct framework symbols (=results/change-cost/app-sizes
 variant is smallest in every task but one (temperature, where retained is smallest) and uses the
 fewest symbols in every task.
 
+Those are the sizes at =4cb93b8=, written with the retained and reactive variants' function calls.
+Record 0026 (accepted 2026-10-27) merged the builder macros and ported the ten counted apps of those
+two variants to them, so the apps you read now have the immediate variant's syntax. After the port
+the seven apps are 590, 550 and 475 lines; the ten, 831, 791 and 660 (retained was 816, reactive 791);
+the concepts (97, 102 and 73 for the ten) do not change. The patches of E1 to E5 in
+=results/change-cost/= are against the apps before the port and do not apply to them now.
+
 ** E1, a field in the CRUD form
 Each variant had six or seven places to touch: where the field is made, what enables Create, what
 picking an entry fills in, Create, Update, Delete, and the layout. The shared model needed an

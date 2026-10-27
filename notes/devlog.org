@@ -1504,3 +1504,34 @@ README says changes with the state of the machine by a factor of two or three), 
 columns are compared. The immediate variant's build still includes the handling of events and the
 others' does not (record 0025 (d)), so its columns are not like for like with theirs.
 
+
+* 2026-10-26 — Is the immediate variant's size the syntax? Builder macros and a signal model
+** What I did
+Micah asked whether the immediate apps look simpler because the model suits immediate mode or
+because retained and reactive have to wire a change to the widgets, and thought the other two needed
+a macro API. I wrote down what I expected (notes/builder-macros.org, committed first), then added
+builder macros to the retained and reactive variants with the immediate variant's syntax, (row (:gap
+10) child ...), ported the ten counted apps of both to them and nothing else, and checked the frames
+before and after (scripts/frame-hashes.lisp: 168 hashes, identical; the same lines twice before the
+change). Then a reactive dashboard whose model is signals (a step signal, a computed for each tile),
+which replaces the reactive dashboard when its system is loaded. Branch builder-macros; record 0026
+proposed.
+** What I measured
+The macros close 1.2% of retained's token gap to immediate and 4.0% of reactive's (the body of the
+apps, tokens, so layout does not count); in lines retained is 816 to 831 and reactive 791 to 791
+(ten lines of each are the extra import clause for a package of its own). Allocation and the time of
+a frame in the driver are the same before and after. The signal model makes the app 11 lines shorter
+(80 to 69), the model file is 42 lines, and a frame conses 6.6% more (10058 bytes for 9435) and
+takes 6% longer. So at least 96% of the size gap is not the syntax of the tree. Counted: the package
+form is 13 to 17% of the gap of the whole file and the callback signatures (a handler that must say
+it ignores the canvas or the data it is given) 7 to 16% of the gap of the body; 70 to 80% is left,
+which by my reading is mostly the code that keeps widgets or signals in step with the model and the
+event model, and which I did not measure apart.
+** Read with care
+I expected the dashboards to gain about ten lines and they gained three; I had overestimated apply
+and append. The macros collect the values of their forms (so prebuilt nodes can be named, which the
+retained apps need for their handles), which is not the immediate variant's semantics (a widget
+called in the body puts itself in); a macro of that kind is not tried and would save the assembly
+forms, a line each. The 620 bytes a frame of the signal model, about a cons for each of 36 computed
+values, is not explained. The tokens count is mine (scripts/app-tokens.lisp) and not part of 0024's
+measure. One author wrote the variants, the apps, the macros and the port.

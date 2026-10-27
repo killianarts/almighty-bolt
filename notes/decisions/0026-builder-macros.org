@@ -1,0 +1,129 @@
+#+TITLE: 0026 — Builder macros: how much of the size gap is syntax
+#+DATE: 2026-10-26
+- Status :: accepted (Micah, 2026-10-27), option (a)
+- Merged :: the layer and the port; the signal-model files stay on
+  the branch =builder-macros=
+
+* Context
+0024 found the immediate variant's apps the smallest (475 lines against 547
+reactive and 576 retained for the seven 7GUIs tasks; 660, 791 and 816 with the
+three stress apps). Micah saw that they also look nearly usable as they are, and
+asked whether that is because the model is shaped for immediate mode or because
+the other two must wire a change to the widgets it changes; and said the
+retained and reactive variants looked as if they needed a macro API. The
+variants differ in syntax as well as in approach: the immediate containers are
+macros whose body is the children, and the others are functions with the
+children first and the options after, which for a computed row needs =(apply
+#'row (append (loop ...) (list :gap ...)))=. The two experiments take the syntax
+away as an explanation. =notes/builder-macros.org= was committed with the method
+and what I expected before any macro was written.
+
+* What was done
+- A builder package in each variant (one file,
+  =variants/cl-retained/src/builder.lisp= and
+  =variants/cl-reactive/src/builder.lisp=): =row=, =column=, =stack=, =padding=,
+  =panel= and =center= as macros with the immediate variant's syntax, =(row
+  (:gap 10) child ...)=, and for reactive =(component () body ...)=. A body
+  form's value is a child; a list is spliced in; NIL is left out. The macros
+  expand into functions that take the children as one list (=flex-box-of=,
+  =stack-of=, =flex-view-of=), which the old constructors now call, so no
+  existing caller changed and no copy of the children is made. 17 tests.
+- The ten counted apps of both variants were rewritten with them, and nothing
+  else in them. =scripts/frame-hashes.lisp= (the hash of each app's frame after
+  a battery of events, in the acceptance driver) gives the same 168 lines before
+  and after, and =make test= passes.
+- A reactive dashboard whose model is signals
+  (=apps/stress/dashboard/signal-model.lisp=, =reactive-signals.lisp=; a system
+  of its own, not in =make test=, that replaces the reactive dashboard when
+  loaded): the same frames, the dashboard's acceptance tests pass.
+- Two new scripts: =scripts/app-tokens.lisp=, the size of an app in tokens,
+  which does not change when a child is put on a line of its own, and
+  =scripts/frame-bytes.lisp=, the bytes and time of a frame of an animated app
+  in the driver.
+
+* Evidence
+Lines of code and tokens of the apps, before the port (4cb93b8) and after; the
+immediate variant was not changed:
+  |                    | retained     | reactive     | immediate |
+  |--------------------+--------------+--------------+-----------|
+  | lines, 7GUIs       | 576 -> 590   | 547 -> 550   | 475       |
+  | lines, stress      | 240 -> 241   | 244 -> 241   | 185       |
+  | lines, all ten     | 816 -> 831   | 791 -> 791   | 660       |
+  | tokens, whole file | 2473 -> 2487 | 2426 -> 2427 | 1905      |
+  | tokens, body       | 2059 -> 2053 | 2039 -> 2020 | 1568      |
+- The macros close 1.2 % of retained's gap to immediate and 4.0 % of reactive's,
+  in tokens of the body (what an app is but its package form). In lines they
+  widen retained's gap by 10 % and leave reactive's alone. Ten lines in each
+  variant are the cost of the macros being in a package of their own (one more
+  IMPORT-FROM clause in each app); without them reactive's gap is 8 % smaller.
+  The dashboards gain three lines each, where I expected ten. The syntax of the
+  tree is at most 4 % of the gap of the body. The concepts (97, 102 and 73) do
+  not change.
+- A frame conses the same bytes and takes the same time before and after, in the
+  two apps that animate: the dashboard 623, 9435 and 3537 bytes (retained,
+  reactive, immediate) and the timer 33, 98 and 590.
+- The signal model: the app is 69 lines and 149 body tokens against 80 and 193,
+  the model file is 42 lines and 86 tokens, so together they are larger. A frame
+  conses 10058 bytes against 9435 (+6.6 %) and takes 74.2 us against 70.1 (+5.8
+  %). It removes the loop that copies the model into 36 signals and moves its
+  work into the model.
+Where the rest of the gap is, in tokens of the whole file, after the port
+(retained, reactive): the gap is 582 and 522; the package form is 97 and 70 of
+it (an app imports from three to five packages of the retained variant, four of
+the reactive and two of the immediate); the callbacks' signatures are 77 and 33
+(a handler that must say it ignores the canvas or the data it is given: 26 and
+13 declarations in the ten apps against 4); and 408 and 419, 70 % and 80 %, are
+the rest, which I did not split.
+- By my reading the rest is the code that keeps the widgets or the signals in
+  step with the model (in the dashboard: the handles and the loop that writes
+  them; the signals, the components that read them and the ticker that writes
+  them) and the event model (a named handler given to a widget, against =(when
+  (button ...))= where the widget is described). The immediate dashboard has no
+  code of the first kind, because the description reads the model; the library
+  does the work of finding what changed in every frame. What that costs in time
+  is small: the dashboard's build in the driver is 43.4, 70.1 and 74.6 us
+  (retained, reactive, immediate), so retained is clearly cheaper and the other
+  two are close.
+
+* Decision
+Proposed: H2 stays OPEN. What this adds is that the size gap of 0024 is not the
+syntax of the tree (at most 4 % of the body's gap). A measurable part is how the
+libraries are laid out, which is not about approach: the package form (13 to 17
+% of the gap of the whole file) and the signatures of callbacks (7 to 16 % of
+the gap of the body). Most of it, 70 to 80 %, I take by reading to be the code
+that keeps the state in step with the widgets and the event model, which is what
+H2 supposed; I did not measure it apart from the rest. The answer to the
+question that began this: the models are not shaped for the immediate variant;
+the shared editor controller returns whether it changed something, which the
+immediate variant discards, and a signal cannot see a model that changes in
+place, which the reactive variant has to work around.
+
+Proposed, for Micah to choose (the work is on the branch =builder-macros=, which
+starts at 4cb93b8, not merged and not pushed):
+- (a) Merge the builder layer and the port. The three variants' trees then read
+  the same, which is what whoever scores the usability rubric should be
+  comparing. The costs are that every size quoted in 0024, 0025 and the rubric's
+  facts sheet (=notes/usability-rubric.org=) changes (retained +15 lines,
+  reactive 0), so they would be quoted before and after; and that the patches of
+  E1 to E5 (=results/change-cost/=) no longer apply to the apps, so a sixth edit
+  would not be like for like unless the five were made again. I recommend this.
+- (b) Merge the layer and its tests, and leave the apps of record as they are.
+  Nothing that was measured changes; new apps can use the macros, and the rubric
+  compares function calls with macros.
+- (c) Do not merge. The branch keeps the evidence.
+Either way the signal-model system stays on the branch as the experiment's
+evidence; it is not a candidate for the apps of record.
+
+* Consequences
+- Easier: the next comparison of variants can say that the syntax is not what
+  differs. The builder macros are additive and cost nothing that was measured.
+- Harder: more to keep in step. The builder packages follow the constructors (a
+  new container needs a macro), and an app that takes its containers from them
+  has one more import.
+- Open: macros in which a widget that is called in the body puts itself in, as
+  in the immediate variant (so that =dotimes= works and nothing is built first
+  and assembled last), are not tried. The retained apps build their widgets
+  first because they need handles to change them later, so the saving would be
+  the assembly forms, a line each. The 620 bytes a frame that 36 computed values
+  cost was not looked into. The rubric is Micah's to score, and its facts sheet
+  is to be changed if (a) is chosen.

@@ -16,12 +16,13 @@
                 #:entries-filtered)
   (:import-from #:almighty-bolt-variant-retained/node
                 #:node-enabled)
-  (:import-from #:almighty-bolt-variant-retained/widgets
-                #:label
-                #:button
+  (:import-from #:almighty-bolt-variant-retained/builder
                 #:padding
                 #:column
                 #:row)
+  (:import-from #:almighty-bolt-variant-retained/widgets
+                #:label
+                #:button)
   (:import-from #:almighty-bolt-variant-retained/inputs
                 #:text-field
                 #:text-field-text
@@ -92,14 +93,14 @@
             delete (button "Delete" :id :delete :on-click #'delete-entry))
       (refresh-list)
       (make-retained-variant
-       (padding (column (row (label "Filter prefix:") filter :gap 10 :cross-align :center)
-                        (row list
-                             (column (row (label "Name:") name :gap 10 :cross-align :center)
-                                     (row (label "Surname:") surname :gap 10 :cross-align :center)
-                                     :gap 10)
-                             :gap 20)
-                        (row create update delete :gap 10)
-                        :gap 14)
-                :all 20)))))
+       (padding (:all 20)
+         (column (:gap 14)
+           (row (:gap 10 :cross-align :center) (label "Filter prefix:") filter)
+           (row (:gap 20)
+             list
+             (column (:gap 10)
+               (row (:gap 10 :cross-align :center) (label "Name:") name)
+               (row (:gap 10 :cross-align :center) (label "Surname:") surname)))
+           (row (:gap 10) create update delete)))))))
 
 (register-app :retained :crud #'make-crud :width 640 :height 280)
