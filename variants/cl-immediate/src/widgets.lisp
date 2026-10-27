@@ -65,6 +65,7 @@
                 #:rect-h
                 #:state-of)
   (:import-from #:almighty-bolt-core
+                #:with-painting
                 #:context-font
                 #:context-measure
                 #:context-caret-x
@@ -647,8 +648,9 @@ dy) and (:exit), with points in the canvas."
     (let ((fragment (canvas-state-fragment state)))
       (loop
         (clear-display-list fragment)
-        (handler-case (progn (funcall painter fragment (ui-context ui) (float width 1f0)
-                                      (float height 1f0))
+        (handler-case (progn (with-painting ((ui-context ui) id)
+                               (funcall painter fragment (ui-context ui) (float width 1f0)
+                                        (float height 1f0)))
                              (return))
           (almighty-bolt-core:display-list-full ()
             (setf fragment (make-display-list

@@ -188,6 +188,9 @@
                 #:context-text-input-p
                 #:context-text-input-rect
                 #:set-text-input-caret
+                #:place-text-input-caret
+                #:with-painting
+                #:context-painting
                 #:context-phases-p
                 #:context-phase-ns
                 #:+phase-update+
@@ -451,6 +454,9 @@
            #:context-text-input-p
            #:context-text-input-rect
            #:set-text-input-caret
+           #:place-text-input-caret
+           #:with-painting
+           #:context-painting
            #:context-phases-p
            #:context-phase-ns
            #:+phase-update+

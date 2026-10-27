@@ -1,6 +1,7 @@
 (defpackage #:almighty-bolt-variant-retained/inputs
   (:use #:cl)
   (:import-from #:almighty-bolt-core
+                #:with-painting
                 #:context-font
                 #:context-measure
                 #:context-caret-x
@@ -47,6 +48,7 @@
                 #:+control-radius+)
   (:import-from #:almighty-bolt-variant-retained/node
                 #:node
+                #:node-id
                 #:node-flex
                 #:node-w
                 #:node-h
@@ -664,7 +666,8 @@ The canvas keeps what PAINT drew until CANVAS-INVALIDATE says it changed."
   (when (canvas-paint canvas)
     ;; What the app draws is kept inside the canvas.
     (push-clip list x y (node-w canvas) (node-h canvas))
-    (funcall (canvas-paint canvas) canvas context list x y (node-w canvas) (node-h canvas))
+    (with-painting (context (node-id canvas))
+      (funcall (canvas-paint canvas) canvas context list x y (node-w canvas) (node-h canvas)))
     (push-unclip list)))
 
 (defmethod pointer-press ((canvas canvas) session x y button)

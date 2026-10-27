@@ -324,10 +324,10 @@
 
 ;;; --- painting ---
 
-(defun paint (document &key (x 0f0) (y 0f0) (origin-x x) (origin-y y))
+(defun paint (document &key (x 0f0) (y 0f0))
   (let ((context (fake:make-fake-context :width 740f0 :height 560f0))
         (list (core:make-display-list :capacity 8192)))
-    (p:paint-editor context list x y 700f0 480f0 document origin-x origin-y)
+    (p:paint-editor context list x y 700f0 480f0 document)
     (values list context)))
 
 (defun glyphs (list)
@@ -358,15 +358,18 @@
       (assert-false (search (m:line-string document 1) text))
       (assert-true (search "41" text)))))
 
-(define-test the-painter-tells-the-context-where-the-caret-is-in-the-window ()
-  (let ((document (doc (format nil "abc~%defgh") :caret 6)))
-    (multiple-value-bind (list context) (paint document :x 0f0 :y 0f0 :origin-x 20f0 :origin-y 52f0)
-      (declare (ignore list))
-      (let ((rect (core:context-text-input-rect context))
-            (text-x (+ m:+gutter-width+ p:+text-inset+)))
-        (assert-true (core:context-text-input-p context))
-        (assert-eql (+ 20f0 text-x (* 2 8)) (aref rect 0))
-        (assert-eql (+ 52f0 m:+line-height+ 2) (aref rect 1))))
+(define-test the-painter-tells-the-context-where-the-caret-is-in-the-canvas ()
+  (let ((document (doc (format nil "abc~%defgh") :caret 6))
+        (text-x (+ m:+gutter-width+ p:+text-inset+)))
+    ;; The same place whether the area is painted at 0, 0 or somewhere else (a retained canvas
+    ;; is painted where it is, or kept and drawn there): it is in the area.
+    (dolist (at '((0f0 0f0) (20f0 52f0)))
+      (multiple-value-bind (list context) (paint document :x (first at) :y (second at))
+        (declare (ignore list))
+        (let ((rect (core:context-text-input-rect context)))
+          (assert-true (core:context-text-input-p context))
+          (assert-eql (float (+ text-x (* 2 8)) 1f0) (aref rect 0) at)
+          (assert-eql (float (+ m:+line-height+ 2) 1f0) (aref rect 1) at))))
     (assert-eql 8f0 (m:document-char-width document))))
 
 (define-test the-selection-and-the-caret-are-drawn-and-composed-text-is-underlined ()

@@ -6,6 +6,7 @@
                 #:real-time-source)
   (:import-from #:almighty-bolt-core/variant
                 #:frame
+                #:place-text-input-caret
                 #:context-frame-number
                 #:context-build-number
                 #:context-phases-p
@@ -43,25 +44,29 @@ build when this returns. Sets the context's build number (from 1) for each build
 A frame that reaches the cap signals a SETTLE-CAP-REACHED warning, which the
 host logs. Returns the number of builds and true if the cap was reached. With the
 context's instrumentation on, the real time of the first build and of all the builds
-is added to the context's phase times, so that the cost of settling shows apart."
+is added to the context's phase times, so that the cost of settling shows apart. When
+the builds are done, a caret that a canvas gave in its own coordinates is put in the
+window, where the canvas now is (PLACE-TEXT-INPUT-CARET)."
   (let ((builds 0)
         (timed (context-phases-p context)))
     (declare (type fixnum builds))
-    (loop
-      (incf builds)
-      (setf (context-build-number context) builds)
-      (clear-display-list display-list)
-      (unless (if timed
-                  (let* ((start (real-time-source))
-                         (again (frame variant context display-list))
-                         (took (- (real-time-source) start))
-                         (slots (context-phase-ns context)))
-                    (when (= builds 1)
-                      (incf (aref slots +phase-first-build+) took))
-                    (incf (aref slots +phase-all-builds+) took)
-                    again)
-                  (frame variant context display-list))
-        (return (values builds nil)))
-      (when (>= builds +max-builds+)
-        (warn 'settle-cap-reached :frame-number (context-frame-number context))
-        (return (values builds t))))))
+    (multiple-value-prog1
+        (loop
+          (incf builds)
+          (setf (context-build-number context) builds)
+          (clear-display-list display-list)
+          (unless (if timed
+                      (let* ((start (real-time-source))
+                             (again (frame variant context display-list))
+                             (took (- (real-time-source) start))
+                             (slots (context-phase-ns context)))
+                        (when (= builds 1)
+                          (incf (aref slots +phase-first-build+) took))
+                        (incf (aref slots +phase-all-builds+) took)
+                        again)
+                      (frame variant context display-list))
+            (return (values builds nil)))
+          (when (>= builds +max-builds+)
+            (warn 'settle-cap-reached :frame-number (context-frame-number context))
+            (return (values builds t))))
+      (place-text-input-caret variant context))))

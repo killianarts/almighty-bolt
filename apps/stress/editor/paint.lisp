@@ -53,9 +53,10 @@
 
 (defconstant +text-inset+ 8 "How far from the gutter the text starts.")
 
-(defun paint-editor (context list x y width height document &optional (origin-x x) (origin-y y))
-  "Append the commands that draw DOCUMENT in the area X, Y, WIDTH by HEIGHT. ORIGIN-X and ORIGIN-Y
-are where the area is in the window, if that is not where X and Y are."
+(defun paint-editor (context list x y width height document)
+  "Append the commands that draw DOCUMENT in the area X, Y, WIDTH by HEIGHT, and say where the
+caret is in the area, which is what the input method needs and the canvas's variant puts in the
+window."
   (declare (ignore width height))
   (let* ((font (context-font context "Menlo" 12))
          (number-font (context-font context "Menlo" 11))
@@ -121,6 +122,6 @@ are where the area is in the window, if that is not where X and Y are."
                     (push-rect list caret-x caret-y 1.5f0 (- +line-height+ 4) +caret+)))))))
         ;; Where the input method puts its window: at the caret, or at the top if it is not shown.
         (set-text-input-caret context
-                              (+ origin-x (- (or caret-x text-x) x))
-                              (+ origin-y (- (or caret-y y) y))
+                              (- (or caret-x text-x) x)
+                              (- (or caret-y y) y)
                               1.5f0 (float (- +line-height+ 4) 1f0))))))

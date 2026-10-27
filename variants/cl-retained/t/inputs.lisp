@@ -421,6 +421,36 @@
       (build variant)
       (assert-eql 2 painted))))
 
+;;; --- the caret of a canvas that takes text ---
+
+(defun settle (variant)
+  (core:settle-frame variant *context* (core:make-display-list :capacity 2048)))
+
+(defun caret-in-the-window ()
+  (let ((rect (core:context-text-input-rect *context*)))
+    (list (aref rect 0) (aref rect 1))))
+
+(define-test the-caret-a-canvas-said-follows-it-when-it-moves-and-is-not-painted-again ()
+  (let* ((painted 0)
+         (label (w:label "ab" :id :l))
+         (canvas (i:canvas :id :c :width 100 :height 80
+                           :paint (lambda (canvas context list x y w h)
+                                    (declare (ignore canvas list x y w h))
+                                    (incf painted)
+                                    (core:set-text-input-caret context 5f0 6f0 1.5f0 12f0))))
+         (variant (show (w:row label canvas :gap 10))))
+    (settle variant)
+    (multiple-value-bind (x y) (core:lookup-target variant :c)
+      (assert-equal (list (+ x 5f0) (+ y 6f0)) (caret-in-the-window)))
+    (assert-eql 1 painted)
+    ;; A longer label moves the canvas to the right. The canvas is kept, and drawn there.
+    (setf (w:label-text label) "abcdefgh")
+    (settle variant)
+    (assert-eql 1 painted)
+    (multiple-value-bind (x y) (core:lookup-target variant :c)
+      (assert-true (> x 60f0))
+      (assert-equal (list (+ x 5f0) (+ y 6f0)) (caret-in-the-window)))))
+
 ;;; --- text and composition for a canvas that has the keyboard ---
 
 (defun text (variant string)

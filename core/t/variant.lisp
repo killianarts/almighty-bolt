@@ -249,3 +249,98 @@ debugging policy that allocates."
         (dotimes (i 300000)
           (variant:with-phase (context variant:+phase-layout+) (setf *sink* i)))
         (assert-true (< (- (sb-ext:get-bytes-consed) before) 1000000) on)))))
+
+;;; --- the caret of text input ---
+
+;;; A variant whose canvases are where it says, and that counts how often it is asked.
+
+(defclass placed-variant (variant:variant)
+  ((places :initarg :places :initform '() :accessor places)
+   (asked :initform 0 :type fixnum :accessor asked)))
+
+(defmethod variant:lookup-target ((variant placed-variant) id)
+  (incf (asked variant))
+  (let ((place (cdr (assoc id (places variant)))))
+    (when place
+      (values (first place) (second place) 100f0 50f0))))
+
+(defun caret-rect (context)
+  (coerce (variant:context-text-input-rect context) 'list))
+
+(define-test a-caret-said-outside-a-canvas-is-taken-to-be-in-the-window ()
+  (let ((variant (make-instance 'placed-variant :places '((:editor 30f0 40f0))))
+        (context (variant:make-context)))
+    (assert-false (variant:context-text-input-p context))
+    (variant:set-text-input-caret context 10f0 20f0 2f0 14f0)
+    (assert-true (variant:context-text-input-p context))
+    (variant:place-text-input-caret variant context)
+    (assert-equal '(10f0 20f0 2f0 14f0) (caret-rect context))
+    (assert-eql 0 (asked variant))))
+
+(define-test a-caret-said-in-a-canvas-is-put-where-the-variant-has-the-canvas ()
+  (let ((variant (make-instance 'placed-variant :places '((:editor 30f0 40f0))))
+        (context (variant:make-context)))
+    (variant:with-painting (context :editor)
+      (variant:set-text-input-caret context 10f0 20f0 2f0 14f0))
+    (variant:place-text-input-caret variant context)
+    (assert-equal '(40f0 60f0 2f0 14f0) (caret-rect context))))
+
+(define-test a-canvas-that-moved-and-was-not-painted-again-has-its-caret-moved ()
+  (let ((variant (make-instance 'placed-variant :places '((:editor 30f0 40f0))))
+        (context (variant:make-context)))
+    (variant:with-painting (context :editor)
+      (variant:set-text-input-caret context 10f0 20f0 2f0 14f0))
+    (variant:place-text-input-caret variant context)
+    (setf (places variant) '((:editor 130f0 240f0)))
+    (variant:place-text-input-caret variant context)
+    (assert-equal '(140f0 260f0 2f0 14f0) (caret-rect context))
+    ;; Placing again adds the canvas's place to the canvas's own caret, not to the last sum.
+    (variant:place-text-input-caret variant context)
+    (assert-equal '(140f0 260f0 2f0 14f0) (caret-rect context))))
+
+(define-test a-canvas-the-variant-does-not-have-keeps-the-last-place ()
+  (let ((variant (make-instance 'placed-variant :places '((:editor 30f0 40f0))))
+        (context (variant:make-context)))
+    (variant:with-painting (context :editor)
+      (variant:set-text-input-caret context 10f0 20f0 2f0 14f0))
+    (variant:place-text-input-caret variant context)
+    (setf (places variant) '())
+    (variant:place-text-input-caret variant context)
+    (assert-equal '(40f0 60f0 2f0 14f0) (caret-rect context))))
+
+(define-test nothing-is-asked-of-the-variant-until-a-canvas-takes-text-input ()
+  (let ((variant (make-instance 'placed-variant :places '((:editor 30f0 40f0))))
+        (context (variant:make-context)))
+    (variant:place-text-input-caret variant context)
+    (variant:with-painting (context :editor) nil)
+    (variant:place-text-input-caret variant context)
+    (assert-eql 0 (asked variant))
+    (assert-false (variant:context-text-input-p context))))
+
+(define-test painting-names-the-canvas-for-the-body-only ()
+  (let ((context (variant:make-context)))
+    (assert-false (variant:context-painting context))
+    (variant:with-painting (context :outer)
+      (assert-eql :outer (variant:context-painting context))
+      (variant:with-painting (context :inner)
+        (assert-eql :inner (variant:context-painting context)))
+      (assert-eql :outer (variant:context-painting context)))
+    (assert-false (variant:context-painting context))
+    (catch :out
+      (variant:with-painting (context :cut)
+        (throw :out nil)))
+    (assert-false (variant:context-painting context))))
+
+(defun say-carets (context count)
+  "Compiled with this file, as DELIVER-MANY is."
+  (declare (type fixnum count))
+  (dotimes (i count)
+    (variant:with-painting (context :editor)
+      (variant:set-text-input-caret context 10f0 20f0 2f0 14f0))))
+
+(define-test saying-where-the-caret-is-allocates-nothing ()
+  (let ((context (variant:make-context)))
+    (say-carets context 1000)
+    (let ((before (sb-ext:get-bytes-consed)))
+      (say-carets context 300000)
+      (assert-true (< (- (sb-ext:get-bytes-consed) before) 500000)))))

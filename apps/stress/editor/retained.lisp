@@ -1,7 +1,5 @@
 (defpackage #:almighty-bolt-stress/editor/retained
   (:use #:cl)
-  (:import-from #:almighty-bolt-core
-                #:lookup-target)
   (:import-from #:almighty-bolt-7guis/common/registry
                 #:register-app)
   (:import-from #:almighty-bolt-stress/editor/model
@@ -36,13 +34,12 @@
 ;;; The text editor, retained: the document is one object that the handlers change; the editor is
 ;;; one canvas that draws it and handles its own events, and a label above it says where the caret
 ;;; is. After each change the handlers update the label and say that the canvas must draw again.
-;;; A canvas that has not changed is not drawn again, but kept as commands to draw where it is, and
-;;; when it is drawn it is at 0, 0: where it is in the window, which the input method needs, is
-;;; asked of the variant.
+;;; A canvas that has not changed is not drawn again, but kept as commands to draw where it is;
+;;; the caret it says is in the canvas, and the variant puts it where the canvas is in the window.
 
 (defun make-editor-app ()
   (let ((document (make-sample-document))
-        (editor nil) (status nil) (variant nil))
+        (editor nil) (status nil))
     (labels ((refresh (changed)
                (when changed
                  (let ((text (status-text document)))
@@ -71,16 +68,13 @@
                (refresh (editor-composition document kind string start length)))
              (paint (source context list x y width height)
                (declare (ignore source))
-               (multiple-value-bind (origin-x origin-y) (lookup-target variant :editor)
-                 (paint-editor context list x y width height document
-                               (float (or origin-x x) 1f0) (float (or origin-y y) 1f0)))))
+               (paint-editor context list x y width height document)))
       (setf status (label (status-text document) :id :status)
             editor (canvas :id :editor :width +editor-width+ :height +editor-height+ :focusable t
                            :paint #'paint :on-press #'press :on-drag #'drag :on-key #'key
                            :on-text #'text :on-composition #'compose :on-wheel #'scroll))
-      (setf variant
-            (make-retained-variant
-             (padding (:all 20)
-               (column (:gap 12) status editor)))))))
+      (make-retained-variant
+       (padding (:all 20)
+         (column (:gap 12) status editor))))))
 
 (register-app :retained :editor #'make-editor-app :width 740 :height 560)

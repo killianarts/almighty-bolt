@@ -157,7 +157,6 @@
 
 (d:define-acceptance the-input-method-is-told-where-the-caret-is :editor
   (click-at driver 3 5)
-  (d:redraw driver)                                         ; once more: a variant may know a frame late
   (destructuring-bind (x y width height) (d:rectangle driver :editor)
     (declare (ignore width height))
     (multiple-value-bind (on rect) (d:text-input-caret driver)

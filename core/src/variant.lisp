@@ -21,6 +21,9 @@
            #:context-text-input-p
            #:context-text-input-rect
            #:set-text-input-caret
+           #:place-text-input-caret
+           #:with-painting
+           #:context-painting
            #:context-phases-p
            #:context-phase-ns
            #:+phase-update+
@@ -126,24 +129,63 @@ within the frame. REQUESTER is what REQUEST-FRAME calls; the host replaces it."
   ;; Instrumentation (the charter's phases): when PHASES-P is true, WITH-PHASE adds the real
   ;; time of what it runs to a slot of PHASE-NS, and SETTLE-FRAME times its builds. The host
   ;; clears the slots at the start of a frame and reads them at the end.
-  ;; Text input (the input method of the operating system): a variant that has something the
+  ;; Text input (the input method of the operating system): a canvas that has something the
   ;; person is typing into says so, and where the caret is, in points from the top left of the
-  ;; window, as x, y, width and height. The host sends text and composition events, and gives
-  ;; the input method the caret's place to put its candidates by, only while TEXT-INPUT-P.
+  ;; canvas, as x, y, width and height (TEXT-INPUT-LOCAL), by painting with SET-TEXT-INPUT-CARET.
+  ;; After each build the core adds the canvas's place (PLACE-TEXT-INPUT-CARET), and the sum, in
+  ;; the window, is TEXT-INPUT-RECT, which the host gives the input method to put its candidates
+  ;; by. The host sends text and composition events only while TEXT-INPUT-P. PAINTING is the id
+  ;; of the canvas whose painter is running (see WITH-PAINTING) and TEXT-INPUT-CANVAS the id of
+  ;; the one that said where the caret is; with no id the rectangle is taken to be in the window.
   (text-input-p nil :type boolean)
   (text-input-rect (make-array 4 :element-type 'single-float :initial-element 0f0)
    :type (simple-array single-float (4)) :read-only t)
+  (text-input-local (make-array 4 :element-type 'single-float :initial-element 0f0)
+   :type (simple-array single-float (4)) :read-only t)
+  (text-input-canvas nil)
+  (painting nil)
   (phases-p nil :type boolean)
   (phase-ns (make-array +phase-slots+ :element-type '(unsigned-byte 64) :initial-element 0)
    :type (simple-array (unsigned-byte 64) (*)) :read-only t))
 
 (defun set-text-input-caret (context x y width height)
-  "Say that something takes text input, with the caret at X, Y and WIDTH by HEIGHT in the window.
-Does not allocate."
+  "Say that something takes text input, with the caret at X, Y and WIDTH by HEIGHT in points from
+the top left of the canvas that is being painted. After each build SETTLE-FRAME puts the canvas
+where it now is, so the input method is given a place in the window even when the canvas has
+moved and was not painted again. Called outside a canvas's painter, the place is taken to be in
+the window. Does not allocate."
   (declare (type single-float x y width height))
-  (let ((rect (context-text-input-rect context)))
-    (setf (aref rect 0) x (aref rect 1) y (aref rect 2) width (aref rect 3) height
+  (let ((local (context-text-input-local context))
+        (rect (context-text-input-rect context)))
+    (setf (aref local 0) x (aref local 1) y (aref local 2) width (aref local 3) height
+          (aref rect 0) x (aref rect 1) y (aref rect 2) width (aref rect 3) height
+          (context-text-input-canvas context) (context-painting context)
           (context-text-input-p context) t))
+  nil)
+
+(defmacro with-painting ((context id) &body body)
+  "Run BODY, the painter of the canvas with the id ID, so that SET-TEXT-INPUT-CARET knows which
+canvas its caret is in. A variant wraps each call of an app's canvas painter in it."
+  (let ((c (gensym "CONTEXT"))
+        (before (gensym "BEFORE")))
+    `(let* ((,c ,context)
+            (,before (context-painting ,c)))
+       (setf (context-painting ,c) ,id)
+       (unwind-protect (progn ,@body)
+         (setf (context-painting ,c) ,before)))))
+
+(defun place-text-input-caret (variant context)
+  "Put the caret that SET-TEXT-INPUT-CARET was given in the window: add the place that VARIANT
+now has for the canvas that said it. Called by SETTLE-FRAME after the last build of a frame; it
+does nothing unless a canvas with an id takes text input."
+  (let ((canvas (context-text-input-canvas context)))
+    (when (and canvas (context-text-input-p context))
+      (multiple-value-bind (x y) (lookup-target variant canvas)
+        (when x
+          (let ((local (context-text-input-local context))
+                (rect (context-text-input-rect context)))
+            (setf (aref rect 0) (+ (aref local 0) (float x 1f0))
+                  (aref rect 1) (+ (aref local 1) (float y 1f0))))))))
   nil)
 
 (defun reset-phases (context)

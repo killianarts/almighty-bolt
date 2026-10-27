@@ -423,6 +423,31 @@
       (assert-eql 1 builds)
       (assert-true (plusp (core:display-list-count *list*))))))
 
+;;; --- the caret of a canvas that takes text ---
+
+(define-test the-caret-a-canvas-said-is-in-the-window-as-the-canvas-is-in-this-frame ()
+  (let* ((text "ab")
+         (variant (show (lambda ()
+                          (w:row ()
+                            (w:label text :id :l)
+                            (w:canvas :c 100 80
+                                      (lambda (list context width height)
+                                        (declare (ignore list width height))
+                                        (core:set-text-input-caret
+                                         context 5f0 6f0 1.5f0 12f0))))))))
+    (flet ((caret ()
+             (let ((rect (core:context-text-input-rect *context*)))
+               (list (aref rect 0) (aref rect 1)))))
+      (multiple-value-bind (x y) (core:lookup-target variant :c)
+        (assert-equal (list (+ x 5f0) (+ y 6f0)) (caret)))
+      ;; A longer label moves the canvas, and the caret is where the canvas is after the one
+      ;; build that moved it, not where it was the build before.
+      (setf text "abcdefgh")
+      (build variant)
+      (multiple-value-bind (x y) (core:lookup-target variant :c)
+        (assert-true (> x 60f0))
+        (assert-equal (list (+ x 5f0) (+ y 6f0)) (caret))))))
+
 ;;; --- text and composition for a canvas that has the keyboard ---
 
 (defun text (variant string)

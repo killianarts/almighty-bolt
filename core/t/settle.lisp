@@ -100,6 +100,40 @@ the number of builds, whether the cap was reached, and the warnings signalled."
     ;; A bare variant has no FRAME of its own.
     (assert-error 'error (settle:settle-frame variant context list))))
 
+;;; --- the caret of text input ---
+
+;;; A variant with a canvas that says its caret in its own coordinates the first time it is
+;;; built only (a retained canvas that is not changed is not painted again), and that can be
+;;; moved between frames.
+
+(defclass moving-variant (variant:variant)
+  ((place :initarg :place :accessor place)
+   (builds :initform 0 :accessor builds)))
+
+(defmethod variant:frame ((variant moving-variant) context list)
+  (declare (ignore list))
+  (when (= 1 (incf (builds variant)))
+    (variant:with-painting (context :editor)
+      (variant:set-text-input-caret context 10f0 20f0 2f0 14f0)))
+  nil)
+
+(defmethod variant:lookup-target ((variant moving-variant) id)
+  (when (eq id :editor)
+    (values (first (place variant)) (second (place variant)) 100f0 50f0)))
+
+(define-test a-settled-frame-has-the-caret-where-the-canvas-is-in-the-window ()
+  (let ((variant (make-instance 'moving-variant :place '(30f0 40f0)))
+        (context (variant:make-context))
+        (list (dl:make-display-list :capacity 16)))
+    (settle:settle-frame variant context list)
+    (assert-equal '(40f0 60f0 2f0 14f0) (coerce (variant:context-text-input-rect context) 'list))
+    ;; The canvas moves and is not painted again: the caret goes with it.
+    (setf (place variant) '(130f0 240f0))
+    (settle:settle-frame variant context list)
+    (assert-eql 2 (builds variant))
+    (assert-equal '(140f0 260f0 2f0 14f0)
+                  (coerce (variant:context-text-input-rect context) 'list))))
+
 ;;; --- no allocation ---
 
 (defclass busy-variant (variant:variant)

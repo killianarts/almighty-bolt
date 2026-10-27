@@ -1,7 +1,5 @@
 (defpackage #:almighty-bolt-stress/editor/reactive
   (:use #:cl)
-  (:import-from #:almighty-bolt-core
-                #:lookup-target)
   (:import-from #:almighty-bolt-7guis/common/registry
                 #:register-app)
   (:import-from #:almighty-bolt-stress/editor/model
@@ -37,13 +35,12 @@
 ;;; The text editor, reactive. The document is changed in place, which a signal cannot see, so the
 ;;; one signal is a count of the changes: every handler that changed the document adds one, and the
 ;;; status label and the canvas are components that read it, so that a change describes both and a
-;;; scroll or a caret move that changed nothing describes neither. Where the canvas is in the
-;;; window, which the input method needs, is asked of the variant.
+;;; scroll or a caret move that changed nothing describes neither. The caret is said in the canvas,
+;;; and the variant puts it where the canvas is in the window.
 
 (defun make-editor-app ()
   (let* ((document (make-sample-document))
-         (changes (make-signal 0))
-         (variant nil))
+         (changes (make-signal 0)))
     (labels ((changed (did)
                (when did (incf (value changes)))
                did)
@@ -61,23 +58,20 @@
                (changed (editor-composition document kind string start length)))
              (draw (data canvas context list x y width height)
                (declare (ignore data canvas))
-               (multiple-value-bind (origin-x origin-y) (lookup-target variant :editor)
-                 (paint-editor context list x y width height document
-                               (float (or origin-x x) 1f0) (float (or origin-y y) 1f0)))))
-      (setf variant
-            (make-reactive-variant
-             (lambda ()
-               (padding (:all 20)
-                 (column (:gap 12)
-                   (component ()
-                     (value changes)
-                     (label (status-text document) :id :status))
-                   (component ()
-                     (canvas :id :editor :width +editor-width+
-                             :height +editor-height+ :focusable t
-                             :paint #'draw :data (value changes)
-                             :on-press #'press :on-drag #'drag :on-key #'key
-                             :on-text #'text :on-composition #'compose
-                             :on-wheel #'scroll))))))))))
+               (paint-editor context list x y width height document)))
+      (make-reactive-variant
+       (lambda ()
+         (padding (:all 20)
+           (column (:gap 12)
+             (component ()
+               (value changes)
+               (label (status-text document) :id :status))
+             (component ()
+               (canvas :id :editor :width +editor-width+
+                       :height +editor-height+ :focusable t
+                       :paint #'draw :data (value changes)
+                       :on-press #'press :on-drag #'drag :on-key #'key
+                       :on-text #'text :on-composition #'compose
+                       :on-wheel #'scroll)))))))))
 
 (register-app :reactive :editor #'make-editor-app :width 740 :height 560)

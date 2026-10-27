@@ -162,6 +162,35 @@ each of the two components was described."
                   (setf (s:value signal) (1+ now))
                   (v:column (v:label (princ-to-string now)))))))))
 
+;;; --- the caret of a canvas that takes text ---
+
+(define-test the-caret-a-canvas-said-follows-it-when-it-moves-and-is-not-painted-again ()
+  (let* ((text (s:make-signal "ab"))
+         (painted 0)
+         (variant (show (lambda ()
+                          (v:row (v:component (lambda () (v:label (s:value text) :id :l)))
+                                 (v:canvas :id :c :width 100 :height 80
+                                           :paint (lambda (data canvas context list x y w h)
+                                                    (declare (ignore data canvas list x y w h))
+                                                    (incf painted)
+                                                    (core:set-text-input-caret
+                                                     context 5f0 6f0 1.5f0 12f0))))))))
+    (flet ((settle ()
+             (core:settle-frame variant *context* (core:make-display-list :capacity 1024)))
+           (caret ()
+             (let ((rect (core:context-text-input-rect *context*)))
+               (list (aref rect 0) (aref rect 1)))))
+      (settle)
+      (multiple-value-bind (x y) (core:lookup-target variant :c)
+        (assert-equal (list (+ x 5f0) (+ y 6f0)) (caret)))
+      (let ((before painted))
+        (setf (s:value text) "abcdefgh")
+        (settle)
+        (assert-eql before painted)
+        (multiple-value-bind (x y) (core:lookup-target variant :c)
+          (assert-true (> x 60f0))
+          (assert-equal (list (+ x 5f0) (+ y 6f0)) (caret)))))))
+
 ;;; --- text and composition for a canvas that has the keyboard ---
 
 (defun text (variant string)
