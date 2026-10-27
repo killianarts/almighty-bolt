@@ -25,6 +25,7 @@
                 #:label
                 #:button
                 #:text-field
+                #:checkbox
                 #:list-box)
   (:import-from #:almighty-bolt-variant-reactive/reactive
                 #:make-reactive-variant)
@@ -40,10 +41,12 @@
   (let* ((entries (make-signal (make-entries '("Hans" "Emil") '("Max" "Mustermann")
                                              '("Roman" "Tisch"))))
          (filter (make-signal ""))
+         (filter-on (make-signal t))
          (picked (make-signal nil))
          (name (make-signal ""))
          (surname (make-signal ""))
-         (shown (computed (entries-filtered (value entries) (value filter))))
+         (shown (computed (entries-filtered (value entries)
+                                            (if (value filter-on) (value filter) ""))))
          (picked-entry (computed (find (value picked) (value shown) :key #'entry-id))))
     (flet ((create ()
              (multiple-value-bind (new entry) (entries-add (value entries) (value name) (value surname))
@@ -66,10 +69,13 @@
        (lambda ()
          (padding (:all 20)
            (column (:gap 14)
-             (row (:gap 10 :cross-align :center)
-               (label "Filter prefix:")
-               (text-field :id :filter :width 160 :value (value filter)
-                           :on-change (lambda (text) (setf (value filter) text))))
+             (checkbox "Filter" :id :filter-switch :checked (value filter-on)
+                                :on-change (lambda (on) (setf (value filter-on) on)))
+             (when (value filter-on)
+               (row (:gap 10 :cross-align :center)
+                 (label "Filter prefix:")
+                 (text-field :id :filter :width 160 :value (value filter)
+                             :on-change (lambda (text) (setf (value filter) text)))))
              (row (:gap 20)
                (list-box :id :list :width 220 :rows 6
                          :items (mapcar #'entry-display (value shown))
@@ -94,4 +100,4 @@
                (button "Delete" :id :delete :on-click #'delete-picked
                                 :enabled (and (value picked-entry) t))))))))))
 
-(register-app :reactive :crud #'make-crud :width 640 :height 280)
+(register-app :reactive :crud #'make-crud :width 640 :height 320)
