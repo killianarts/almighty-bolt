@@ -1,6 +1,8 @@
 #+TITLE: 0029 — A checkbox in each variant, and E4 made again with it
 #+DATE: 2026-10-27
-- Status :: proposed
+- Status :: accepted (Micah, 2026-10-27), option (a)
+- Note :: the edit stays on the branch change-cost/e4-checkbox (3c7eb8a);
+  the patches and the results are in results/
 
 * Context
 0024 made E4 (hide the CRUD's filter row behind a switch) with a choice of two

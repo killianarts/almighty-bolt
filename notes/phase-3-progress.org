@@ -38,7 +38,8 @@ its own; result records already hold the machine profile.
 * Review queue
 (records proposed in this run)
 - 0029 A checkbox in each variant, and E4 made again with it: H2 stays open; the immediate and
-  reactive edits cost 12 lines and the retained 22; every expectation held but one.
+  reactive edits cost 12 lines and the retained 22; every expectation held but one. Accepted
+  (Micah, 2026-10-27), option (a).
 - 0026 Builder macros (Micah's question about why the immediate apps look simpler): H2 stays open; the
   syntax accounts for at most 4% of the size gap. Accepted (Micah, 2026-10-27), option (a): the builder
   layer and the port of the ten apps are merged; the signal-model files stay on =builder-macros=.
@@ -53,9 +54,9 @@ its own; result records already hold the machine profile.
 * Open decisions for Micah
 - Step 2, E4: Micah, 2026-10-27: E4 should use a real checkbox. Done: a checkbox in each variant
   (=8671821=, =70b01d9=, =b39b437=; 54, 14 and 53 lines) and E4 made again with it on the branch
-  =change-cost/e4-checkbox= (=3c7eb8a=): record 0029 (proposed), =results/20261027-e4-checkbox.txt=,
-  patches in =results/change-cost/e4-checkbox/=. Choose for 0029: keep the edit on the branch
-  (recommended), merge it into the CRUD apps, or make E4 with the choice again on this base.
+  =change-cost/e4-checkbox= (=3c7eb8a=): record 0029, accepted (Micah, 2026-10-27) with its option
+  (a): the edit stays on the branch (local), =results/20261027-e4-checkbox.txt=, patches in
+  =results/change-cost/e4-checkbox/=. Not done: E4 with the choice made again on this base.
 - The usability rubric (=notes/usability-rubric.org=) stays unscored. Micah, 2026-10-27: too early
   for a firm judgement on usability; leaning towards immediate mode, wants to see more before
   deciding. This is not a decision on the variant.
