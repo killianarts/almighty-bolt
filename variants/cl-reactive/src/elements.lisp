@@ -46,6 +46,8 @@
                 #:slider-value
                 #:choice
                 #:choice-selected
+                #:checkbox
+                #:checkbox-checked
                 #:list-box
                 #:list-box-items
                 #:list-box-selected
@@ -166,6 +168,8 @@ state says even if the handler did not change it."
                                 :on-change (controlled-handler element :on-change)))
                (:choice (choice (p :options) :id id :flex flex :selected (p :selected)
                                              :on-change (controlled-handler element :on-change)))
+               (:checkbox (checkbox (p :label) :id id :flex flex :checked (p :checked)
+                                    :on-change (controlled-handler element :on-change)))
                (:list-box (list-box :id id :flex flex :items (p :items) :rows (p :rows)
                                     :width (p :width) :selected (p :selected)
                                     :on-select (controlled-handler element :on-select)))
@@ -254,6 +258,7 @@ changed."
     (:text-field :width)
     (:slider :minimum :maximum :width)
     (:choice :options)
+    (:checkbox :label)
     (:list-box :rows :width)
     (:canvas :width :height :focusable :autofocus))
   "For each kind of view, the properties that the node is made with and cannot be changed:
@@ -310,6 +315,8 @@ false, having changed nothing, if it cannot be done (the node must be made again
          (setf (slider-value node) (p :value)))
         (:choice
          (setf (choice-selected node) (p :selected)))
+        (:checkbox
+         (setf (checkbox-checked node) (p :checked)))
         (:list-box
          (unless (equal (coerce (list-box-items node) 'list) (coerce (p :items) 'list))
            (setf (list-box-items node) (p :items)))

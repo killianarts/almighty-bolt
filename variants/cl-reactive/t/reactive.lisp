@@ -213,6 +213,49 @@ each of the two components was described."
           (assert-true (> x 60f0))
           (assert-equal (list (+ x 5f0) (+ y 6f0)) (caret)))))))
 
+;;; --- a checkbox that the state controls ---
+
+(define-test a-checkbox-shows-what-the-state-says-and-a-refused-change-is-undone ()
+  (let* ((on (s:make-signal nil))
+         (refuse nil)
+         (asked '())
+         (thunk (lambda ()
+                  (v:column (v:checkbox "Filter" :id :c :checked (s:value on)
+                                                 :on-change (lambda (checked)
+                                                              (push checked asked)
+                                                              (unless refuse
+                                                                (setf (s:value on) checked)))))))
+         (count (lambda (list) (core:display-list-count list))))
+    (multiple-value-bind (variant unchecked) (show thunk)
+      (click variant :c)
+      (assert-equal '(t) asked)
+      (assert-true (s:peek on))
+      ;; The mark in the box is one more command than the empty box has.
+      (assert-eql (1+ (funcall count unchecked)) (funcall count (build variant)))
+      (click variant :c)
+      (assert-false (s:peek on))
+      (assert-eql (funcall count unchecked) (funcall count (build variant)))
+      ;; A change the app refuses leaves the box as the state says.
+      (setf refuse t)
+      (click variant :c)
+      (assert-equal '(t nil t) (reverse asked))
+      (assert-false (s:peek on))
+      (assert-eql (funcall count unchecked) (funcall count (build variant))))))
+
+(define-test the-space-bar-asks-the-app-to-change-a-checkbox-that-has-the-keyboard ()
+  (let* ((on (s:make-signal nil))
+         (variant (show (lambda ()
+                          (v:column (v:checkbox "Filter" :id :c :checked (s:value on)
+                                                         :on-change (lambda (checked)
+                                                                      (setf (s:value on) checked))))))))
+    (key variant #\Space)
+    (assert-false (s:peek on))                                  ; the keyboard is nowhere yet
+    (key variant #\Tab)
+    (key variant #\Space)
+    (assert-true (s:peek on))
+    (key variant #\Space)
+    (assert-false (s:peek on))))
+
 ;;; --- every handler of a canvas is given the context ---
 
 (define-test every-handler-of-a-canvas-is-given-the-context-first ()

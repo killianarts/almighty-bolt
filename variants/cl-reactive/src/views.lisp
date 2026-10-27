@@ -25,6 +25,7 @@
            #:text-field
            #:slider
            #:choice
+           #:checkbox
            #:list-box
            #:canvas
            #:component))
@@ -58,6 +59,7 @@
     (:text-field :value :width :on-change :on-submit :invalid)
     (:slider :value :minimum :maximum :width :on-change)
     (:choice :options :selected :on-change)
+    (:checkbox :label :checked :on-change)
     (:list-box :items :selected :rows :width :on-select)
     (:canvas :width :height :data :paint :on-press :on-move :on-exit :on-drag :on-release :on-key
      :on-text :on-composition :on-wheel :focusable :autofocus)
@@ -175,6 +177,12 @@ the field shows VALUE again afterwards, so a change that ON-CHANGE does not make
 
 (defun choice (options &key id (selected 0) on-change (flex 0) (visible t) (enabled t) key)
   (make-view :choice (vector options selected on-change)
+             nil id flex visible enabled key))
+
+(defun checkbox (label &key id checked on-change (flex 0) (visible t) (enabled t) key)
+  "A box with LABEL beside it, CHECKED or not (the app's state). ON-CHANGE is called with the new
+state when it is clicked or has the space bar; the box shows what the app says after that."
+  (make-view :checkbox (vector label (and checked t) on-change)
              nil id flex visible enabled key))
 
 (defun list-box (&key id items selected (rows 8) (width 200) on-select (flex 0) (visible t)
