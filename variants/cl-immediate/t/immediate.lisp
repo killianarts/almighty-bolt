@@ -423,6 +423,84 @@
       (assert-eql 1 builds)
       (assert-true (plusp (core:display-list-count *list*))))))
 
+;;; --- a checkbox ---
+
+(defun a-checkbox-app (&key (enabled t))
+  "An interface of a checkbox that keeps its state in a variable. Returns the interface, a
+function giving the state and a function giving the changes it reported, oldest first."
+  (let ((checked nil) (changes '()))
+    (values (lambda ()
+              (multiple-value-bind (now changed) (w:checkbox :f "Filter" checked :enabled enabled)
+                (when changed
+                  (setf checked now)
+                  (push now changes))))
+            (lambda () checked)
+            (lambda () (reverse changes)))))
+
+(defun click-at (variant x y)
+  (pointer variant :move x y) (build variant)
+  (pointer variant :down x y :button 0 :buttons 1) (build variant)
+  (pointer variant :up x y :button 0) (build variant))
+
+(define-test a-checkbox-is-a-box-and-a-label-and-a-line-and-a-bit-high ()
+  (multiple-value-bind (app state) (a-checkbox-app)
+    (let ((variant (show app)))
+      ;; 16 for the box, 6 between, and "Filter" is 6 characters of 8 points.
+      (assert-equal '(0f0 0f0 70f0 22f0)
+                    (multiple-value-list (core:lookup-target variant :f)))
+      (assert-false (funcall state)))))
+
+(define-test a-click-on-the-box-or-the-label-changes-the-checkbox-and-says-so ()
+  (multiple-value-bind (app state changes) (a-checkbox-app)
+    (let ((variant (show app)))
+      (click-at variant 8 11)
+      (assert-true (funcall state))
+      (click-at variant 60 11)
+      (assert-false (funcall state))
+      (click-at variant 30 11)
+      (assert-true (funcall state))
+      (assert-equal '(t nil t) (funcall changes)))))
+
+(define-test a-press-that-ends-outside-the-checkbox-changes-nothing ()
+  (multiple-value-bind (app state changes) (a-checkbox-app)
+    (let ((variant (show app)))
+      (pointer variant :move 8 11) (build variant)
+      (pointer variant :down 8 11 :button 0 :buttons 1) (build variant)
+      (pointer variant :move 300 200 :buttons 1) (build variant)
+      (pointer variant :up 300 200 :button 0) (build variant)
+      (assert-false (funcall state))
+      (assert-equal '() (funcall changes)))))
+
+(define-test the-space-bar-changes-a-checkbox-that-has-the-keyboard-and-no-other-key-does ()
+  (multiple-value-bind (app state changes) (a-checkbox-app)
+    (let ((variant (show app)))
+      (key variant #\Space) (build variant)
+      (assert-false (funcall state))                           ; the keyboard is nowhere yet
+      (key variant #\Tab) (build variant)
+      (key variant #\a) (build variant)
+      (key variant #\Return) (build variant)
+      (assert-false (funcall state))
+      (key variant #\Space) (build variant)
+      (assert-true (funcall state))
+      (key variant #\Space) (build variant)
+      (assert-false (funcall state))
+      (assert-equal '(t nil) (funcall changes)))))
+
+(define-test a-checked-checkbox-has-a-mark-in-the-box-and-a-disabled-one-takes-nothing ()
+  (multiple-value-bind (app state) (a-checkbox-app)
+    (let ((variant (show app)))
+      (let ((unchecked (core:display-list-count *list*)))
+        (click-at variant 8 11)
+        (assert-true (funcall state))
+        ;; The mark is one more command than the empty box has.
+        (assert-eql (1+ unchecked) (core:display-list-count *list*)))))
+  (multiple-value-bind (app state) (a-checkbox-app :enabled nil)
+    (let ((variant (show app)))
+      (click-at variant 8 11)
+      (key variant #\Tab) (build variant)
+      (key variant #\Space) (build variant)
+      (assert-false (funcall state)))))
+
 ;;; --- the context where the events of a canvas are handled ---
 
 (define-test the-context-is-at-hand-where-the-events-of-a-canvas-are-handled ()

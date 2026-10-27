@@ -135,6 +135,12 @@ them in the boxes, and return the width and height."
              (choice-state-widths state) widths)
        (set-box box (constrain (max 0f0 (- left +option-gap+)) min-w max-w)
                 (constrain (max 22f0 +dot-size+) min-h max-h))))
+    (:checkbox
+     (set-box box (constrain (+ +dot-size+ 6f0 (float (context-measure context (ui-font context)
+                                                                        (box-text box))
+                                                       1f0))
+                             min-w max-w)
+              (constrain 22f0 min-h max-h)))
     (:scrim
      (set-box box (if (< max-w +unbounded+) max-w min-w) (if (< max-h +unbounded+) max-h min-h)))
     ((:column :row)

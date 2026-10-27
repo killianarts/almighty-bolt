@@ -273,6 +273,19 @@
                (position (* travel (/ (float top 1f0) max-top))))
           (push-rounded-rect list (+ x w -8) (+ y 4 position) 4 bar 2 +field-border-color+))))))
 
+(defun draw-checkbox (box context list x y)
+  (let ((top (+ y (/ (- (box-h box) +dot-size+) 2)))
+        (focused (nth-value 1 (look-state box))))
+    (draw-outlined-box list x top +dot-size+ +dot-size+ +field-fill-color+ focused)
+    (when (eql (box-n3 box) 1)
+      (push-rounded-rect list (+ x 4) (+ top 4) (- +dot-size+ 8) (- +dot-size+ 8) 2f0
+                         +row-selected-color+))
+    (multiple-value-bind (height ascent) (line-metrics context)
+      (declare (ignore height))
+      (context-push-text context list (ui-font context) (box-text box) (+ x +dot-size+ 6f0)
+                         (+ y (/ (- (box-h box) (+ ascent 4f0)) 2) ascent)
+                         (if (box-enabled box) +text-color+ +dim-text-color+)))))
+
 (defun draw-leaf (box context list x y)
   (ecase (box-kind box)
     (:label (draw-label box context list x y))
@@ -282,6 +295,7 @@
     (:slider (draw-slider box list x y))
     (:progress (draw-progress box list x y))
     (:choice (draw-choice box context list x y))
+    (:checkbox (draw-checkbox box context list x y))
     (:list-box (draw-list-box box context list x y))))
 
 ;;; --- the cache ---
@@ -320,7 +334,7 @@ kept, and otherwise afresh, which is then kept."
   (let ((x (+ x (box-x box)))
         (y (+ y (box-y box))))
     (ecase (box-kind box)
-      ((:label :paragraph :button :text-field :slider :progress :choice :list-box)
+      ((:label :paragraph :button :text-field :slider :progress :choice :checkbox :list-box)
        (paint-cached ui box context list x y))
       (:canvas
        (let ((scale (context-scale context))

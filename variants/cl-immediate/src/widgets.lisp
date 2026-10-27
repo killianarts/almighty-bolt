@@ -102,6 +102,7 @@
            #:text-field
            #:slider
            #:choice
+           #:checkbox
            #:list-box
            #:progress
            #:canvas
@@ -507,6 +508,40 @@ Returns the index now and whether the person changed it this frame."
           (box-look box) (look-of ui key enabled))
     (close-box ui)
     (values new (/= new selected))))
+
+;;; --- a box that is checked or not, with a label ---
+
+(defun checkbox (id label checked &key (enabled t) (flex 0))
+  "A box with LABEL beside it, CHECKED or not (what the application holds). Returns the state now
+and whether the person changed it this frame: the primary button went down and up over the box or
+the label, or the space bar was pressed with the keyboard on it."
+  (let* ((ui *ui*)
+         (box (open-box ui :checkbox :id id))
+         (key (box-key box))
+         (new (and checked t)))
+    (setf (box-text box) label
+          (box-enabled box) enabled
+          (box-interactive box) enabled
+          (box-focusable box) enabled
+          (box-flex box) (float flex 1f0))
+    (when enabled
+      (when (and (= (ui-hot ui) key) (ui-pressed ui))
+        (consume-press ui)
+        (setf (ui-active ui) key))
+      (when (and (= (ui-active ui) key) (ui-released ui))
+        (consume-release ui)
+        (setf (ui-active ui) 0)
+        (when (= (ui-hot ui) key)
+          (setf new (not new))))
+      (when (= (ui-focus ui) key)
+        (dolist (event (copy-list (ui-keys ui)))
+          (when (eql (key-event-logical-key event) #\Space)
+            (consume-key ui event)
+            (setf new (not new))))))
+    (setf (box-n3 box) (if new 1 0)
+          (box-look box) (look-of ui key enabled))
+    (close-box ui)
+    (values new (not (eq new (and checked t))))))
 
 ;;; --- a list to pick from ---
 
