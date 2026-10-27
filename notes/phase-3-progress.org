@@ -55,11 +55,13 @@ its own; result records already hold the machine profile.
   VARIANT=immediate=, then switch to a Japanese or Chinese keyboard and type; the candidate window
   should be beside the caret.
 - Not pushed: all commits since =7f11e02= are local (tests pass at each).
-- Decided 2026-10-27, to do, one commit each: 0025 (a) =set-text-input-caret= in the canvas's own
-  coordinates, the variant adding the canvas's place; (c) handlers get the context; (d) the harness
-  counts =handle-event= with the frame, for every variant (results go to a new file: the build
-  tables of 0021 and 0023 are of the frame only). 0025 (b), an unclip that keeps no rectangle, is
-  not wanted (one variant will be the library, so display lists need not match across variants);
-  the dashboard's four differing commands are not looked into.
+- Decided 2026-10-27 and done, one commit each (=4170b59=, =dcdccaf=, =49d2d9d=): 0025 (a)
+  =set-text-input-caret= in the canvas's own coordinates, the core adding the canvas's place;
+  (c) canvas handlers get the context (immediate: =current-context=); (d) the harness counts
+  =handle-event= with the frame, for every variant (the full run is in
+  =results/20261027-events-counted.txt=; the build tables of 0021, 0023 and 0025 are of the frame
+  only). 0025 (b), an unclip that keeps no rectangle, is not wanted (one variant will be the
+  library, so display lists need not match across variants); the dashboard's four differing
+  commands are not looked into. 0025 stays proposed until Micah confirms that (b) is declined.
 - 0027 and 0028 (McCLIM, branch =mcclim=, not merged): left proposed. Micah, 2026-10-27: do not make
   E1, E2, E4 and E5 on the McCLIM apps now; McCLIM comes back in a comprehensive comparison.

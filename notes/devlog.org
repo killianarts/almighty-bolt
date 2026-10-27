@@ -1535,3 +1535,53 @@ called in the body puts itself in); a macro of that kind is not tried and would 
 forms, a line each. The 620 bytes a frame of the signal model, about a cons for each of 36 computed
 values, is not explained. The tokens count is mine (scripts/app-tokens.lisp) and not part of 0024's
 measure. One author wrote the variants, the apps, the macros and the port.
+
+* 2026-10-27 — Records accepted, and 0025's (a), (c) and (d) done
+** What I did
+Micah accepted 0011, 0023, 0024 and 0026 (taken as its option (a): the builder macros and the port
+of the ten apps, merged onto phase-2; the signal-model dashboard stays on builder-macros), chose
+(a), (c) and (d) of 0025 and not (b) (one variant will be the library, so display lists need not
+match across variants), and parked the McCLIM work (0027 and 0028 stay proposed; E1, E2, E4 and E5
+are not made on the McCLIM apps now). Then the three changes, a commit each, with =make test=
+passing and each new test broken on purpose.
+- (a) =set-text-input-caret= takes the caret in the canvas's own coordinates. A variant wraps a
+  canvas's painter in =with-painting= (the retained and immediate canvases; the reactive one uses
+  the retained), which names the canvas, and =settle-frame= puts the caret in the window after the
+  last build, with the place the variant has for that canvas now (=place-text-input-caret=,
+  through =lookup-target=). The place is this frame's also when a retained canvas was not painted
+  again, which is what 0025 said could not be had. The three editors no longer ask =lookup-target=
+  and =paint-editor= lost its two origin arguments; the acceptance test does not need its extra
+  redraw.
+- (c) Retained canvas handlers are called with the canvas and the context, reactive ones with the
+  context first (no canvas, as before), and the immediate variant exports =current-context= for
+  the code that handles what its canvas returned, next to =now= and =ask-for-frame=. The editor
+  uses it: =editor-press= and =editor-drag= take the context and find the column with
+  =context-index-at-x=, so =document-char-width= (the width the painter stored) is gone and a
+  proportional font would work. The hashes of all 168 steps of the ten apps are the same before and
+  after.
+- (d) The events delivered since the frame before are part of a frame's cost: the player's samples
+  have their time, bytes and number, and with the instrumentation on the context adds the time of
+  =handle-event= and a count, which the host records with the frame in the ring's last word.
+  =:build-ns= and =:bytes-per-frame= of the records keep their meaning.
+** What I measured
+- (a) A frame of an app that takes text input costs 48 bytes more in the retained and reactive
+  variants (=lookup-target= returns boxed floats) and 0.08 microseconds; nothing in the immediate
+  one. The setter itself still allocates nothing (tested).
+- (d) The full run (results/20261027T033004Z-49d2d9d-*, summarized in
+  results/20261027-events-counted.txt). The editor session's median frame, headless: 47, 52 and 191
+  microseconds as the build alone in the retained, reactive and immediate variants, and 139, 143
+  and 191 with the events. The immediate frame looked four times the others'; it is a third more;
+  through the host, build and events together are 206, 215 and 224. The rows, the cells and the counter move
+  by 0.3 to 4 microseconds. The immediate variant's frame is still the largest in all six apps.
+** Read with care
+The tables of 0021, 0023 and 0025 are of the frame only, and their cross-variant comparisons for
+the editor are off by the amount above; the records are not edited, and the new run supersedes
+them. The retained and reactive cost of an event in the editor is the model's (an edit with a
+line index of 20,000 entries), the same work in the three. The host's bytes are not counted for
+events. The compile of the apps, not the variants' tests, found that the circles' retained app
+called its own handler as =(hover nil x y)=: a change of a handler's arguments is found by the
+hashes script or =make test=, not by the variants' own tests. Still not looked into: the
+dashboard's four commands that differ across variants (it never calls =push-unclip=). One author
+wrote the variants, the apps and these changes. 0025 stays proposed until Micah says (b) is
+declined.
+

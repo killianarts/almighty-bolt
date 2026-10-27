@@ -49,3 +49,22 @@ bench-report= prints.
 - =:compile= (=make bench-compile=): seconds to compile the core, the shared models, the retained
   library, the variant's own library and its seven apps from an empty cache, and to compile again
   after touching one file of the variant's library and one of an app.
+
+* Events counted (decision record 0025 (d), 2026-10-27)
+The records from commit =49d2d9d= on count the events delivered before each frame, because a
+variant may do the work of an event in =handle-event= (retained, reactive) or in the frame
+(immediate), and a frame's build time and bytes were of the frame only. The records before that,
+all the ones above, are of the frame only: across variants they are not like for like for an app
+that takes input. The run of =20261027T033004Z-49d2d9d-*= supersedes them, and
+=20261027-events-counted.txt= says what it shows.
+
+- =:headless=: each repetition in =:runs= has =:event-ns=, =:event-bytes= and =:events=, one for
+  each frame (those delivered since the frame before), beside =:build-ns= and =:frame-bytes=,
+  which are what they were. =:summary= adds =:event-ns=, =:events-per-frame=, =:with-events-ns=
+  (the build and the events together, frame by frame) and =:bytes-per-frame-with-events=.
+  =:build-ns= and =:bytes-per-frame= keep their meaning, so the old records can still be read
+  beside them.
+- =:host=: =:columns= ends with =:events-ns= and =:events= (the time of =handle-event= and the
+  number of events since the frame before; the time is in the low 40 bits of the ring's last word
+  and the count above). =:summary= adds =:events= (a summary in nanoseconds) and
+  =:events-per-frame=. They are counted only while the instrumentation is on.
