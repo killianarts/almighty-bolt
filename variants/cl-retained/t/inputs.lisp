@@ -488,6 +488,84 @@
       (assert-true (> x 60f0))
       (assert-equal (list (+ x 5f0) (+ y 6f0)) (caret-in-the-window)))))
 
+;;; --- a checkbox ---
+
+(defun a-checkbox (&key checked on-change)
+  (let ((checkbox (i:checkbox "Filter" :id :c :checked checked :on-change on-change)))
+    (multiple-value-bind (variant list) (show (w:column checkbox))
+      (values variant checkbox list))))
+
+(defun click-at (variant x y)
+  (press variant x y)
+  (release variant x y))
+
+(define-test a-checkbox-is-a-box-and-a-label-and-a-line-and-a-bit-high ()
+  (multiple-value-bind (variant checkbox) (a-checkbox)
+    (declare (ignore variant))
+    ;; 16 for the box, 6 between, and "Filter" is 6 characters of 8 points.
+    (assert-equal '(0f0 0f0 70f0 22f0)
+                  (list (n:node-x checkbox) (n:node-y checkbox) (n:node-w checkbox)
+                        (n:node-h checkbox)))
+    (assert-false (i:checkbox-checked checkbox))))
+
+(define-test a-click-on-the-box-or-the-label-changes-the-checkbox-and-says-so ()
+  (let ((changes '()))
+    (multiple-value-bind (variant checkbox) (a-checkbox :on-change (lambda (checked)
+                                                                    (push checked changes)))
+      (click-at variant 8 11)
+      (assert-true (i:checkbox-checked checkbox))
+      (click-at variant 60 11)
+      (assert-false (i:checkbox-checked checkbox))
+      (click-at variant 30 11)
+      (assert-true (i:checkbox-checked checkbox))
+      (assert-equal '(t nil t) (reverse changes)))))
+
+(define-test a-press-that-ends-outside-the-checkbox-changes-nothing ()
+  (let ((changes '()))
+    (multiple-value-bind (variant checkbox) (a-checkbox :on-change (lambda (checked)
+                                                                    (push checked changes)))
+      (press variant 8 11)
+      (release variant 300 200)
+      (assert-false (i:checkbox-checked checkbox))
+      (assert-equal '() changes))))
+
+(define-test the-space-bar-changes-a-checkbox-that-has-the-keyboard-and-no-other-key-does ()
+  (let ((changes '()))
+    (multiple-value-bind (variant checkbox) (a-checkbox :on-change (lambda (checked)
+                                                                    (push checked changes)))
+      (key variant #\Space)
+      (assert-false (i:checkbox-checked checkbox))        ; the keyboard is nowhere yet
+      (key variant #\Tab)
+      (assert-true (eq checkbox (retained:retained-variant-focus variant)))
+      (key variant #\a)
+      (key variant #\Return)
+      (assert-false (i:checkbox-checked checkbox))
+      (key variant #\Space)
+      (assert-true (i:checkbox-checked checkbox))
+      (key variant #\Space)
+      (assert-false (i:checkbox-checked checkbox))
+      (assert-equal '(t nil) (reverse changes)))))
+
+(define-test setting-a-checkbox-from-the-app-calls-no-handler-and-shows ()
+  (let ((changes '()))
+    (multiple-value-bind (variant checkbox unchecked)
+        (a-checkbox :on-change (lambda (checked) (push checked changes)))
+      (setf (i:checkbox-checked checkbox) t)
+      (let ((checked (build variant)))
+        (assert-true (i:checkbox-checked checkbox))
+        (assert-equal '() changes)
+        ;; The mark inside the box is one more command.
+        (assert-eql (1+ (core:display-list-count unchecked)) (core:display-list-count checked))))))
+
+(define-test a-checkbox-that-has-the-keyboard-shows-it-and-a-disabled-one-takes-nothing ()
+  (multiple-value-bind (variant checkbox unfocused) (a-checkbox)
+    (key variant #\Tab)
+    (assert-true (> (core:display-list-count (build variant))
+                    (core:display-list-count unfocused)))      ; the ring round the box
+    (setf (n:node-enabled checkbox) nil)
+    (click-at variant 8 11)
+    (assert-false (i:checkbox-checked checkbox))))
+
 ;;; --- every handler of a canvas is given the context ---
 
 (define-test every-handler-of-a-canvas-is-given-the-context-first ()

@@ -86,6 +86,9 @@
            #:choice-p
            #:choice-selected
            #:choice-lefts
+           #:checkbox
+           #:checkbox-p
+           #:checkbox-checked
            #:list-box
            #:list-box-p
            #:list-box-items
@@ -98,7 +101,7 @@
 (in-package #:almighty-bolt-variant-retained/inputs)
 
 ;;; The widgets that take input: a line of editable text, a slider, a choice between
-;;; options, a list to pick from, and a canvas the app draws on and handles events for.
+;;; options, a checkbox, a list to pick from, and a canvas the app draws on and handles events for.
 
 (defconstant +field-padding+ 8f0)
 
@@ -471,6 +474,70 @@ called with the index of the option that is chosen."
              (choose choice (1- (choice-%selected choice))) t)
             ((or (eql key +key-right+) (eql key +key-down+))
              (choose choice (1+ (choice-%selected choice))) t)))))
+
+;;; --- a box that is checked or not, with a label ---
+
+(defstruct (checkbox (:include node) (:constructor %make-checkbox))
+  (label "" :type string)
+  (%checked nil :type boolean)
+  (on-change nil :type (or null function)))
+
+(defun checkbox (label &key id checked on-change (flex 0))
+  "A box with LABEL beside it, CHECKED or not. A click on the box or on the label, or the space bar
+when it has the keyboard, changes it, and calls ON-CHANGE with the new state (true or false)."
+  (%make-checkbox :id id :label label :%checked (and checked t) :on-change on-change
+                  :flex (float flex 1f0) :cacheable t))
+
+(defun checkbox-checked (checkbox)
+  (checkbox-%checked checkbox))
+
+(defun (setf checkbox-checked) (checked checkbox)
+  "Check or uncheck the box. Calls no handler."
+  (let ((checked (and checked t)))
+    (unless (eq checked (checkbox-%checked checkbox))
+      (setf (checkbox-%checked checkbox) checked)
+      (touch checkbox nil))
+    checked))
+
+(defmethod node-interactive-p ((checkbox checkbox)) t)
+(defmethod node-focusable-p ((checkbox checkbox)) t)
+
+(defconstant +box-size+ 16f0)
+
+(defmethod layout-node ((checkbox checkbox) context min-w max-w min-h max-h)
+  (let ((text-width (context-measure context (ui-font context) (checkbox-label checkbox))))
+    (set-size checkbox
+              (constrain (+ +box-size+ 6f0 (float text-width 1f0)) min-w max-w)
+              (constrain 22f0 min-h max-h))
+    (values (node-w checkbox) (node-h checkbox))))
+
+(defmethod paint-node ((checkbox checkbox) context list x y)
+  (let ((top (+ y (/ (- (node-h checkbox) +box-size+) 2))))
+    (draw-outlined-box list x top +box-size+ +box-size+ +field-fill-color+ (node-focused checkbox))
+    (when (checkbox-%checked checkbox)
+      (push-rounded-rect list (+ x 4) (+ top 4) (- +box-size+ 8) (- +box-size+ 8) 2f0
+                         +row-selected-color+))
+    (multiple-value-bind (height ascent) (line-height context)
+      (declare (ignore height))
+      (context-push-text context list (ui-font context) (checkbox-label checkbox)
+                         (+ x +box-size+ 6f0) (+ y (/ (- (node-h checkbox) (+ ascent 4f0)) 2) ascent)
+                         (if (node-enabled checkbox) +text-color+ +dim-text-color+)))))
+
+(defun toggle (checkbox)
+  (setf (checkbox-checked checkbox) (not (checkbox-%checked checkbox)))
+  (when (checkbox-on-change checkbox)
+    (funcall (checkbox-on-change checkbox) (checkbox-%checked checkbox))))
+
+(defmethod pointer-release ((checkbox checkbox) session x y inside-p)
+  (declare (ignore session x y))
+  (when inside-p
+    (toggle checkbox)))
+
+(defmethod key-input ((checkbox checkbox) session event)
+  (declare (ignore session))
+  (when (and (eq (key-event-kind event) :down) (eql (key-event-logical-key event) #\Space))
+    (toggle checkbox)
+    t))
 
 ;;; --- a list to pick from ---
 
