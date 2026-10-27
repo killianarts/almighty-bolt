@@ -1,6 +1,8 @@
 (defpackage #:almighty-bolt-stress/editor/control
   (:use #:cl)
   (:import-from #:almighty-bolt-core
+                #:context-font
+                #:context-index-at-x
                 #:key-event-kind
                 #:key-event-logical-key
                 #:key-event-modifiers
@@ -21,17 +23,19 @@
                 #:+line-height+
                 #:+visible-lines+
                 #:+gutter-width+
+                #:+font-name+
+                #:+font-size+
                 #:+lines-per-wheel-line+
                 #:document-caret
                 #:document-top-line
                 #:document-line-count
-                #:document-char-width
                 #:document-marked-text
                 #:selection-p
                 #:selection-start
                 #:selection-end
                 #:line-start
                 #:line-end
+                #:line-string
                 #:position-line
                 #:move-caret
                 #:select-all
@@ -123,20 +127,22 @@ it is committed."
   "The wheel, by DY lines (positive up, as the wheel reports it)."
   (scroll-lines document (- (* dy +lines-per-wheel-line+))))
 
-(defun point-position (document x y)
-  "The place in the text at the point X, Y of the editor: the line there, and the column nearest
-by the width of a character."
+(defun point-position (context document x y)
+  "The place in the text at the point X, Y of the editor: the line there, and the character
+nearest in the line, as the context measures it."
   (let* ((line (max 0 (min (1- (document-line-count document))
                            (+ (document-top-line document) (floor y +line-height+)))))
-         (column (round (- x +gutter-width+ +text-inset+) (document-char-width document))))
+         (column (context-index-at-x context (context-font context +font-name+ +font-size+)
+                                     (line-string document line)
+                                     (- x +gutter-width+ +text-inset+))))
     (min (+ (line-start document line) (max 0 column)) (line-end document line))))
 
-(defun editor-press (document x y)
+(defun editor-press (context document x y)
   "A press puts the caret where it is."
-  (move-caret document (point-position document x y)))
+  (move-caret document (point-position context document x y)))
 
-(defun editor-drag (document x y)
+(defun editor-drag (context document x y)
   "A drag extends the selection to where it is, and scrolls if it is above or below."
   (cond ((< y 0) (scroll-lines document -1f0))
         ((> y (* +visible-lines+ +line-height+)) (scroll-lines document 1f0)))
-  (move-caret document (point-position document x y) :extend t))
+  (move-caret document (point-position context document x y) :extend t))

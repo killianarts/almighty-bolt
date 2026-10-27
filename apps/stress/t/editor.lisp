@@ -291,27 +291,44 @@
     (assert-equal "aかd" (m:document-string document))
     (assert-equal "" (m:document-marked-text document))))
 
+(defstruct (wide-context (:include fake:fake-context)
+                        (:constructor make-wide-context ()))
+  "A context whose characters are 16 points wide, twice the fake's.")
+
+(defmethod core:context-index-at-x ((context wide-context) font string x)
+  (declare (ignore font))
+  (max 0 (min (length string) (round x 16))))
+
 (define-test a-press-puts-the-caret-by-the-line-and-the-nearest-column ()
-  (let ((document (doc (format nil "abcdef~%ghijkl~%mn"))))
-    (setf (m:document-char-width document) 8f0)
+  (let ((document (doc (format nil "abcdef~%ghijkl~%mn")))
+        (context (fake:make-fake-context)))
     (let ((x (+ m:+gutter-width+ p:+text-inset+)))
-      (assert-true (c:editor-press document (+ x 20) (+ m:+line-height+ 3)))
+      (assert-true (c:editor-press context document (+ x 20) (+ m:+line-height+ 3)))
       (assert-eql (+ 7 2) (m:document-caret document))   ; 20/8 = 2.5 rounds to 2
-      (c:editor-press document (+ x 400) (* 2 m:+line-height+))
+      (c:editor-press context document (+ x 400) (* 2 m:+line-height+))
       (assert-eql 16 (m:document-caret document))        ; past the end of "mn"
-      (c:editor-press document -5 9999)
+      (c:editor-press context document -5 9999)
       (assert-eql 14 (m:document-caret document))        ; below the text: the last line, column 0
-      (c:editor-press document 0 0)
+      (c:editor-press context document 0 0)
       (assert-eql 0 (m:document-caret document)))))
 
+(define-test a-press-is-turned-into-a-column-by-the-context-that-measures ()
+  (let ((x (+ m:+gutter-width+ p:+text-inset+)))
+    (flet ((caret-after-press (context)
+             (let ((document (doc "abcdefghij")))
+               (c:editor-press context document (+ x 48) 3)
+               (m:document-caret document))))
+      (assert-eql 6 (caret-after-press (fake:make-fake-context)))     ; 48/8
+      (assert-eql 3 (caret-after-press (make-wide-context))))))      ; 48/16
+
 (define-test a-drag-selects-from-the-press-and-above-or-below-scrolls ()
-  (let ((document (doc (m:generate-text 100))))
-    (setf (m:document-char-width document) 8f0)
-    (c:editor-press document (+ m:+gutter-width+ p:+text-inset+) 0)
-    (c:editor-drag document (+ m:+gutter-width+ p:+text-inset+) (* 3 m:+line-height+))
+  (let ((document (doc (m:generate-text 100)))
+        (context (fake:make-fake-context)))
+    (c:editor-press context document (+ m:+gutter-width+ p:+text-inset+) 0)
+    (c:editor-drag context document (+ m:+gutter-width+ p:+text-inset+) (* 3 m:+line-height+))
     (assert-true (m:selection-p document))
     (assert-eql (m:line-start document 3) (m:document-caret document))
-    (c:editor-drag document 100 (+ (* m:+visible-lines+ m:+line-height+) 5))
+    (c:editor-drag context document 100 (+ (* m:+visible-lines+ m:+line-height+) 5))
     (assert-eql 1 (m:document-top-line document))))
 
 (define-test the-wheel-scrolls-by-lines-of-the-text ()
@@ -369,8 +386,7 @@
         (let ((rect (core:context-text-input-rect context)))
           (assert-true (core:context-text-input-p context))
           (assert-eql (float (+ text-x (* 2 8)) 1f0) (aref rect 0) at)
-          (assert-eql (float (+ m:+line-height+ 2) 1f0) (aref rect 1) at))))
-    (assert-eql 8f0 (m:document-char-width document))))
+          (assert-eql (float (+ m:+line-height+ 2) 1f0) (aref rect 1) at))))))
 
 (define-test the-selection-and-the-caret-are-drawn-and-composed-text-is-underlined ()
   (let* ((plain (doc "abc def" :caret 0))

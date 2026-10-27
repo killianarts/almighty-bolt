@@ -423,6 +423,23 @@
       (assert-eql 1 builds)
       (assert-true (plusp (core:display-list-count *list*))))))
 
+;;; --- the context where the events of a canvas are handled ---
+
+(define-test the-context-is-at-hand-where-the-events-of-a-canvas-are-handled ()
+  (let* ((seen '())
+         (variant (show (lambda ()
+                          (dolist (event (w:canvas :board 100 80
+                                                   (lambda (list context width height)
+                                                     (declare (ignore list context width height))
+                                                     nil)))
+                            (push (list (first event) (i:current-context)) seen))))))
+    (multiple-value-bind (x y) (core:lookup-target variant :board)
+      (pointer variant :move (+ x 30) (+ y 40)) (build variant)
+      (pointer variant :down (+ x 30) (+ y 40) :button 0 :buttons 1) (build variant)
+      (pointer variant :up (+ x 30) (+ y 40) :button 0) (build variant))
+    (assert-equal '(:move :press :release) (reverse (mapcar #'first seen)))
+    (assert-true (every (lambda (entry) (eq *context* (second entry))) seen))))
+
 ;;; --- the caret of a canvas that takes text ---
 
 (define-test the-caret-a-canvas-said-is-in-the-window-as-the-canvas-is-in-this-frame ()

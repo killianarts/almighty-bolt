@@ -22,7 +22,8 @@
                 #:column
                 #:canvas)
   (:import-from #:almighty-bolt-variant-immediate/immediate
-                #:make-immediate-variant)
+                #:make-immediate-variant
+                #:current-context)
   (:export #:make-editor-app))
 
 (in-package #:almighty-bolt-stress/editor/immediate)
@@ -41,8 +42,8 @@
                   (destructuring-bind (x y button click-count) (rest event)
                     (declare (ignore click-count))
                     (when (eql button 0)
-                      (editor-press document x y))))
-                 (:drag (editor-drag document (second event) (third event)))
+                      (editor-press (current-context) document x y))))
+                 (:drag (editor-drag (current-context) document (second event) (third event)))
                  (:wheel (editor-wheel document (third event)))
                  (:key (editor-key document (second event)))
                  (:text (editor-text document (second event)))

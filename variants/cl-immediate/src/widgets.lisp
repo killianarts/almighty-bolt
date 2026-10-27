@@ -584,8 +584,9 @@ NIL) marked. Returns the index now and whether the person changed it this frame.
 context, and the width and height, and draws from the top left of the area, which it clips
 to; if what it draws is what it drew last frame, nothing more is done for it. Returns the
 events for the canvas, oldest first: (:press x y button click-count), (:move x y), (:drag x y),
-(:release x y inside-p), (:key event), (:text string), (:composition kind text selection-start selection-length), (:wheel dx
-dy) and (:exit), with points in the canvas."
+(:release x y inside-p), (:key event), (:text string), (:composition kind text selection-start
+selection-length), (:wheel dx dy) and (:exit), with points in the canvas. The code that handles
+them can ask CURRENT-CONTEXT for the context, which measures text."
   (let* ((ui *ui*)
          (box (open-box ui :canvas :id id))
          (key (box-key box))

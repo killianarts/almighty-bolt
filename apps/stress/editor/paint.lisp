@@ -22,7 +22,9 @@
                 #:document-marked-text
                 #:document-marked-start
                 #:document-marked-length
-                #:document-char-width
+                #:+font-name+
+                #:+font-size+
+                #:+number-font-size+
                 #:line-start
                 #:line-end
                 #:position-line
@@ -58,8 +60,8 @@
 caret is in the area, which is what the input method needs and the canvas's variant puts in the
 window."
   (declare (ignore width height))
-  (let* ((font (context-font context "Menlo" 12))
-         (number-font (context-font context "Menlo" 11))
+  (let* ((font (context-font context +font-name+ +font-size+))
+         (number-font (context-font context +font-name+ +number-font-size+))
          (text-x (+ x +gutter-width+ +text-inset+))
          (top (document-top-line document))
          (caret (document-caret document))
@@ -67,7 +69,6 @@ window."
          (marked (document-marked-text document))
          (caret-x nil) (caret-y nil))
     (multiple-value-bind (cell ascent descent) (context-measure context font "M")
-      (setf (document-char-width document) (float cell 1f0))
       (let ((baseline (+ (/ (- +line-height+ (+ ascent descent)) 2) ascent)))
         (push-rect list x y +editor-width+ +editor-height+ +ground+)
         (push-rect list x y +gutter-width+ +editor-height+ +gutter+)

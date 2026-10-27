@@ -187,8 +187,11 @@ the field shows VALUE again afterwards, so a change that ON-CHANGE does not make
                  (visible t) (enabled t) key)
   "A canvas that PAINT draws from DATA: PAINT is called with DATA, the canvas, the context,
 the display list and the area, and is used again for as long as DATA is the same object.
-The handlers are called as the retained canvas calls them, without the canvas (ON-TEXT with the
-text; ON-COMPOSITION with the kind, the text and the start and length of the selection)."
+The handlers are called as the retained canvas calls them, with the context first (it is what
+measures text) and without the canvas: ON-PRESS with a point, the button and the click count;
+ON-MOVE and ON-DRAG with a point; ON-EXIT with nothing more; ON-RELEASE with a point and whether the
+pointer is over the canvas; ON-KEY with the key event; ON-TEXT with the text; ON-COMPOSITION with
+the kind, the text and the start and length of the selection; ON-WHEEL with the movement."
   (make-view :canvas (vector width height data paint on-press on-move on-exit on-drag on-release
                              on-key on-text on-composition on-wheel (and focusable t))
              nil id flex visible enabled key))

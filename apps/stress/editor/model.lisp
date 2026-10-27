@@ -21,8 +21,10 @@
            #:document-marked-start
            #:document-marked-length
            #:document-version
-           #:document-char-width
            #:+lines-per-wheel-line+
+           #:+font-name+
+           #:+font-size+
+           #:+number-font-size+
            #:line-number-text
            #:cached-line-string
            #:document-char
@@ -59,6 +61,9 @@
 ;;; one array of characters (four bytes each), which is what is being stressed: the line cache of the
 ;;; text engine and the drawing of a screenful of a large text.
 
+(defparameter +font-name+ "Menlo" "The font of the text and of the line numbers: one of equal widths.")
+(defconstant +font-size+ 12)
+(defconstant +number-font-size+ 11)
 (defconstant +line-height+ 20)
 (defconstant +visible-lines+ 24)
 (defconstant +gutter-width+ 56)
@@ -94,10 +99,7 @@
   (cache-strings (make-array +visible-lines+ :initial-element "") :type simple-vector)
   ;; The status line, and the version it was made for.
   (status-version -1 :type fixnum)
-  (status-string "" :type string)
-  ;; How wide a character is, which the painter finds out (the font is one of equal widths) and a
-  ;; click is turned into a column by: handlers of events are not given the text engine.
-  (char-width 7f0 :type single-float))
+  (status-string "" :type string))
 
 (defun document-length (document)
   (- (length (document-data document))

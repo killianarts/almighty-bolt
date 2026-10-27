@@ -632,14 +632,14 @@ and the list stays scrolled as far as it can. Calls no handler."
                  on-release on-key on-text on-composition on-wheel focusable (flex 0))
   "An area of WIDTH by HEIGHT points that the app draws and handles events for. PAINT is
 called with the canvas, the context, the display list and the top left and size of the
-area, and appends commands. ON-PRESS and ON-DRAG are called with the canvas and a point in
-the canvas, and ON-PRESS with the button as well (0 for the primary one); ON-MOVE with
-the canvas and a point as the pointer moves over it, and ON-EXIT with the canvas when it
-leaves; ON-RELEASE with the canvas, a point and whether the pointer is over it; ON-KEY with the canvas and the key
-event (returning true if it used the key); ON-TEXT with the canvas and the text that the
-input handling says to insert; ON-COMPOSITION with the canvas, the kind (:started, :changed or
-:committed), the text, and the start and length of the selection in it; ON-WHEEL with the canvas
-and the movement.
+area, and appends commands. Every handler is called with the canvas and the context first
+(the context is what measures text), and then: ON-PRESS and ON-DRAG a point in the canvas,
+ON-PRESS with the button as well (0 for the primary one) and the click count; ON-MOVE a
+point as the pointer moves over it; ON-EXIT nothing more, when the pointer leaves;
+ON-RELEASE a point and whether the pointer is over the canvas; ON-KEY the key event
+(returning true if it used the key); ON-TEXT the text that the input handling says to
+insert; ON-COMPOSITION the kind (:started, :changed or :committed), the text, and the start
+and length of the selection in it; ON-WHEEL the movement.
 The canvas keeps what PAINT drew until CANVAS-INVALIDATE says it changed."
   (%make-canvas :id id :width (float width 1f0) :height (float height 1f0) :paint paint
                 :on-press on-press :on-move on-move :on-exit on-exit :on-drag on-drag
@@ -672,44 +672,38 @@ The canvas keeps what PAINT drew until CANVAS-INVALIDATE says it changed."
 
 (defmethod pointer-press ((canvas canvas) session x y button)
   (when (canvas-on-press canvas)
-    (funcall (canvas-on-press canvas) canvas x y button (session-click-count session))))
+    (funcall (canvas-on-press canvas) canvas (session-context session) x y button
+             (session-click-count session))))
 
 (defmethod pointer-move ((canvas canvas) session x y)
-  (declare (ignore session))
   (when (canvas-on-move canvas)
-    (funcall (canvas-on-move canvas) canvas x y)))
+    (funcall (canvas-on-move canvas) canvas (session-context session) x y)))
 
 (defmethod pointer-exit ((canvas canvas) session)
-  (declare (ignore session))
   (when (canvas-on-exit canvas)
-    (funcall (canvas-on-exit canvas) canvas)))
+    (funcall (canvas-on-exit canvas) canvas (session-context session))))
 
 (defmethod pointer-drag ((canvas canvas) session x y)
-  (declare (ignore session))
   (when (canvas-on-drag canvas)
-    (funcall (canvas-on-drag canvas) canvas x y)))
+    (funcall (canvas-on-drag canvas) canvas (session-context session) x y)))
 
 (defmethod pointer-release ((canvas canvas) session x y inside-p)
-  (declare (ignore session))
   (when (canvas-on-release canvas)
-    (funcall (canvas-on-release canvas) canvas x y inside-p)))
+    (funcall (canvas-on-release canvas) canvas (session-context session) x y inside-p)))
 
 (defmethod pointer-wheel ((canvas canvas) session dx dy)
-  (declare (ignore session))
   (and (canvas-on-wheel canvas)
-       (funcall (canvas-on-wheel canvas) canvas dx dy)))
+       (funcall (canvas-on-wheel canvas) canvas (session-context session) dx dy)))
 
 (defmethod key-input ((canvas canvas) session event)
-  (declare (ignore session))
   (and (canvas-on-key canvas)
-       (funcall (canvas-on-key canvas) canvas event)))
+       (funcall (canvas-on-key canvas) canvas (session-context session) event)))
 
 (defmethod text-input ((canvas canvas) session text)
-  (declare (ignore session))
   (and (canvas-on-text canvas)
-       (funcall (canvas-on-text canvas) canvas text)))
+       (funcall (canvas-on-text canvas) canvas (session-context session) text)))
 
 (defmethod composition-input ((canvas canvas) session kind text selection-start selection-length)
-  (declare (ignore session))
   (and (canvas-on-composition canvas)
-       (funcall (canvas-on-composition canvas) canvas kind text selection-start selection-length)))
+       (funcall (canvas-on-composition canvas) canvas (session-context session) kind text
+                selection-start selection-length)))

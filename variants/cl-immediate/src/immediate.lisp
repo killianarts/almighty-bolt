@@ -94,6 +94,7 @@
            #:make-immediate-variant
            #:immediate-variant-ui
            #:now
+           #:current-context
            #:ask-for-frame))
 
 (in-package #:almighty-bolt-variant-immediate/immediate)
@@ -121,6 +122,11 @@
 (defun now ()
   "The time in nanoseconds, for an interface that changes as time passes."
   (context-now-ns (ui-context *ui*)))
+
+(defun current-context ()
+  "The context of the frame being built, which measures text: for the code that handles what a
+canvas returned, to turn a point into a place in text."
+  (ui-context *ui*))
 
 (defun ask-for-frame ()
   "Ask for another frame, which an interface that is animating does from its function."
