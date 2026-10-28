@@ -2,6 +2,8 @@
   (:use #:cl)
   (:export #:watch-redefinitions
            #:stop-watching-redefinitions
+           #:call-with-redefinitions-held
+           #:with-redefinitions-held
            #:sbcl-name-p))
 
 (in-package #:almighty-bolt-core/redefinition)
@@ -13,7 +15,10 @@
 ;;; the only one that knows about the hook.
 ;;;
 ;;; A hook is called once for each function, and a compiled file or a system defines many, so a
-;;; watcher waits until the definitions stop for a moment and then calls its function once.
+;;; watcher waits until the definitions stop for a moment and then calls its function once. A
+;;; system that is loaded again compiles one file while it defines nothing, which can be longer than
+;;; that moment, so the code that loads it holds the watchers until it is done (WITH-REDEFINITIONS-
+;;; HELD), and they call their functions once after.
 
 (defstruct (watcher (:constructor %make-watcher (function quiet)) (:copier nil))
   (function nil :type function :read-only t)
@@ -28,7 +33,25 @@
   (thread nil))
 
 (defvar *hook-lock* (sb-thread:make-mutex :name "redefinition hooks")
-  "Guards the list of hooks, which a watcher starting and one stopping both change.")
+  "Guards the list of hooks, which a watcher starting and one stopping both change, and the
+number of holds.")
+
+(defvar *holds* 0
+  "How many calls of WITH-REDEFINITIONS-HELD are in progress, on any thread.")
+
+(defun call-with-redefinitions-held (function)
+  "Call FUNCTION. While it runs no watcher calls its function, however long the definitions
+are quiet; after it, a watcher that saw a definition calls its function once."
+  (sb-thread:with-mutex (*hook-lock*)
+    (incf *holds*))
+  (unwind-protect (funcall function)
+    (sb-thread:with-mutex (*hook-lock*)
+      (decf *holds*))))
+
+(defmacro with-redefinitions-held (&body body)
+  "Run BODY (CALL-WITH-REDEFINITIONS-HELD): the code that loads many files and does not want
+the app made again from half of them."
+  `(call-with-redefinitions-held (lambda () ,@body)))
 
 (defun sbcl-name-p (name)
   "True for the name of something SBCL defines for itself: a symbol of one of its SB-
@@ -65,6 +88,9 @@ passed, false if the watcher was stopped first."
                   (return-from wait-until-quiet nil))
                 (let ((remaining (- (+ (watcher-changed watcher) (watcher-quiet watcher))
                                     (get-internal-real-time))))
+                  ;; A hold is not over, so look again soon.
+                  (when (and (<= remaining 0) (plusp *holds*))
+                    (setf remaining (round (* 0.05 internal-time-units-per-second))))
                   ;; Forgetting the change in the same step that finds it quiet means that a
                   ;; definition made a moment later is a new one, not lost.
                   (when (<= remaining 0)

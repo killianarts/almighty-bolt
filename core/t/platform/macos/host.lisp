@@ -488,7 +488,10 @@ reads the count."
   (when (main-queue:on-main-thread-p)
     (with-host (host target (make-instance 'shape-variant) :scale 1)
       (let ((context (host:host-context host)))
-        (host:reload-host host (lambda () (make-instance 'green-variant)))
+        (let ((message (with-output-to-string (*standard-output*)
+                         (host:reload-host host (lambda () (make-instance 'green-variant))))))
+          ;; So that someone who saved a file can see that the app was made again.
+          (assert-true (search "made the app again" message)))
         (assert-true (variant:take-frame-request context))
         (draw host :scale 1f0)
         (assert-equal '(0 255 0 255) (square-colour target))))))

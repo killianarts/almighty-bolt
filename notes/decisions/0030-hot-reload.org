@@ -56,6 +56,18 @@ gave:
   adds a button to the open window in 0.46 to 0.55 s; an edit that compiles but
   fails when the app runs leaves the old app and prints the error; an edit
   that does not read changes nothing; the fixed file shows its buttons.
+- On the real tree, as =make 7guis ... HOT=1= loads it (the launcher, the
+  variant's apps and the stress apps, so the whole watch list), an edit to the
+  CRUD file of each variant, made twice (a label given an id, then the file put
+  back), three variants, two rounds: one remake for each save, 0.53 to 0.67 s
+  from the write to the new window. The app was then used (a click and typing
+  in three fields, and the Create button): 18 more frames in each, and no
+  remake.
+- A system loaded again compiles a file while it defines nothing, and that can
+  take longer than the quiet time, which would remake the app from half of the
+  files. The source watcher holds the redefinition watchers until its load is
+  done (=with-redefinitions-held=), and they call once after. The real files
+  compiled fast enough not to need it; it is there for a file that does not.
 - ASDF takes a compiled file for current unless its source is newer by a whole
   second, so a file saved in the second it was compiled in would be missed.
   This happened in the probe's own runs. The compiled files of the files that
@@ -67,8 +79,9 @@ gave:
 * Decision
 Option 2 now. Option 3 is left until Micah wants state kept, and is better
 made with the variants than before them.
-- =almighty-bolt-core/redefinition=: =watch-redefinitions= and
-  =stop-watching-redefinitions=, the only file that knows of the hook.
+- =almighty-bolt-core/redefinition=: =watch-redefinitions=,
+  =stop-watching-redefinitions= and =with-redefinitions-held=, the only file
+  that knows of the hook.
 - The host (=platform/macos/host=): =swap-variant=, =reload-host=,
   =running-host=, and =run-variant ... :rebuild fn=, which watches
   definitions and swaps in what =fn= makes. The variant contract is not
@@ -77,9 +90,11 @@ made with the variants than before them.
   constructor that was compiled again is the one called. All 37 registrations
   changed.
 - =make 7guis VARIANT=v TASK=t HOT=1= also watches the source files of the
-  loaded systems (a thread that looks twice a second and loads the systems
-  through ASDF when one changed). It is for someone who edits in a program that
-  does not compile into the running image.
+  loaded systems (a thread that looks four times a second, and when a file has
+  changed and looks the same at two looks in a row, so that one being written or
+  saved in two steps is not loaded half done, loads the systems through ASDF).
+  It is for someone who edits in a program that does not compile into the
+  running image.
 
 * Consequences
 - Easier: edit, save, and the open window shows it in about half a second, in
@@ -92,12 +107,14 @@ made with the variants than before them.
   =(make-immediate-variant 'view)= (the probe's third row of the table above).
 - A changed macro reaches its users only through ASDF (the saved-file route);
   compiling the macro's form alone leaves them as compiled.
-- =HOT=1= wakes a thread about 2.5 times a second, so a measurement of idle
+- =HOT=1= wakes a thread four times a second, so a measurement of idle
   wakeups must not use it.
-- Not provided: a REPL in the running process. =make 7guis= runs the AppKit
-  loop on the main thread, which is the only thread a REPL could have been
-  on. Compiling from an editor needs a Slynk or Swank server on another
-  thread, and neither is vendored. That is Micah's to decide.
+- Not provided: a way to start the window from a REPL, and so to compile from
+  an editor into it. =make 7guis= runs the AppKit loop on the main thread, so a
+  REPL started in the same process has to be on another thread, and an editor
+  that starts Lisp itself has no free main thread to run the window on. What to
+  build depends on how Micah runs Lisp: a server started by =make=, or a
+  function that opens the window and gives the REPL back.
 - Not checked: that an editor's compile of one form (Sly's C-c C-c) calls the
   hook as =eval= does (A-009), and that Micah's editor's way of saving is seen
   by the watcher (A-008).

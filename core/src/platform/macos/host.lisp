@@ -388,7 +388,9 @@ REBUILD signals an error the error is reported and the old variant stays."
    (lambda ()
      (handler-case
          (progn (swap-variant host (funcall rebuild))
-                (request-host-frame host))
+                (request-host-frame host)
+                (format t "~&Hot reload: made the app again.~%")
+                (finish-output))
        (error (condition)
          (report-hot-reload "the app could not be made again, so the old one stays"
                             condition))))))

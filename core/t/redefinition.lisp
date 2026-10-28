@@ -133,6 +133,29 @@ first, and the watcher stopped afterwards."
     (define '(defun redefinition-test-function-6 () 1))
     (assert-true (wait-until (lambda () done)))))
 
+;;; --- holding the watchers ---
+
+(define-test a-held-watcher-is-not-called-until-the-hold-ends ()
+  (with-watcher (calls :quiet 0.03)
+    (redefinition:with-redefinitions-held
+      (define '(defun redefinition-test-function-8 () 1))
+      ;; Far longer than the quiet time: a file that takes this long to compile is the case.
+      (sleep 0.3)
+      (assert-false (car calls))
+      (define '(defun redefinition-test-function-8 () 2)))
+    (assert-true (wait-until (lambda () (car calls))))
+    (sleep 0.2)
+    (assert-eql 1 (length (car calls)))))
+
+(define-test a-hold-that-ends-in-an-error-is-released ()
+  (with-watcher (calls :quiet 0.03)
+    (ignore-errors
+     (redefinition:with-redefinitions-held
+       (redefinition:with-redefinitions-held
+         (define '(defun redefinition-test-function-9 () 1)))
+       (error "the load failed")))
+    (assert-true (wait-until (lambda () (car calls))))))
+
 ;;; --- what counts ---
 
 (define-test sbcl-names-do-not-count ()

@@ -60,6 +60,51 @@ newest first, and the watcher stopped afterwards."
 
 ;;; --- watching them ---
 
+(defun tables (files)
+  "The tables of CHANGED-FILES for FILES as they are now: what each looked like, and nothing
+pending."
+  (let ((accepted (make-hash-table :test 'equal)))
+    (dolist (file files)
+      (setf (gethash file accepted) (almighty-bolt-7guis/common/sources::safe-signature file)))
+    (values accepted (make-hash-table :test 'equal))))
+
+(define-test a-changed-file-is-reported-at-the-second-look-that-finds-it-the-same ()
+  (with-directory (directory)
+    (let ((file (write-file (merge-pathnames "a.lisp" directory) "(a)")))
+      (multiple-value-bind (accepted pending) (tables (list file))
+        (assert-equal '() (sources:changed-files (list file) accepted pending))
+        (write-file file "(b)")
+        (assert-equal '() (sources:changed-files (list file) accepted pending))
+        (assert-equal (list file) (sources:changed-files (list file) accepted pending))
+        ;; Reported once.
+        (assert-equal '() (sources:changed-files (list file) accepted pending))
+        (assert-equal '() (sources:changed-files (list file) accepted pending))))))
+
+(define-test a-file-that-is-still-changing-is-not-reported ()
+  ;; A file that is being written, or that an editor saves in two steps.
+  (with-directory (directory)
+    (let ((file (write-file (merge-pathnames "a.lisp" directory) "(a)")))
+      (multiple-value-bind (accepted pending) (tables (list file))
+        (write-file file "(b")
+        (assert-equal '() (sources:changed-files (list file) accepted pending))
+        (write-file file "(b)")
+        (assert-equal '() (sources:changed-files (list file) accepted pending))
+        (assert-equal (list file) (sources:changed-files (list file) accepted pending))))))
+
+(define-test a-file-put-back-before-the-second-look-is-not-reported ()
+  (with-directory (directory)
+    (let ((file (write-file (merge-pathnames "a.lisp" directory) "(a)")))
+      (multiple-value-bind (accepted pending) (tables (list file))
+        (write-file file "(b)")
+        (assert-equal '() (sources:changed-files (list file) accepted pending))
+        (write-file file "(a)")
+        (assert-equal '() (sources:changed-files (list file) accepted pending))
+        (assert-equal '() (sources:changed-files (list file) accepted pending))
+        ;; A later change starts from a first look again.
+        (write-file file "(b)")
+        (assert-equal '() (sources:changed-files (list file) accepted pending))
+        (assert-equal (list file) (sources:changed-files (list file) accepted pending))))))
+
 (define-test a-changed-file-is-reported ()
   (with-directory (directory)
     (let ((file (write-file (merge-pathnames "a.lisp" directory) "(one)")))

@@ -1,6 +1,9 @@
 (defpackage #:almighty-bolt-7guis/common/sources
   (:use #:cl)
+  (:import-from #:almighty-bolt-core/redefinition
+                #:with-redefinitions-held)
   (:export #:lisp-files-under
+           #:changed-files
            #:watch-files
            #:stop-watching-files
            #:loaded-system-names
@@ -55,34 +58,53 @@ writing a new file and moving it leaves it for a moment."
 
 ;;; --- watching them ---
 
+(defun changed-files (files accepted pending)
+  "Look at FILES once and return the ones whose change is settled. ACCEPTED holds what each file
+looked like when it was last reported (or at the start); PENDING holds what a file that differs
+from that looked like at the look before. A file is returned when it differs from ACCEPTED and
+looks as it did at the look before, so that a file that is still being written, or that an
+editor saves in two steps, is not loaded half done and is not reported twice."
+  (let ((changed '()))
+    (dolist (file files)
+      (let ((old (gethash file accepted))
+            (new (safe-signature file)))
+        (cond ((or (null new) (and old (not (signatures-differ-p old new))))
+               ;; Missing for a moment, or as it was: nothing to report, and no change pending.
+               (remhash file pending))
+              ((null (gethash file pending))
+               (setf (gethash file pending) new))
+              ((signatures-differ-p (gethash file pending) new)
+               ;; Still changing: look again.
+               (setf (gethash file pending) new))
+              (t
+               (remhash file pending)
+               (setf (gethash file accepted) new)
+               (push file changed)))))
+    (nreverse changed)))
+
 (defstruct (file-watcher (:constructor %make-file-watcher) (:copier nil))
   (thread nil)
   (stopped nil))
 
-(defun watch-files (files function &key (interval 0.4))
-  "Look at FILES every INTERVAL seconds on a thread of its own, and when some have changed call
-FUNCTION with the list of them. A change made while FUNCTION runs is seen after it. Returns the
+(defun watch-files (files function &key (interval 0.25))
+  "Look at FILES every INTERVAL seconds on a thread of its own, and when some have changed and
+stopped changing (CHANGED-FILES) call FUNCTION with the list of them, so a save is seen after
+between one and two intervals. A change made while FUNCTION runs is seen after it. Returns the
 watcher, for STOP-WATCHING-FILES. This polls, so a program that watches is not asleep when idle:
 it wakes a few times a second, which is for development only."
-  (let* ((signatures (make-hash-table :test 'equal))
-         (watcher (%make-file-watcher)))
+  (let ((accepted (make-hash-table :test 'equal))
+        (pending (make-hash-table :test 'equal))
+        (watcher (%make-file-watcher)))
     (dolist (file files)
-      (setf (gethash file signatures) (safe-signature file)))
+      (setf (gethash file accepted) (safe-signature file)))
     (setf (file-watcher-thread watcher)
           (sb-thread:make-thread
            (lambda ()
              (loop :until (file-watcher-stopped watcher)
                    :do (sleep interval)
-                       (let ((changed '()))
-                         (dolist (file files)
-                           (let ((old (gethash file signatures))
-                                 (new (safe-signature file)))
-                             (when (and new (or (null old) (signatures-differ-p old new)))
-                               (push file changed))
-                             (when new
-                               (setf (gethash file signatures) new))))
+                       (let ((changed (changed-files files accepted pending)))
                          (when changed
-                           (handler-case (funcall function (nreverse changed))
+                           (handler-case (funcall function changed)
                              (error (condition)
                                (let ((*print-pretty* nil))
                                  (format *error-output* "~&Hot reload: ~a~%" condition))
@@ -139,7 +161,7 @@ FORGET-COMPILED-FILES). A function that is defined again is not worth a warning.
       (dolist (name names)
         (asdf:load-system name)))))
 
-(defun watch-sources (&key (names (loaded-system-names)) (interval 0.4))
+(defun watch-sources (&key (names (loaded-system-names)) (interval 0.25))
   "Load the systems NAMES again whenever one of their files changes, and say which. Returns
 the watcher, for STOP-WATCHING-FILES."
   (watch-files (system-files names)
@@ -147,7 +169,10 @@ the watcher, for STOP-WATCHING-FILES."
                  (format t "~&Hot reload: ~{~a~^, ~} changed; loading.~%"
                          (mapcar #'file-namestring changed))
                  (finish-output)
-                 (reload-systems names changed)
+                 ;; The files are compiled one after the other, and the app is made again once
+                 ;; they are all loaded, not from half of them.
+                 (with-redefinitions-held
+                   (reload-systems names changed))
                  (format t "~&Hot reload: loaded.~%")
                  (finish-output))
                :interval interval))
