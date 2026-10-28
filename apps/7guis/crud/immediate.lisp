@@ -1,5 +1,7 @@
 (defpackage #:almighty-bolt-7guis/crud/immediate
   (:use #:cl)
+  (:import-from #:almighty-bolt-core
+                #:kept-let)
   (:import-from #:almighty-bolt-7guis/common/registry
                 #:register-app)
   (:import-from #:almighty-bolt-7guis/crud/model
@@ -27,15 +29,15 @@
 (in-package #:almighty-bolt-7guis/crud/immediate)
 
 ;;; CRUD, immediate: the entries, the filter, the picked entry and the two fields are
-;;; variables. The list that shows is worked out at the top of every frame, and the buttons
-;;; say whether they were pressed where they are described.
+;;; variables, kept when the app is made again. The list that shows is worked out at the top of
+;;; every frame, and the buttons say whether they were pressed where they are described.
 
 (defun make-crud ()
-  (let ((entries (make-entries '("Hans" "Emil") '("Max" "Mustermann") '("Roman" "Tisch")))
-        (filter "")
-        (picked nil)
-        (name "")
-        (surname ""))
+  (kept-let ((entries (make-entries '("Hans" "Emil") '("Max" "Mustermann") '("Roman" "Tisch")))
+             (filter "")
+             (picked nil)
+             (name "")
+             (surname ""))
     (make-immediate-variant
      (lambda ()
        (let* ((shown (entries-filtered entries filter))

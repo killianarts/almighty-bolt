@@ -29,6 +29,7 @@
                  (:file "builder")
                  (:file "retained")
                  (:file "cache")
+                 (:file "reload")
                  (:file "host" :if-feature :darwin))))
   :perform (test-op (o s)
                     (let* ((results
@@ -38,6 +39,7 @@
                                                       :almighty-bolt-variant-retained/t/builder
                                                       :almighty-bolt-variant-retained/t/retained
                                                       :almighty-bolt-variant-retained/t/cache
+                                                      :almighty-bolt-variant-retained/t/reload
                                                       #+darwin :almighty-bolt-variant-retained/t/host)
                                    :collect (uiop:symbol-call :lisp-unit2 :run-tests
                                                               :package package)))

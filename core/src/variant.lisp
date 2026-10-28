@@ -9,6 +9,8 @@
            #:hit-target
            #:lookup-target
            #:accessibility-tree
+           #:inherit-state
+           #:retire-variant
            #:context
            #:make-context
            #:context-width
@@ -100,6 +102,24 @@ width, height), or NIL if there is none. Replay uses it to find where to click."
   (:documentation "The accessibility tree of the last settled frame. A stub that
 returns NIL until the machine interface (H3) needs it.")
   (:method ((variant variant))
+    (declare (ignore variant))
+    nil))
+
+(defgeneric inherit-state (new old)
+  (:documentation "NEW is about to take the place of OLD in a window, because the app was made
+again after its code changed (decision record 0031). Carry over what OLD kept for itself that is
+not the app's own state: what the person did to the widgets (the focus, a caret, a scroll), and
+for a variant whose widgets hold the app's values, those. Called on the main thread before NEW
+draws. If it signals an error, OLD stays and NEW is retired.")
+  (:method (new old)
+    (declare (ignore new old))
+    nil))
+
+(defgeneric retire-variant (variant)
+  (:documentation "VARIANT is not used any more: it was replaced by one that has drawn, or it was
+the replacement and its first frame failed. Let go of what it holds outside itself (a reactive
+variant's links from signals that outlive it). Called on the main thread.")
+  (:method (variant)
     (declare (ignore variant))
     nil))
 

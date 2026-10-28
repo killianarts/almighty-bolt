@@ -91,8 +91,9 @@ gave:
   Lisp that someone is working in.
 
 * Decision
-Option 2 now. Option 3 is left until Micah wants state kept, and is better
-made with the variants than before them.
+Option 2 first. Micah asked for state to be kept on 2026-10-29, which is
+option 3 and record 0031: the app is made again as here, and the new one takes
+the state of the old one.
 - =almighty-bolt-core/redefinition=: =watch-redefinitions=,
   =stop-watching-redefinitions= and =with-redefinitions-held=, the only file
   that knows of the hook.
@@ -120,9 +121,10 @@ made with the variants than before them.
 * Consequences
 - Easier: edit, save, and the open window shows it in about half a second, in
   all three variants, with no change to any app but its registration.
-- Harder: the new app starts from nothing, so typed text, the selection and
-  the scroll are lost at every reload. Every redefinition anywhere reloads
-  the app, so compiling an unrelated helper does too.
+- Harder: an app that keeps no state (0031) starts from nothing, so typed
+  text, the selection and the scroll are lost at every reload. Every
+  redefinition anywhere reloads the app, so compiling an unrelated helper
+  does too.
 - Harder: a function held across a reload as =#'name= keeps the old code. An
   app that wants hot reload without being made again can pass a name:
   =(make-immediate-variant 'view)= (the probe's third row of the table above).

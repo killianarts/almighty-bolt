@@ -19,6 +19,7 @@
     :almighty-bolt-core/display-list
     :almighty-bolt-core/variant
     :almighty-bolt-core/settle
+    :almighty-bolt-core/kept
     :almighty-bolt-core/replay/script
     :almighty-bolt-core/replay/player
     :almighty-bolt-core/replay/recorder

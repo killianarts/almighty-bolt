@@ -6,6 +6,8 @@
                 #:handle-event
                 #:hit-target
                 #:lookup-target
+                #:inherit-state
+                #:kept-in-use-p
                 #:request-frame
                 #:context-width
                 #:context-height
@@ -44,6 +46,10 @@
   (:import-from #:almighty-bolt-variant-retained/node
                 #:node-id
                 #:node-parent
+                #:node-children
+                #:snapshot-node
+                #:carry-mutated
+                #:carry-interaction
                 #:node-x
                 #:node-y
                 #:node-w
@@ -90,6 +96,7 @@
            #:retained-variant-hover
            #:retained-variant-pressed
            #:retained-variant-focus
+           #:inherit-retained-state
            #:add-ticker))
 
 (in-package #:almighty-bolt-variant-retained/retained)
@@ -112,15 +119,78 @@
    ;; True once the first frame has given the keyboard to a node that asked for it.
    (autofocus-done :initform nil :accessor autofocus-done)
    ;; Which way the trackpad gesture in progress is going, so that a swipe goes one way.
-   (wheel-lock :initform (make-axis-lock) :reader retained-variant-wheel-lock))
+   (wheel-lock :initform (make-axis-lock) :reader retained-variant-wheel-lock)
+   ;; A function that brings what the app worked out into line with what the old tree's state has
+   ;; given the new one, called when the app is made again. See MAKE-RETAINED-VARIANT.
+   (after-reload :initarg :after-reload :initform nil :reader retained-variant-after-reload)
+   ;; True if the app that made this variant keeps state with KEPT-LET. The nodes hold what the app
+   ;; reads back, so the state of the old nodes is only worth carrying if the app's own variables
+   ;; are carried too; otherwise the new app is as if started, and what the nodes held is not
+   ;; put back to disagree with the variables.
+   (keeps-state :initform (kept-in-use-p) :reader retained-variant-keeps-state))
   (:documentation "A variant that keeps a tree of nodes."))
 
-(defun make-retained-variant (root &key (caching t))
+(defun make-retained-variant (root &key (caching t) after-reload)
   "A variant that shows the tree under ROOT. The tree must not already have an owner.
 With CACHING, nodes that can keep the commands they paint do, and paint again only
-when they change."
+when they change.
+
+What is in the tree now is what it started as: when the app is made again (decision record 0031),
+what the person and the app changed in the old tree since then is carried into the new one by id,
+and the rest is as the new code made it, if the app keeps its own state with KEPT-LET (an app that
+does not is started again). AFTER-RELOAD, a function of no arguments, is then called,
+for an app that works things out from the nodes' state and from code that may have changed: the
+function that brings the list, the buttons and the rest in line with the model."
   (setf (node-tree root) (make-tree-state))
-  (make-instance 'retained-variant :root root :caching caching))
+  (map-nodes #'snapshot-node root)
+  (make-instance 'retained-variant :root root :caching caching :after-reload after-reload))
+
+(defun keyed-nodes (root)
+  "A table of the nodes under ROOT, by what says that a node of a tree made again is the same one:
+its id, or, for a node without, its place among the children of the node it is in."
+  (let ((table (make-hash-table :test 'equal)))
+    (labels ((walk (node key)
+               (unless (nth-value 1 (gethash key table))
+                 (setf (gethash key table) node))
+               (loop :for child :across (node-children node)
+                     :for index :from 0
+                     :do (walk child (or (node-id child) (list :child key index))))))
+      (walk root (or (node-id root) :root)))
+    table))
+
+(defun inherit-retained-state (new old &key mutated)
+  "Carry the state of the tree of OLD, a retained variant, into the tree of NEW, which replaces it:
+nodes are the same by id (KEYED-NODES) and type. With MUTATED, the slots of a node that were changed
+since the tree was made go (CARRY-MUTATED), and with it not, only what the person did that is not
+the app's (CARRY-INTERACTION). The keyboard goes to the node that matches the one that had it."
+  (let ((old-nodes (keyed-nodes (retained-variant-root old)))
+        (new-nodes (keyed-nodes (retained-variant-root new)))
+        (focus (session-focus (retained-variant-session old))))
+    (maphash (lambda (key node)
+               (let ((match (gethash key old-nodes)))
+                 (when (and match (eq (type-of match) (type-of node)))
+                   (if mutated
+                       (carry-mutated node match)
+                       (carry-interaction node match)))))
+             new-nodes)
+    (when focus
+      (let ((node (loop :for key :being :the :hash-keys :of old-nodes :using (hash-value value)
+                        :when (eq value focus)
+                          :return (gethash key new-nodes))))
+        (when (and node (eq (type-of node) (type-of focus)) (focusable-p node))
+          (focus-node (retained-variant-session new) node))))
+    (setf (autofocus-done new) (autofocus-done old))
+    (touch (retained-variant-root new) t)
+    new))
+
+(defmethod inherit-state ((new retained-variant) (old retained-variant))
+  "What the person and the app did to the old tree is carried into the new one (see
+MAKE-RETAINED-VARIANT), and then the app brings what it worked out into line. Nothing is carried to
+an app that keeps no state of its own: its variables start again, and so does what its nodes show."
+  (when (retained-variant-keeps-state new)
+    (inherit-retained-state new old :mutated t)
+    (when (retained-variant-after-reload new)
+      (funcall (retained-variant-after-reload new)))))
 
 (defun retained-variant-hover (variant)
   (session-hover (retained-variant-session variant)))

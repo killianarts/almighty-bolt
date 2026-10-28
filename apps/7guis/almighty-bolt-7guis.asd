@@ -91,7 +91,8 @@
                                (:file "cells")
                                (:file "replay")
                                (:file "layout")
-                               (:file "dialog"))))))
+                               (:file "dialog")
+                               (:file "reload"))))))
   :perform (test-op (o s)
                     (let* ((results
                              (loop :for package :in '(:almighty-bolt-7guis/t/acceptance/counter
@@ -103,7 +104,8 @@
                                                       :almighty-bolt-7guis/t/acceptance/cells
                                                       :almighty-bolt-7guis/t/acceptance/replay
                                                       :almighty-bolt-7guis/t/acceptance/layout
-                                                      :almighty-bolt-7guis/t/acceptance/dialog)
+                                                      :almighty-bolt-7guis/t/acceptance/dialog
+                                                      :almighty-bolt-7guis/t/acceptance/reload)
                                    :collect (uiop:symbol-call :lisp-unit2 :run-tests
                                                               :package package)))
                            (bad (loop :for db :in results

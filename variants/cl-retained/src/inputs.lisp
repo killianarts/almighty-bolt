@@ -72,7 +72,11 @@
                 #:text-input
                 #:composition-input
                 #:session-context
-                #:session-click-count)
+                #:session-click-count
+                #:*unchanged*
+                #:node-state
+                #:restore-node-state
+                #:carry-interaction)
   (:export #:text-field
            #:text-field-p
            #:text-field-state
@@ -276,6 +280,30 @@ text did."
          (set-field-state field new))
        edited))))
 
+;;; --- what is carried when the app is made again ---
+
+(defmethod node-state ((field text-field))
+  (list* (text-field-state field) (text-field-view-start field) (text-field-%invalid field)
+         (call-next-method)))
+
+(defmethod restore-node-state ((field text-field) state)
+  (destructuring-bind (text-state view-start invalid &rest more) state
+    (unless (eq text-state *unchanged*)
+      (setf (text-field-state field) text-state)
+      (touch field nil))
+    (unless (eq view-start *unchanged*)
+      (setf (text-field-view-start field) view-start))
+    (unless (eq invalid *unchanged*)
+      (setf (text-field-invalid field) invalid))
+    (call-next-method field more)))
+
+(defmethod carry-interaction ((new text-field) (old text-field))
+  ;; The caret and the selection belong to the text they are in.
+  (when (string= (text-field-text new) (text-field-text old))
+    (setf (text-field-state new) (text-field-state old)
+          (text-field-view-start new) (text-field-view-start old))
+    (touch new nil)))
+
 ;;; --- a slider ---
 
 (defconstant +thumb-size+ 16f0)
@@ -305,6 +333,15 @@ double-float) when it is dragged or moved with the arrow keys."
       (setf (slider-%value slider) value)
       (touch slider nil))
     value))
+
+(defmethod node-state ((slider slider))
+  (list* (slider-%value slider) (call-next-method)))
+
+(defmethod restore-node-state ((slider slider) state)
+  (destructuring-bind (value &rest more) state
+    (unless (eq value *unchanged*)
+      (setf (slider-value slider) value))
+    (call-next-method slider more)))
 
 (defmethod node-interactive-p ((slider slider)) t)
 (defmethod node-focusable-p ((slider slider)) t)
@@ -404,6 +441,15 @@ called with the index of the option that is chosen."
     (touch choice nil))
   index)
 
+(defmethod node-state ((choice choice))
+  (list* (choice-%selected choice) (call-next-method)))
+
+(defmethod restore-node-state ((choice choice) state)
+  (destructuring-bind (selected &rest more) state
+    (unless (eq selected *unchanged*)
+      (setf (choice-selected choice) selected))
+    (call-next-method choice more)))
+
 (defmethod node-interactive-p ((choice choice)) t)
 (defmethod node-focusable-p ((choice choice)) t)
 
@@ -498,6 +544,15 @@ when it has the keyboard, changes it, and calls ON-CHANGE with the new state (tr
       (setf (checkbox-%checked checkbox) checked)
       (touch checkbox nil))
     checked))
+
+(defmethod node-state ((checkbox checkbox))
+  (list* (checkbox-%checked checkbox) (call-next-method)))
+
+(defmethod restore-node-state ((checkbox checkbox) state)
+  (destructuring-bind (checked &rest more) state
+    (unless (eq checked *unchanged*)
+      (setf (checkbox-checked checkbox) checked))
+    (call-next-method checkbox more)))
 
 (defmethod node-interactive-p ((checkbox checkbox)) t)
 (defmethod node-focusable-p ((checkbox checkbox)) t)
@@ -598,6 +653,29 @@ and the list stays scrolled as far as it can. Calls no handler."
   (clamp-list-box list-box)
   (touch list-box nil)
   index)
+
+(defmethod node-state ((list-box list-box))
+  (list* (list-box-%items list-box) (list-box-%selected list-box) (list-box-%top list-box)
+         (call-next-method)))
+
+(defmethod restore-node-state ((list-box list-box) state)
+  (destructuring-bind (items selected top &rest more) state
+    (unless (eq items *unchanged*)
+      (setf (list-box-%items list-box) items))
+    (unless (eq selected *unchanged*)
+      (setf (list-box-%selected list-box) selected))
+    (unless (eq top *unchanged*)
+      (setf (list-box-%top list-box) top))
+    ;; The items may be fewer than they were, and the selection and the scroll must still be
+    ;; among them.
+    (clamp-list-box list-box)
+    (touch list-box nil)
+    (call-next-method list-box more)))
+
+(defmethod carry-interaction ((new list-box) (old list-box))
+  (setf (list-box-%top new) (list-box-%top old))
+  (clamp-list-box new)
+  (touch new nil))
 
 (defmethod node-interactive-p ((list-box list-box)) t)
 (defmethod node-focusable-p ((list-box list-box)) t)

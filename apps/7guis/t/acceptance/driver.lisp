@@ -10,6 +10,7 @@
            #:define-acceptance
            #:available-variants
            #:start
+           #:reload
            #:redraw
            #:rectangle
            #:click
@@ -51,6 +52,9 @@
   context
   clock
   list
+  ;; What makes the app, and the store of the state it keeps (KEPT-LET), for RELOAD.
+  constructor
+  (kept-state (core:make-kept-state))
   ;; How many trackpad gestures have been made, so that each starts a second after the last.
   (gestures 0))
 
@@ -83,8 +87,11 @@ clock the app sees is a virtual one, which ADVANCE-TIME moves."
                                           :height (float (registry:app-height app) 1f0)))
          (clock (core:make-virtual-clock 1000000000))
          (driver (%make-driver nil context clock (core:make-display-list :capacity 65536))))
+    (setf (driver-constructor driver) (registry:app-constructor app))
     (let ((core:*time-source* (core:virtual-clock-source clock)))
-      (setf (driver-variant driver) (funcall (registry:app-constructor app))))
+      (setf (driver-variant driver)
+            (core:with-kept-state ((driver-kept-state driver))
+              (funcall (driver-constructor driver)))))
     (redraw driver)
     driver))
 
@@ -99,6 +106,22 @@ frame's list. A frame that changed state is built again, up to the limit."
     (dotimes (i frames)
       (core:settle-frame (driver-variant driver) (driver-context driver) (driver-list driver)))
     (driver-list driver)))
+
+(defun reload (driver &optional (constructor (driver-constructor driver)))
+  "Make the app again, as the host does when its code was compiled (decision record 0031): the
+app is made by CONSTRUCTOR (the one that makes it, unless a test gives another, which stands
+for edited code) with the state it keeps, the new variant takes what the old one held, and a
+frame is drawn with it. The old one is then retired."
+  (let ((old (driver-variant driver))
+        (new nil))
+    (with-clock (driver)
+      (setf new (core:with-kept-state ((driver-kept-state driver))
+                  (funcall constructor))))
+    (core:inherit-state new old)
+    (setf (driver-variant driver) new)
+    (redraw driver)
+    (core:retire-variant old)
+    driver))
 
 (defun resize (driver width height)
   "Make the window WIDTH by HEIGHT points, as the host does when it is resized, and draw."

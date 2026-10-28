@@ -11,6 +11,7 @@
                     (#:ring #:almighty-bolt-core/ring)
                     (#:event #:almighty-bolt-core/event)
                     (#:redefinition #:almighty-bolt-core/redefinition)
+                    (#:kept #:almighty-bolt-core/kept)
                     (#:dl #:almighty-bolt-core/display-list)))
 
 (in-package #:almighty-bolt-core/t/platform/macos/host)
@@ -20,7 +21,8 @@
 ;;; and the events AppKit delivers are checked by running the null variant.
 
 (defmacro with-host ((host target variant &key (width 64) (height 48) (scale 2)
-                                            (capacity 1024) phases)
+                                            (capacity 1024) phases
+                                            (kept-state '(kept:make-kept-state)))
                      &body body)
   "Run BODY with HOST, a host for VARIANT, drawing into TARGET, an off-screen texture
 WIDTH by HEIGHT points at SCALE pixels a point."
@@ -29,7 +31,7 @@ WIDTH by HEIGHT points at SCALE pixels a point."
        (let* ((device (device:default-device))
               (,host (host:make-host ,variant device target:+pixel-format-bgra8-unorm+
                                      :capacity ,capacity :scale ,scale
-                                     :phases ,phases))
+                                     :phases ,phases :kept-state ,kept-state))
               (,target (target:make-offscreen-target device (* ,width ,scale)
                                                      (* ,height ,scale))))
          (let ((pass (target:offscreen-target-descriptor ,target)))
@@ -517,6 +519,142 @@ reads the count."
     (let ((before (sb-ext:get-bytes-consed)))
       (draw-frames host 5000)
       (assert-true (< (- (sb-ext:get-bytes-consed) before) 300000)))))
+
+;;; --- what a variant that is swapped in takes from the one it replaces ---
+
+(defvar *log* nil
+  "What the recording variants were told, newest first.")
+
+(defclass recording-variant (variant:variant)
+  ((name :initarg :name :reader name)
+   (fail-first-frame :initarg :fail-first-frame :initform nil :reader fail-first-frame)
+   (fail-to-inherit :initarg :fail-to-inherit :initform nil :reader fail-to-inherit)
+   (fail-to-retire :initarg :fail-to-retire :initform nil :reader fail-to-retire)))
+
+(defmethod variant:frame ((variant recording-variant) context list)
+  (declare (ignore context))
+  (when (fail-first-frame variant)
+    (error "~a is broken" (name variant)))
+  (dl:push-rect list 0 0 4 4 (dl:pack-color 0 255 0))
+  nil)
+
+(defmethod variant:inherit-state ((new recording-variant) (old recording-variant))
+  (push (list :inherit (name new) (name old)) *log*)
+  (when (fail-to-inherit new)
+    (error "~a cannot take the state" (name new))))
+
+(defmethod variant:retire-variant ((variant recording-variant))
+  (push (list :retire (name variant)) *log*)
+  (when (fail-to-retire variant)
+    (error "~a cannot be let go of" (name variant))))
+
+(defun recording (name &rest options)
+  (apply #'make-instance 'recording-variant :name name options))
+
+(defmacro with-log (&body body)
+  `(let ((*log* '()))
+     ,@body
+     (reverse *log*)))
+
+(define-test the-new-variant-takes-the-state-of-the-old-one ()
+  (with-host (host target (recording :a) :scale 1)
+    (draw host :scale 1f0)
+    (assert-equal '((:inherit :b :a))
+                  (with-log (host:swap-variant host (recording :b))))))
+
+(define-test the-old-variant-is-retired-when-the-new-one-has-drawn ()
+  (with-host (host target (recording :a) :scale 1)
+    (draw host :scale 1f0)
+    (assert-equal '((:inherit :b :a))
+                  (with-log (host:swap-variant host (recording :b))))
+    (assert-equal '((:retire :a))
+                  (with-log (draw host :scale 1f0)))
+    ;; And once only.
+    (assert-equal '() (with-log (draw host :scale 1f0)))))
+
+(define-test the-new-variant-is-retired-when-its-first-frame-fails ()
+  (with-host (host target (recording :a) :scale 1)
+    (draw host :scale 1f0)
+    (let ((old (host:host-variant host)))
+      (host:swap-variant host (recording :b :fail-first-frame t))
+      (assert-equal '((:retire :b))
+                    (with-log (let ((*error-output* (make-broadcast-stream)))
+                                (draw host :scale 1f0))))
+      (assert-eq old (host:host-variant host)))))
+
+(define-test two-swaps-take-the-state-of-the-one-that-drew-and-retire-the-one-between ()
+  (with-host (host target (recording :a) :scale 1)
+    (draw host :scale 1f0)
+    (assert-equal '((:inherit :b :a) (:inherit :c :a) (:retire :b))
+                  (with-log (host:swap-variant host (recording :b))
+                            (host:swap-variant host (recording :c))))
+    (assert-equal '((:retire :a))
+                  (with-log (draw host :scale 1f0)))))
+
+(define-test a-variant-that-cannot-take-the-state-is-retired-and-the-old-one-stays ()
+  (with-host (host target (recording :a) :scale 1)
+    (draw host :scale 1f0)
+    (let ((old (host:host-variant host)))
+      (assert-equal '((:inherit :b :a) (:retire :b))
+                    (with-log (assert-error 'error
+                                  (host:swap-variant host (recording :b :fail-to-inherit t)))))
+      (assert-eq old (host:host-variant host))
+      ;; Nothing was swapped, so nothing waits to be settled.
+      (assert-equal '() (with-log (draw host :scale 1f0))))))
+
+(define-test a-variant-that-cannot-be-retired-is-reported-and-the-frames-go-on ()
+  (with-host (host target (recording :a :fail-to-retire t) :scale 1)
+    (draw host :scale 1f0)
+    (host:swap-variant host (recording :b))
+    (let ((message (with-output-to-string (*error-output*)
+                     (draw host :scale 1f0))))
+      (assert-true (search "cannot be let go of" message)))
+    (draw host :scale 1f0)))
+
+(defclass kept-variant (variant:variant)
+  ((read :initarg :read :reader kept-read)
+   (write :initarg :write :reader kept-write)))
+
+(defmethod variant:frame ((variant kept-variant) context list)
+  (declare (ignore context))
+  (dl:push-rect list 0 0 4 4 (dl:pack-color 0 255 0))
+  nil)
+
+(defun make-kept-variant ()
+  "An app, as the real ones are: a function that makes closures over state it keeps."
+  (kept:kept-let ((count 0))
+    (make-instance 'kept-variant :read (lambda () count) :write (lambda (new) (setf count new)))))
+
+(define-test reload-host-makes-the-app-with-the-hosts-kept-state ()
+  ;; On the main thread the work is done at once.
+  (when (main-queue:on-main-thread-p)
+    (let ((state (kept:make-kept-state)))
+      (with-host (host target (kept:with-kept-state (state) (make-kept-variant))
+                       :scale 1 :kept-state state)
+        (funcall (kept-write (host:host-variant host)) 7)
+        (let ((*standard-output* (make-broadcast-stream)))
+          (host:reload-host host #'make-kept-variant))
+        (assert-eql 7 (funcall (kept-read (host:host-variant host))))
+        ;; The new app writes to the cell that the old one had, and the next one has it.
+        (funcall (kept-write (host:host-variant host)) 8)
+        (let ((*standard-output* (make-broadcast-stream)))
+          (host:reload-host host #'make-kept-variant))
+        (assert-eql 8 (funcall (kept-read (host:host-variant host))))))))
+
+(define-test reload-host-does-not-keep-what-a-failed-remake-made ()
+  (when (main-queue:on-main-thread-p)
+    (let ((state (kept:make-kept-state)))
+      (with-host (host target (kept:with-kept-state (state) (make-kept-variant))
+                       :scale 1 :kept-state state)
+        (funcall (kept-write (host:host-variant host)) 7)
+        ;; An edited initial value, and then the constructor fails.
+        (let ((*error-output* (make-broadcast-stream)))
+          (host:reload-host host (lambda ()
+                                   (kept:kept-let ((count 100))
+                                     (error "the constructor failed")))))
+        (let ((*standard-output* (make-broadcast-stream)))
+          (host:reload-host host #'make-kept-variant))
+        (assert-eql 7 (funcall (kept-read (host:host-variant host))))))))
 
 ;;; --- opening a window from a REPL ---
 ;;; The window and its loop need a display and the main thread, so what OPEN-VARIANT does with them

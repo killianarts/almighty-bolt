@@ -642,3 +642,85 @@ function giving the state and a function giving the changes it reported, oldest 
     (build variant)
     (assert-equal '() events)))
 
+
+;;; --- an app made again (decision record 0031) ---
+
+(defun make-form-app (&optional (title "T"))
+  "An app written as the real ones are: its state in KEPT-LET, its interface a closure over it."
+  (core:kept-let ((text "ab"))
+    (lambda ()
+      (w:column (:gap 4)
+        (w:label title :id :title)
+        (multiple-value-bind (new changed) (w:text-field :name text :width 160)
+          (when changed
+            (setf text new)))))))
+
+(defun press-in-the-field (variant)
+  "Press after the first character of the field, which puts the caret there and gives it the
+keyboard."
+  (multiple-value-bind (x y width height) (core:lookup-target variant :name)
+    (declare (ignore width))
+    (let ((px (+ x 8 8 1)) (py (+ y (/ height 2))))
+      (pointer variant :move px py) (build variant)
+      (pointer variant :down px py :button 0 :buttons 1) (build variant)
+      (pointer variant :up px py :button 0) (build variant))))
+
+(defun remake (old make-app state &key inherit)
+  "What the host does when the app is made again: a new variant from the app made with STATE,
+which takes what OLD kept if INHERIT, and builds its first frame."
+  (let ((new (i:make-immediate-variant (core:with-kept-state (state) (funcall make-app)))))
+    (when inherit
+      (core:inherit-state new old))
+    (build new)
+    new))
+
+(define-test an-app-made-again-keeps-the-keyboard-and-the-caret ()
+  (let* ((state (core:make-kept-state))
+         (old (show (core:with-kept-state (state) (make-form-app)))))
+    (press-in-the-field old)
+    (let ((new (remake old #'make-form-app state :inherit t)))
+      (key new #\x) (build new)
+      ;; Typed into the field that had the keyboard, at the caret that was in it.
+      (assert-equal "Taxb" (glyphs *list*)))))
+
+(define-test an-app-made-again-keeps-nothing-of-the-widgets-without-inheriting ()
+  (let* ((state (core:make-kept-state))
+         (old (show (core:with-kept-state (state) (make-form-app)))))
+    (press-in-the-field old)
+    (let ((new (remake old #'make-form-app state)))
+      (key new #\x) (build new)
+      ;; The state is kept, but the keyboard is not where it was, so nothing is typed.
+      (assert-equal "Tab" (glyphs *list*)))))
+
+(define-test an-app-made-again-shows-its-new-code-with-the-old-state ()
+  (let* ((state (core:make-kept-state))
+         (old (show (core:with-kept-state (state) (make-form-app)))))
+    (press-in-the-field old)
+    (key old #\x) (build old)
+    (assert-equal "Taxb" (glyphs *list*))
+    (remake old (lambda () (make-form-app "U")) state :inherit t)
+    (assert-equal "Uaxb" (glyphs *list*))))
+
+(define-test a-reload-lays-out-and-paints-again-what-was-described-the-same ()
+  (let* ((state (core:make-kept-state))
+         (old (show (core:with-kept-state (state) (make-form-app)))))
+    (build old)
+    (let ((texts (counting-context-texts *context*)))
+      ;; Nothing changed, so nothing is drawn again.
+      (build old)
+      (assert-eql texts (counting-context-texts *context*))
+      ;; The same app made again is the same description, and is drawn again, because what
+      ;; is in the library may have changed.
+      (remake old #'make-form-app state :inherit t)
+      (assert-true (> (counting-context-texts *context*) texts)))))
+
+(define-test a-reload-forgets-what-was-painted-for-each-widget ()
+  (let* ((state (core:make-kept-state))
+         (old (show (core:with-kept-state (state) (make-form-app))))
+         (cache (almighty-bolt-variant-immediate/ui:ui-paint-cache (i:immediate-variant-ui old))))
+    (assert-true (plusp (hash-table-count cache)))
+    (let ((new (remake old #'make-form-app state :inherit t)))
+      (declare (ignorable new))
+      ;; What the first frame of the new variant painted is in it again, so look before that.
+      (core:inherit-state (i:make-immediate-variant (lambda ())) new)
+      (assert-eql 0 (hash-table-count cache)))))

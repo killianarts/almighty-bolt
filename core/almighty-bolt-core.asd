@@ -19,6 +19,7 @@
                (:file "variant")
                (:file "settle")
                (:file "redefinition")
+               (:file "kept")
                (:module "replay"
                 :serial t
                 :components
@@ -95,6 +96,7 @@
                  (:file "variant")
                  (:file "settle")
                  (:file "redefinition")
+                 (:file "kept")
                  (:module "replay"
                   :serial t
                   :components
@@ -153,6 +155,7 @@
                                                       :almighty-bolt-core/t/variant
                                                       :almighty-bolt-core/t/settle
                                                       :almighty-bolt-core/t/redefinition
+                                                      :almighty-bolt-core/t/kept
                                                       :almighty-bolt-core/t/replay/script
                                                       :almighty-bolt-core/t/replay/player
                                                       :almighty-bolt-core/t/replay/recorder

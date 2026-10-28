@@ -1659,9 +1659,8 @@ said they definitely want it. Branch hot-reload, from phase-2; record 0030 propo
   four times a second instead of 2.5). Tests for the three cases and three mutations of them; the
   failing test is how I found it.
 ** Read with care
-- The new app starts from nothing (a hot restart, not a hot reload that keeps state): typed text,
-  selection and scroll are lost at each reload, and the CRUD's entries go back to the first three.
-  State kept across a reload (option 3 of the record) is not built.
+- At the time of writing the new app started from nothing (a hot restart): typed text, selection
+  and scroll were lost at each reload. State is kept now; see the last section of this entry.
 - The scripted edits write the file in place. Micah's editor's way of saving is A-008.
 ** Opening the window from a REPL (2026-10-29)
 Micah: "Hot restart is not good enough. State should be kept between reloads." and "I run lisp
@@ -1688,3 +1687,40 @@ REPL back." The second first.
   because the mutated code opens a real window and its loop never ends.
 - A smoke check that I wrote judged by exit code passed with the window's =terminate:= in place,
   because =exit(0)= is AppKit's. It is now judged by what it says.
+** State kept across reloads (2026-10-29)
+Micah: "Hot restart is not good enough. State should be kept between reloads." Record 0031
+(proposed) has the options and the decision; this is what happened.
+- The state is in two places: the app's own variables (a closure over them, new on every call of
+  the constructor) and the widgets' (carets, scroll, focus; and in the retained variant everything
+  the app reads back from nodes). Reading closure variables out of the old closure is not
+  possible without SBCL internals, so the app declares its state: =kept-let= is =let= over cells
+  that the window's store keeps by variable name, and an edited initial form makes the cell again.
+  The variants carry the widgets' state by id: immediate shares its UI object, reactive carries the
+  caret/scroll/focus (its values come from the signals), retained carries the slots that differ
+  from what they were when the tree was made, plus the focus.
+- Sizes: immediate about 20 lines, reactive about 15, retained about 130 in the library; the CRUD
+  files went from 77 to 79, 98 to 101 and 90 to 92 lines of code, and two of them are indented
+  one level more. The retained app also got =:after-reload #'refresh-list=.
+- The retained variant showed what state in nodes costs. Run on the Counter, which has no
+  =kept-let=, a reload showed 1 with its variable at 0, because the node's text was carried and
+  the variable was not. Widget state is now carried only for an app that has a =kept-let=. The
+  hook =:after-reload= is for the code that works the view out from the model: a test that
+  redefines =entry-display= fails without it in the retained CRUD.
+- Real window, real tree, a saved file, each variant: entries, the keyboard and the caret are
+  where they were, and the next key goes in at the caret (0.52 to 0.79 s from the save). From
+  Micah's own Slynk with C-c C-c on the retained =make-crud=: the same.
+- The suite found two things I had not registered (the umbrella package's list of modules and the
+  core's list of test packages). It also failed a test of mine by printing a node: nodes point at
+  their parents, so a failed =assert-eq= on one printed forever; the tests compare with =eq= inside
+  =assert-true=.
+- A mutation run reused the compiled file of the run before: ASDF takes a compiled file for
+  current unless the source is newer by a second, and a source put back from a copy is older than
+  the compiled file of its mutant. Ten of the retained mutations ran against another mutant and
+  were caught for the wrong reason, or not caught. The harness now deletes the compiled file
+  before and after each run; I ran them again. The earlier series (kept, host, immediate) each
+  changed one file, so they were not affected.
+** Read with care (state)
+- Only the three CRUD apps use =kept-let=. The other 7GUIs tasks and the stress apps restart.
+- A variable that is renamed starts again, and so does one whose initial form was edited.
+- The old app's =computed= values stay subscribed to shared signals (reactive), marked stale.
+- I have not seen it in Micah's Emacs. What was run is a script that speaks Slynk's protocol.

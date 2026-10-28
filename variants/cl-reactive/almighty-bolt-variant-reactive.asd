@@ -23,13 +23,15 @@
                 ((:file "signals")
                  (:file "elements")
                  (:file "builder")
-                 (:file "reactive"))))
+                 (:file "reactive")
+                 (:file "reload"))))
   :perform (test-op (o s)
                     (let* ((results
                              (loop :for package :in '(:almighty-bolt-variant-reactive/t/signals
                                                       :almighty-bolt-variant-reactive/t/elements
                                                       :almighty-bolt-variant-reactive/t/builder
-                                                      :almighty-bolt-variant-reactive/t/reactive)
+                                                      :almighty-bolt-variant-reactive/t/reactive
+                                                      :almighty-bolt-variant-reactive/t/reload)
                                    :collect (uiop:symbol-call :lisp-unit2 :run-tests
                                                               :package package)))
                            (bad (loop :for db :in results

@@ -6,6 +6,8 @@
                 #:handle-event
                 #:hit-target
                 #:lookup-target
+                #:inherit-state
+                #:retire-variant
                 #:request-frame
                 #:context-now-ns
                 #:with-phase
@@ -18,11 +20,13 @@
                 #:element-node
                 #:element-live-p
                 #:element-depth
-                #:element-queued)
+                #:element-queued
+                #:unmount)
   (:import-from #:almighty-bolt-variant-retained/retained
                 #:make-retained-variant
                 #:retained-variant-session
-                #:retained-variant-focus)
+                #:retained-variant-focus
+                #:inherit-retained-state)
   (:export #:reactive-variant
            #:make-reactive-variant
            #:reactive-variant-inner
@@ -134,3 +138,17 @@ that doing so tells in turn, until none is left."
 
 (defmethod lookup-target ((variant reactive-variant) id)
   (lookup-target (reactive-variant-inner variant) id))
+
+;;; --- an app made again ---
+
+(defmethod inherit-state ((new reactive-variant) (old reactive-variant))
+  "The signals are the app's own and are kept with KEPT-LET, and a field's text, a list's items
+and the rest of what a node shows come from them when the screen is described. So the nodes carry only
+what a signal does not hold: where the caret and the selection of a field with the same text are,
+how far a list is scrolled, and the keyboard focus."
+  (inherit-retained-state (reactive-variant-inner new) (reactive-variant-inner old)))
+
+(defmethod retire-variant ((variant reactive-variant))
+  "The signals outlive a variant that is made again from the same ones, so the components of the
+one that is not used any more must stop being told when they change."
+  (unmount (root variant)))

@@ -68,7 +68,14 @@
            #:interactive-at
            #:find-node
            #:node-origin
-           #:map-nodes))
+           #:map-nodes
+           #:*unchanged*
+           #:node-state
+           #:restore-node-state
+           #:node-initial-state
+           #:snapshot-node
+           #:carry-mutated
+           #:carry-interaction))
 
 (in-package #:almighty-bolt-variant-retained/node)
 
@@ -103,7 +110,10 @@
   (cache nil)
   (paint-dirty t :type boolean)
   ;; On the root of a tree that has an owner: what a change anywhere sets.
-  (tree nil))
+  (tree nil)
+  ;; What NODE-STATE gave when the tree was made (SNAPSHOT-NODE), to tell what was done to the
+  ;; node since. :NONE for a node that was added later.
+  (initial-state :none))
 
 (defstruct (tree-state (:constructor make-tree-state ()))
   "What changed in a tree since someone last looked. LAYOUT-DIRTY means sizes must
@@ -187,6 +197,58 @@ work."
     (setf (node-%enabled node) enabled)
     (touch node nil))
   enabled)
+
+;;; --- what a node holds that a tree made again from edited code must not lose ---
+
+;;; When the app is made again, its new tree is made from the new code and the old tree's state is
+;;; carried into it, node by node (decision record 0031). What is carried is what was done to the
+;;; node since the tree was made, by the person or by the app: a node's slot whose value is not
+;;; what it was when the tree was made. A slot that was not touched is left as the new code made it,
+;;; so an edited label, a changed initial value or a new width shows, and a typed one stays.
+
+(defvar *unchanged* (make-symbol "UNCHANGED")
+  "What RESTORE-NODE-STATE is given in place of the value of a slot that is not to be set.")
+
+(defgeneric node-state (node)
+  (:documentation "The values of the slots of NODE that the person or the app change while it runs,
+as a list, in an order that is the same for every node of its type: the slots of the type first and
+then those of the types it includes (CALL-NEXT-METHOD).")
+  (:method ((node node))
+    (list (node-%visible node) (node-%enabled node))))
+
+(defgeneric restore-node-state (node state)
+  (:documentation "Put the values in STATE, a list as NODE-STATE gives it, in the slots of NODE,
+except for those that are *UNCHANGED*. A method takes what is its own from the front of STATE and
+gives the rest to CALL-NEXT-METHOD.")
+  (:method ((node node) state)
+    (destructuring-bind (visible enabled &rest more) state
+      (declare (ignore more))
+      (unless (eq visible *unchanged*)
+        (setf (node-visible node) visible))
+      (unless (eq enabled *unchanged*)
+        (setf (node-enabled node) enabled)))))
+
+(defgeneric carry-interaction (new old)
+  (:documentation "Carry into NEW what the person did to OLD, a node of the same type that NEW
+replaces, and that the app's own state does not hold: where a field's caret and selection are, how
+far a list is scrolled. Used for a tree whose values the app holds elsewhere and sets from there
+every time (the reactive variant), where nothing else of a node's state is worth carrying.")
+  (:method (new old)
+    (declare (ignore new old))
+    nil))
+
+(defun snapshot-node (node)
+  "Note what NODE's state is now, as what it was when the tree was made."
+  (setf (node-initial-state node) (node-state node)))
+
+(defun carry-mutated (new old)
+  "Carry into NEW the slots of OLD whose values are not what they were when OLD's tree was made.
+Nothing of a node that was added later."
+  (let ((initial (node-initial-state old)))
+    (unless (eq initial :none)
+      (restore-node-state new (mapcar (lambda (now then)
+                                        (if (eql now then) *unchanged* now))
+                                      (node-state old) initial)))))
 
 ;;; --- what a kind of node does ---
 

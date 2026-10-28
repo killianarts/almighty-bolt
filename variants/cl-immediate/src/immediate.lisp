@@ -6,6 +6,7 @@
                 #:handle-event
                 #:hit-target
                 #:lookup-target
+                #:inherit-state
                 #:request-frame
                 #:context-width
                 #:context-scale
@@ -67,6 +68,7 @@
                 #:ui-last-paint-hash
                 #:ui-last-list
                 #:ui-saved-geometry
+                #:ui-paint-cache
                 #:make-rect
                 #:rect-x
                 #:rect-y
@@ -110,7 +112,7 @@
 ;;; what the application holds, and only the last build is laid out and drawn.
 
 (defclass immediate-variant (variant)
-  ((ui :initform (make-ui) :reader immediate-variant-ui)
+  ((ui :initform (make-ui) :accessor immediate-variant-ui)
    (app :initarg :app :reader app)
    ;; True if events were left in the queue by the last frame.
    (more-input :initform nil :accessor more-input))
@@ -304,6 +306,20 @@ frame presented, round."
          (when (more-input variant)
            (request-frame context))
          consumed)))))
+
+;;; --- an app made again ---
+
+(defmethod inherit-state ((new immediate-variant) (old immediate-variant))
+  "The new variant takes the old one's UI whole: the keyboard focus, the state of each widget by its key
+(a field's caret and selection and where it is scrolled to, a list's scroll), and the input not yet
+looked at. The widgets are given what they show by the app each frame, so none of it is the app's.
+What was laid out and painted is forgotten, so that the first frame does both again, whatever the
+hashes say: the code that changed may be the library's, which the hashes do not describe."
+  (let ((ui (immediate-variant-ui old)))
+    (setf (ui-last-layout-hash ui) -1
+          (ui-last-paint-hash ui) -1)
+    (clrhash (ui-paint-cache ui))
+    (setf (immediate-variant-ui new) ui)))
 
 ;;; --- asking where things are ---
 

@@ -178,6 +178,8 @@
                 #:hit-target
                 #:lookup-target
                 #:accessibility-tree
+                #:inherit-state
+                #:retire-variant
                 #:context
                 #:make-context
                 #:context-width
@@ -219,6 +221,16 @@
                 #:context-index-at-x
                 #:context-caret-rect
                 #:context-push-text)
+  (:import-from #:almighty-bolt-core/kept
+                #:kept-let
+                #:kept-state
+                #:make-kept-state
+                #:call-with-kept-state
+                #:with-kept-state
+                #:reset-kept-state
+                #:kept-state-names
+                #:kept-value
+                #:kept-in-use-p)
   (:import-from #:almighty-bolt-core/settle
                 #:+max-builds+
                 #:settle-frame
@@ -449,6 +461,8 @@
            #:hit-target
            #:lookup-target
            #:accessibility-tree
+           #:inherit-state
+           #:retire-variant
            #:context
            #:make-context
            #:context-width
@@ -490,6 +504,15 @@
            #:context-index-at-x
            #:context-caret-rect
            #:context-push-text
+           #:kept-let
+           #:kept-state
+           #:make-kept-state
+           #:call-with-kept-state
+           #:with-kept-state
+           #:reset-kept-state
+           #:kept-state-names
+           #:kept-value
+           #:kept-in-use-p
            #:+max-builds+
            #:settle-frame
            #:settle-cap-reached

@@ -8,7 +8,12 @@
                 #:record-frame-details)
   (:import-from #:almighty-bolt-core/display-list
                 #:make-display-list)
+  (:import-from #:almighty-bolt-core/kept
+                #:make-kept-state
+                #:with-kept-state)
   (:import-from #:almighty-bolt-core/variant
+                #:inherit-state
+                #:retire-variant
                 #:context
                 #:context-width
                 #:context-height
@@ -91,6 +96,7 @@
            #:host-view
            #:host-acquire
            #:host-wake
+           #:host-kept-state
            #:swap-variant
            #:reload-host
            #:running-host
@@ -156,6 +162,9 @@ glyph atlas. FONTS keeps the fonts made, by name and then by size."
   ;; The variant that SWAP-VARIANT replaced, until the one that replaced it has made a frame
   ;; without an error. If that frame fails, this is the one that is put back.
   (previous nil)
+  ;; What the app keeps between the times it is made (KEPT-LET), which is bound while the app is
+  ;; made again and so outlives the variant.
+  (kept-state (make-kept-state) :read-only t)
   (context nil :read-only t)
   (display-list nil :read-only t)
   (renderer nil :read-only t)
@@ -193,19 +202,22 @@ flag set."
             (t (setf (context-frame-requested (host-context host)) t))))))
 
 (defun make-host (variant device pixel-format
-                  &key (capacity 65536) (ring-capacity 4096) (scale 2) phases)
+                  &key (capacity 65536) (ring-capacity 4096) (scale 2) phases
+                    (kept-state (make-kept-state)))
   "A host for VARIANT drawing with DEVICE into targets of PIXEL-FORMAT, with no
 window yet. CAPACITY is the most commands a frame may hold. SCALE is the pixels a
 point that the glyph atlas is rasterized at, which is the scale text must be drawn
 at. With PHASES, the instrumentation is on: the variant's update, layout and paint
 times, the first build, garbage collection and the GPU's time go into the ring as well
-(see WITH-PHASE). RUN-VARIANT makes one with a window; tests make one and call RUN-FRAME."
+(see WITH-PHASE). KEPT-STATE is what the app keeps when it is made again (KEPT-LET); the one that
+made VARIANT had it bound. RUN-VARIANT makes one with a window; tests make one and call RUN-FRAME."
   (let* ((renderer (make-renderer device pixel-format :capacity capacity :scale scale))
          (context (let ((context (make-mac-context :width 0f0 :height 0f0 :scale 1f0
                                                     :renderer renderer)))
                     (setf (context-phases-p context) (and phases t))
                     context))
          (host (%make-host :variant variant
+                           :kept-state kept-state
                            :context context
                            :renderer renderer
                            :display-list (make-display-list :capacity capacity)
@@ -241,33 +253,59 @@ breaks the lines of an error's text at a narrow margin."
     (format *error-output* "~&Hot reload: ~a: ~a~%" what condition))
   (finish-output *error-output*))
 
+(defun retire (variant)
+  "RETIRE-VARIANT, for a variant that is no longer used. A failure to let go of it is reported and
+does not stop what is going on."
+  (handler-case (retire-variant variant)
+    (error (condition)
+      (report-hot-reload "an app that is no longer used could not be let go of" condition))))
+
 (defun swap-variant (host variant)
   "Make HOST run VARIANT from the next frame, in place of the one it runs. The window, the
-renderer and the glyph atlas stay, and the new variant starts with nothing: no focus, no hover,
-none of the state of the old one. If its first frame signals an error, the old one is put back
-and the error is reported (SETTLE-HOST), so that code that does not work yet does not take the
-window with it. Call it on the thread that draws, the main thread, and ask for a frame after
-(RELOAD-HOST does both)."
-  (setf (host-previous host) (or (host-previous host) (host-variant host))
-        (host-variant host) variant)
+renderer and the glyph atlas stay, and the new variant is given what the old one kept that is not
+the app's own (INHERIT-STATE): the focus, the carets, the scrolls. If that signals an error, the
+old one stays and the error is signalled again. If the new variant's first frame signals an error,
+the old one is put back and the error is reported (SETTLE-HOST), so that code that does not work
+yet does not take the window with it. Call it on the thread that draws, the main thread, and ask
+for a frame after (RELOAD-HOST does both)."
+  (let ((old (or (host-previous host) (host-variant host))))
+    (handler-case (inherit-state variant old)
+      (error (condition)
+        (retire variant)
+        (error condition)))
+    ;; A variant that was swapped in and has not drawn yet is replaced by this one, and goes.
+    (when (host-previous host)
+      (retire (host-variant host)))
+    (setf (host-previous host) old
+          (host-variant host) variant))
   variant)
 
 (defun settle-host (host context)
   "SETTLE-FRAME with HOST's variant. A variant that SWAP-VARIANT has just put in has its first
 frame made with the old one ready: if it signals an error, the old one is put back, the
-error is reported, and the frame is made again with that one."
+error is reported, and the frame is made again with that one. Whichever of the two is not used
+after that is retired."
   (let ((previous (host-previous host))
         (display-list (host-display-list host)))
     (cond ((null previous)
            (settle-frame (host-variant host) context display-list))
           (t
            (setf (host-previous host) nil)
-           (handler-case (settle-frame (host-variant host) context display-list)
-             (error (condition)
-               (report-hot-reload "the new app failed in its first frame, so the old one is back"
-                                  condition)
-               (setf (host-variant host) previous)
-               (settle-frame previous context display-list)))))))
+           (let ((builds nil) (capped nil) (failure nil))
+             (handler-case (multiple-value-setq (builds capped)
+                             (settle-frame (host-variant host) context display-list))
+               (error (condition)
+                 (setf failure condition)))
+             (cond ((null failure)
+                    (retire previous)
+                    (values builds capped))
+                   (t
+                    (report-hot-reload "the new app failed in its first frame, so the old one is back"
+                                       failure)
+                    (let ((failed (host-variant host)))
+                      (setf (host-variant host) previous)
+                      (retire failed))
+                    (settle-frame previous context display-list))))))))
 
 (defun run-frame (host width height scale)
   "Make and draw one frame: the size and scale go into the context, the variant
@@ -391,7 +429,8 @@ REBUILD signals an error the error is reported and the old variant stays."
   (run-on-main
    (lambda ()
      (handler-case
-         (progn (swap-variant host (funcall rebuild))
+         (progn (swap-variant host (with-kept-state ((host-kept-state host))
+                                     (funcall rebuild)))
                 (request-host-frame host)
                 (format t "~&Hot reload: made the app again.~%")
                 (finish-output))
@@ -399,7 +438,7 @@ REBUILD signals an error the error is reported and the old variant stays."
          (report-hot-reload "the app could not be made again, so the old one stays"
                             condition))))))
 
-(defun make-variant-window (variant title width height capacity rebuild driver)
+(defun make-variant-window (variant title width height capacity rebuild driver kept-state)
   "Make the window for VARIANT, show it, and return the host. Called inside the application, on
 the main thread (RUN-VARIANT and OPEN-VARIANT see to that). The arguments are theirs."
   (let* ((host nil)
@@ -422,7 +461,8 @@ the main thread (RUN-VARIANT and OPEN-VARIANT see to that). The arguments are th
          (object (metal-view-object view)))
     (setf host (make-host variant device (msg-send :ulong object "colorPixelFormat")
                           :capacity capacity
-                          :scale (window-scale-factor window)))
+                          :scale (window-scale-factor window)
+                          :kept-state (or kept-state (make-kept-state))))
     (setf (host-window host) window
           (host-view host) view
           (host-acquire host) (view-acquirer object)
@@ -458,7 +498,7 @@ definitions, and forget the host."
       (setf *running-host* nil))))
 
 (defun run-variant (variant &key (title "almighty-bolt") (width 800) (height 600)
-                              driver (capacity 65536) rebuild)
+                              driver (capacity 65536) rebuild kept-state)
   "Open a window of WIDTH by HEIGHT points, run VARIANT in it, and return only when
 the application quits. This thread must be the main thread, and it is the window's until the
 window closes, which ends the process: it is for a program that is only the window (make 7guis).
@@ -475,11 +515,12 @@ variant starts from nothing; if its first frame fails the old one is put back."
     (unwind-protect
          (run-application
           (lambda ()
-            (setf host (make-variant-window variant title width height capacity rebuild driver))))
+            (setf host (make-variant-window variant title width height capacity rebuild driver
+                                            kept-state))))
       (close-down host))))
 
 (defun open-variant (variant &key (title "almighty-bolt") (width 800) (height 600)
-                               (capacity 65536) rebuild (timeout 10))
+                               (capacity 65536) rebuild kept-state (timeout 10))
   "Open a window of WIDTH by HEIGHT points that runs VARIANT, and return its host at once, with
 the calling thread free: for a REPL, which goes on being one while the window is open. The
 window's event loop runs on the main thread, which has to be doing nothing that cannot be
@@ -523,7 +564,7 @@ made, or if the main thread had not started it in TIMEOUT seconds."
                  (run-application
                   (lambda ()
                     (setf host (make-variant-window variant title width height capacity
-                                                    rebuild nil))
+                                                    rebuild nil kept-state))
                     (sb-thread:signal-semaphore ready))
                   :ends-process nil)
                (error (condition)

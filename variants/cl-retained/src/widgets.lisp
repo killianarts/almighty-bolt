@@ -45,6 +45,9 @@
                 #:set-place
                 #:layout-node
                 #:paint-node
+                #:*unchanged*
+                #:node-state
+                #:restore-node-state
                 #:node-interactive-p
                 #:node-focusable-p
                 #:activate
@@ -138,6 +141,17 @@ values. Nodes are never keywords, so the first keyword starts the options."
   (touch label nil)
   color)
 
+(defmethod node-state ((label label))
+  (list* (label-%text label) (label-%color label) (call-next-method)))
+
+(defmethod restore-node-state ((label label) state)
+  (destructuring-bind (text color &rest more) state
+    (unless (eq text *unchanged*)
+      (setf (label-text label) text))
+    (unless (eq color *unchanged*)
+      (setf (label-color label) color))
+    (call-next-method label more)))
+
 (defun measure-label (label context)
   "Make sure LABEL has its font and the size of its text."
   (unless (label-measured label)
@@ -202,6 +216,17 @@ values. Nodes are never keywords, so the first keyword starts the options."
   (setf (paragraph-%color paragraph) color)
   (touch paragraph nil)
   color)
+
+(defmethod node-state ((paragraph paragraph))
+  (list* (paragraph-%text paragraph) (paragraph-%color paragraph) (call-next-method)))
+
+(defmethod restore-node-state ((paragraph paragraph) state)
+  (destructuring-bind (text color &rest more) state
+    (unless (eq text *unchanged*)
+      (setf (paragraph-text paragraph) text))
+    (unless (eq color *unchanged*)
+      (setf (paragraph-color paragraph) color))
+    (call-next-method paragraph more)))
 
 (defun break-paragraph (paragraph context width)
   "Make sure PARAGRAPH is broken into lines for WIDTH."
@@ -532,6 +557,15 @@ arguments when it is pressed."
       (setf (progress-%fraction progress) fraction)
       (touch progress nil))
     fraction))
+
+(defmethod node-state ((progress progress))
+  (list* (progress-%fraction progress) (call-next-method)))
+
+(defmethod restore-node-state ((progress progress) state)
+  (destructuring-bind (fraction &rest more) state
+    (unless (eq fraction *unchanged*)
+      (setf (progress-fraction progress) fraction))
+    (call-next-method progress more)))
 
 (defmethod layout-node ((progress progress) context min-w max-w min-h max-h)
   (declare (ignore context))

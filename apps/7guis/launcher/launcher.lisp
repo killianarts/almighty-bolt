@@ -1,6 +1,8 @@
 (defpackage #:almighty-bolt-7guis/launcher
   (:use #:cl)
   (:import-from #:almighty-bolt-core
+                #:make-kept-state
+                #:with-kept-state
                 #:now-ns
                 #:make-recorder
                 #:record-event
@@ -175,14 +177,17 @@ the app may have been defined again since the window opened. With LOG it logs."
 RECORD, a pathname, the events are written to it as a replay script as they come. With MEASURE
 the process reports to whoever started it and runs until it is killed. With HOT, the app is made
 again, in the same window, whenever the code that makes it is compiled, and a source file that is
-saved is compiled and loaded (decision record 0030); the new app starts from nothing."
+saved is compiled and loaded (decisions 0030 and 0031); the state that the app keeps, and that its
+widgets hold, is kept."
   (let ((app (or (find-app variant task)
                  (error "There is no ~(~a~) app for ~(~a~)." variant task)))
         (recorder nil)
         (sources nil))
     (when (and hot record)
       (error "HOT and RECORD do not go together: a new app would not be recorded."))
-    (let ((object (make-app-variant variant task log)))
+    (let* ((state (make-kept-state))
+           (object (with-kept-state (state)
+                     (make-app-variant variant task log))))
       (when log
         (format t "~&~a: press, drag, type; what arrives is printed. Close the window to finish.~%"
                 (app-title app))
@@ -206,6 +211,7 @@ saved is compiled and loaded (decision record 0030); the new app starts from not
       (unwind-protect
            (run-variant object :title (app-title app) :width (app-width app)
                                :height (app-height app)
+                               :kept-state state
                                :driver (cond (smoke #'smoke-check)
                                              (measure #'measure-driver))
                                :rebuild (and hot
@@ -217,11 +223,14 @@ saved is compiled and loaded (decision record 0030); the new app starts from not
   "Open the app of TASK in VARIANT (keywords) in a window and return its host at once, with the
 REPL free (OPEN-VARIANT). The app is made again, in the same window, whenever code is compiled
 into the image, from the editor or by loading a file (decision record 0030); closing the window
-leaves the Lisp running."
-  (let ((app (or (find-app variant task)
-                 (error "There is no ~(~a~) app for ~(~a~)." variant task))))
-    (open-variant (make-app-variant variant task log)
+leaves the Lisp running. The state that the app keeps (KEPT-LET) is kept when it is made again."
+  (let* ((app (or (find-app variant task)
+                  (error "There is no ~(~a~) app for ~(~a~)." variant task)))
+         (state (make-kept-state)))
+    (open-variant (with-kept-state (state)
+                    (make-app-variant variant task log))
                   :title (app-title app) :width (app-width app) :height (app-height app)
+                  :kept-state state
                   :rebuild (lambda () (make-app-variant variant task log)))))
 
 (defun close-app ()
