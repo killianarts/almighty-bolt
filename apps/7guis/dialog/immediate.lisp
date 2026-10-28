@@ -50,4 +50,4 @@
                (paragraph +body+ :id :card-text))))
          (label +status+ :id :status))))))
 
-(register-app :immediate :dialog #'make-dialog :width 640 :height 420)
+(register-app :immediate :dialog 'make-dialog :width 640 :height 420)

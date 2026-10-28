@@ -6,7 +6,7 @@
   :license "MIT"
   :serial t
   :depends-on ("almighty-bolt-core")
-  :components ((:module "common" :components ((:file "numbers") (:file "registry")))
+  :components ((:module "common" :components ((:file "numbers") (:file "registry") (:file "sources")))
                (:module "temperature" :components ((:file "model")))
                (:module "flight" :components ((:file "model")))
                (:module "timer" :components ((:file "model")))
@@ -28,7 +28,8 @@
                  (:file "timer")
                  (:file "crud")
                  (:file "circles")
-                 (:file "cells"))))
+                 (:file "cells")
+                 (:file "sources"))))
   :perform (test-op (o s)
                     (let* ((results
                              (loop :for package :in '(:almighty-bolt-7guis/t/numbers
@@ -37,7 +38,8 @@
                                                       :almighty-bolt-7guis/t/timer
                                                       :almighty-bolt-7guis/t/crud
                                                       :almighty-bolt-7guis/t/circles
-                                                      :almighty-bolt-7guis/t/cells)
+                                                      :almighty-bolt-7guis/t/cells
+                                                      :almighty-bolt-7guis/t/sources)
                                    :collect (uiop:symbol-call :lisp-unit2 :run-tests
                                                               :package package)))
                            (bad (loop :for db :in results

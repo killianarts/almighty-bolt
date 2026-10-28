@@ -67,4 +67,4 @@
        (padding (:all 24)
          (column (:gap 12) kind start return book message))))))
 
-(register-app :retained :flight #'make-flight :width 460 :height 290)
+(register-app :retained :flight 'make-flight :width 460 :height 290)

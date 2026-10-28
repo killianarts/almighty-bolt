@@ -44,6 +44,9 @@
                 #:app-width
                 #:app-height
                 #:app-title)
+  (:import-from #:almighty-bolt-7guis/common/sources
+                #:watch-sources
+                #:stop-watching-files)
   (:export #:run
            #:image-main))
 
@@ -155,16 +158,28 @@ line of words and numbers."
       (format t "~&tick ~d ~d~%" (frame-ring-total ring) (sb-kernel:dynamic-usage))
       (finish-output))))
 
-(defun run (variant task &key log smoke record measure)
+(defun make-app-variant (variant task log)
+  "A new variant of the app of TASK in VARIANT, made by the constructor that is registered now:
+the app may have been defined again since the window opened. With LOG it logs."
+  (let* ((app (or (find-app variant task)
+                  (error "There is no ~(~a~) app for ~(~a~)." variant task)))
+         (object (funcall (app-constructor app))))
+    (if log (logged object) object)))
+
+(defun run (variant task &key log smoke record measure hot)
   "Open the app of TASK in VARIANT (keywords) in a window, and run until it is closed. With
 RECORD, a pathname, the events are written to it as a replay script as they come. With MEASURE
-the process reports to whoever started it and runs until it is killed."
+the process reports to whoever started it and runs until it is killed. With HOT, the app is made
+again, in the same window, whenever the code that makes it is compiled, and a source file that is
+saved is compiled and loaded (decision record 0030); the new app starts from nothing."
   (let ((app (or (find-app variant task)
                  (error "There is no ~(~a~) app for ~(~a~)." variant task)))
-        (recorder nil))
-    (let ((object (funcall (app-constructor app))))
+        (recorder nil)
+        (sources nil))
+    (when (and hot record)
+      (error "HOT and RECORD do not go together: a new app would not be recorded."))
+    (let ((object (make-app-variant variant task log)))
       (when log
-        (setf object (logged object))
         (format t "~&~a: press, drag, type; what arrives is printed. Close the window to finish.~%"
                 (app-title app))
         (finish-output))
@@ -179,10 +194,20 @@ the process reports to whoever started it and runs until it is killed."
         (format t "~&~a: what you do is recorded to ~a as you go (after each press, release and key).~%"
                 (app-title app) record)
         (finish-output))
-      (run-variant object :title (app-title app) :width (app-width app)
-                          :height (app-height app)
-                          :driver (cond (smoke #'smoke-check)
-                                        (measure #'measure-driver))))))
+      (when hot
+        (setf sources (watch-sources))
+        (format t "~&~a: hot reload is on. Save a source file, or compile a definition, and the ~
+                   app is made again here.~%" (app-title app))
+        (finish-output))
+      (unwind-protect
+           (run-variant object :title (app-title app) :width (app-width app)
+                               :height (app-height app)
+                               :driver (cond (smoke #'smoke-check)
+                                             (measure #'measure-driver))
+                               :rebuild (and hot
+                                             (lambda () (make-app-variant variant task log))))
+        (when sources
+          (stop-watching-files sources))))))
 
 (defun environment (name)
   (let ((value (uiop:getenv name)))

@@ -45,4 +45,4 @@
                    :gap +gap+ :cross-align :stretch :fill t)
               :all +margin+))))
 
-(register-app :reactive :layout #'make-layout :width 640 :height 420)
+(register-app :reactive :layout 'make-layout :width 640 :height 420)

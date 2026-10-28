@@ -40,4 +40,4 @@
        (row (:gap 10 :cross-align :center)
          celsius (label "Celsius =") fahrenheit (label "Fahrenheit"))))))
 
-(register-app :retained :temperature #'make-temperature :width 520 :height 90)
+(register-app :retained :temperature 'make-temperature :width 520 :height 90)

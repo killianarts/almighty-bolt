@@ -18,6 +18,7 @@
                (:file "display-list")
                (:file "variant")
                (:file "settle")
+               (:file "redefinition")
                (:module "replay"
                 :serial t
                 :components
@@ -93,6 +94,7 @@
                  (:file "display-list")
                  (:file "variant")
                  (:file "settle")
+                 (:file "redefinition")
                  (:module "replay"
                   :serial t
                   :components
@@ -150,6 +152,7 @@
                                                       :almighty-bolt-core/t/display-list
                                                       :almighty-bolt-core/t/variant
                                                       :almighty-bolt-core/t/settle
+                                                      :almighty-bolt-core/t/redefinition
                                                       :almighty-bolt-core/t/replay/script
                                                       :almighty-bolt-core/t/replay/player
                                                       :almighty-bolt-core/t/replay/recorder

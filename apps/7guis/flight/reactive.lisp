@@ -68,4 +68,4 @@
                                                                  (value return)))))
                (label (value message) :id :message)))))))))
 
-(register-app :reactive :flight #'make-flight :width 460 :height 290)
+(register-app :reactive :flight 'make-flight :width 460 :height 290)

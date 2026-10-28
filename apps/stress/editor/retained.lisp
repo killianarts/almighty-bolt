@@ -78,4 +78,4 @@
        (padding (:all 20)
          (column (:gap 12) status editor))))))
 
-(register-app :retained :editor #'make-editor-app :width 740 :height 560)
+(register-app :retained :editor 'make-editor-app :width 740 :height 560)

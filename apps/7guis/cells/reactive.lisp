@@ -175,4 +175,4 @@
                                    (value editing) (value version))
                        :on-press #'press :on-key #'key :on-wheel #'scroll)))))))))
 
-(register-app :reactive :cells #'make-cells :width 640 :height 440)
+(register-app :reactive :cells 'make-cells :width 640 :height 440)

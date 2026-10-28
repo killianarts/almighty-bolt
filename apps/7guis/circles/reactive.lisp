@@ -100,4 +100,4 @@
                            :on-change (lambda (new) (setf (value preview) new)))
                    (button "Done" :id :done :on-click #'close-dialog)))))))))))
 
-(register-app :reactive :circles #'make-circles :width 420 :height 340)
+(register-app :reactive :circles 'make-circles :width 420 :height 340)

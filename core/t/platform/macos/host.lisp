@@ -409,3 +409,107 @@ reads the count."
       (let ((delta (- (sb-ext:get-bytes-consed) before)))
         (assert-true (< delta 300000) delta)))))
 
+
+;;; --- replacing the variant of a window (decision record 0030) ---
+
+(defclass green-variant (variant:variant) ())
+
+(defmethod variant:frame ((variant green-variant) context list)
+  (declare (ignore context))
+  (dl:push-rect list 10 10 20 20 (dl:pack-color 0 255 0))
+  nil)
+
+;;; Draws a blue square, and then signals an error from its FAIL-FROM th frame on.
+(defclass failing-variant (variant:variant)
+  ((fail-from :initarg :fail-from :initform 1 :reader fail-from)
+   (frames :initform 0 :accessor frames)))
+
+(defmethod variant:frame ((variant failing-variant) context list)
+  (declare (ignore context))
+  (dl:push-rect list 10 10 20 20 (dl:pack-color 0 0 255))
+  (when (>= (incf (frames variant)) (fail-from variant))
+    (error "this app is broken"))
+  nil)
+
+(defun square-colour (target)
+  "The colour of the pixel inside the square that the variants draw, after a frame."
+  (pixel (target:read-pixels target) 64 15 15))
+
+(define-test a-variant-swapped-in-is-drawn-from-the-next-frame ()
+  (with-host (host target (make-instance 'shape-variant) :scale 1)
+    (draw host :scale 1f0)
+    (assert-equal '(255 0 0 255) (square-colour target))
+    (let ((new (make-instance 'green-variant)))
+      (host:swap-variant host new)
+      (draw host :scale 1f0)
+      (assert-equal '(0 255 0 255) (square-colour target))
+      (assert-eq new (host:host-variant host)))))
+
+(define-test a-variant-that-fails-its-first-frame-is-replaced-by-the-old-one ()
+  (with-host (host target (make-instance 'shape-variant) :scale 1)
+    (let ((old (host:host-variant host)))
+      (draw host :scale 1f0)
+      (host:swap-variant host (make-instance 'failing-variant))
+      (let ((message (with-output-to-string (*error-output*)
+                       (draw host :scale 1f0))))
+        (assert-true (search "this app is broken" message))
+        (assert-true (search "Hot reload" message)))
+      ;; The frame was made again with the old variant, so the window shows it.
+      (assert-equal '(255 0 0 255) (square-colour target))
+      (assert-eq old (host:host-variant host))
+      ;; And the host goes on.
+      (draw host :scale 1f0)
+      (assert-equal '(255 0 0 255) (square-colour target)))))
+
+(define-test a-variant-that-fails-after-its-first-frame-is-kept ()
+  ;; A first frame without an error is the test. A later error is the app's, as it always was.
+  (with-host (host target (make-instance 'shape-variant) :scale 1)
+    (let ((new (make-instance 'failing-variant :fail-from 2)))
+      (host:swap-variant host new)
+      (draw host :scale 1f0)
+      (assert-equal '(0 0 255 255) (square-colour target))
+      (assert-error 'error (draw host :scale 1f0))
+      (assert-eq new (host:host-variant host)))))
+
+(define-test two-swaps-before-a-frame-go-back-to-the-variant-that-last-drew ()
+  (with-host (host target (make-instance 'shape-variant) :scale 1)
+    (let ((old (host:host-variant host)))
+      (draw host :scale 1f0)
+      (host:swap-variant host (make-instance 'green-variant))
+      (host:swap-variant host (make-instance 'failing-variant))
+      (let ((*error-output* (make-broadcast-stream)))
+        (draw host :scale 1f0))
+      (assert-equal '(255 0 0 255) (square-colour target))
+      (assert-eq old (host:host-variant host)))))
+
+(define-test reload-host-swaps-in-what-rebuild-makes-and-asks-for-a-frame ()
+  ;; On the main thread the work is done at once. From another thread it goes through the
+  ;; main queue, which needs a running event loop.
+  (when (main-queue:on-main-thread-p)
+    (with-host (host target (make-instance 'shape-variant) :scale 1)
+      (let ((context (host:host-context host)))
+        (host:reload-host host (lambda () (make-instance 'green-variant)))
+        (assert-true (variant:take-frame-request context))
+        (draw host :scale 1f0)
+        (assert-equal '(0 255 0 255) (square-colour target))))))
+
+(define-test reload-host-keeps-the-old-variant-when-rebuild-fails ()
+  (when (main-queue:on-main-thread-p)
+    (with-host (host target (make-instance 'shape-variant) :scale 1)
+      (let ((old (host:host-variant host))
+            (context (host:host-context host)))
+        (let ((message (with-output-to-string (*error-output*)
+                         (host:reload-host host (lambda () (error "cannot be made"))))))
+          (assert-true (search "cannot be made" message)))
+        (assert-eq old (host:host-variant host))
+        (assert-false (variant:take-frame-request context))
+        (draw host :scale 1f0)
+        (assert-equal '(255 0 0 255) (square-colour target))))))
+
+(define-test running-the-variant-that-replaced-another-allocates-nothing ()
+  (with-host (host target (make-instance 'shape-variant) :capacity 256)
+    (host:swap-variant host (make-instance 'busy-variant))
+    (draw-frames host 50)
+    (let ((before (sb-ext:get-bytes-consed)))
+      (draw-frames host 5000)
+      (assert-true (< (- (sb-ext:get-bytes-consed) before) 300000)))))

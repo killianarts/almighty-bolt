@@ -103,4 +103,4 @@
                (row (:gap 10 :cross-align :center) (label "Surname:") surname)))
            (row (:gap 10) create update delete)))))))
 
-(register-app :retained :crud #'make-crud :width 640 :height 280)
+(register-app :retained :crud 'make-crud :width 640 :height 280)

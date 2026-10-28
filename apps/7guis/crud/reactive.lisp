@@ -94,4 +94,4 @@
                (button "Delete" :id :delete :on-click #'delete-picked
                                 :enabled (and (value picked-entry) t))))))))))
 
-(register-app :reactive :crud #'make-crud :width 640 :height 280)
+(register-app :reactive :crud 'make-crud :width 640 :height 280)

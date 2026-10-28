@@ -34,4 +34,4 @@
            (button "Count" :id :count-button
                            :on-click (lambda () (update count #'1+)))))))))
 
-(register-app :reactive :counter #'make-counter :width 360 :height 160)
+(register-app :reactive :counter 'make-counter :width 360 :height 160)

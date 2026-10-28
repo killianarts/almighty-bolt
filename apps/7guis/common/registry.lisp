@@ -18,7 +18,8 @@
 ;;; Which apps exist: a task in a variant. Each variant's file for a task registers a
 ;;; constructor, a function of no arguments that returns the variant object to run, so
 ;;; that the launcher and the acceptance tests can run any of them by name without
-;;; knowing which variant it is.
+;;; knowing which variant it is. The constructor is a name, so that a constructor compiled again
+;;; is the one that is called.
 
 (defparameter +tasks+ '(:counter :temperature :flight :timer :crud :circles :cells :layout :dialog
                         :dashboard :rows :editor))
@@ -27,7 +28,7 @@
 (defstruct (app (:constructor make-app (variant task constructor width height title)))
   (variant nil :read-only t)
   (task nil :read-only t)
-  (constructor nil :type function :read-only t)
+  (constructor nil :type (or function symbol) :read-only t)
   (width 400 :read-only t)
   (height 300 :read-only t)
   (title "" :read-only t))
@@ -36,7 +37,9 @@
 
 (defun register-app (variant task constructor &key (width 400) (height 300) title)
   "Record that VARIANT has an app for TASK, made by calling CONSTRUCTOR, which runs in a
-window WIDTH by HEIGHT points."
+window WIDTH by HEIGHT points. CONSTRUCTOR is the name of a function, not the function: a name
+is looked up when the app is made, so an app whose function was compiled again is made from the
+new one, which is what hot reload needs (decision record 0030). #'name would keep the old."
   ;; :cursor is the experiment of record 0022, archived, not a variant of the comparison: it
   ;; is not in +VARIANTS+, so the acceptance tests of the seven tasks do not run it, and it is
   ;; here only so that make 7guis VARIANT=cursor still opens it.

@@ -138,8 +138,10 @@ image:
 # release and key (make replay SCRIPT=session.script plays it back). 7guis-smoke opens it, draws,
 # waits and reports, with nobody at the window, and says whether a key typed would reach it (the view
 # is the first responder, the window is the key window and the application is active).
+# HOT=1 makes the app again, in the same window, when code is compiled into the process or a
+# source file is saved (decision record 0030); the new app starts from nothing.
 7guis:
-	VARIANT=$(VARIANT) TASK=$(TASK) LOG=$(LOG) RECORD=$(RECORD) CURSOR_MODE=$(CURSOR_MODE) $(SBCL_APP) $(REGISTRY) --load apps/7guis/run.lisp
+	VARIANT=$(VARIANT) TASK=$(TASK) LOG=$(LOG) RECORD=$(RECORD) HOT=$(HOT) CURSOR_MODE=$(CURSOR_MODE) $(SBCL_APP) $(REGISTRY) --load apps/7guis/run.lisp
 
 # Play a replay script back with the real text engine and no window, and say what happened:
 #   make replay SCRIPT=apps/7guis/replay/counter-clicks.script [VARIANT=reactive] [FREEZE=golden.script]

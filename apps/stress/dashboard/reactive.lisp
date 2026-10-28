@@ -85,4 +85,4 @@
                       t))
         variant))))
 
-(register-app :reactive :dashboard #'make-dashboard-app :width 960 :height 680)
+(register-app :reactive :dashboard 'make-dashboard-app :width 960 :height 680)

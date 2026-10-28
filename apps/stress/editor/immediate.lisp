@@ -58,4 +58,4 @@
                                     :focusable t :autofocus t))
                (handle event)))))))))
 
-(register-app :immediate :editor #'make-editor-app :width 740 :height 560)
+(register-app :immediate :editor 'make-editor-app :width 740 :height 560)

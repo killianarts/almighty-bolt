@@ -83,4 +83,4 @@
         (add-ticker variant #'tick)
         variant))))
 
-(register-app :retained :timer #'make-timer-app :width 460 :height 250)
+(register-app :retained :timer 'make-timer-app :width 460 :height 250)

@@ -46,4 +46,4 @@
              (panel (:all +gap+ :flex 1 :id :bottom-right)
                (paragraph +small-text+ :id :right-text)))))))))
 
-(register-app :immediate :layout #'make-layout :width 640 :height 420)
+(register-app :immediate :layout 'make-layout :width 640 :height 420)

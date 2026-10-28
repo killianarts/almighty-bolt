@@ -61,5 +61,5 @@
 (defun make-dialog (&optional (mode (cursor-mode)))
   (make-cursor-variant #'dialog-screen :mode mode))
 
-(register-app :cursor :dialog #'make-dialog :width 640 :height 420
+(register-app :cursor :dialog 'make-dialog :width 640 :height 420
               :title (format nil "dialog (cursor, ~(~a~))" (cursor-mode)))

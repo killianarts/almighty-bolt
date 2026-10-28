@@ -80,4 +80,4 @@
         (add-ticker variant #'tick)
         variant))))
 
-(register-app :retained :dashboard #'make-dashboard-app :width 960 :height 680)
+(register-app :retained :dashboard 'make-dashboard-app :width 960 :height 680)

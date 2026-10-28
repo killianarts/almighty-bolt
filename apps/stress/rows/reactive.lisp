@@ -93,4 +93,4 @@
                        :on-press #'press :on-drag #'drag :on-release #'release
                        :on-key #'key :on-wheel #'scroll)))))))))
 
-(register-app :reactive :rows #'make-rows-app :width 640 :height 470)
+(register-app :reactive :rows 'make-rows-app :width 640 :height 470)

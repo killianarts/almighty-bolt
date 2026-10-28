@@ -95,4 +95,4 @@
        (padding (:all 20)
          (column (:gap 12) status list-canvas))))))
 
-(register-app :retained :rows #'make-rows-app :width 640 :height 470)
+(register-app :retained :rows 'make-rows-app :width 640 :height 470)

@@ -59,4 +59,4 @@
                (setf message (booking-message flight-kind start return)))
              (label message :id :message))))))))
 
-(register-app :immediate :flight #'make-flight :width 460 :height 290)
+(register-app :immediate :flight 'make-flight :width 460 :height 290)

@@ -43,7 +43,11 @@
                 #:objc-class)
   (:import-from #:almighty-bolt-core/platform/macos/main-queue
                 #:on-main-thread-p
+                #:run-on-main
                 #:call-on-main)
+  (:import-from #:almighty-bolt-core/redefinition
+                #:watch-redefinitions
+                #:stop-watching-redefinitions)
   (:import-from #:almighty-bolt-core/platform/macos/app
                 #:run-application)
   (:import-from #:almighty-bolt-core/platform/macos/window
@@ -87,6 +91,9 @@
            #:host-view
            #:host-acquire
            #:host-wake
+           #:swap-variant
+           #:reload-host
+           #:running-host
            #:run-frame
            #:host-deliver-event
            #:close-host-window
@@ -144,6 +151,9 @@ glyph atlas. FONTS keeps the fonts made, by name and then by size."
   ;; The variant the host builds. A replay that draws sets it for each run, so that one host's
   ;; renderer and glyph atlas stay warm from run to run.
   (variant nil)
+  ;; The variant that SWAP-VARIANT replaced, until the one that replaced it has made a frame
+  ;; without an error. If that frame fails, this is the one that is put back.
+  (previous nil)
   (context nil :read-only t)
   (display-list nil :read-only t)
   (renderer nil :read-only t)
@@ -220,6 +230,41 @@ a way to ask for another."
     (and (host-wake host)
          (take-frame-request (host-context host)))))
 
+(defun report-hot-reload (what condition)
+  "Say on the error output that WHAT happened, and why. Printed without the pretty printer, which
+breaks the lines of an error's text at a narrow margin."
+  (let ((*print-pretty* nil))
+    (format *error-output* "~&Hot reload: ~a: ~a~%" what condition))
+  (finish-output *error-output*))
+
+(defun swap-variant (host variant)
+  "Make HOST run VARIANT from the next frame, in place of the one it runs. The window, the
+renderer and the glyph atlas stay, and the new variant starts with nothing: no focus, no hover,
+none of the state of the old one. If its first frame signals an error, the old one is put back
+and the error is reported (SETTLE-HOST), so that code that does not work yet does not take the
+window with it. Call it on the thread that draws, the main thread, and ask for a frame after
+(RELOAD-HOST does both)."
+  (setf (host-previous host) (or (host-previous host) (host-variant host))
+        (host-variant host) variant)
+  variant)
+
+(defun settle-host (host context)
+  "SETTLE-FRAME with HOST's variant. A variant that SWAP-VARIANT has just put in has its first
+frame made with the old one ready: if it signals an error, the old one is put back, the
+error is reported, and the frame is made again with that one."
+  (let ((previous (host-previous host))
+        (display-list (host-display-list host)))
+    (cond ((null previous)
+           (settle-frame (host-variant host) context display-list))
+          (t
+           (setf (host-previous host) nil)
+           (handler-case (settle-frame (host-variant host) context display-list)
+             (error (condition)
+               (report-hot-reload "the new app failed in its first frame, so the old one is back"
+                                  condition)
+               (setf (host-variant host) previous)
+               (settle-frame previous context display-list)))))))
+
 (defun run-frame (host width height scale)
   "Make and draw one frame: the size and scale go into the context, the variant
 builds until the frame settles, the drawable is asked for, and the frame is
@@ -249,7 +294,7 @@ no drawable. Must run inside an autorelease pool."
                  (context-scale context) scale)
            (incf (context-frame-number context))
            (multiple-value-bind (builds capped)
-               (settle-frame (host-variant host) context (host-display-list host))
+               (settle-host host context)
              (let ((built (real-time-source)))
                (wait-for-last-frame (host-renderer host))
                ;; The frame before has finished, and its command buffer says how long it took.
@@ -326,48 +371,85 @@ thread."
                (and (msg-send :bool window "isKeyWindow") t)
                (and (msg-send :bool app "isActive") t))))))
 
+(defvar *running-host* nil
+  "The host of the window that RUN-VARIANT has open, if there is one.")
+
+(defun running-host ()
+  "The host of the window that RUN-VARIANT has open, or NIL. It is what a REPL has to ask for
+a frame with, or to make the app again with (RELOAD-HOST), while the window is open."
+  *running-host*)
+
+(defun reload-host (host rebuild)
+  "Call REBUILD, a function of no arguments that returns a variant, and put what it returns in
+place of the variant HOST runs (SWAP-VARIANT), and ask for a frame. It is done on the main
+thread, so this is safe from any thread, and from any other thread it returns at once. If
+REBUILD signals an error the error is reported and the old variant stays."
+  (run-on-main
+   (lambda ()
+     (handler-case
+         (progn (swap-variant host (funcall rebuild))
+                (request-host-frame host))
+       (error (condition)
+         (report-hot-reload "the app could not be made again, so the old one stays"
+                            condition))))))
+
 (defun run-variant (variant &key (title "almighty-bolt") (width 800) (height 600)
-                              driver (capacity 65536))
+                              driver (capacity 65536) rebuild)
   "Open a window of WIDTH by HEIGHT points, run VARIANT in it, and return only when
 the application quits. DRIVER, if given, is called on a new thread with the host
-once the window is up; a driver that finishes should close the window."
-  (let ((host nil))
-    (run-application
-     (lambda ()
-       (let* ((device (default-device))
-              (window (make-window :title title :width width :height height
-                                   :event-handler (lambda (event)
-                                                    (host-deliver-event host event))))
-              (view (make-metal-view :device device :width width :height height
-                                     :on-draw (lambda (view) (draw-view host view))
-                                     :event-handler (lambda (event)
-                                                      (host-deliver-event host event))
-                                     :text-input (lambda ()
-                                                   (let* ((context (host-context host))
-                                                          (rect (context-text-input-rect context)))
-                                                     (values (context-text-input-p context)
-                                                             (float (aref rect 0) 1d0)
-                                                             (float (aref rect 1) 1d0)
-                                                             (float (aref rect 2) 1d0)
-                                                             (float (aref rect 3) 1d0))))))
-              (object (metal-view-object view)))
-         (setf host (make-host variant device (msg-send :ulong object "colorPixelFormat")
-                               :capacity capacity
-                               :scale (window-scale-factor window)))
-         (setf (host-window host) window
-               (host-view host) view
-               (host-acquire host) (view-acquirer object)
-               (host-wake host) (lambda ()
-                                  (msg-send :void object "setNeedsDisplay:" (:bool t))))
-         (set-content-view window object)
-         (show-window window)
-         (request-draw view)
-         (when driver
-           (sb-thread:make-thread
-            (lambda ()
-              (handler-case (funcall driver host)
-                (error (condition)
-                  (format t "~&The driver failed: ~a~%" condition)
-                  (finish-output)
-                  (sb-ext:exit :code 1 :abort t))))
-            :name "variant driver")))))))
+once the window is up; a driver that finishes should close the window.
+
+REBUILD, if given, is a function of no arguments that returns a variant. It is called again,
+on the main thread, whenever functions are defined or redefined and the definitions have
+stopped for a moment (WATCH-REDEFINITIONS), and what it returns takes the place of the
+variant that runs (RELOAD-HOST, decision record 0030). So code that is compiled in a running
+image, from an editor or from a file, changes the window with nothing else done. The new
+variant starts from nothing; if its first frame fails the old one is put back."
+  (let ((host nil)
+        (watcher nil))
+    (unwind-protect
+         (run-application
+          (lambda ()
+            (let* ((device (default-device))
+                   (window (make-window :title title :width width :height height
+                                        :event-handler (lambda (event)
+                                                         (host-deliver-event host event))))
+                   (view (make-metal-view :device device :width width :height height
+                                          :on-draw (lambda (view) (draw-view host view))
+                                          :event-handler (lambda (event)
+                                                           (host-deliver-event host event))
+                                          :text-input (lambda ()
+                                                        (let* ((context (host-context host))
+                                                               (rect (context-text-input-rect context)))
+                                                          (values (context-text-input-p context)
+                                                                  (float (aref rect 0) 1d0)
+                                                                  (float (aref rect 1) 1d0)
+                                                                  (float (aref rect 2) 1d0)
+                                                                  (float (aref rect 3) 1d0))))))
+                   (object (metal-view-object view)))
+              (setf host (make-host variant device (msg-send :ulong object "colorPixelFormat")
+                                    :capacity capacity
+                                    :scale (window-scale-factor window)))
+              (setf (host-window host) window
+                    (host-view host) view
+                    (host-acquire host) (view-acquirer object)
+                    (host-wake host) (lambda ()
+                                       (msg-send :void object "setNeedsDisplay:" (:bool t))))
+              (setf *running-host* host)
+              (set-content-view window object)
+              (show-window window)
+              (request-draw view)
+              (when rebuild
+                (setf watcher (watch-redefinitions (lambda () (reload-host host rebuild)))))
+              (when driver
+                (sb-thread:make-thread
+                 (lambda ()
+                   (handler-case (funcall driver host)
+                     (error (condition)
+                       (format t "~&The driver failed: ~a~%" condition)
+                       (finish-output)
+                       (sb-ext:exit :code 1 :abort t))))
+                 :name "variant driver")))))
+      (when watcher
+        (stop-watching-redefinitions watcher))
+      (setf *running-host* nil))))

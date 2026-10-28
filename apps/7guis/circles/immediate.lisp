@@ -92,4 +92,4 @@
                      (when (button "Done" :id :done)
                        (close-dialog)))))))))))))
 
-(register-app :immediate :circles #'make-circles :width 420 :height 340)
+(register-app :immediate :circles 'make-circles :width 420 :height 340)

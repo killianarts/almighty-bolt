@@ -60,4 +60,4 @@
                                    (declare (ignore context))
                                    (paint-chart list 0f0 0f0 width height model)))))))))
 
-(register-app :immediate :dashboard #'make-dashboard-app :width 960 :height 680)
+(register-app :immediate :dashboard 'make-dashboard-app :width 960 :height 680)

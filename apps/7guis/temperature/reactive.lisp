@@ -45,4 +45,4 @@
                                         (setf (value celsius) other)))))
            (label "Fahrenheit")))))))
 
-(register-app :reactive :temperature #'make-temperature :width 520 :height 90)
+(register-app :reactive :temperature 'make-temperature :width 520 :height 90)

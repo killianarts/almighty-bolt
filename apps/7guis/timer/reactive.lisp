@@ -77,4 +77,4 @@
                     (timer-running-p (timer)))))
     variant))
 
-(register-app :reactive :timer #'make-timer-app :width 460 :height 250)
+(register-app :reactive :timer 'make-timer-app :width 460 :height 250)

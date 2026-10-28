@@ -49,4 +49,4 @@
                     :gap +gap+ :fill t :cross-align :stretch)
             :all +margin+)))
 
-(register-app :retained :dialog #'make-dialog :width 640 :height 420)
+(register-app :retained :dialog 'make-dialog :width 640 :height 420)

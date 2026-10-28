@@ -63,4 +63,4 @@
                (setf elapsed 0d0
                      last-time nil)))))))))
 
-(register-app :immediate :timer #'make-timer-app :width 460 :height 250)
+(register-app :immediate :timer 'make-timer-app :width 460 :height 250)

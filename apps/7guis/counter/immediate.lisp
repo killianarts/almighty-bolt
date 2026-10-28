@@ -26,4 +26,4 @@
            (when (button "Count" :id :count-button)
              (incf count))))))))
 
-(register-app :immediate :counter #'make-counter :width 360 :height 160)
+(register-app :immediate :counter 'make-counter :width 360 :height 160)

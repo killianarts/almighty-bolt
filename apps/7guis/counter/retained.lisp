@@ -31,4 +31,4 @@
                                                      (princ-to-string count))))))))
     (make-retained-variant root)))
 
-(register-app :retained :counter #'make-counter :width 360 :height 160)
+(register-app :retained :counter 'make-counter :width 360 :height 160)

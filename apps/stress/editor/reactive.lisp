@@ -79,4 +79,4 @@
                        :on-text #'text :on-composition #'compose
                        :on-wheel #'scroll)))))))))
 
-(register-app :reactive :editor #'make-editor-app :width 740 :height 560)
+(register-app :reactive :editor 'make-editor-app :width 740 :height 560)

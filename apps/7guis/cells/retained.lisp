@@ -182,4 +182,4 @@
              (label "Cell:") name (label "Contents:") contents)
            grid))))))
 
-(register-app :retained :cells #'make-cells :width 640 :height 440)
+(register-app :retained :cells 'make-cells :width 640 :height 440)

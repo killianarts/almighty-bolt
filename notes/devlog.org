@@ -1615,3 +1615,40 @@ three variants. The choice made again on this base would tell the checkbox's eff
 port's, and is not done. The checkbox's mark is a filled square. One author wrote the variants,
 the widgets and the edit.
 
+
+* 2026-10-28 — Hot reload
+Micah asked whether a GUI can be hot reloaded, and after seeing that none of the apps could,
+said they definitely want it. Branch hot-reload, from phase-2; record 0030 proposed.
+** What I did
+- A probe first (a window, a second thread that recompiles a function and looks at what is on
+  screen). Recompiling alone changes nothing in any case; with a nudge it shows for an app that
+  calls its UI by name (immediate ='view= or =(lambda () (view))=, reactive after a signal write)
+  and not for =#'view=, which keeps the old function. None of the 7GUIs apps is written so.
+- SBCL's =sb-int:*setf-fdefinition-hook*= is called for every =defun=, =defmethod= and
+  =(setf f)= definition, from =eval=, =compile= and =load= (not for =defmacro=). A watcher
+  waits for the definitions to stop for 0.15 s, ignores SBCL's own names, and calls one
+  function once: =core/src/redefinition.lisp=, 13 tests.
+- The host can swap its variant (=swap-variant=, =reload-host=, =run-variant :rebuild=). A swapped-in
+  variant whose first frame fails is replaced by the old one, in the same frame. 7 tests.
+- The 7GUIs registry takes constructor names (37 registrations), and =make 7guis ... HOT=1=
+  watches the source files and loads the systems through ASDF: =apps/7guis/common/sources.lisp=,
+  11 tests.
+- A script that edits a source file in a real window, in each variant, three rounds: the window
+  shows an added button in 0.46 to 0.55 s; an edit that fails when the app runs keeps the old app
+  and prints the error; an edit that does not read changes nothing; the fix shows.
+** What I found out on the way
+- ASDF takes a compiled file for current unless its source is newer by a whole second. A file
+  saved in the second it was compiled in is missed, and the retained, reactive and immediate
+  runs of my own script hit it twice (a stale fasl from the run before). Changed files'
+  fasls are deleted before the systems are loaded; a test fails without that.
+- Mutation checks: twelve defects in the new code (no quiet time, SBCL names counted, hook kept
+  after stop, change never forgotten, no revert, previous overwritten, trial never ends, no
+  hash, missing file counted, signatures not updated, tests not excluded, no forced recompile)
+  were all caught. The one that never forgets a change makes the run run out of memory, so it
+  is caught by a crash and not by an assertion.
+** Read with care
+- The new app starts from nothing: typed text, selection and scroll are lost at each reload.
+  State kept across a reload (option 3 of the record) is not built.
+- No REPL is attached to the window. =make 7guis= keeps the AppKit loop on the main thread,
+  so compiling from an editor needs a Slynk server on another thread; none is vendored. A-009.
+- The scripted edits write the file in place. Micah's editor's way of saving is A-008.

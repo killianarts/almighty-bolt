@@ -124,4 +124,4 @@
              canvas))
          overlay)))))
 
-(register-app :retained :circles #'make-circles :width 420 :height 340)
+(register-app :retained :circles 'make-circles :width 420 :height 340)

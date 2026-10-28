@@ -74,4 +74,4 @@
              (dolist (event (canvas :list +list-width+ +list-height+ #'draw :focusable t))
                (handle event)))))))))
 
-(register-app :immediate :rows #'make-rows-app :width 640 :height 470)
+(register-app :immediate :rows 'make-rows-app :width 640 :height 470)

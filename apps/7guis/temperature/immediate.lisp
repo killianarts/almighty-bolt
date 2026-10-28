@@ -42,4 +42,4 @@
                    (setf celsius other)))))
            (label "Fahrenheit")))))))
 
-(register-app :immediate :temperature #'make-temperature :width 520 :height 90)
+(register-app :immediate :temperature 'make-temperature :width 520 :height 90)

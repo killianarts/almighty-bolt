@@ -51,5 +51,5 @@
 (defun make-layout (&optional (mode (cursor-mode)))
   (make-cursor-variant #'layout-screen :mode mode))
 
-(register-app :cursor :layout #'make-layout :width 640 :height 420
+(register-app :cursor :layout 'make-layout :width 640 :height 420
               :title (format nil "layout (cursor, ~(~a~))" (cursor-mode)))

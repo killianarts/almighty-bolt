@@ -174,3 +174,32 @@ Entry format:
 - *If false.* Wakeups: look at the value =enqueue-event= returns for the events it is
   given (=ui.lisp=). A wheel that does nothing: the place in =wheel-event= may be in
   another coordinate system than the pointer's.
+
+* A-008 [OPEN] Saving a file in Micah's editor is seen by the source watcher
+- *Statement.* With =HOT=1=, a file saved in Micah's editor changes the open window
+  within about a second. The watcher compares a file's write date, and a hash of what it
+  holds if it was written in the last three seconds, twice a second. The tests and the
+  scripted runs (nine, three variants) write the file in place.
+- *Why not checked.* An editor that saves by writing a new file and moving it over the old
+  one, or that keeps a backup or a lock file beside it, was not tried. A file missing for
+  a moment is handled (a test), and the path is the same after the move.
+- *Check.* =make 7guis VARIANT=immediate TASK=crud HOT=1=; change a label in
+  =apps/7guis/crud/immediate.lisp= and save. The window should show it within a second,
+  with =Hot reload: ... changed; loading.= in the terminal. Then save a line that does not
+  read: the window stays, and the compiler's message is in the terminal.
+- *If false.* =watch-files= in =apps/7guis/common/sources.lisp=: look at
+  =file-signature= for what the editor's save changes.
+
+* A-009 [OPEN] An editor's compile of one form calls SBCL's definition hook
+- *Statement.* Compiling a definition from a connected editor (Sly's C-c C-c or C-c C-k)
+  calls the functions in =sb-int:*setf-fdefinition-hook*= as =eval=, =compile= and =load=
+  do, so a window with =run-variant :rebuild= is made again by it (0030).
+- *Why not checked.* No editor is connected to a running window: =make 7guis= keeps the
+  main thread in the AppKit loop and starts no Slynk or Swank server, and neither is
+  vendored.
+- *Check.* Needs a Slynk server on a thread of the running process (not built). Then
+  change =make-counter= in a buffer, compile it with C-c C-c, and the window should be
+  made again.
+- *If false.* =watch-redefinitions= in =core/src/redefinition.lisp= sees nothing of what the
+  editor compiles; look at what the editor's compile calls (=compile=, =eval= of the
+  form, =load= of a temporary file) and which of them sets the function.

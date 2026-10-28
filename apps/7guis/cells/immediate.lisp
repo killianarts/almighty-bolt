@@ -144,4 +144,4 @@
                  (:wheel (scroll (second event) (third event)))
                  ((:move :drag :release :exit) nil))))))))))
 
-(register-app :immediate :cells #'make-cells :width 640 :height 440)
+(register-app :immediate :cells 'make-cells :width 640 :height 440)
