@@ -84,7 +84,9 @@ Option 3.
   the three variants' carry (immediate 5, retained 25, reactive 6), the CRUD in
   every variant driven with and without a reload in the middle and ending in
   the same place (6 acceptance tests, 30 assertions). All new code was
-  mutation-checked: 41 defects, each caught.
+  mutation-checked: 41 defects. Four got through at first (the keyboard offer
+  not carried, a node of another type, the reactive tree carrying what a
+  signal sets, the app's hook) and each now has a test that catches it.
 - A mutation run is only as good as the compiled file it runs. ASDF takes a
   compiled file for current unless the source is newer by a second, and a
   source put back from a copy is older than the compiled file of its mutant,
@@ -96,9 +98,10 @@ Option 3.
   field after "Zed!". After the save (0.52 to 0.79 s) the entries, the field
   that has the keyboard and its caret are as they were, and the next key goes
   in at the caret.
-- The same from Micah's Slynk, started as Sly starts it, with C-c C-c on the
-  retained =make-crud= with a label given an id: the new label is there, the
-  entries, the keyboard and the caret are kept, and typing goes on.
+- The same from Micah's Slynk, started as Sly starts it, with C-c C-c on
+  =make-crud= with a label given an id, in each variant: the new label is
+  there, the entries, the keyboard and the caret are kept, and typing goes on.
+  =make 7guis-repl-smoke= passes for the three.
 - The Counter of the retained variant, not given =kept-let=, showed 1 after a
   reload while its variable was 0, when widget state was carried for every app.
 - The CRUD of the retained variant does not need the =:after-reload= for any

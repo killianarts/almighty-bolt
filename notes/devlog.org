@@ -1708,7 +1708,7 @@ Micah: "Hot restart is not good enough. State should be kept between reloads." R
   redefines =entry-display= fails without it in the retained CRUD.
 - Real window, real tree, a saved file, each variant: entries, the keyboard and the caret are
   where they were, and the next key goes in at the caret (0.52 to 0.79 s from the save). From
-  Micah's own Slynk with C-c C-c on the retained =make-crud=: the same.
+  Micah's own Slynk with C-c C-c on =make-crud= (all three variants): the same.
 - The suite found two things I had not registered (the umbrella package's list of modules and the
   core's list of test packages). It also failed a test of mine by printing a node: nodes point at
   their parents, so a failed =assert-eq= on one printed forever; the tests compare with =eq= inside
@@ -1718,7 +1718,9 @@ Micah: "Hot restart is not good enough. State should be kept between reloads." R
   the compiled file of its mutant. Ten of the retained mutations ran against another mutant and
   were caught for the wrong reason, or not caught. The harness now deletes the compiled file
   before and after each run; I ran them again. The earlier series (kept, host, immediate) each
-  changed one file, so they were not affected.
+  changed one file, so they were not affected. Four mutations got through the first time (the
+  autofocus offer not carried, a node of another type with nothing changed in it, the reactive
+  tree carrying what a signal sets, the retained app's hook); each has a test now.
 ** Read with care (state)
 - Only the three CRUD apps use =kept-let=. The other 7GUIs tasks and the stress apps restart.
 - A variable that is renamed starts again, and so does one whose initial form was edited.
