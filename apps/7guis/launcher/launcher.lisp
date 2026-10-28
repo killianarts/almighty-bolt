@@ -35,6 +35,8 @@
                 #:+modifier-super+)
   (:import-from #:almighty-bolt-core/platform/macos/host
                 #:run-variant
+                #:open-variant
+                #:close-variant
                 #:host-ring
                 #:host-keyboard-state
                 #:close-host-window)
@@ -48,6 +50,8 @@
                 #:watch-sources
                 #:stop-watching-files)
   (:export #:run
+           #:open-app
+           #:close-app
            #:image-main))
 
 (in-package #:almighty-bolt-7guis/launcher)
@@ -208,6 +212,21 @@ saved is compiled and loaded (decision record 0030); the new app starts from not
                                              (lambda () (make-app-variant variant task log))))
         (when sources
           (stop-watching-files sources))))))
+
+(defun open-app (variant task &key log)
+  "Open the app of TASK in VARIANT (keywords) in a window and return its host at once, with the
+REPL free (OPEN-VARIANT). The app is made again, in the same window, whenever code is compiled
+into the image, from the editor or by loading a file (decision record 0030); closing the window
+leaves the Lisp running."
+  (let ((app (or (find-app variant task)
+                 (error "There is no ~(~a~) app for ~(~a~)." variant task))))
+    (open-variant (make-app-variant variant task log)
+                  :title (app-title app) :width (app-width app) :height (app-height app)
+                  :rebuild (lambda () (make-app-variant variant task log)))))
+
+(defun close-app ()
+  "Close the window that OPEN-APP opened. Returns its host, or NIL if there was none."
+  (close-variant))
 
 (defun environment (name)
   (let ((value (uiop:getenv name)))

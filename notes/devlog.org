@@ -1662,7 +1662,29 @@ said they definitely want it. Branch hot-reload, from phase-2; record 0030 propo
 - The new app starts from nothing (a hot restart, not a hot reload that keeps state): typed text,
   selection and scroll are lost at each reload, and the CRUD's entries go back to the first three.
   State kept across a reload (option 3 of the record) is not built.
-- The window cannot be started from a REPL. =make 7guis= keeps the AppKit loop on the main thread,
-  so an editor's compile into it needs a server on another thread, or a function that opens the
-  window and gives the REPL back; which depends on how Micah runs Lisp. A-009.
 - The scripted edits write the file in place. Micah's editor's way of saving is A-008.
+** Opening the window from a REPL (2026-10-29)
+Micah: "Hot restart is not good enough. State should be kept between reloads." and "I run lisp
+via Emacs. I don't want a server started, I want a function that opens the window and gives the
+REPL back." The second first.
+- Micah's Doom Emacs runs Sly, and starts =vend repl sbcl= with a pipe for standard input, so the
+  main thread is waiting to read and the REPL's forms run on Slynk's worker threads. The host
+  now has =open-variant=, which interrupts the main thread to run the window's loop, and
+  returns the host at once; the launcher has =open-app= and =close-app=. 4 tests (what it
+  refuses and what it cleans up), and =make 7guis-repl-smoke VARIANT=v TASK=t=, which does what
+  an editor's REPL does in a real window (open, compile, close, open again, exit with a window
+  open), for the three variants.
+- The interruption has to run with interrupts on (=sb-sys:with-interrupts=): without that
+  =slynk:quit-lisp= with a window open leaves the process hung (45 s and more). The smoke
+  script does not catch its removal, because its own =exit= works either way, and I could not
+  say why; the Slynk run does.
+- AppKit ends the process when the last window closes (=terminate:= is =exit=). For a window
+  opened from a REPL the delegate stops the loop instead, and Command-Q and Command-W close the
+  window.
+- The Slynk run (a Python script speaking Slynk's protocol to Micah's own Slynk): open, compile
+  with C-c C-c's =compile-string-for-emacs=, the app made again, close, open again, quit with a
+  window open. A-009's compile half is as checked as it can be from here.
+- Mutation checks on the new tests: five caught by assertion; two (the refusals) by hanging,
+  because the mutated code opens a real window and its loop never ends.
+- A smoke check that I wrote judged by exit code passed with the window's =terminate:= in place,
+  because =exit(0)= is AppKit's. It is now judged by what it says.

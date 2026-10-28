@@ -10,6 +10,7 @@
                     (#:settle #:almighty-bolt-core/settle)
                     (#:ring #:almighty-bolt-core/ring)
                     (#:event #:almighty-bolt-core/event)
+                    (#:redefinition #:almighty-bolt-core/redefinition)
                     (#:dl #:almighty-bolt-core/display-list)))
 
 (in-package #:almighty-bolt-core/t/platform/macos/host)
@@ -516,3 +517,53 @@ reads the count."
     (let ((before (sb-ext:get-bytes-consed)))
       (draw-frames host 5000)
       (assert-true (< (- (sb-ext:get-bytes-consed) before) 300000)))))
+
+;;; --- opening a window from a REPL ---
+;;; The window and its loop need a display and the main thread, so what OPEN-VARIANT does with them
+;;; is checked by running it (make 7guis-repl-smoke). What it refuses and what it cleans up
+;;; are checked here.
+
+(define-test opening-a-window-on-the-main-thread-is-refused ()
+  ;; The window's loop needs the main thread and would never give it back.
+  (when (main-queue:on-main-thread-p)
+    (let ((message (handler-case (host:open-variant (make-instance 'shape-variant))
+                     (error (condition) (princ-to-string condition)))))
+      (assert-true (search "main thread" message))
+      (assert-false (host:running-host)))))
+
+(define-test a-window-is-not-opened-while-another-is-open ()
+  (with-host (host target (make-instance 'shape-variant))
+    (setf host::*running-host* host)
+    (unwind-protect
+         (let ((message (sb-thread:join-thread
+                         (sb-thread:make-thread
+                          (lambda ()
+                            (handler-case (host:open-variant (make-instance 'shape-variant))
+                              (error (condition) (princ-to-string condition))))))))
+           (assert-true (stringp message))
+           (assert-true (search "already open" message)))
+      (setf host::*running-host* nil))))
+
+(define-test closing-down-stops-the-watcher-and-forgets-the-host ()
+  (with-host (host target (make-instance 'shape-variant))
+    (let ((hooks (length sb-int:*setf-fdefinition-hook*)))
+      (setf (host::host-watcher host) (redefinition:watch-redefinitions (lambda ()))
+            host::*running-host* host)
+      (assert-eql (1+ hooks) (length sb-int:*setf-fdefinition-hook*))
+      (host::close-down host)
+      (assert-eql hooks (length sb-int:*setf-fdefinition-hook*))
+      (assert-false (host:running-host))
+      (assert-false (host::host-watcher host)))))
+
+(define-test closing-down-leaves-another-hosts-window-alone ()
+  ;; A window that is closing is not the one that is open, if another was opened since.
+  (with-host (old target (make-instance 'shape-variant))
+    (with-host (new target2 (make-instance 'shape-variant))
+      (setf host::*running-host* new)
+      (unwind-protect
+           (progn (host::close-down old)
+                  (assert-eq new (host:running-host)))
+        (setf host::*running-host* nil)))))
+
+(define-test closing-with-no-window-open-does-nothing ()
+  (assert-false (host:close-variant)))

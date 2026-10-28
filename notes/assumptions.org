@@ -195,12 +195,15 @@ Entry format:
 - *Statement.* Compiling a definition from a connected editor (Sly's C-c C-c or C-c C-k)
   calls the functions in =sb-int:*setf-fdefinition-hook*= as =eval=, =compile= and =load=
   do, so a window with =run-variant :rebuild= is made again by it (0030).
-- *Why not checked.* No editor is connected to a running window: =make 7guis= keeps the
-  main thread in the AppKit loop and starts no Slynk or Swank server, so there is no way
-  yet to start the window from a REPL.
-- *Check.* Needs a REPL in the process of the running window (not built). Then
-  change =make-counter= in a buffer, compile it with C-c C-c, and the window should be
-  made again.
+- *Why not checked.* Not in Micah's Emacs. What was run: Micah's own Slynk, started as Sly
+  starts it (=sbcl= with a pipe for input, sent the form that starts the server), driven
+  by a script that speaks its protocol and sends what C-c C-c sends
+  (=slynk:compile-string-for-emacs=). With a window opened by =open-app=, compiling a new
+  =make-crud= made the app again in the open window. C-c C-k (=slynk:load-file=) was not
+  run; it is =load=, which was checked.
+- *Check.* In Emacs, =M-x sly=, load the systems, =(almighty-bolt-7guis/launcher:open-app
+  :immediate :crud)=, change a label in a buffer of =crud/immediate.lisp=, and C-c C-c
+  the =make-crud=: the window should be made again.
 - *If false.* =watch-redefinitions= in =core/src/redefinition.lisp= sees nothing of what the
   editor compiles; look at what the editor's compile calls (=compile=, =eval= of the
   form, =load= of a temporary file) and which of them sets the function.

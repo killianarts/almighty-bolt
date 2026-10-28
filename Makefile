@@ -1,4 +1,4 @@
-.PHONY: deps shim test spike-a spike-b spike-c spike-d spike-e bench-metal bench-text bench-null bench-retained bench-compare bench-layout image test-cursor bench-cursor snapshots-cursor bench-run bench-overhead bench-app bench-compile bench-report snapshots replay 7guis 7guis-smoke clean
+.PHONY: deps shim test spike-a spike-b spike-c spike-d spike-e bench-metal bench-text bench-null bench-retained bench-compare bench-layout image test-cursor bench-cursor snapshots-cursor bench-run bench-overhead bench-app bench-compile bench-report snapshots replay 7guis 7guis-smoke 7guis-repl-smoke clean
 
 # ASDF looks only in this tree (project and vendored/), never in ~/common-lisp/.
 SBCL = sbcl --noinform --non-interactive --no-sysinit --no-userinit
@@ -153,6 +153,15 @@ replay:
 
 7guis-smoke:
 	SMOKE=1 VARIANT=$(VARIANT) TASK=$(TASK) CURSOR_MODE=$(CURSOR_MODE) $(SBCL_APP) $(REGISTRY) --load apps/7guis/run.lisp
+
+# What an editor's REPL does: open the task in a window and get the REPL back, compile a
+# definition and see the app made again, close the window and keep the Lisp, open it again.
+# It is judged by what it says, not by its exit code: AppKit's quit ends a process with code 0.
+7guis-repl-smoke:
+	@out=$$(mktemp); \
+	VARIANT=$(VARIANT) TASK=$(TASK) CURSOR_MODE=$(CURSOR_MODE) $(SBCL_APP) $(REGISTRY) --load apps/7guis/repl-smoke.lisp > $$out 2>&1; \
+	grep -v -e '^;' -e '^$$' $$out; \
+	grep -q "The REPL check passed" $$out && ! grep -q "FAIL" $$out; status=$$?; rm -f $$out; exit $$status
 
 # Spike E: 2000 requested frames of text (about 35 s), then a window left alone for 10 s.
 spike-e:

@@ -75,6 +75,20 @@ gave:
 - The retained constructor builds the tree eagerly, so a broken edit fails
   when the app is made; the immediate and reactive ones fail in the first
   frame. The window keeps the old app either way.
+- Micah runs Lisp from Emacs with Sly, which starts =sbcl= with a pipe for
+  standard input, sends it the form that starts Slynk, and then sends nothing:
+  the main thread is left waiting to read, and the REPL's forms run on Slynk's
+  worker threads. A script that speaks Slynk's protocol to Micah's own Slynk
+  (started the way Sly starts it) did: open the window from a worker thread,
+  which returned in 0.1 s with the main thread running the loop; compile a
+  definition with =compile-string-for-emacs=, which is what C-c C-c sends, and
+  the app was made again in the open window; close the window and the process
+  and the Slynk connection were still there; open it again; and
+  =slynk:quit-lisp= with a window open ended the process. With the loop's
+  interruption run with interrupts off, that last one hung for more than 45 s.
+- AppKit ends the process when the last window closes or Command-Q is pressed
+  (=terminate:= calls =exit=). That is right for =make 7guis= and wrong for a
+  Lisp that someone is working in.
 
 * Decision
 Option 2 now. Option 3 is left until Micah wants state kept, and is better
@@ -89,6 +103,13 @@ made with the variants than before them.
 - The 7GUIs registry takes the name of a constructor, not the function, so a
   constructor that was compiled again is the one called. All 37 registrations
   changed.
+- =open-variant= (the host) and =open-app= (the 7GUIs launcher) open the
+  window from another thread and return its host at once: the call interrupts
+  the main thread, which runs the window's loop for as long as the window is
+  open. Closing the window, Command-W and Command-Q stop the loop and leave
+  the Lisp running; =close-variant= and =close-app= do the same; the call can
+  be made again. The app is made again when code is compiled, as with
+  =run-variant :rebuild=, which stays for a program that is only the window.
 - =make 7guis VARIANT=v TASK=t HOT=1= also watches the source files of the
   loaded systems (a thread that looks four times a second, and when a file has
   changed and looks the same at two looks in a row, so that one being written or
@@ -109,12 +130,16 @@ made with the variants than before them.
   compiling the macro's form alone leaves them as compiled.
 - =HOT=1= wakes a thread four times a second, so a measurement of idle
   wakeups must not use it.
-- Not provided: a way to start the window from a REPL, and so to compile from
-  an editor into it. =make 7guis= runs the AppKit loop on the main thread, so a
-  REPL started in the same process has to be on another thread, and an editor
-  that starts Lisp itself has no free main thread to run the window on. What to
-  build depends on how Micah runs Lisp: a server started by =make=, or a
-  function that opens the window and gives the REPL back.
-- Not checked: that an editor's compile of one form (Sly's C-c C-c) calls the
-  hook as =eval= does (A-009), and that Micah's editor's way of saving is seen
-  by the watcher (A-008).
+- =open-variant= must be called from a thread other than the main one, and
+  needs the main thread to be waiting for something, as it is when Lisp is
+  started by an editor with a pipe for input. A Lisp whose REPL runs on the
+  main thread (=sbcl= in a terminal) cannot use it: it gets an error that says
+  so, and can use =run-variant=.
+- Each window that is opened and closed leaves its =NSWindow= and view
+  behind. A window opened a few dozen times in a session does not matter.
+- What the app prints when it is made again, and what its callbacks print when
+  they fail, goes to the output of the thread that opened the window. Under
+  Sly that is the REPL buffer if it was opened from there, and the process's
+  own output if it was opened from a source buffer.
+- Not checked: that Micah's editor's way of saving is seen by the watcher
+  (A-008), and the whole in Micah's own Emacs (A-009 has what was run).
