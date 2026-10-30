@@ -16,7 +16,7 @@
                 #:tile-fraction)
   (:import-from #:almighty-bolt-stress/dashboard/paint
                 #:paint-chart)
-  (:import-from #:almighty-bolt-variant-immediate/widgets
+  (:import-from #:almighty-bolt/ui/widgets
                 #:label
                 #:padding
                 #:panel
@@ -24,7 +24,7 @@
                 #:row
                 #:progress
                 #:canvas)
-  (:import-from #:almighty-bolt-variant-immediate/immediate
+  (:import-from #:almighty-bolt/ui/immediate
                 #:make-immediate-variant
                 #:now
                 #:ask-for-frame)

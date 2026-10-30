@@ -1,6 +1,6 @@
-(defpackage #:almighty-bolt-core/replay/script
+(defpackage #:almighty-bolt/replay/script
   (:use #:cl)
-  (:import-from #:almighty-bolt-core/event
+  (:import-from #:almighty-bolt/event
                 #:pointer-event #:make-pointer-event #:pointer-event-kind #:pointer-event-x
                 #:pointer-event-y #:pointer-event-button #:pointer-event-buttons
                 #:pointer-event-modifiers #:pointer-event-click-count
@@ -30,7 +30,7 @@
            #:load-script
            #:+script-version+))
 
-(in-package #:almighty-bolt-core/replay/script)
+(in-package #:almighty-bolt/replay/script)
 
 ;;; A replay script is a list of s-expressions, so that it can be read, written and edited by
 ;;; hand. The first is the header, =(:almighty-bolt-replay 1 :variant :immediate :app :counter

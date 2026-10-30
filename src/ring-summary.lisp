@@ -1,8 +1,8 @@
-(defpackage #:almighty-bolt-core/ring-summary
+(defpackage #:almighty-bolt/ring-summary
   (:use #:cl)
-  (:import-from #:almighty-bolt-core/stats
+  (:import-from #:almighty-bolt/stats
                 #:summarize)
-  (:import-from #:almighty-bolt-core/ring
+  (:import-from #:almighty-bolt/ring
                 #:frame-ring-count
                 #:frame-duration-ns
                 #:frame-bytes-consed
@@ -22,7 +22,7 @@
                 #:frame-gpu-ns)
   (:export #:summarize-ring))
 
-(in-package #:almighty-bolt-core/ring-summary)
+(in-package #:almighty-bolt/ring-summary)
 
 ;;; What a ring of frames says, in the shape of the charter's metrics: the frame time and its
 ;;; parts, the builds in a frame and what settling cost, the garbage collection, and the

@@ -1,8 +1,8 @@
-(defpackage #:almighty-bolt-core/t/platform/macos/ns-event
+(defpackage #:almighty-bolt/t/platform/macos/ns-event
   (:use #:cl #:lisp-unit2)
-  (:local-nicknames (#:ns-event #:almighty-bolt-core/platform/macos/ns-event)))
+  (:local-nicknames (#:ns-event #:almighty-bolt/platform/macos/ns-event)))
 
-(in-package #:almighty-bolt-core/t/platform/macos/ns-event)
+(in-package #:almighty-bolt/t/platform/macos/ns-event)
 
 ;;; The part of the translation of AppKit's events that needs no AppKit object. What
 ;;; a real key press gives is checked by running a variant in a window and reading its

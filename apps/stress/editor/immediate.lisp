@@ -16,12 +16,12 @@
                 #:editor-wheel
                 #:editor-press
                 #:editor-drag)
-  (:import-from #:almighty-bolt-variant-immediate/widgets
+  (:import-from #:almighty-bolt/ui/widgets
                 #:label
                 #:padding
                 #:column
                 #:canvas)
-  (:import-from #:almighty-bolt-variant-immediate/immediate
+  (:import-from #:almighty-bolt/ui/immediate
                 #:make-immediate-variant
                 #:current-context)
   (:export #:make-editor-app))

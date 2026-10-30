@@ -1,6 +1,6 @@
 (defpackage #:almighty-bolt-stress/rows/paint
   (:use #:cl)
-  (:import-from #:almighty-bolt-core
+  (:import-from #:almighty-bolt/internals
                 #:context-font
                 #:context-measure
                 #:context-push-text

@@ -15,7 +15,7 @@
                 #:drawing-circle-at
                 #:circle-id
                 #:circle-diameter)
-  (:import-from #:almighty-bolt-variant-immediate/widgets
+  (:import-from #:almighty-bolt/ui/widgets
                 #:label
                 #:button
                 #:padding
@@ -27,7 +27,7 @@
                 #:row
                 #:slider
                 #:canvas)
-  (:import-from #:almighty-bolt-variant-immediate/immediate
+  (:import-from #:almighty-bolt/ui/immediate
                 #:make-immediate-variant)
   (:export #:make-circles))
 

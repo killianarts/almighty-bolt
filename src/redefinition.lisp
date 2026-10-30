@@ -1,4 +1,4 @@
-(defpackage #:almighty-bolt-core/redefinition
+(defpackage #:almighty-bolt/redefinition
   (:use #:cl)
   (:export #:watch-redefinitions
            #:stop-watching-redefinitions
@@ -6,7 +6,7 @@
            #:with-redefinitions-held
            #:sbcl-name-p))
 
-(in-package #:almighty-bolt-core/redefinition)
+(in-package #:almighty-bolt/redefinition)
 
 ;;; Telling a running program that its code changed (decision record 0030). SBCL calls the
 ;;; functions in SB-INT:*SETF-FDEFINITION-HOOK* with the name whenever a function is defined,

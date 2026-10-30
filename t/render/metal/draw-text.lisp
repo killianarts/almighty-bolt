@@ -1,16 +1,16 @@
-(defpackage #:almighty-bolt-core/t/render/metal/draw-text
+(defpackage #:almighty-bolt/t/render/metal/draw-text
   (:use #:cl #:lisp-unit2)
-  (:local-nicknames (#:objc #:almighty-bolt-core/platform/macos/objc)
-                    (#:device #:almighty-bolt-core/render/metal/device)
-                    (#:target #:almighty-bolt-core/render/metal/target)
-                    (#:renderer #:almighty-bolt-core/render/metal/renderer)
-                    (#:atlas #:almighty-bolt-core/render/metal/glyph-atlas)
-                    (#:draw #:almighty-bolt-core/render/metal/draw-text)
-                    (#:font #:almighty-bolt-core/text/font)
-                    (#:line #:almighty-bolt-core/text/line)
-                    (#:dl #:almighty-bolt-core/display-list)))
+  (:local-nicknames (#:objc #:almighty-bolt/platform/macos/objc)
+                    (#:device #:almighty-bolt/render/metal/device)
+                    (#:target #:almighty-bolt/render/metal/target)
+                    (#:renderer #:almighty-bolt/render/metal/renderer)
+                    (#:atlas #:almighty-bolt/render/metal/glyph-atlas)
+                    (#:draw #:almighty-bolt/render/metal/draw-text)
+                    (#:font #:almighty-bolt/text/font)
+                    (#:line #:almighty-bolt/text/line)
+                    (#:dl #:almighty-bolt/display-list)))
 
-(in-package #:almighty-bolt-core/t/render/metal/draw-text)
+(in-package #:almighty-bolt/t/render/metal/draw-text)
 
 ;;; Text drawn through the whole path: Core Text shapes it, Core Graphics
 ;;; rasterizes the glyphs into the atlas, the display list holds one command per

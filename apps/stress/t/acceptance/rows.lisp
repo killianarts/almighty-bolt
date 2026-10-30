@@ -2,7 +2,7 @@
   (:use #:cl #:lisp-unit2)
   (:local-nicknames (#:d #:almighty-bolt-7guis/t/acceptance/driver)
                     (#:m #:almighty-bolt-stress/rows/model)
-                    (#:core #:almighty-bolt-core)))
+                    (#:core #:almighty-bolt/internals)))
 
 (in-package #:almighty-bolt-stress/t/acceptance/rows)
 

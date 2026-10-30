@@ -1,7 +1,7 @@
 (defpackage #:almighty-bolt-7guis/t/acceptance/driver
   (:use #:cl)
-  (:local-nicknames (#:core #:almighty-bolt-core)
-                    (#:fake #:almighty-bolt-variant-support/fake-context)
+  (:local-nicknames (#:core #:almighty-bolt/internals)
+                    (#:fake #:almighty-bolt/test-support/fake-context)
                     (#:registry #:almighty-bolt-7guis/common/registry))
   (:export #:driver
            #:driver-variant

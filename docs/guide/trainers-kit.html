@@ -316,7 +316,7 @@ setEnableSetNeedsDisplay: YES</code></pre>
   </div>
   <div class="tablescroll">
   <table class="t">
-    <tr><th>Part</th><th>Files under <code>core/src</code></th></tr>
+    <tr><th>Part</th><th>Files under <code>src</code></th></tr>
     <tr><td>1. Display list</td><td><code>display-list.lisp</code></td></tr>
     <tr><td>2. Objective-C bridge</td><td><code>platform/macos/objc.lisp</code></td></tr>
     <tr><td>3. Windows, views, events</td><td><code>platform/macos/{app,main-queue,window,view,ns-event}.lisp</code>, <code>event.lisp</code>, <code>clock.lisp</code>, <code>ring.lisp</code></td></tr>
@@ -324,7 +324,7 @@ setEnableSetNeedsDisplay: YES</code></pre>
     <tr><td>5. Text</td><td><code>text/{core-foundation,font,line,glyph-raster}.lisp</code>, <code>render/metal/{glyph-atlas,draw-text}.lisp</code></td></tr>
   </table>
   </div>
-  <p class="prose">Each file defines one package named after its path, such as <code>almighty-bolt-core/render/metal/renderer</code>, imports exactly the symbols it uses, and has a matching test file under <code>core/t</code>.</p>
+  <p class="prose">Each file defines one package named after its path, such as <code>almighty-bolt/render/metal/renderer</code>, imports exactly the symbols it uses, and has a matching test file under <code>core/t</code>.</p>
 
   <h3 id="glossary">Glossary</h3>
   <div class="tablescroll">

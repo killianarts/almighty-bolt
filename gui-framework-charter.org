@@ -482,13 +482,12 @@ fit for Coalton, port it anyway and record why.
 
 ** Repository layout
 #+begin_example
-core/            shared platform, rendering, text, input, instrumentation
-  almighty-bolt-core.asd
-  src/           one package per file, named almighty-bolt-core/<file>
-  t/             one test package per source file (lisp-unit2)
-variants/
-  cl-immediate/  the library's ui (the other variants are on the tag archive/three-variants)
-  support/       what the tests share: a context with text that is easy to count
+almighty-bolt.asd the library: the system almighty-bolt, with /tests and /test-support
+src/             platform, rendering, text, layout, input, instrumentation; one package per file,
+                 named almighty-bolt/<file>
+  ui/            the immediate-mode ui (what was a variant), almighty-bolt/ui/<file>
+t/               the integration tests (lisp-unit2), almighty-bolt/t/<file>
+  support/       what the apps' tests share: a context with text that is easy to count
 apps/
   7guis/         one directory per task
   stress/        large list, editor, dashboard, idle
@@ -796,7 +795,7 @@ The stages; each ends in a devlog entry, and a stage is done when the suite pass
 - [X] Stage 1: the process (this charter, no decision records, =CLAUDE.md=)
 - [X] Stage 2: one variant (the others, McCLIM and the spikes archived)
 - [X] Stage 3: integration and end-to-end tests only
-- [ ] Stage 4: the ui folded into the core: one system, one tree
+- [X] Stage 4: the ui folded into the core: one system, one tree
 - [ ] Stage 5: the library's surface: a public package, entry points, README, an example
 - [ ] Stage 6: the semantic tree and the machine interface, with an opt-in MCP server
 - [ ] Stage 7: release v0.1.0 (macOS only); the VoiceOver bridge comes next

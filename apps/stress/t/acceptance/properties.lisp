@@ -1,17 +1,17 @@
 (defpackage #:almighty-bolt-stress/t/acceptance/properties
   (:use #:cl #:lisp-unit2)
-  (:local-nicknames (#:core #:almighty-bolt-core)
+  (:local-nicknames (#:core #:almighty-bolt/internals)
                     (#:registry #:almighty-bolt-7guis/common/registry)
                     (#:d #:almighty-bolt-7guis/t/acceptance/driver))
-  (:import-from #:almighty-bolt-core/platform/macos/objc
+  (:import-from #:almighty-bolt/platform/macos/objc
                 #:with-masked-float-traps
                 #:with-autorelease-pool)
-  (:import-from #:almighty-bolt-core/platform/macos/host
+  (:import-from #:almighty-bolt/platform/macos/host
                 #:make-host
                 #:host-context)
-  (:import-from #:almighty-bolt-core/render/metal/device
+  (:import-from #:almighty-bolt/render/metal/device
                 #:default-device)
-  (:import-from #:almighty-bolt-core/render/metal/target
+  (:import-from #:almighty-bolt/render/metal/target
                 #:+pixel-format-bgra8-unorm+))
 
 (in-package #:almighty-bolt-stress/t/acceptance/properties)

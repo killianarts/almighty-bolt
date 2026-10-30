@@ -9,7 +9,7 @@
                 #:timer-fraction
                 #:timer-advance
                 #:format-seconds)
-  (:import-from #:almighty-bolt-variant-immediate/widgets
+  (:import-from #:almighty-bolt/ui/widgets
                 #:label
                 #:button
                 #:padding
@@ -17,7 +17,7 @@
                 #:row
                 #:progress
                 #:slider)
-  (:import-from #:almighty-bolt-variant-immediate/immediate
+  (:import-from #:almighty-bolt/ui/immediate
                 #:make-immediate-variant
                 #:now
                 #:ask-for-frame)

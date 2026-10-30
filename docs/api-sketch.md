@@ -1,8 +1,8 @@
-# almighty-bolt: the API as proposed (draft for review)
+# almighty-bolt: the API as decided (draft)
 
-*Stage 4, step 0 of the roadmap. Nothing here is renamed yet. The names below are what the rename
-script will produce if you agree; the open questions are at the end. This file becomes the README
-in Stage 5.*
+*Stage 4, step 0 of the roadmap, with Micah's answers of 2026-10-30. The library is folded into one
+system and its packages are renamed (`almighty-bolt/...`); the public package `almighty-bolt` and
+the entry points below are built in Stage 5. This file becomes the README then.*
 
 almighty-bolt is a GUI library for Common Lisp, on macOS first. It is immediate mode: the interface
 is a function that is called again every frame, and each widget says in its return value what the
@@ -20,16 +20,16 @@ person did to it.
     (lambda ()                           ; called every frame: describes the whole screen
       (padding (:all 24)
         (row (:gap 16 :cross-align :center)
-          (label (princ-to-string count) :size 32)
-          (when (button "Count")         ; true on the frame it is clicked
+          (label (princ-to-string count) :id :count :size 32)
+          (when (button "Count" :id :count-button)   ; true on the frame it is clicked
             (incf count)))))))
 
 (open-app 'make-counter :title "Counter" :width 360 :height 160)
 ```
 
 `make-counter` is given by name, so that compiling it again changes the window. It returns the
-function that describes the screen. Today that is `(make-immediate-variant (lambda () ...))`; the
-sketch has `open-app` do that wrapping.
+function that describes the screen; `open-app` does the wrapping that `(make-immediate-variant
+(lambda () ...))` does in the apps today.
 
 ## Working from the REPL (Sly)
 
@@ -61,40 +61,42 @@ What stays out of it: the variant contract, the host, the display list's interna
 test support. They stay in the system under `almighty-bolt/...` packages for the tests and the
 benchmarks, and are not promised to anyone.
 
-## How widgets are called, as they are today
+## How widgets are called
+
+Every widget takes a required `:id` keyword. It names the widget among its siblings, and it is what
+keeps a field's caret and a list's scroll across frames and across a reload, and what a test or a
+replay script finds the widget by. Leaving it out is an error on the first frame, with a message
+that says which widget. Containers (`column`, `row`, `stack`, `padding`, `panel`, `center`) keep an
+optional `:id`: they hold no state. Generating ids from the source (the form a widget edits, its
+label) is for later.
 
 ```lisp
-(label "text" :id :title :size 15)           ; id is a keyword argument, and optional
-(button "Save" :id :save :enabled t)         ; true when clicked
-(text-field :name name :width 160)           ; id first, then the value; returns text, changed, submitted
-(slider :volume volume 0 11)                 ; id, value, minimum, maximum; returns value, changed
-(checkbox :all "All" all)                    ; id, label, state; returns state, changed
-(choice :size '("S" "M" "L") size)           ; id, options, selected index; returns index, changed
-(list-box :list items picked :rows 6)        ; id, items, selected index; returns index, changed
-(canvas :board 300 300 #'paint-board :focusable t)   ; returns the events for the canvas
+(label "text" :id :title :size 15)
+(button "Save" :id :save :enabled t)                  ; true when clicked
+(text-field name :id :name :width 160)                ; returns text, changed, submitted
+(slider volume 0 11 :id :volume)                      ; returns value, changed
+(checkbox "All" all :id :all)                         ; returns state, changed
+(choice '("S" "M" "L") size :id :size)                ; returns the index, changed
+(list-box items picked :id :list :rows 6)             ; returns the index, changed
+(canvas 300 300 #'paint-board :id :board :focusable t) ; returns the events for the canvas
 ```
 
-Stateful widgets take their id first and positionally, because it is what keeps a field's caret and a
-list's scroll across frames and across a reload; `label`, `button` and `paragraph` have nothing to
-keep and take `:id` only when a test or a reload needs to find them.
+In a loop over data, the id is the item's own: `:id (task-id task)`, so that state follows the item
+when the list is re-sorted.
 
 ## Where it lives after the fold
 
 One system, `almighty-bolt`, at the root of the repository, laid out like `almighty-toki`
-(`almighty-bolt.asd`, `src/`, `t/`). Packages `almighty-bolt/<file>`; the ui, now the immediate
-variant, in `almighty-bolt/ui/...`. The apps (`almighty-bolt-7guis`, `almighty-bolt-stress`) and the
+(`almighty-bolt.asd`, `src/`, `t/`). Packages `almighty-bolt/<file>`; the ui, which was the immediate
+variant, in `almighty-bolt/ui/...`; the file that the ui and the apps import from the core is
+`almighty-bolt/internals`. The apps (`almighty-bolt-7guis`, `almighty-bolt-stress`) and the
 benchmarks stay their own systems and use the library like anyone.
 
-## Questions
+## Decided on 2026-10-30
 
-1. **Names of the entry points.** `run-app`, `open-app` and `close-app` (the 7GUIs launcher already
-   has them). `open` and `close` themselves are Common Lisp's.
-2. **What an app makes.** The function that describes the screen (as above), against
-   `(make-immediate-variant ...)` as today. "Variant" would then not appear in the public API.
-3. **The id of a widget.** As today (positional for the stateful ones, `:id` for the others), or `:id`
-   for every widget. Positional is shorter and cannot be forgotten where it matters; `:id`
-   everywhere is one rule. Changing it means every call of `text-field`, `slider`, `choice`,
-   `checkbox`, `list-box`, `canvas` and `scrim` in the 7GUIs and stress apps, mechanically.
-4. **The theme.** Today a fixed dark theme in `theme.lisp` (colours, Helvetica 15). For v0.1 either keep
-   it fixed and not public, or make it a value the app can give, which the frame caches would have
-   to include.
+1. **Entry points:** `run-app`, `open-app` and `close-app`.
+2. **What an app makes:** the function that describes the screen. "Variant" does not appear in the
+   public API.
+3. **The id of a widget:** a required `:id` keyword on every widget (containers optional); ids
+   generated from the source are for another time.
+4. **The theme:** fixed, one dark theme, not public in v0.1.

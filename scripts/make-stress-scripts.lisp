@@ -5,7 +5,7 @@
 
 (defpackage #:almighty-bolt-scripts/make-stress-scripts
   (:use #:cl)
-  (:local-nicknames (#:core #:almighty-bolt-core)))
+  (:local-nicknames (#:core #:almighty-bolt/internals)))
 
 (in-package #:almighty-bolt-scripts/make-stress-scripts)
 

@@ -1,17 +1,17 @@
-(defpackage #:almighty-bolt-variant-immediate/ui
+(defpackage #:almighty-bolt/ui/ui
   (:use #:cl)
-  (:import-from #:almighty-bolt-variant-immediate/hash
+  (:import-from #:almighty-bolt/ui/hash
                 #:mix
                 #:hash-of
                 #:+seed+)
-  (:import-from #:almighty-bolt-variant-immediate/box
+  (:import-from #:almighty-bolt/ui/box
                 #:make-box
                 #:reset-box
                 #:box-key
                 #:box-id
                 #:box-parent
                 #:box-children)
-  (:import-from #:almighty-bolt-core
+  (:import-from #:almighty-bolt/internals
                 #:pointer-event
                 #:pointer-event-kind
                 #:pointer-event-x
@@ -110,7 +110,7 @@
            #:state-of
            #:needs-frame-p))
 
-(in-package #:almighty-bolt-variant-immediate/ui)
+(in-package #:almighty-bolt/ui/ui)
 
 ;;; What the interface is made of while a frame is described, and what it knows of the pointer
 ;;; and the keyboard. The interface is a function that is called for every build of every

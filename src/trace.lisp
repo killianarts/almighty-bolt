@@ -1,6 +1,6 @@
-(defpackage #:almighty-bolt-core/trace
+(defpackage #:almighty-bolt/trace
   (:use #:cl)
-  (:import-from #:almighty-bolt-core/ring
+  (:import-from #:almighty-bolt/ring
                 #:frame-ring-count
                 #:frame-start-ns
                 #:frame-duration-ns
@@ -19,7 +19,7 @@
                 #:frame-gpu-ns)
   (:export #:write-trace))
 
-(in-package #:almighty-bolt-core/trace)
+(in-package #:almighty-bolt/trace)
 
 ;;; The frame ring as Chrome trace event JSON, to look at individual frames in Perfetto
 ;;; (ui.perfetto.dev) or chrome://tracing. A frame is a slice with the slices of its parts

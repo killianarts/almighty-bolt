@@ -18,7 +18,7 @@
 
 (defun replace-text (driver id text)
   (d:click driver id)
-  (d:press-key driver #\a :modifiers almighty-bolt-core:+modifier-super+)
+  (d:press-key driver #\a :modifiers almighty-bolt/internals:+modifier-super+)
   (when (plusp (length text))
     (d:type-text driver text))
   (when (zerop (length text))

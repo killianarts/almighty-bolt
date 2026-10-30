@@ -1,6 +1,6 @@
-(defpackage #:almighty-bolt-core/render/metal/device
+(defpackage #:almighty-bolt/render/metal/device
   (:use #:cl)
-  (:import-from #:almighty-bolt-core/platform/macos/objc
+  (:import-from #:almighty-bolt/platform/macos/objc
                 #:msg-send
                 #:ns-string
                 #:lisp-string
@@ -12,7 +12,7 @@
            #:make-pipeline-state
            #:ns-error-description))
 
-(in-package #:almighty-bolt-core/render/metal/device)
+(in-package #:almighty-bolt/render/metal/device)
 
 ;;; The Metal device, its command queue, and the objects built from them that
 ;;; are made once: shader libraries and pipeline states. None of this runs per

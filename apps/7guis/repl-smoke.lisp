@@ -24,10 +24,10 @@
   (apply (or (symbol-in package name) (error "No ~a in ~a." name package)) arguments))
 
 (defun host-call (name &rest arguments)
-  (apply #'call "ALMIGHTY-BOLT-CORE/PLATFORM/MACOS/HOST" name arguments))
+  (apply #'call "ALMIGHTY-BOLT/PLATFORM/MACOS/HOST" name arguments))
 
 (defun frames (host)
-  (call "ALMIGHTY-BOLT-CORE" "FRAME-RING-TOTAL" (host-call "HOST-RING" host)))
+  (call "ALMIGHTY-BOLT/INTERNALS" "FRAME-RING-TOTAL" (host-call "HOST-RING" host)))
 
 (defun wait-until (predicate &optional (seconds 5))
   (let ((end (+ (get-internal-real-time) (* seconds internal-time-units-per-second))))

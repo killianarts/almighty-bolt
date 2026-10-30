@@ -1,9 +1,9 @@
-(defpackage #:almighty-bolt-core/render/metal/glyph-atlas
+(defpackage #:almighty-bolt/render/metal/glyph-atlas
   (:use #:cl)
-  (:import-from #:almighty-bolt-core/platform/macos/objc
+  (:import-from #:almighty-bolt/platform/macos/objc
                 #:msg-send
                 #:objc-class)
-  (:import-from #:almighty-bolt-core/text/glyph-raster
+  (:import-from #:almighty-bolt/text/glyph-raster
                 #:rasterize-glyph
                 #:glyph-bitmap-pixels
                 #:glyph-bitmap-width
@@ -23,7 +23,7 @@
            #:atlas-width
            #:atlas-height))
 
-(in-package #:almighty-bolt-core/render/metal/glyph-atlas)
+(in-package #:almighty-bolt/render/metal/glyph-atlas)
 
 ;;; Rasterized glyphs packed into one grey-scale texture, so that drawing text is
 ;;; a textured quad per glyph. A glyph is rasterized the first time it is wanted

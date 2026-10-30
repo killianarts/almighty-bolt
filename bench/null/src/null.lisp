@@ -1,6 +1,6 @@
-(defpackage #:almighty-bolt-variant-null/null
+(defpackage #:almighty-bolt-bench-null/null
   (:use #:cl)
-  (:import-from #:almighty-bolt-core
+  (:import-from #:almighty-bolt/internals
                 #:variant
                 #:frame
                 #:handle-event
@@ -20,7 +20,7 @@
            #:null-variant-events-seen
            #:null-variant-animate-frames))
 
-(in-package #:almighty-bolt-variant-null/null)
+(in-package #:almighty-bolt-bench-null/null)
 
 ;;; The baseline variant of the charter: it replays a fixed, precomputed display
 ;;; list and does nothing else, so that what a frame costs with it is what the core

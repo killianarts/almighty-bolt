@@ -1,11 +1,11 @@
-(defpackage #:almighty-bolt-core/replay/recorder
+(defpackage #:almighty-bolt/replay/recorder
   (:use #:cl)
-  (:import-from #:almighty-bolt-core/event
+  (:import-from #:almighty-bolt/event
                 #:event-timestamp)
-  (:import-from #:almighty-bolt-core/variant
+  (:import-from #:almighty-bolt/variant
                 #:hit-target
                 #:lookup-target)
-  (:import-from #:almighty-bolt-core/replay/script
+  (:import-from #:almighty-bolt/replay/script
                 #:make-script
                 #:event-form)
   (:export #:recorder
@@ -13,7 +13,7 @@
            #:record-event
            #:recorder-script))
 
-(in-package #:almighty-bolt-core/replay/recorder)
+(in-package #:almighty-bolt/replay/recorder)
 
 ;;; Write a script from a live session: each event the variant is given is noted with its time
 ;;; since the first event, and a pointer or wheel event over a control that has an id is

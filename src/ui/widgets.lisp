@@ -1,10 +1,10 @@
-(defpackage #:almighty-bolt-variant-immediate/widgets
+(defpackage #:almighty-bolt/ui/widgets
   (:use #:cl)
-  (:import-from #:almighty-bolt-variant-immediate/hash
+  (:import-from #:almighty-bolt/ui/hash
                 #:mix
                 #:hash-of
                 #:+seed+)
-  (:import-from #:almighty-bolt-variant-immediate/box
+  (:import-from #:almighty-bolt/ui/box
                 #:box-key
                 #:box-id
                 #:box-kind
@@ -32,7 +32,7 @@
                 #:box-focusable
                 #:box-moves
                 #:box-children)
-  (:import-from #:almighty-bolt-variant-immediate/ui
+  (:import-from #:almighty-bolt/ui/ui
                 #:*ui*
                 #:ui-context
                 #:ui-consumed
@@ -65,7 +65,7 @@
                 #:rect-w
                 #:rect-h
                 #:state-of)
-  (:import-from #:almighty-bolt-core
+  (:import-from #:almighty-bolt/internals
                 #:with-painting
                 #:context-font
                 #:context-measure
@@ -87,7 +87,7 @@
                 #:+key-down+
                 #:+key-home+
                 #:+key-end+)
-  (:import-from #:almighty-bolt-variant-immediate/theme
+  (:import-from #:almighty-bolt/ui/theme
                 #:+font-name+
                 #:+font-size+)
   (:export #:label
@@ -130,7 +130,7 @@
            #:+dot-size+
            #:+option-gap+))
 
-(in-package #:almighty-bolt-variant-immediate/widgets)
+(in-package #:almighty-bolt/ui/widgets)
 
 ;;; The widgets of the immediate variant, which are functions the interface calls, in order,
 ;;; every build. A widget that can be used returns what happened to it (a button, whether it
@@ -319,7 +319,7 @@ or the space bar or Return was pressed with the keyboard on it."
 ;;; --- a line of editable text ---
 
 (defstruct (field-state (:constructor make-field-state ()))
-  (state (make-text-state "") :type almighty-bolt-core:text-state)
+  (state (make-text-state "") :type almighty-bolt/internals:text-state)
   (view-start 0 :type fixnum))
 
 (defun field-index-at (ui key state x)
@@ -668,21 +668,21 @@ also AUTOFOCUS has the keyboard when the window opens, if nothing has it by then
     (when (and focusable (= (ui-focus ui) key))
       (dolist (event (copy-list (ui-inputs ui)))
         (typecase event
-          (almighty-bolt-core:key-event
+          (almighty-bolt/internals:key-event
            ;; A key that a widget took is gone from the keys, and is not the canvas's.
            (when (member event (ui-keys ui) :test #'eq)
              (consume-key ui event)
              (consume-input ui event)
              (push (list :key event) events)))
-          (almighty-bolt-core:text-input-event
+          (almighty-bolt/internals:text-input-event
            (consume-input ui event)
-           (push (list :text (almighty-bolt-core:text-input-event-text event)) events))
-          (almighty-bolt-core:composition-event
+           (push (list :text (almighty-bolt/internals:text-input-event-text event)) events))
+          (almighty-bolt/internals:composition-event
            (consume-input ui event)
-           (push (list :composition (almighty-bolt-core:composition-event-kind event)
-                       (almighty-bolt-core:composition-event-text event)
-                       (almighty-bolt-core:composition-event-selection-start event)
-                       (almighty-bolt-core:composition-event-selection-length event))
+           (push (list :composition (almighty-bolt/internals:composition-event-kind event)
+                       (almighty-bolt/internals:composition-event-text event)
+                       (almighty-bolt/internals:composition-event-selection-start event)
+                       (almighty-bolt/internals:composition-event-selection-length event))
                  events)))))
     ;; What it draws now, compared with what it drew before.
     (let ((fragment (canvas-state-fragment state)))
@@ -692,9 +692,9 @@ also AUTOFOCUS has the keyboard when the window opens, if nothing has it by then
                                (funcall painter fragment (ui-context ui) (float width 1f0)
                                         (float height 1f0)))
                              (return))
-          (almighty-bolt-core:display-list-full ()
+          (almighty-bolt/internals:display-list-full ()
             (setf fragment (make-display-list
-                            :capacity (* 2 (almighty-bolt-core:display-list-capacity fragment)))
+                            :capacity (* 2 (almighty-bolt/internals:display-list-capacity fragment)))
                   (canvas-state-fragment state) fragment))))
       (setf (box-data box) fragment
             (box-n3 box) (display-list-hash fragment)))

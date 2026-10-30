@@ -1,6 +1,6 @@
-(defpackage #:almighty-bolt-core/render/metal/target
+(defpackage #:almighty-bolt/render/metal/target
   (:use #:cl)
-  (:import-from #:almighty-bolt-core/platform/macos/objc
+  (:import-from #:almighty-bolt/platform/macos/objc
                 #:msg-send
                 #:objc-class)
   (:export #:+pixel-format-bgra8-unorm+
@@ -11,7 +11,7 @@
            #:offscreen-target-height
            #:read-pixels))
 
-(in-package #:almighty-bolt-core/render/metal/target)
+(in-package #:almighty-bolt/render/metal/target)
 
 ;;; An off-screen colour texture to draw into and read back, so that rendering
 ;;; can be tested and measured without a window.

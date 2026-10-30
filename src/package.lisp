@@ -4,9 +4,9 @@
 ;;;; only this package; the platform, text and renderer modules stay under their own
 ;;;; packages (decision record 0009).
 
-(defpackage #:almighty-bolt-core
+(defpackage #:almighty-bolt/internals
   (:use #:cl)
-  (:import-from #:almighty-bolt-core/clock
+  (:import-from #:almighty-bolt/clock
                 #:nanoseconds
                 #:now-ns
                 #:*time-source*
@@ -17,7 +17,7 @@
                 #:virtual-clock-ns
                 #:virtual-clock-source
                 #:advance-virtual-clock)
-  (:import-from #:almighty-bolt-core/ring
+  (:import-from #:almighty-bolt/ring
                 #:frame-ring
                 #:make-frame-ring
                 #:frame-ring-capacity
@@ -48,11 +48,11 @@
                 #:frame-events-ns
                 #:frame-events
                 #:map-frames)
-  (:import-from #:almighty-bolt-core/trace
+  (:import-from #:almighty-bolt/trace
                 #:write-trace)
-  (:import-from #:almighty-bolt-core/ring-summary
+  (:import-from #:almighty-bolt/ring-summary
                 #:summarize-ring)
-  (:import-from #:almighty-bolt-core/event
+  (:import-from #:almighty-bolt/event
                 #:event
                 #:event-timestamp
                 #:+key-up+
@@ -114,15 +114,15 @@
                 #:focus-event
                 #:make-focus-event
                 #:focus-event-focused-p)
-  (:import-from #:almighty-bolt-core/stats
+  (:import-from #:almighty-bolt/stats
                 #:percentile
                 #:median
                 #:summarize)
-  (:import-from #:almighty-bolt-core/wheel-lock
+  (:import-from #:almighty-bolt/wheel-lock
                 #:axis-lock
                 #:make-axis-lock
                 #:lock-wheel)
-  (:import-from #:almighty-bolt-core/text-edit
+  (:import-from #:almighty-bolt/text-edit
                 #:text-state
                 #:make-text-state
                 #:text-state-string
@@ -141,7 +141,7 @@
                 #:text-place-caret
                 #:text-replace
                 #:edit-text)
-  (:import-from #:almighty-bolt-core/display-list
+  (:import-from #:almighty-bolt/display-list
                 #:display-list
                 #:make-display-list
                 #:display-list-capacity
@@ -171,7 +171,7 @@
                 #:display-list-radius
                 #:display-list-color
                 #:display-list-hash)
-  (:import-from #:almighty-bolt-core/variant
+  (:import-from #:almighty-bolt/variant
                 #:variant
                 #:handle-event
                 #:frame
@@ -221,7 +221,7 @@
                 #:context-index-at-x
                 #:context-caret-rect
                 #:context-push-text)
-  (:import-from #:almighty-bolt-core/kept
+  (:import-from #:almighty-bolt/kept
                 #:kept-let
                 #:kept-state
                 #:make-kept-state
@@ -231,12 +231,12 @@
                 #:kept-state-names
                 #:kept-value
                 #:kept-in-use-p)
-  (:import-from #:almighty-bolt-core/settle
+  (:import-from #:almighty-bolt/settle
                 #:+max-builds+
                 #:settle-frame
                 #:settle-cap-reached
                 #:settle-cap-reached-frame-number)
-  (:import-from #:almighty-bolt-core/replay/script
+  (:import-from #:almighty-bolt/replay/script
                 #:script
                 #:make-script
                 #:script-header
@@ -250,7 +250,7 @@
                 #:save-script
                 #:load-script
                 #:+script-version+)
-  (:import-from #:almighty-bolt-core/replay/player
+  (:import-from #:almighty-bolt/replay/player
                 #:replay
                 #:replay-result
                 #:replay-result-frames
@@ -275,12 +275,12 @@
                 #:replay-target-missing-id
                 #:replay-target-missing-time
                 #:+default-frame-interval-ns+)
-  (:import-from #:almighty-bolt-core/replay/recorder
+  (:import-from #:almighty-bolt/replay/recorder
                 #:recorder
                 #:make-recorder
                 #:record-event
                 #:recorder-script)
-  (:import-from #:almighty-bolt-core/layout/constraints
+  (:import-from #:almighty-bolt/layout/constraints
                 #:+unbounded+
                 #:unbounded-p
                 #:valid-constraints-p
@@ -289,11 +289,11 @@
                 #:loosen-constraints
                 #:tighten-constraints
                 #:deflate-constraints)
-  (:import-from #:almighty-bolt-core/layout/box
+  (:import-from #:almighty-bolt/layout/box
                 #:layout-padding
                 #:layout-sized
                 #:layout-align)
-  (:import-from #:almighty-bolt-core/layout/flex
+  (:import-from #:almighty-bolt/layout/flex
                 #:layout-flex
                 #:with-layout-scratch
                 #:unbounded-flex
@@ -574,4 +574,4 @@
            #:unbounded-flex
            #:unbounded-flex-axis))
 
-(in-package #:almighty-bolt-core)
+(in-package #:almighty-bolt/internals)

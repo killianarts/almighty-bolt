@@ -1,18 +1,18 @@
-(defpackage #:almighty-bolt-core/render/metal/renderer
+(defpackage #:almighty-bolt/render/metal/renderer
   (:use #:cl)
-  (:import-from #:almighty-bolt-core/platform/macos/objc
+  (:import-from #:almighty-bolt/platform/macos/objc
                 #:msg-send
                 #:release)
-  (:import-from #:almighty-bolt-core/render/metal/device
+  (:import-from #:almighty-bolt/render/metal/device
                 #:make-command-queue)
-  (:import-from #:almighty-bolt-core/render/metal/rect-pipeline
+  (:import-from #:almighty-bolt/render/metal/rect-pipeline
                 #:+instance-bytes+
                 #:make-rect-pipeline)
-  (:import-from #:almighty-bolt-core/render/metal/glyph-atlas
+  (:import-from #:almighty-bolt/render/metal/glyph-atlas
                 #:make-glyph-atlas
                 #:glyph-atlas-texture
                 #:glyph-atlas-uv-buffer)
-  (:import-from #:almighty-bolt-core/display-list
+  (:import-from #:almighty-bolt/display-list
                 #:display-list
                 #:display-list-count
                 #:display-list-kind
@@ -34,7 +34,7 @@
            #:wait-for-last-frame
            #:last-frame-gpu-ns))
 
-(in-package #:almighty-bolt-core/render/metal/renderer)
+(in-package #:almighty-bolt/render/metal/renderer)
 
 ;;; Draws a display list with Metal. A frame copies the commands into a shared
 ;;; buffer, encodes one instanced draw for all of them (or, if the list clips, one for

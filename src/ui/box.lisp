@@ -1,4 +1,4 @@
-(defpackage #:almighty-bolt-variant-immediate/box
+(defpackage #:almighty-bolt/ui/box
   (:use #:cl)
   (:export #:box
            #:make-box
@@ -38,7 +38,7 @@
            #:box-paint-hash
            #:reset-box))
 
-(in-package #:almighty-bolt-variant-immediate/box)
+(in-package #:almighty-bolt/ui/box)
 
 ;;; A box is one thing the interface described this frame: a kind, what it holds, how it is
 ;;; to be sized, and, after layout, where it is. Boxes are made once and reused from one

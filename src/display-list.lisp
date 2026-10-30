@@ -1,4 +1,4 @@
-(defpackage #:almighty-bolt-core/display-list
+(defpackage #:almighty-bolt/display-list
   (:use #:cl)
   (:export #:display-list
            #:make-display-list
@@ -30,7 +30,7 @@
            #:display-list-color
            #:display-list-hash))
 
-(in-package #:almighty-bolt-core/display-list)
+(in-package #:almighty-bolt/display-list)
 
 ;;; The boundary between a variant and the renderer: a flat list of drawing
 ;;; commands that the variant appends to and the renderer reads. It is

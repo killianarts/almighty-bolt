@@ -1,6 +1,6 @@
-(defpackage #:almighty-bolt-core/variant
+(defpackage #:almighty-bolt/variant
   (:use #:cl)
-  (:import-from #:almighty-bolt-core/clock
+  (:import-from #:almighty-bolt/clock
                 #:now-ns
                 #:real-time-source)
   (:export #:variant
@@ -53,7 +53,7 @@
            #:context-caret-rect
            #:context-push-text))
 
-(in-package #:almighty-bolt-core/variant)
+(in-package #:almighty-bolt/variant)
 
 ;;; The variant contract of decision record 0009: what the core asks of a variant,
 ;;; and what it gives a variant to work with. Nothing here touches a window, the GPU

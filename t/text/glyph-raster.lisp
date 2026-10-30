@@ -1,11 +1,11 @@
-(defpackage #:almighty-bolt-core/t/text/glyph-raster
+(defpackage #:almighty-bolt/t/text/glyph-raster
   (:use #:cl #:lisp-unit2)
-  (:local-nicknames (#:objc #:almighty-bolt-core/platform/macos/objc)
-                    (#:font #:almighty-bolt-core/text/font)
-                    (#:line #:almighty-bolt-core/text/line)
-                    (#:raster #:almighty-bolt-core/text/glyph-raster)))
+  (:local-nicknames (#:objc #:almighty-bolt/platform/macos/objc)
+                    (#:font #:almighty-bolt/text/font)
+                    (#:line #:almighty-bolt/text/line)
+                    (#:raster #:almighty-bolt/text/glyph-raster)))
 
-(in-package #:almighty-bolt-core/t/text/glyph-raster)
+(in-package #:almighty-bolt/t/text/glyph-raster)
 
 ;;; Drawing a glyph with Core Graphics into a coverage bitmap.
 

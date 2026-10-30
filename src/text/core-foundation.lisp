@@ -1,6 +1,6 @@
-(defpackage #:almighty-bolt-core/text/core-foundation
+(defpackage #:almighty-bolt/text/core-foundation
   (:use #:cl)
-  (:import-from #:almighty-bolt-core/platform/macos/objc
+  (:import-from #:almighty-bolt/platform/macos/objc
                 #:ns-string
                 #:foreign-constant
                 #:foreign-address)
@@ -13,7 +13,7 @@
            #:cf-array-ref
            #:font-attributes))
 
-(in-package #:almighty-bolt-core/text/core-foundation)
+(in-package #:almighty-bolt/text/core-foundation)
 
 ;;; Calling the C functions of Core Foundation, Core Graphics and Core Text. As with
 ;;; Objective-C messages, handles are plain integers, and a call has a fixed

@@ -1,6 +1,6 @@
-(defpackage #:almighty-bolt-core/platform/macos/app
+(defpackage #:almighty-bolt/platform/macos/app
   (:use #:cl)
-  (:import-from #:almighty-bolt-core/platform/macos/objc
+  (:import-from #:almighty-bolt/platform/macos/objc
                 #:msg-send
                 #:objc-class
                 #:ns-string
@@ -10,13 +10,13 @@
                 #:define-runtime-class
                 #:with-autorelease-pool
                 #:with-masked-float-traps)
-  (:import-from #:almighty-bolt-core/platform/macos/main-queue
+  (:import-from #:almighty-bolt/platform/macos/main-queue
                 #:run-on-main)
   (:export #:run-application
            #:quit-application
            #:stop-application))
 
-(in-package #:almighty-bolt-core/platform/macos/app)
+(in-package #:almighty-bolt/platform/macos/app)
 
 ;;; The application: AppKit's event loop, which has to run on the main thread
 ;;; and does not return until the application quits. Everything else (windows,

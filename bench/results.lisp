@@ -1,11 +1,11 @@
 (defpackage #:almighty-bolt-bench/results
   (:use #:cl)
-  (:local-nicknames (#:core #:almighty-bolt-core)
+  (:local-nicknames (#:core #:almighty-bolt/internals)
                     (#:registry #:almighty-bolt-7guis/common/registry))
-  (:import-from #:almighty-bolt-core/platform/macos/objc
+  (:import-from #:almighty-bolt/platform/macos/objc
                 #:with-masked-float-traps
                 #:with-autorelease-pool)
-  (:import-from #:almighty-bolt-core/platform/macos/host
+  (:import-from #:almighty-bolt/platform/macos/host
                 #:make-host
                 #:host-context
                 #:host-variant
@@ -13,13 +13,13 @@
                 #:host-display-list
                 #:host-acquire
                 #:run-frame)
-  (:import-from #:almighty-bolt-core/render/metal/device
+  (:import-from #:almighty-bolt/render/metal/device
                 #:default-device)
-  (:import-from #:almighty-bolt-core/render/metal/target
+  (:import-from #:almighty-bolt/render/metal/target
                 #:+pixel-format-bgra8-unorm+
                 #:make-offscreen-target
                 #:offscreen-target-descriptor)
-  (:import-from #:almighty-bolt-variant-null/null
+  (:import-from #:almighty-bolt-bench-null/null
                 #:make-null-variant)
   (:export #:main
            #:overhead-main

@@ -1,6 +1,6 @@
-(defpackage #:almighty-bolt-core/text/line
+(defpackage #:almighty-bolt/text/line
   (:use #:cl)
-  (:import-from #:almighty-bolt-core/text/core-foundation
+  (:import-from #:almighty-bolt/text/core-foundation
                 #:ccall
                 #:cf-string
                 #:cf-release
@@ -8,7 +8,7 @@
                 #:cf-array-count
                 #:cf-array-ref
                 #:font-attributes)
-  (:import-from #:almighty-bolt-core/text/font
+  (:import-from #:almighty-bolt/text/font
                 #:font
                 #:font-ct-font
                 #:font-lines
@@ -34,7 +34,7 @@
            #:caret-rect
            #:break-lines))
 
-(in-package #:almighty-bolt-core/text/line)
+(in-package #:almighty-bolt/text/line)
 
 ;;; The measurement API that layout calls, over Core Text:
 ;;;

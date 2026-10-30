@@ -2,15 +2,15 @@
   (:use #:cl)
   (:import-from #:almighty-bolt-snapshot/png
                 #:write-png)
-  (:import-from #:almighty-bolt-core/platform/macos/objc
+  (:import-from #:almighty-bolt/platform/macos/objc
                 #:with-masked-float-traps
                 #:with-autorelease-pool)
-  (:import-from #:almighty-bolt-core
+  (:import-from #:almighty-bolt/internals
                 #:lookup-target
                 #:make-pointer-event
                 #:make-key-event
                 #:now-ns)
-  (:import-from #:almighty-bolt-core/platform/macos/host
+  (:import-from #:almighty-bolt/platform/macos/host
                 #:host-variant
                 #:make-host
                 #:host-acquire
@@ -18,16 +18,16 @@
                 #:host-context
                 #:run-frame
                 #:host-deliver-event)
-  (:import-from #:almighty-bolt-core/render/metal/device
+  (:import-from #:almighty-bolt/render/metal/device
                 #:default-device)
-  (:import-from #:almighty-bolt-core/render/metal/target
+  (:import-from #:almighty-bolt/render/metal/target
                 #:+pixel-format-bgra8-unorm+
                 #:make-offscreen-target
                 #:offscreen-target-descriptor
                 #:offscreen-target-width
                 #:offscreen-target-height
                 #:read-pixels)
-  (:import-from #:almighty-bolt-core/render/metal/renderer
+  (:import-from #:almighty-bolt/render/metal/renderer
                 #:wait-for-last-frame)
   (:export #:with-snapshot-host
            #:draw-frame

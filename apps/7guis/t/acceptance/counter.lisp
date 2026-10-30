@@ -1,7 +1,7 @@
 (defpackage #:almighty-bolt-7guis/t/acceptance/counter
   (:use #:cl #:lisp-unit2)
   (:local-nicknames (#:d #:almighty-bolt-7guis/t/acceptance/driver)
-                    (#:core #:almighty-bolt-core)))
+                    (#:core #:almighty-bolt/internals)))
 
 (in-package #:almighty-bolt-7guis/t/acceptance/counter)
 

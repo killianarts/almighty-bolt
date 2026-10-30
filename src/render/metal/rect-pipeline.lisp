@@ -1,19 +1,19 @@
-(defpackage #:almighty-bolt-core/render/metal/rect-pipeline
+(defpackage #:almighty-bolt/render/metal/rect-pipeline
   (:use #:cl)
-  (:import-from #:almighty-bolt-core/platform/macos/objc
+  (:import-from #:almighty-bolt/platform/macos/objc
                 #:msg-send
                 #:objc-class)
-  (:import-from #:almighty-bolt-core/render/metal/device
+  (:import-from #:almighty-bolt/render/metal/device
                 #:compile-library
                 #:make-function
                 #:make-pipeline-state)
-  (:import-from #:almighty-bolt-core/clock
+  (:import-from #:almighty-bolt/clock
                 #:now-ns)
   (:export #:+instance-bytes+
            #:+shader-source+
            #:make-rect-pipeline))
 
-(in-package #:almighty-bolt-core/render/metal/rect-pipeline)
+(in-package #:almighty-bolt/render/metal/rect-pipeline)
 
 ;;; The pipeline that draws rectangles, rounded rectangles and glyphs. Every
 ;;; command is one instance of a four-vertex strip. For a shape the vertex shader

@@ -1,6 +1,6 @@
-(defpackage #:almighty-bolt-core/wheel-lock
+(defpackage #:almighty-bolt/wheel-lock
   (:use #:cl)
-  (:import-from #:almighty-bolt-core/event
+  (:import-from #:almighty-bolt/event
                 #:event-timestamp
                 #:wheel-event-dx
                 #:wheel-event-dy
@@ -11,7 +11,7 @@
            #:make-axis-lock
            #:lock-wheel))
 
-(in-package #:almighty-bolt-core/wheel-lock)
+(in-package #:almighty-bolt/wheel-lock)
 
 ;;; A finger on a trackpad never moves along one axis only: a swipe meant to go across
 ;;; carries a fifth of its length down, and a swipe meant to go down drifts a little

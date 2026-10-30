@@ -1,6 +1,6 @@
-(defpackage #:almighty-bolt-core/layout/flex
+(defpackage #:almighty-bolt/layout/flex
   (:use #:cl)
-  (:import-from #:almighty-bolt-core/layout/constraints
+  (:import-from #:almighty-bolt/layout/constraints
                 #:+unbounded+
                 #:unbounded-p
                 #:constrain-size)
@@ -9,7 +9,7 @@
            #:unbounded-flex
            #:unbounded-flex-axis))
 
-(in-package #:almighty-bolt-core/layout/flex)
+(in-package #:almighty-bolt/layout/flex)
 
 ;;; A row or a column of children (decision record 0010), after Flutter's
 ;;; RenderFlex. Children that do not flex are measured first, with all the room on

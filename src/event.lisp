@@ -1,6 +1,6 @@
-(defpackage #:almighty-bolt-core/event
+(defpackage #:almighty-bolt/event
   (:use #:cl)
-  (:import-from #:almighty-bolt-core/clock
+  (:import-from #:almighty-bolt/clock
                 #:nanoseconds)
   (:export #:event
            #:event-timestamp
@@ -64,7 +64,7 @@
            #:make-focus-event
            #:focus-event-focused-p))
 
-(in-package #:almighty-bolt-core/event)
+(in-package #:almighty-bolt/event)
 
 ;;; Events are plain, immutable structures: numbers, keywords and strings, so a
 ;;; script of them can be written with PRIN1 and read back. Every event carries

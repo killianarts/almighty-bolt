@@ -1,6 +1,6 @@
-(defpackage #:almighty-bolt-variant-immediate/immediate
+(defpackage #:almighty-bolt/ui/immediate
   (:use #:cl)
-  (:import-from #:almighty-bolt-core
+  (:import-from #:almighty-bolt/internals
                 #:variant
                 #:frame
                 #:handle-event
@@ -22,11 +22,11 @@
                 #:display-list-count
                 #:replace-display-list
                 #:+max-builds+)
-  (:import-from #:almighty-bolt-variant-immediate/theme
+  (:import-from #:almighty-bolt/ui/theme
                 #:+background+)
-  (:import-from #:almighty-bolt-variant-immediate/hash
+  (:import-from #:almighty-bolt/ui/hash
                 #:mix)
-  (:import-from #:almighty-bolt-variant-immediate/box
+  (:import-from #:almighty-bolt/ui/box
                 #:box-key
                 #:box-id
                 #:box-children
@@ -39,7 +39,7 @@
                 #:box-h
                 #:box-layout-hash
                 #:box-paint-hash)
-  (:import-from #:almighty-bolt-variant-immediate/ui
+  (:import-from #:almighty-bolt/ui/ui
                 #:*ui*
                 #:make-ui
                 #:ui-context
@@ -87,11 +87,11 @@
                 #:enqueue-event
                 #:begin-frame-input
                 #:end-frame-input)
-  (:import-from #:almighty-bolt-variant-immediate/widgets
+  (:import-from #:almighty-bolt/ui/widgets
                 #:own-hashes)
-  (:import-from #:almighty-bolt-variant-immediate/layout
+  (:import-from #:almighty-bolt/ui/layout
                 #:layout-box)
-  (:import-from #:almighty-bolt-variant-immediate/paint
+  (:import-from #:almighty-bolt/ui/paint
                 #:paint-box)
   (:export #:immediate-variant
            #:make-immediate-variant
@@ -100,7 +100,7 @@
            #:current-context
            #:ask-for-frame))
 
-(in-package #:almighty-bolt-variant-immediate/immediate)
+(in-package #:almighty-bolt/ui/immediate)
 
 ;;; The immediate variant. Every build of every frame calls the application's function, which
 ;;; describes the whole interface again with the widgets, taking from the frame's input what
@@ -284,7 +284,7 @@ frame presented, round."
 
 (defmethod frame ((variant immediate-variant) context list)
   (let ((ui (immediate-variant-ui variant)))
-    (when (<= (almighty-bolt-core:context-build-number context) 1)
+    (when (<= (almighty-bolt/internals:context-build-number context) 1)
       (setf (more-input variant) (begin-frame-input ui))
       (move-focus ui))
     (with-phase (context +phase-update+)
@@ -293,7 +293,7 @@ frame presented, round."
         (funcall (app variant)))
       (compute-hashes ui))
     (let ((consumed (ui-consumed ui))
-          (last-build (>= (almighty-bolt-core:context-build-number context) +max-builds+)))
+          (last-build (>= (almighty-bolt/internals:context-build-number context) +max-builds+)))
       (cond
         ((and consumed (not last-build))
          ;; Something took input, so what the application holds may have changed: describe

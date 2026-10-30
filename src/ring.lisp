@@ -1,6 +1,6 @@
-(defpackage #:almighty-bolt-core/ring
+(defpackage #:almighty-bolt/ring
   (:use #:cl)
-  (:import-from #:almighty-bolt-core/clock
+  (:import-from #:almighty-bolt/clock
                 #:now-ns)
   (:export #:frame-ring
            #:make-frame-ring
@@ -33,7 +33,7 @@
            #:frame-events
            #:map-frames))
 
-(in-package #:almighty-bolt-core/ring)
+(in-package #:almighty-bolt/ring)
 
 ;;; A ring of per-frame records, preallocated so that recording a frame does
 ;;; not allocate and so does not disturb what it measures. Each record is

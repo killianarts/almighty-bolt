@@ -1,10 +1,10 @@
-(defpackage #:almighty-bolt-variant-immediate/hash
+(defpackage #:almighty-bolt/ui/hash
   (:use #:cl)
   (:export #:mix
            #:hash-of
            #:+seed+))
 
-(in-package #:almighty-bolt-variant-immediate/hash)
+(in-package #:almighty-bolt/ui/hash)
 
 ;;; The hashes the immediate variant compares to tell whether what it described this frame is
 ;;; what it described last frame: each box has one for what decides its size and one for what

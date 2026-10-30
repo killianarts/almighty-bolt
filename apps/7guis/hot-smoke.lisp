@@ -16,7 +16,7 @@
 
 (defpackage #:almighty-bolt-7guis/hot-smoke
   (:use #:cl)
-  (:import-from #:almighty-bolt-core
+  (:import-from #:almighty-bolt/internals
                 #:lookup-target
                 #:frame-ring-total
                 #:make-pointer-event
@@ -24,9 +24,9 @@
                 #:kept-value
                 #:text-state-caret
                 #:text-state-string)
-  (:import-from #:almighty-bolt-core/platform/macos/main-queue
+  (:import-from #:almighty-bolt/platform/macos/main-queue
                 #:call-on-main)
-  (:import-from #:almighty-bolt-core/platform/macos/host
+  (:import-from #:almighty-bolt/platform/macos/host
                 #:running-host
                 #:host-variant
                 #:host-ring
@@ -99,13 +99,13 @@
   "What has the keyboard and where its caret is: the key of the focused widget, the caret's index
 and the text of its field, as a list, or (NIL) if no field has the keyboard."
   (sleep 0.2)
-  (let* ((ui (funcall (symbol-in "ALMIGHTY-BOLT-VARIANT-IMMEDIATE/IMMEDIATE" "IMMEDIATE-VARIANT-UI")
+  (let* ((ui (funcall (symbol-in "ALMIGHTY-BOLT/UI/IMMEDIATE" "IMMEDIATE-VARIANT-UI")
                       (host-variant host)))
-         (key (funcall (symbol-in "ALMIGHTY-BOLT-VARIANT-IMMEDIATE/UI" "UI-FOCUS") ui))
-         (field (gethash key (funcall (symbol-in "ALMIGHTY-BOLT-VARIANT-IMMEDIATE/UI" "UI-STATES")
+         (key (funcall (symbol-in "ALMIGHTY-BOLT/UI/UI" "UI-FOCUS") ui))
+         (field (gethash key (funcall (symbol-in "ALMIGHTY-BOLT/UI/UI" "UI-STATES")
                                       ui))))
-    (if (and field (typep field (symbol-in "ALMIGHTY-BOLT-VARIANT-IMMEDIATE/WIDGETS" "FIELD-STATE")))
-        (let ((state (funcall (symbol-in "ALMIGHTY-BOLT-VARIANT-IMMEDIATE/WIDGETS"
+    (if (and field (typep field (symbol-in "ALMIGHTY-BOLT/UI/WIDGETS" "FIELD-STATE")))
+        (let ((state (funcall (symbol-in "ALMIGHTY-BOLT/UI/WIDGETS"
                                          "FIELD-STATE-STATE")
                               field)))
           (list key (text-state-caret state) (text-state-string state)))

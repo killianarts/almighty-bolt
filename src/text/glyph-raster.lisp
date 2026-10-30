@@ -1,6 +1,6 @@
-(defpackage #:almighty-bolt-core/text/glyph-raster
+(defpackage #:almighty-bolt/text/glyph-raster
   (:use #:cl)
-  (:import-from #:almighty-bolt-core/text/core-foundation
+  (:import-from #:almighty-bolt/text/core-foundation
                 #:ccall)
   (:export #:glyph-bitmap
            #:glyph-bitmap-pixels
@@ -10,7 +10,7 @@
            #:glyph-bitmap-bearing-y
            #:rasterize-glyph))
 
-(in-package #:almighty-bolt-core/text/glyph-raster)
+(in-package #:almighty-bolt/text/glyph-raster)
 
 ;;; Draw one glyph with Core Graphics into a grey-scale coverage bitmap (0 for
 ;;; no ink, 255 for full ink), at a given number of pixels a point. Core Text

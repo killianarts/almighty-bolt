@@ -1,10 +1,10 @@
-(defpackage #:almighty-bolt-core/settle
+(defpackage #:almighty-bolt/settle
   (:use #:cl)
-  (:import-from #:almighty-bolt-core/display-list
+  (:import-from #:almighty-bolt/display-list
                 #:clear-display-list)
-  (:import-from #:almighty-bolt-core/clock
+  (:import-from #:almighty-bolt/clock
                 #:real-time-source)
-  (:import-from #:almighty-bolt-core/variant
+  (:import-from #:almighty-bolt/variant
                 #:frame
                 #:place-text-input-caret
                 #:context-frame-number
@@ -18,7 +18,7 @@
            #:settle-cap-reached
            #:settle-cap-reached-frame-number))
 
-(in-package #:almighty-bolt-core/settle)
+(in-package #:almighty-bolt/settle)
 
 ;;; The settle step of the frame sequence in decision record 0009: build until the
 ;;; frame settles. A frame is settled when its build changed no app state. A

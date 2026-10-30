@@ -1,10 +1,10 @@
-(defpackage #:almighty-bolt-core/stats
+(defpackage #:almighty-bolt/stats
   (:use #:cl)
   (:export #:percentile
            #:median
            #:summarize))
 
-(in-package #:almighty-bolt-core/stats)
+(in-package #:almighty-bolt/stats)
 
 ;;; The few statistics the benchmark protocol asks for: a median and percentiles of the
 ;;; samples of a run, and a summary of them. Samples are real numbers in a sequence.

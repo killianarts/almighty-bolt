@@ -1,6 +1,6 @@
-(defpackage #:almighty-bolt-variant-immediate/theme
+(defpackage #:almighty-bolt/ui/theme
   (:use #:cl)
-  (:import-from #:almighty-bolt-core
+  (:import-from #:almighty-bolt/internals
                 #:pack-color)
   (:export #:+background+
            #:+panel-color+
@@ -24,7 +24,7 @@
            #:+control-radius+
            #:button-color))
 
-(in-package #:almighty-bolt-variant-immediate/theme)
+(in-package #:almighty-bolt/ui/theme)
 
 ;;; How the widgets look: a dark theme, with one blue.
 

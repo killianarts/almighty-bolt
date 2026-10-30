@@ -1,6 +1,6 @@
-(defpackage #:almighty-bolt-core/platform/macos/view
+(defpackage #:almighty-bolt/platform/macos/view
   (:use #:cl)
-  (:import-from #:almighty-bolt-core/platform/macos/objc
+  (:import-from #:almighty-bolt/platform/macos/objc
                 #:msg-send
                 #:objc-class
                 #:define-callback
@@ -12,18 +12,18 @@
                 #:registered-object
                 #:objc-class
                 #:lisp-string)
-  (:import-from #:almighty-bolt-core/clock
+  (:import-from #:almighty-bolt/clock
                 #:now-ns)
-  (:import-from #:almighty-bolt-core/event
+  (:import-from #:almighty-bolt/event
                 #:make-text-input-event
                 #:make-composition-event
                 #:key-event-modifiers
                 #:modifier-down-p
                 #:+modifier-super+
                 #:+modifier-control+)
-  (:import-from #:almighty-bolt-core/platform/macos/main-queue
+  (:import-from #:almighty-bolt/platform/macos/main-queue
                 #:run-on-main)
-  (:import-from #:almighty-bolt-core/platform/macos/ns-event
+  (:import-from #:almighty-bolt/platform/macos/ns-event
                 #:pointer-event-from-ns-event
                 #:wheel-event-from-ns-event
                 #:key-event-from-ns-event)
@@ -32,7 +32,7 @@
            #:metal-view-device
            #:request-draw))
 
-(in-package #:almighty-bolt-core/platform/macos/view)
+(in-package #:almighty-bolt/platform/macos/view)
 
 ;;; A Metal view: an MTKView that draws only when asked, and tells Lisp about
 ;;; drawing, resizing and input. The class is made at run time as a subclass of
@@ -167,21 +167,21 @@ this is a place for it that is not allocated again for each call.")
   "The same for the methods that return an NSRect.")
 
 (define-startup text-input-results
-  (setf *range-result* (sb-alien:make-alien (sb-alien:struct almighty-bolt-core/platform/macos/objc::ns-range))
-        *rect-result* (sb-alien:make-alien (sb-alien:struct almighty-bolt-core/platform/macos/objc::cg-rect))))
+  (setf *range-result* (sb-alien:make-alien (sb-alien:struct almighty-bolt/platform/macos/objc::ns-range))
+        *rect-result* (sb-alien:make-alien (sb-alien:struct almighty-bolt/platform/macos/objc::cg-rect))))
 
 (defun range-result (location length)
-  (setf (sb-alien:slot *range-result* 'almighty-bolt-core/platform/macos/objc::location) location
-        (sb-alien:slot *range-result* 'almighty-bolt-core/platform/macos/objc::length) length)
+  (setf (sb-alien:slot *range-result* 'almighty-bolt/platform/macos/objc::location) location
+        (sb-alien:slot *range-result* 'almighty-bolt/platform/macos/objc::length) length)
   (sb-alien:deref *range-result*))
 
 (defun rect-result (x y width height)
-  (let ((origin (sb-alien:slot *rect-result* 'almighty-bolt-core/platform/macos/objc::origin))
-        (size (sb-alien:slot *rect-result* 'almighty-bolt-core/platform/macos/objc::size)))
-    (setf (sb-alien:slot origin 'almighty-bolt-core/platform/macos/objc::x) x
-          (sb-alien:slot origin 'almighty-bolt-core/platform/macos/objc::y) y
-          (sb-alien:slot size 'almighty-bolt-core/platform/macos/objc::width) width
-          (sb-alien:slot size 'almighty-bolt-core/platform/macos/objc::height) height))
+  (let ((origin (sb-alien:slot *rect-result* 'almighty-bolt/platform/macos/objc::origin))
+        (size (sb-alien:slot *rect-result* 'almighty-bolt/platform/macos/objc::size)))
+    (setf (sb-alien:slot origin 'almighty-bolt/platform/macos/objc::x) x
+          (sb-alien:slot origin 'almighty-bolt/platform/macos/objc::y) y
+          (sb-alien:slot size 'almighty-bolt/platform/macos/objc::width) width
+          (sb-alien:slot size 'almighty-bolt/platform/macos/objc::height) height))
   (sb-alien:deref *rect-result*))
 
 (define-callback view-insert-text sb-alien:void
@@ -239,7 +239,7 @@ this is a place for it that is not allocated again for each call.")
     ((self sb-alien:unsigned-long) (cmd sb-alien:unsigned-long))
   (if (metal-view-marked (view-of self)) 1 0))
 
-(sb-alien:define-alien-callable view-marked-range (sb-alien:struct almighty-bolt-core/platform/macos/objc::ns-range)
+(sb-alien:define-alien-callable view-marked-range (sb-alien:struct almighty-bolt/platform/macos/objc::ns-range)
     ((self sb-alien:unsigned-long) (cmd sb-alien:unsigned-long))
   (declare (ignore cmd))
   (let ((view (view-of self)))
@@ -247,7 +247,7 @@ this is a place for it that is not allocated again for each call.")
         (range-result 0 (utf-16-length (metal-view-marked-text view)))
         (range-result +not-found+ 0))))
 
-(sb-alien:define-alien-callable view-selected-range (sb-alien:struct almighty-bolt-core/platform/macos/objc::ns-range)
+(sb-alien:define-alien-callable view-selected-range (sb-alien:struct almighty-bolt/platform/macos/objc::ns-range)
     ((self sb-alien:unsigned-long) (cmd sb-alien:unsigned-long))
   (declare (ignore self cmd))
   ;; The app has its own selection, which the input method is not told of.
@@ -269,7 +269,7 @@ this is a place for it that is not allocated again for each call.")
      (x sb-alien:double) (y sb-alien:double))
   0)
 
-(sb-alien:define-alien-callable view-first-rect (sb-alien:struct almighty-bolt-core/platform/macos/objc::cg-rect)
+(sb-alien:define-alien-callable view-first-rect (sb-alien:struct almighty-bolt/platform/macos/objc::cg-rect)
     ((self sb-alien:unsigned-long) (cmd sb-alien:unsigned-long)
      (location sb-alien:unsigned-long) (length sb-alien:unsigned-long)
      (actual sb-alien:unsigned-long))

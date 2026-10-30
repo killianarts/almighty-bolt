@@ -1,6 +1,6 @@
 (defpackage #:almighty-bolt-7guis/launcher
   (:use #:cl)
-  (:import-from #:almighty-bolt-core
+  (:import-from #:almighty-bolt/internals
                 #:make-kept-state
                 #:with-kept-state
                 #:now-ns
@@ -35,7 +35,7 @@
                 #:+modifier-control+
                 #:+modifier-alt+
                 #:+modifier-super+)
-  (:import-from #:almighty-bolt-core/platform/macos/host
+  (:import-from #:almighty-bolt/platform/macos/host
                 #:run-variant
                 #:open-variant
                 #:close-variant

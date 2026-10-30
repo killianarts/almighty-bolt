@@ -1,6 +1,6 @@
-(defpackage #:almighty-bolt-variant-immediate/paint
+(defpackage #:almighty-bolt/ui/paint
   (:use #:cl)
-  (:import-from #:almighty-bolt-core
+  (:import-from #:almighty-bolt/internals
                 #:context-font
                 #:context-measure
                 #:context-caret-x
@@ -21,7 +21,7 @@
                 #:text-state-selection-p
                 #:text-state-selection-start
                 #:text-state-selection-end)
-  (:import-from #:almighty-bolt-variant-immediate/box
+  (:import-from #:almighty-bolt/ui/box
                 #:box-key
                 #:box-kind
                 #:box-text
@@ -40,9 +40,9 @@
                 #:box-w
                 #:box-h
                 #:box-paint-hash)
-  (:import-from #:almighty-bolt-variant-immediate/ui
+  (:import-from #:almighty-bolt/ui/ui
                 #:ui-paint-cache)
-  (:import-from #:almighty-bolt-variant-immediate/widgets
+  (:import-from #:almighty-bolt/ui/widgets
                 #:ui-font
                 #:paragraph-state-text
                 #:paragraph-state-lines
@@ -55,7 +55,7 @@
                 #:+row-height+
                 #:+thumb-size+
                 #:+dot-size+)
-  (:import-from #:almighty-bolt-variant-immediate/theme
+  (:import-from #:almighty-bolt/ui/theme
                 #:+text-color+
                 #:+dim-text-color+
                 #:+button-text-color+
@@ -77,7 +77,7 @@
                 #:button-color)
   (:export #:paint-box))
 
-(in-package #:almighty-bolt-variant-immediate/paint)
+(in-package #:almighty-bolt/ui/paint)
 
 ;;; Drawing the boxes of a frame. A box that is a thing to look at (a label, a button, a
 ;;; field, ...) is drawn into a list of its own, relative to itself, and what it drew is

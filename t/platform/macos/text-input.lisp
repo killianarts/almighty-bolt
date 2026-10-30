@@ -1,11 +1,11 @@
-(defpackage #:almighty-bolt-core/t/platform/macos/text-input
+(defpackage #:almighty-bolt/t/platform/macos/text-input
   (:use #:cl #:lisp-unit2)
-  (:local-nicknames (#:objc #:almighty-bolt-core/platform/macos/objc)
-                    (#:view #:almighty-bolt-core/platform/macos/view)
-                    (#:window #:almighty-bolt-core/platform/macos/window)
-                    (#:event #:almighty-bolt-core/event)))
+  (:local-nicknames (#:objc #:almighty-bolt/platform/macos/objc)
+                    (#:view #:almighty-bolt/platform/macos/view)
+                    (#:window #:almighty-bolt/platform/macos/window)
+                    (#:event #:almighty-bolt/event)))
 
-(in-package #:almighty-bolt-core/t/platform/macos/text-input)
+(in-package #:almighty-bolt/t/platform/macos/text-input)
 
 ;;; The view as an NSTextInputClient: what the methods that an input method calls turn into. They are
 ;;; called here as the input method calls them, by sending the messages. What a real input method

@@ -1,6 +1,6 @@
 (defpackage #:almighty-bolt-7guis/common/sources
   (:use #:cl)
-  (:import-from #:almighty-bolt-core/redefinition
+  (:import-from #:almighty-bolt/redefinition
                 #:with-redefinitions-held)
   (:export #:changed-files
            #:watch-files

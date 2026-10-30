@@ -1,6 +1,6 @@
 (defpackage #:almighty-bolt-7guis/cells/immediate
   (:use #:cl)
-  (:import-from #:almighty-bolt-core
+  (:import-from #:almighty-bolt/internals
                 #:make-text-state
                 #:text-state-string
                 #:edit-text
@@ -34,13 +34,13 @@
                 #:clamp-first)
   (:import-from #:almighty-bolt-7guis/cells/paint
                 #:paint-grid)
-  (:import-from #:almighty-bolt-variant-immediate/widgets
+  (:import-from #:almighty-bolt/ui/widgets
                 #:label
                 #:padding
                 #:column
                 #:row
                 #:canvas)
-  (:import-from #:almighty-bolt-variant-immediate/immediate
+  (:import-from #:almighty-bolt/ui/immediate
                 #:make-immediate-variant)
   (:export #:make-cells))
 

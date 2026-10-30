@@ -1,9 +1,9 @@
-(defpackage #:almighty-bolt-core/t/platform/macos/objc
+(defpackage #:almighty-bolt/t/platform/macos/objc
   (:use #:cl #:lisp-unit2)
-  (:local-nicknames (#:objc #:almighty-bolt-core/platform/macos/objc)
-                    (#:main-queue #:almighty-bolt-core/platform/macos/main-queue)))
+  (:local-nicknames (#:objc #:almighty-bolt/platform/macos/objc)
+                    (#:main-queue #:almighty-bolt/platform/macos/main-queue)))
 
-(in-package #:almighty-bolt-core/t/platform/macos/objc)
+(in-package #:almighty-bolt/t/platform/macos/objc)
 
 ;;; These tests use the Objective-C runtime and a few AppKit classes, so they
 ;;; run on macOS only, and need to run on the main thread (as `make test` does).

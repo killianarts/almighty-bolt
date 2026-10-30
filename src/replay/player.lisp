@@ -1,16 +1,16 @@
-(defpackage #:almighty-bolt-core/replay/player
+(defpackage #:almighty-bolt/replay/player
   (:use #:cl)
-  (:import-from #:almighty-bolt-core/clock
+  (:import-from #:almighty-bolt/clock
                 #:*time-source*
                 #:real-time-source
                 #:make-virtual-clock
                 #:virtual-clock-ns
                 #:virtual-clock-source
                 #:advance-virtual-clock)
-  (:import-from #:almighty-bolt-core/display-list
+  (:import-from #:almighty-bolt/display-list
                 #:make-display-list
                 #:display-list-hash)
-  (:import-from #:almighty-bolt-core/variant
+  (:import-from #:almighty-bolt/variant
                 #:lookup-target
                 #:deliver-event
                 #:request-frame
@@ -20,10 +20,10 @@
                 #:context-scale
                 #:context-frame-requested
                 #:context-requester)
-  (:import-from #:almighty-bolt-core/settle
+  (:import-from #:almighty-bolt/settle
                 #:settle-frame
                 #:settle-cap-reached)
-  (:import-from #:almighty-bolt-core/replay/script
+  (:import-from #:almighty-bolt/replay/script
                 #:make-script
                 #:script-header
                 #:script-entries
@@ -55,7 +55,7 @@
            #:replay-target-missing-time
            #:+default-frame-interval-ns+))
 
-(in-package #:almighty-bolt-core/replay/player)
+(in-package #:almighty-bolt/replay/player)
 
 ;;; Replay a script (replay/script.lisp) into a variant, with the clock virtual: time is what
 ;;; the script's entries say and nothing else, and the frames are built where a live window

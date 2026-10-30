@@ -3,8 +3,8 @@
   (:local-nicknames (#:d #:almighty-bolt-7guis/t/acceptance/driver)
                     (#:m #:almighty-bolt-stress/editor/model)
                     (#:p #:almighty-bolt-stress/editor/paint)
-                    (#:fake #:almighty-bolt-variant-support/fake-context)
-                    (#:core #:almighty-bolt-core)))
+                    (#:fake #:almighty-bolt/test-support/fake-context)
+                    (#:core #:almighty-bolt/internals)))
 
 (in-package #:almighty-bolt-stress/t/acceptance/editor)
 

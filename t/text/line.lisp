@@ -1,10 +1,10 @@
-(defpackage #:almighty-bolt-core/t/text/line
+(defpackage #:almighty-bolt/t/text/line
   (:use #:cl #:lisp-unit2)
-  (:local-nicknames (#:objc #:almighty-bolt-core/platform/macos/objc)
-                    (#:font #:almighty-bolt-core/text/font)
-                    (#:line #:almighty-bolt-core/text/line)))
+  (:local-nicknames (#:objc #:almighty-bolt/platform/macos/objc)
+                    (#:font #:almighty-bolt/text/font)
+                    (#:line #:almighty-bolt/text/line)))
 
-(in-package #:almighty-bolt-core/t/text/line)
+(in-package #:almighty-bolt/t/text/line)
 
 ;;; Core Text through the measurement API. These use fonts that ship with macOS,
 ;;; and compare widths with each other and with bounds rather than with exact

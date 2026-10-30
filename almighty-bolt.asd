@@ -134,14 +134,14 @@
                     ;; Run every test package, then fail the build (and so
                     ;; `make test`) if any test failed or signalled an error.
                     (let* ((results
-                             (loop :for package :in '(#+darwin :almighty-bolt-core/t/platform/macos/objc
-                                                      #+darwin :almighty-bolt-core/t/platform/macos/image
-                                                      #+darwin :almighty-bolt-core/t/platform/macos/text-input
-                                                      #+darwin :almighty-bolt-core/t/platform/macos/ns-event
-                                                      #+darwin :almighty-bolt-core/t/text/line
-                                                      #+darwin :almighty-bolt-core/t/text/glyph-raster
-                                                      #+darwin :almighty-bolt-core/t/render/metal/renderer
-                                                      #+darwin :almighty-bolt-core/t/render/metal/draw-text)
+                             (loop :for package :in '(#+darwin :almighty-bolt/t/platform/macos/objc
+                                                      #+darwin :almighty-bolt/t/platform/macos/image
+                                                      #+darwin :almighty-bolt/t/platform/macos/text-input
+                                                      #+darwin :almighty-bolt/t/platform/macos/ns-event
+                                                      #+darwin :almighty-bolt/t/text/line
+                                                      #+darwin :almighty-bolt/t/text/glyph-raster
+                                                      #+darwin :almighty-bolt/t/render/metal/renderer
+                                                      #+darwin :almighty-bolt/t/render/metal/draw-text)
                                    :collect (uiop:symbol-call :lisp-unit2 :run-tests
                                                               :package package)))
                            (bad (loop :for db :in results

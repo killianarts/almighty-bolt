@@ -1,4 +1,4 @@
-(defpackage #:almighty-bolt-core/kept
+(defpackage #:almighty-bolt/kept
   (:use #:cl)
   (:export #:kept-let
            #:kept-state
@@ -10,7 +10,7 @@
            #:kept-value
            #:kept-in-use-p))
 
-(in-package #:almighty-bolt-core/kept)
+(in-package #:almighty-bolt/kept)
 
 ;;; State that is still there when the app is made again (decision record 0031). An app's own
 ;;; state is in variables that its constructor closes over, and a new call of the constructor makes

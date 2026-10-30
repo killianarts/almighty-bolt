@@ -1,6 +1,6 @@
 (defpackage #:almighty-bolt-stress/editor/control
   (:use #:cl)
-  (:import-from #:almighty-bolt-core
+  (:import-from #:almighty-bolt/internals
                 #:context-font
                 #:context-index-at-x
                 #:key-event-kind

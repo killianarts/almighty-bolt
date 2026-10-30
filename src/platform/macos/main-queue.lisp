@@ -1,10 +1,10 @@
-(defpackage #:almighty-bolt-core/platform/macos/main-queue
+(defpackage #:almighty-bolt/platform/macos/main-queue
   (:use #:cl)
   (:export #:on-main-thread-p
            #:run-on-main
            #:call-on-main))
 
-(in-package #:almighty-bolt-core/platform/macos/main-queue)
+(in-package #:almighty-bolt/platform/macos/main-queue)
 
 ;;; AppKit may only be used from the process's main thread, which is where
 ;;; the event loop runs. Any other thread (the REPL's, a test driver) hands it

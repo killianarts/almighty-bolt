@@ -1,4 +1,4 @@
-(defpackage #:almighty-bolt-core/clock
+(defpackage #:almighty-bolt/clock
   (:use #:cl)
   (:import-from #:cffi
                 #:foreign-funcall)
@@ -13,7 +13,7 @@
            #:virtual-clock-source
            #:advance-virtual-clock))
 
-(in-package #:almighty-bolt-core/clock)
+(in-package #:almighty-bolt/clock)
 
 ;;; All time in the core goes through NOW-NS, so replay can substitute a
 ;;; virtual clock by rebinding *TIME-SOURCE*. Nothing else in the core calls

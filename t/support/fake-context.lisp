@@ -1,6 +1,6 @@
-(defpackage #:almighty-bolt-variant-support/fake-context
+(defpackage #:almighty-bolt/test-support/fake-context
   (:use #:cl)
-  (:import-from #:almighty-bolt-core
+  (:import-from #:almighty-bolt/internals
                 #:context
                 #:context-font
                 #:context-measure
@@ -15,7 +15,7 @@
            #:+ascent+
            #:+descent+))
 
-(in-package #:almighty-bolt-variant-support/fake-context)
+(in-package #:almighty-bolt/test-support/fake-context)
 
 ;;; A context with text whose numbers are easy to work with, so that layout and
 ;;; painting can be checked exactly and without a Mac: every character is 8 points

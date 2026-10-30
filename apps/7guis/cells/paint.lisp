@@ -1,6 +1,6 @@
 (defpackage #:almighty-bolt-7guis/cells/paint
   (:use #:cl)
-  (:import-from #:almighty-bolt-core
+  (:import-from #:almighty-bolt/internals
                 #:context-font
                 #:context-measure
                 #:context-index-at-x

@@ -1,6 +1,6 @@
 (defpackage #:almighty-bolt-7guis/cells/geometry
   (:use #:cl)
-  (:import-from #:almighty-bolt-core
+  (:import-from #:almighty-bolt/internals
                 #:+points-per-line+)
   (:export #:+columns-per-line+
            #:+cell-width+

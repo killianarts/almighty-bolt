@@ -1,7 +1,7 @@
-(defpackage #:almighty-bolt-core/t/platform/macos/image
+(defpackage #:almighty-bolt/t/platform/macos/image
   (:use #:cl #:lisp-unit2))
 
-(in-package #:almighty-bolt-core/t/platform/macos/image)
+(in-package #:almighty-bolt/t/platform/macos/image)
 
 ;;; An image that was saved keeps none of what the process learned from the Objective-C
 ;;; runtime. This saves a small one, in a process of its own, and runs it: the classes and
@@ -13,13 +13,13 @@
 (asdf:initialize-source-registry
  (list :source-registry (list :tree ~s) :ignore-inherited-configuration))
 (asdf:load-system \"almighty-bolt\")
-(use-package :almighty-bolt-core/platform/macos/objc)
+(use-package :almighty-bolt/platform/macos/objc)
 (sb-ext:save-lisp-and-die ~s
   :executable t
   :save-runtime-options t
   :toplevel (lambda ()
-              (let ((delegate (symbol-value (find-symbol \"*DELEGATE-CLASS*\" \"ALMIGHTY-BOLT-CORE/PLATFORM/MACOS/WINDOW\")))
-                    (offset (symbol-value (find-symbol \"*DELEGATE-SLOT-OFFSET*\" \"ALMIGHTY-BOLT-CORE/PLATFORM/MACOS/WINDOW\")))
+              (let ((delegate (symbol-value (find-symbol \"*DELEGATE-CLASS*\" \"ALMIGHTY-BOLT/PLATFORM/MACOS/WINDOW\")))
+                    (offset (symbol-value (find-symbol \"*DELEGATE-SLOT-OFFSET*\" \"ALMIGHTY-BOLT/PLATFORM/MACOS/WINDOW\")))
                     (string (ns-string \"hello\")))
                 ;; The class of the window delegate is made at run time: in this process it
                 ;; is a new one, and has the method the old process gave it.

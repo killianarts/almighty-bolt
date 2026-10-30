@@ -1,6 +1,6 @@
-(defpackage #:almighty-bolt-core/platform/macos/window
+(defpackage #:almighty-bolt/platform/macos/window
   (:use #:cl)
-  (:import-from #:almighty-bolt-core/platform/macos/objc
+  (:import-from #:almighty-bolt/platform/macos/objc
                 #:msg-send
                 #:objc-class
                 #:ns-string
@@ -12,11 +12,11 @@
                 #:instance-slot
                 #:register-object
                 #:registered-object)
-  (:import-from #:almighty-bolt-core/platform/macos/main-queue
+  (:import-from #:almighty-bolt/platform/macos/main-queue
                 #:run-on-main)
-  (:import-from #:almighty-bolt-core/clock
+  (:import-from #:almighty-bolt/clock
                 #:now-ns)
-  (:import-from #:almighty-bolt-core/event
+  (:import-from #:almighty-bolt/event
                 #:make-resize-event
                 #:make-scale-event
                 #:make-focus-event)
@@ -29,7 +29,7 @@
            #:window-number
            #:window-scale-factor))
 
-(in-package #:almighty-bolt-core/platform/macos/window)
+(in-package #:almighty-bolt/platform/macos/window)
 
 ;;; A window and its delegate. The delegate turns what AppKit tells it about the
 ;;; window (resized, moved to a screen with another scale, gained or lost focus,

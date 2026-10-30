@@ -1,6 +1,6 @@
 (defpackage #:almighty-bolt-stress/rows/immediate
   (:use #:cl)
-  (:import-from #:almighty-bolt-core
+  (:import-from #:almighty-bolt/internals
                 #:key-event-kind
                 #:key-event-logical-key)
   (:import-from #:almighty-bolt-7guis/common/registry
@@ -17,12 +17,12 @@
                 #:status-text)
   (:import-from #:almighty-bolt-stress/rows/paint
                 #:paint-rows)
-  (:import-from #:almighty-bolt-variant-immediate/widgets
+  (:import-from #:almighty-bolt/ui/widgets
                 #:label
                 #:padding
                 #:column
                 #:canvas)
-  (:import-from #:almighty-bolt-variant-immediate/immediate
+  (:import-from #:almighty-bolt/ui/immediate
                 #:make-immediate-variant)
   (:export #:make-rows-app))
 

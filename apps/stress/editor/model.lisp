@@ -1,6 +1,6 @@
 (defpackage #:almighty-bolt-stress/editor/model
   (:use #:cl)
-  (:import-from #:almighty-bolt-core
+  (:import-from #:almighty-bolt/internals
                 #:+points-per-line+)
   (:export #:+line-height+
            #:+visible-lines+

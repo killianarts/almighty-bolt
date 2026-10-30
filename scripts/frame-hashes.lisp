@@ -7,7 +7,7 @@
 
 (defpackage #:almighty-bolt-scripts/frame-hashes
   (:use #:cl)
-  (:local-nicknames (#:core #:almighty-bolt-core)
+  (:local-nicknames (#:core #:almighty-bolt/internals)
                     (#:d #:almighty-bolt-7guis/t/acceptance/driver))
   (:export #:main))
 

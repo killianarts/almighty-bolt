@@ -1,6 +1,6 @@
-(defpackage #:almighty-bolt-core/text-edit
+(defpackage #:almighty-bolt/text-edit
   (:use #:cl)
-  (:import-from #:almighty-bolt-core/event
+  (:import-from #:almighty-bolt/event
                 #:key-event
                 #:key-event-kind
                 #:key-event-logical-key
@@ -34,7 +34,7 @@
            #:text-replace
            #:edit-text))
 
-(in-package #:almighty-bolt-core/text-edit)
+(in-package #:almighty-bolt/text-edit)
 
 ;;; The editing of one line of text, as values, shared by every variant (decision record
 ;;; 0012). A TEXT-STATE is a string, a caret and an anchor: the text between them is the

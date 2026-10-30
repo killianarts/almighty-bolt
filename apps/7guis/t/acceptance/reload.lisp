@@ -1,7 +1,7 @@
 (defpackage #:almighty-bolt-7guis/t/acceptance/reload
   (:use #:cl #:lisp-unit2)
   (:local-nicknames (#:d #:almighty-bolt-7guis/t/acceptance/driver)
-                    (#:core #:almighty-bolt-core)))
+                    (#:core #:almighty-bolt/internals)))
 
 (in-package #:almighty-bolt-7guis/t/acceptance/reload)
 
@@ -18,7 +18,7 @@
 
 (defun replace-text (driver id text)
   (d:click driver id)
-  (d:press-key driver #\a :modifiers almighty-bolt-core:+modifier-super+)
+  (d:press-key driver #\a :modifiers almighty-bolt/internals:+modifier-super+)
   (if (plusp (length text))
       (d:type-text driver text)
       (d:press-key driver #\Backspace)))

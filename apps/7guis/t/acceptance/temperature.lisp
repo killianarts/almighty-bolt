@@ -31,7 +31,7 @@
   (enter driver :celsius "-40")
   (assert-equal "-40" (d:text-in driver :fahrenheit))
   (d:click driver :fahrenheit)
-  (d:press-key driver #\a :modifiers almighty-bolt-core:+modifier-super+)
+  (d:press-key driver #\a :modifiers almighty-bolt/internals:+modifier-super+)
   (d:type-text driver "98.6")
   (assert-equal "37" (d:text-in driver :celsius)))
 
@@ -54,7 +54,7 @@
 (d:define-acceptance the-fields-keep-what-was-typed-while-the-other-is-edited :temperature
   (enter driver :celsius "10")
   (d:click driver :fahrenheit)
-  (d:press-key driver #\a :modifiers almighty-bolt-core:+modifier-super+)
+  (d:press-key driver #\a :modifiers almighty-bolt/internals:+modifier-super+)
   (d:type-text driver "50")
   (assert-equal "10" (d:text-in driver :celsius))
   (d:type-text driver "1")

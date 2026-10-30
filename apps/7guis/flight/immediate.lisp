@@ -7,14 +7,14 @@
                 #:return-date-enabled-p
                 #:flight-valid-p
                 #:booking-message)
-  (:import-from #:almighty-bolt-variant-immediate/widgets
+  (:import-from #:almighty-bolt/ui/widgets
                 #:label
                 #:button
                 #:padding
                 #:column
                 #:text-field
                 #:choice)
-  (:import-from #:almighty-bolt-variant-immediate/immediate
+  (:import-from #:almighty-bolt/ui/immediate
                 #:make-immediate-variant)
   (:export #:make-flight))
 

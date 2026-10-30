@@ -1,6 +1,6 @@
-(defpackage #:almighty-bolt-core/text/font
+(defpackage #:almighty-bolt/text/font
   (:use #:cl)
-  (:import-from #:almighty-bolt-core/text/core-foundation
+  (:import-from #:almighty-bolt/text/core-foundation
                 #:ccall
                 #:cf-string
                 #:cf-release)
@@ -17,7 +17,7 @@
            #:font-lines
            #:font-older-lines))
 
-(in-package #:almighty-bolt-core/text/font)
+(in-package #:almighty-bolt/text/font)
 
 ;;; A font at a size. It wraps a CTFont and caches the lines shaped with it (see
 ;;; the line module), so a string measured twice is shaped once. Metrics are

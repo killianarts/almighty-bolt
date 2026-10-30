@@ -2,9 +2,9 @@
   (:use #:cl #:lisp-unit2)
   (:local-nicknames (#:d #:almighty-bolt-7guis/t/acceptance/driver)
                     (#:g #:almighty-bolt-7guis/cells/geometry)
-                    (#:fake #:almighty-bolt-variant-support/fake-context)
+                    (#:fake #:almighty-bolt/test-support/fake-context)
                     (#:registry #:almighty-bolt-7guis/common/registry)
-                    (#:core #:almighty-bolt-core)))
+                    (#:core #:almighty-bolt/internals)))
 
 (in-package #:almighty-bolt-7guis/t/acceptance/replay)
 

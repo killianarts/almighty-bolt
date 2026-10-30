@@ -13,7 +13,7 @@
 (defun replace-text (driver id text)
   "Click the field ID, select what it holds and type TEXT over it."
   (d:click driver id)
-  (d:press-key driver #\a :modifiers almighty-bolt-core:+modifier-super+)
+  (d:press-key driver #\a :modifiers almighty-bolt/internals:+modifier-super+)
   (d:type-text driver text))
 
 (defun choose-return-flight (driver)

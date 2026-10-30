@@ -1,4 +1,4 @@
-(defpackage #:almighty-bolt-core/layout/constraints
+(defpackage #:almighty-bolt/layout/constraints
   (:use #:cl)
   (:export #:+unbounded+
            #:unbounded-p
@@ -9,7 +9,7 @@
            #:tighten-constraints
            #:deflate-constraints))
 
-(in-package #:almighty-bolt-core/layout/constraints)
+(in-package #:almighty-bolt/layout/constraints)
 
 ;;; Box constraints, the arguments of Flutter-style layout (decision records 0004
 ;;; and 0010): constraints go down to a child and a size comes back up. A

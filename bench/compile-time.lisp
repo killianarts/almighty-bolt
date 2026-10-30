@@ -1,6 +1,6 @@
 (defpackage #:almighty-bolt-bench/compile-time
   (:use #:cl)
-  (:local-nicknames (#:core #:almighty-bolt-core)
+  (:local-nicknames (#:core #:almighty-bolt/internals)
                     (#:results #:almighty-bolt-bench/results))
   (:export #:main))
 

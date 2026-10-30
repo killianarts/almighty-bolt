@@ -1,6 +1,6 @@
 (defpackage #:almighty-bolt-7guis/crud/immediate
   (:use #:cl)
-  (:import-from #:almighty-bolt-core
+  (:import-from #:almighty-bolt/internals
                 #:kept-let)
   (:import-from #:almighty-bolt-7guis/common/registry
                 #:register-app)
@@ -14,7 +14,7 @@
                 #:entries-update
                 #:entries-remove
                 #:entries-filtered)
-  (:import-from #:almighty-bolt-variant-immediate/widgets
+  (:import-from #:almighty-bolt/ui/widgets
                 #:label
                 #:button
                 #:padding
@@ -22,7 +22,7 @@
                 #:row
                 #:text-field
                 #:list-box)
-  (:import-from #:almighty-bolt-variant-immediate/immediate
+  (:import-from #:almighty-bolt/ui/immediate
                 #:make-immediate-variant)
   (:export #:make-crud))
 

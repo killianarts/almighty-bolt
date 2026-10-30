@@ -1,6 +1,6 @@
-(defpackage #:almighty-bolt-core/layout/box
+(defpackage #:almighty-bolt/layout/box
   (:use #:cl)
-  (:import-from #:almighty-bolt-core/layout/constraints
+  (:import-from #:almighty-bolt/layout/constraints
                 #:unbounded-p
                 #:constrain
                 #:loosen-constraints
@@ -10,7 +10,7 @@
            #:layout-sized
            #:layout-align))
 
-(in-package #:almighty-bolt-core/layout/box)
+(in-package #:almighty-bolt/layout/box)
 
 ;;; Layout for one child (decision record 0010). Each function takes the
 ;;; constraints it was given, a MEASURE function for its child, and options, and

@@ -1,12 +1,12 @@
-(defpackage #:almighty-bolt-core/t/render/metal/renderer
+(defpackage #:almighty-bolt/t/render/metal/renderer
   (:use #:cl #:lisp-unit2)
-  (:local-nicknames (#:objc #:almighty-bolt-core/platform/macos/objc)
-                    (#:device #:almighty-bolt-core/render/metal/device)
-                    (#:target #:almighty-bolt-core/render/metal/target)
-                    (#:renderer #:almighty-bolt-core/render/metal/renderer)
-                    (#:dl #:almighty-bolt-core/display-list)))
+  (:local-nicknames (#:objc #:almighty-bolt/platform/macos/objc)
+                    (#:device #:almighty-bolt/render/metal/device)
+                    (#:target #:almighty-bolt/render/metal/target)
+                    (#:renderer #:almighty-bolt/render/metal/renderer)
+                    (#:dl #:almighty-bolt/display-list)))
 
-(in-package #:almighty-bolt-core/t/render/metal/renderer)
+(in-package #:almighty-bolt/t/render/metal/renderer)
 
 ;;; These draw with the GPU into an off-screen texture and read the pixels back,
 ;;; so they need a Mac with a GPU but no window. Most check exact pixels worked

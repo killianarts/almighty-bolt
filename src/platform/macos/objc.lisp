@@ -1,4 +1,4 @@
-(defpackage #:almighty-bolt-core/platform/macos/objc
+(defpackage #:almighty-bolt/platform/macos/objc
   (:use #:cl)
   (:export #:id
            #:find-objc-class
@@ -26,7 +26,7 @@
            #:registered-object
            #:unregister-object))
 
-(in-package #:almighty-bolt-core/platform/macos/objc)
+(in-package #:almighty-bolt/platform/macos/objc)
 
 ;;; The Objective-C runtime, reached straight through sb-alien.
 ;;;

@@ -1,12 +1,12 @@
-(defpackage #:almighty-bolt-core/platform/macos/ns-event
+(defpackage #:almighty-bolt/platform/macos/ns-event
   (:use #:cl)
-  (:import-from #:almighty-bolt-core/platform/macos/objc
+  (:import-from #:almighty-bolt/platform/macos/objc
                 #:msg-send
                 #:objc-class
                 #:lisp-string)
-  (:import-from #:almighty-bolt-core/clock
+  (:import-from #:almighty-bolt/clock
                 #:now-ns)
-  (:import-from #:almighty-bolt-core/event
+  (:import-from #:almighty-bolt/event
                 #:+modifier-shift+
                 #:+modifier-control+
                 #:+modifier-alt+
@@ -19,7 +19,7 @@
            #:key-event-from-ns-event
            #:logical-key))
 
-(in-package #:almighty-bolt-core/platform/macos/ns-event)
+(in-package #:almighty-bolt/platform/macos/ns-event)
 
 ;;; Turn AppKit's NSEvent into the core's plain event structures. Positions are
 ;;; reported from the top left of the view, which the view arranges by claiming

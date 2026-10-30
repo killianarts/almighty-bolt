@@ -1,10 +1,10 @@
-(defpackage #:almighty-bolt-variant-null/measure
+(defpackage #:almighty-bolt-bench-null/measure
   (:use #:cl)
-  (:import-from #:almighty-bolt-variant-null/null
+  (:import-from #:almighty-bolt-bench-null/null
                 #:make-null-variant
                 #:null-variant-events-seen
                 #:null-variant-animate-frames)
-  (:import-from #:almighty-bolt-core
+  (:import-from #:almighty-bolt/internals
                 #:now-ns
                 #:request-frame
                 #:frame-ring-total
@@ -16,7 +16,7 @@
                 #:frame-capped-p
                 #:frame-bytes-consed
                 #:display-list-count)
-  (:import-from #:almighty-bolt-core/platform/macos/host
+  (:import-from #:almighty-bolt/platform/macos/host
                 #:run-variant
                 #:host-variant
                 #:host-context
@@ -24,13 +24,13 @@
                 #:host-renderer
                 #:host-display-list
                 #:close-host-window)
-  (:import-from #:almighty-bolt-core/render/metal/renderer
+  (:import-from #:almighty-bolt/render/metal/renderer
                 #:wait-for-last-frame
                 #:last-frame-gpu-ns)
   (:export #:main
            #:report))
 
-(in-package #:almighty-bolt-variant-null/measure)
+(in-package #:almighty-bolt-bench-null/measure)
 
 ;;; The null variant in a window: what a frame costs when the variant does nothing,
 ;;; which is what the core costs. Run it from a terminal of your own and leave the

@@ -1,6 +1,6 @@
-(defpackage #:almighty-bolt-variant-immediate/layout
+(defpackage #:almighty-bolt/ui/layout
   (:use #:cl)
-  (:import-from #:almighty-bolt-core
+  (:import-from #:almighty-bolt/internals
                 #:context-font
                 #:context-measure
                 #:context-break-lines
@@ -9,7 +9,7 @@
                 #:layout-align
                 #:constrain
                 #:+unbounded+)
-  (:import-from #:almighty-bolt-variant-immediate/box
+  (:import-from #:almighty-bolt/ui/box
                 #:box-kind
                 #:box-text
                 #:box-size
@@ -31,7 +31,7 @@
                 #:box-y
                 #:box-w
                 #:box-h)
-  (:import-from #:almighty-bolt-variant-immediate/widgets
+  (:import-from #:almighty-bolt/ui/widgets
                 #:ui-font
                 #:paragraph-state-text
                 #:paragraph-state-lines
@@ -42,11 +42,11 @@
                 #:+row-height+
                 #:+dot-size+
                 #:+option-gap+)
-  (:import-from #:almighty-bolt-variant-immediate/theme
+  (:import-from #:almighty-bolt/ui/theme
                 #:+font-name+)
   (:export #:layout-box))
 
-(in-package #:almighty-bolt-variant-immediate/layout)
+(in-package #:almighty-bolt/ui/layout)
 
 ;;; Where the boxes of a frame go, worked out after the frame is described, with the same
 ;;; layout functions as the other variants (decision record 0010): constraints down, sizes

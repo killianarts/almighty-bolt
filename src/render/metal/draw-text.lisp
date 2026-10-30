@@ -1,23 +1,23 @@
-(defpackage #:almighty-bolt-core/render/metal/draw-text
+(defpackage #:almighty-bolt/render/metal/draw-text
   (:use #:cl)
-  (:import-from #:almighty-bolt-core/text/line
+  (:import-from #:almighty-bolt/text/line
                 #:text-line-glyph-count
                 #:text-line-glyphs
                 #:text-line-glyph-fonts
                 #:text-line-xs
                 #:text-line-ys)
-  (:import-from #:almighty-bolt-core/render/metal/glyph-atlas
+  (:import-from #:almighty-bolt/render/metal/glyph-atlas
                 #:glyph-atlas-scale
                 #:atlas-glyph-index
                 #:atlas-bearing-x
                 #:atlas-bearing-y
                 #:atlas-width
                 #:atlas-height)
-  (:import-from #:almighty-bolt-core/display-list
+  (:import-from #:almighty-bolt/display-list
                 #:push-glyph)
   (:export #:push-line))
 
-(in-package #:almighty-bolt-core/render/metal/draw-text)
+(in-package #:almighty-bolt/render/metal/draw-text)
 
 ;;; Turn a shaped line into glyph commands.
 

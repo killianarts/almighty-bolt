@@ -1,17 +1,17 @@
-(defpackage #:almighty-bolt-core/platform/macos/host
+(defpackage #:almighty-bolt/platform/macos/host
   (:use #:cl)
-  (:import-from #:almighty-bolt-core/clock
+  (:import-from #:almighty-bolt/clock
                 #:real-time-source)
-  (:import-from #:almighty-bolt-core/ring
+  (:import-from #:almighty-bolt/ring
                 #:make-frame-ring
                 #:record-frame
                 #:record-frame-details)
-  (:import-from #:almighty-bolt-core/display-list
+  (:import-from #:almighty-bolt/display-list
                 #:make-display-list)
-  (:import-from #:almighty-bolt-core/kept
+  (:import-from #:almighty-bolt/kept
                 #:make-kept-state
                 #:with-kept-state)
-  (:import-from #:almighty-bolt-core/variant
+  (:import-from #:almighty-bolt/variant
                 #:inherit-state
                 #:retire-variant
                 #:context
@@ -41,49 +41,49 @@
                 #:context-index-at-x
                 #:context-caret-rect
                 #:context-push-text)
-  (:import-from #:almighty-bolt-core/settle
+  (:import-from #:almighty-bolt/settle
                 #:settle-frame)
-  (:import-from #:almighty-bolt-core/platform/macos/objc
+  (:import-from #:almighty-bolt/platform/macos/objc
                 #:msg-send
                 #:objc-class)
-  (:import-from #:almighty-bolt-core/platform/macos/main-queue
+  (:import-from #:almighty-bolt/platform/macos/main-queue
                 #:on-main-thread-p
                 #:run-on-main
                 #:call-on-main)
-  (:import-from #:almighty-bolt-core/redefinition
+  (:import-from #:almighty-bolt/redefinition
                 #:watch-redefinitions
                 #:stop-watching-redefinitions)
-  (:import-from #:almighty-bolt-core/platform/macos/app
+  (:import-from #:almighty-bolt/platform/macos/app
                 #:run-application)
-  (:import-from #:almighty-bolt-core/platform/macos/window
+  (:import-from #:almighty-bolt/platform/macos/window
                 #:make-window
                 #:set-content-view
                 #:show-window
                 #:close-window
                 #:window-object
                 #:window-scale-factor)
-  (:import-from #:almighty-bolt-core/platform/macos/view
+  (:import-from #:almighty-bolt/platform/macos/view
                 #:make-metal-view
                 #:metal-view-object
                 #:request-draw)
-  (:import-from #:almighty-bolt-core/text/font
+  (:import-from #:almighty-bolt/text/font
                 #:make-font)
-  (:import-from #:almighty-bolt-core/text/line
+  (:import-from #:almighty-bolt/text/line
                 #:get-line
                 #:measure-text
                 #:break-lines
                 #:caret-x
                 #:index-at-x
                 #:caret-rect)
-  (:import-from #:almighty-bolt-core/render/metal/device
+  (:import-from #:almighty-bolt/render/metal/device
                 #:default-device)
-  (:import-from #:almighty-bolt-core/render/metal/renderer
+  (:import-from #:almighty-bolt/render/metal/renderer
                 #:make-renderer
                 #:renderer-atlas
                 #:render-display-list
                 #:wait-for-last-frame
                 #:last-frame-gpu-ns)
-  (:import-from #:almighty-bolt-core/render/metal/draw-text
+  (:import-from #:almighty-bolt/render/metal/draw-text
                 #:push-line)
   (:export #:host
            #:make-host
@@ -108,7 +108,7 @@
            #:open-variant
            #:close-variant))
 
-(in-package #:almighty-bolt-core/platform/macos/host)
+(in-package #:almighty-bolt/platform/macos/host)
 
 ;;; The macOS host of decision record 0009: it owns the window, the view, the
 ;;; renderer and the display list, gives a variant its context, delivers events to

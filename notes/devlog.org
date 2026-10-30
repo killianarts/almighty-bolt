@@ -1883,3 +1883,81 @@ tests, the replay scripts and the window checks; a defect that those do not show
   intended change of how something looks, and a golden file of them would have to be written again
   each time. They are a check for a change that is meant to change nothing (Stage 4), by
   =scripts/frame-hashes.lisp= against the baseline.
+
+** Stage 4: the ui folded into the core (2026-10-30)
+*** The API sketch and Micah's answers
+=docs/api-sketch.md= (committed before anything moved, so that the rename ran once). Micah's answers:
+the entry points are =run-app=, =open-app= and =close-app=; an app's constructor makes the function
+that describes the screen, not =(make-immediate-variant ...)=; the theme stays one fixed dark theme,
+not public in v0.1; and for the id of a widget, a required =:id= keyword on every widget, with
+generated ids "another time". I took "everything" to mean every widget, so containers (=column=,
+=row=, =padding= ...) keep an optional =:id=; that is one line to change if it was meant too.
+On the id I had first proposed positional-first ids, then (after reading =open-box=) ids generated
+from the form a widget edits, with the occurrence among siblings as the fallback: a widget's key is
+made from its parent's key and its =:id= or, with none, its place among the parent's children, so
+an id-less widget loses its caret, selection, scroll and focus whenever an earlier sibling appears
+or goes, and the same happens during a reload when a widget is inserted above it. Generated ids
+are for another time; what was worked out is in the next section.
+*** Generated ids, for another time
+Micah asked whether ids could be generated instead of typed. They can; the question is from what.
+- Kind and occurrence among the siblings of the same kind (React's and Flutter's default). Needs no
+  macros, only a change to =open-box=; adding a label or a button no longer shifts the fields, but
+  adding a field above another field does, which is the edit made while hot reloading.
+- Kind and the form the widget edits, read from the source by a compiler macro: =(text-field name ...)=
+  is identified by =name=, =(slider volume ...)= by =volume=, =(checkbox "All" all)= by =all=. Free at
+  run time, stable across reloads, adding an Email field above Surname leaves Surname's caret alone,
+  and renaming the variable resets that widget as it does for =kept-let=. Two widgets with the same
+  identity in one container take a deterministic count, so they never share state. A call by =funcall=
+  or =apply= falls back to the first. This was my recommendation.
+- The text of the widget (Dear ImGui's way): buttons and checkboxes, not text fields.
+Whatever is generated, an explicit id stays for a loop over data (=:id (task-id task)=, so that state
+follows the item when the list is re-sorted: the library cannot guess that) and for finding a control
+from a test or a replay script; later by role and name (the machine interface), as Playwright does.
+The check to write with it: add a field above another during a reload and see that the caret stays.
+*** What moved
+- Two commits. The first moved the files (=git mv=) and made the systems: the library is one system,
+  =almighty-bolt=, at the root, laid out like almighty-toki (=almighty-bolt.asd=, =src/=, =src/ui/=
+  for what was the immediate variant, =t/=), with =almighty-bolt/tests= and =almighty-bolt/test-support=
+  (the fake context the apps' tests share) in the same =.asd=. The apps stay their own systems; the
+  null baseline is =almighty-bolt-bench-null=. The second renamed the packages with one script that
+  also handled the upper-case names in strings: =almighty-bolt-core/= to =almighty-bolt/=,
+  =almighty-bolt-variant-immediate/= to =almighty-bolt/ui/=, =...-variant-support/= to
+  =almighty-bolt/test-support/=, and the umbrella package =almighty-bolt-core= to
+  =almighty-bolt/internals= (the public =almighty-bolt= comes in Stage 5). 104 files changed in the
+  second, 53 renamed in the first.
+- =make 7guis HOT=1= took every =.lisp= file under the directory of each loaded system, which for a
+  system at the root of the repository is the whole repository. =system-files= now takes the files of
+  the systems' components and their =.asd= files: 82 files, was 86.
+- The variant contract (=frame=, =handle-event=, =hit-target=, =lookup-target=, =inherit-state=,
+  =retire-variant=) is unchanged, as the seam between the host and the ui. Collapsing it is its own
+  step, only if it is measured to matter.
+*** The gate
+- =make test=: 236 tests, 1,463 assertions, from a clean compile, both after the move and after the
+  rename. =make smoke= passes after both (the REPL check, and the hot reload check on the real tree,
+  which is the one that needed the =system-files= fix). =make deps= resolves.
+- The frame hashes of the 56 lines of the Stage 3 baseline are identical, after both commits.
+- =make bench-run= after: the same builds per frame (cells 2.00, counter 1.91, timer 1.02, dashboard
+  1.00, editor 2.00, rows 2.00); 0 bytes a frame after the first for the counter, cells and dashboard;
+  the headless times within noise of the baseline (cells 33.2 us, counter 1.9, timer 2.4, dashboard
+  88.5 against 87.4, editor 190.2 against 190.0, rows 69.0 against 69.6). The bytes a frame of the
+  timer and the rows moved by a few percent either way (776 against 802, 3014 against 2922), as they
+  do between runs.
+- =make bench-app= after: 0 frames and 0 wakeups a second at rest in all four tasks, but startup of
+  235 to 296 ms against 188 to 200 ms in the baseline, 6 to 9 MB more resident, and 0.5 to 0.6% cpu at
+  rest in the timer and the editor where the baseline had 0.0. Before calling that the fold I built the
+  commit before it (=d928edd=) in a scratch worktree and ran the two trees alternately, three rounds,
+  the counter and the editor: startup 263/314/236 ms before and 268/242/227 after (counter), 272/341/251
+  and 284/260/244 (editor); resident memory the same (about 141 and 149 MB); the cpu at rest is 0.0 to 0.5%
+  in both trees, at random. The image is a little smaller after (45.6 MB, 45.8 before). So the machine
+  was slower than at baseline time, and the fold did not change these numbers.
+** Read with care
+- Compiling the project from nothing prints one WARNING and 14 STYLE-WARNINGs that were there before this
+  stage (the earlier gates ran on cached compiled files, or I cleared the wrong cache directory in
+  Stage 2): an undefined variable =*objects*= in =reinitialize-objc= (used before its definition), and
+  variables declared =ignore= in the Objective-C callbacks of =view.lisp= (=cmd=, =self=, =location=,
+  =length=, =actual=). A release should compile without warnings; that is on the list for Stage 5.
+- The names =variant= and =immediate-variant= are still the library's inside (the contract, the class,
+  the registry of the apps, =make 7guis VARIANT=immediate=). Stage 5 takes them out of the public
+  surface; the rest can follow.
+- The guide pages and the charter's layout block name the new paths. The notes (the devlog, the frozen
+  records) and the result records keep the old names, as history.
