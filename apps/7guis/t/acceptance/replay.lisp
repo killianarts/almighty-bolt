@@ -8,9 +8,9 @@
 
 (in-package #:almighty-bolt-7guis/t/acceptance/replay)
 
-;;; Replay scripts, which name the controls they act on, drive every variant's version of a
-;;; task: the same script, three variants, the same result. And a script replays to the same
-;;; frames every time, which is what the charter wants before any measurement is trusted.
+;;; Replay scripts, which name the controls they act on, drive a task's app. And a script replays
+;;; to the same frames every time, which is what the charter wants before any measurement is
+;;; trusted.
 
 (defun make-app (variant task)
   (funcall (registry:app-constructor (registry:find-app variant task))))

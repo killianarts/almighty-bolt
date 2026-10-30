@@ -6,9 +6,9 @@
 (in-package #:almighty-bolt-7guis/t/acceptance/reload)
 
 ;;; An app that is made again when its code changed is the same app to the person using it
-;;; (decision record 0031): the CRUD, in every variant, is driven through the same keystrokes with
-;;; and without a reload in the middle, and ends in the same place. A reload here is the app made
-;;; again by the same code; what an edit shows is checked in the variants' own tests.
+;;; (devlog, 2026-10-29): the CRUD is driven through the same keystrokes with and without a
+;;; reload in the middle, and ends in the same place. A reload here is the app made again by the
+;;; same code; what an edit shows is checked by the tests below.
 
 (defun row-fraction (index)
   (/ (+ 1 (* 24 index) 12) 146))
@@ -97,7 +97,7 @@ and return, for each variant, what the two ended showing."
       (assert-equal "Emil, HansMustermann, MaxTisch, RomanZeus, Anna" (listed driver) variant))))
 
 (define-test an-edited-way-to-show-a-person-is-shown-after-the-reload ()
-  ;; The edit is to a function that every variant's CRUD calls, as compiling a definition in the
+  ;; The edit is to a function that the CRUD calls, as compiling a definition in the
   ;; editor would make it, and the list was worked out before it by a key typed in the filter.
   (let* ((name 'almighty-bolt-7guis/crud/model:entry-display)
          (original (fdefinition name)))

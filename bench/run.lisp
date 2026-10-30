@@ -1,4 +1,5 @@
-;;;; What a frame costs in each variant. From the repository root:  make bench-compare
+;;;; What a frame costs, and the other numbers of the benchmark protocol. From the repository root:
+;;;;   make bench-run | bench-overhead | bench-app | bench-compile | bench-report
 
 (defpackage #:almighty-bolt-bench/run
   (:use #:cl))
@@ -8,12 +9,7 @@
 (asdf:load-system "almighty-bolt-bench")
 
 (let ((which (or (uiop:getenv "WHICH") "")))
-  (cond ((string-equal which "layout")
-         (funcall (intern "MAIN" "ALMIGHTY-BOLT-BENCH/LAYOUT-SPIKE")))
-        ((string-equal which "cursor")
-         (asdf:load-system "almighty-bolt-bench/cursor")
-         (funcall (intern "MAIN" "ALMIGHTY-BOLT-BENCH/CURSOR-SPIKE")))
-        ((string-equal which "overhead")
+  (cond ((string-equal which "overhead")
          (funcall (intern "OVERHEAD-MAIN" "ALMIGHTY-BOLT-BENCH/RESULTS")))
         ((string-equal which "compile")
          (funcall (intern "MAIN" "ALMIGHTY-BOLT-BENCH/COMPILE-TIME")))
@@ -23,4 +19,4 @@
          (funcall (intern "MAIN" "ALMIGHTY-BOLT-BENCH/RESULTS")))
         ((string-equal which "report")
          (funcall (intern "REPORT" "ALMIGHTY-BOLT-BENCH/RESULTS")))
-        (t (funcall (intern "MAIN" "ALMIGHTY-BOLT-BENCH/COMPARE")))))
+        (t (error "Say which with WHICH=results, overhead, app, compile or report (see the Makefile)."))))

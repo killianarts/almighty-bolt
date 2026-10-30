@@ -17,12 +17,11 @@
 ;;;; as the acceptance driver delivers them (the fake context, a virtual clock). Run before and after
 ;;;; a change of an app's code and compare the output: the same lines mean the same frames. From the
 ;;;; repository root:
-;;;;   VARIANTS="retained reactive" sbcl --noinform --non-interactive --no-sysinit --no-userinit \
+;;;;   VARIANTS="immediate" sbcl --noinform --non-interactive --no-sysinit --no-userinit \
 ;;;;     --eval '(require :asdf)' --eval '(asdf:initialize-source-registry (list :source-registry
 ;;;;     (list :tree (uiop:getcwd)) :ignore-inherited-configuration))' --load scripts/frame-hashes.lisp
 ;;;; Each line is: variant task step hash commands. SYSTEMS="a-system another" loads systems after
-;;;; the apps, which can put another version of an app in place of one (almighty-bolt-stress/
-;;;; reactive-signals does, for the reactive dashboard).
+;;;; the apps, which can put another version of an app in place of one.
 
 (defparameter +down+ (code-char #xF701))
 
@@ -101,7 +100,7 @@
 
 (defun main ()
   (let ((variants (mapcar (lambda (name) (intern (string-upcase name) :keyword))
-                          (uiop:split-string (or (uiop:getenv "VARIANTS") "retained reactive immediate")
+                          (uiop:split-string (or (uiop:getenv "VARIANTS") "immediate")
                                              :separator " "))))
     (dolist (variant variants)
       (dolist (entry +steps+)

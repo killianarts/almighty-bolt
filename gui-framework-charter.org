@@ -163,8 +163,8 @@ instrumentation are added when their triggers are reached (see the roadmap).
 - *Injectable clock.* All time comes from one core clock that replay can
   replace with a virtual clock.
 - *Baseline variant.* A =null= variant that replays a fixed, precomputed
-  display list measures the core's own cost. Variant results are reported
-  relative to it. It lives in =variants/null/=, and =make bench-null= reports
+  display list measures the core's own cost. Results are reported
+  relative to it. It lives in =bench/null/=, and =make bench-null= reports
   the core's own cost in a window.
 
 *** Variant contract
@@ -487,21 +487,18 @@ core/            shared platform, rendering, text, input, instrumentation
   src/           one package per file, named almighty-bolt-core/<file>
   t/             one test package per source file (lisp-unit2)
 variants/
-  cl-retained/
-  cl-immediate/
-  cl-reactive/
-  coalton-.../
+  cl-immediate/  the library's ui (the other variants are on the tag archive/three-variants)
+  support/       what the tests share: a context with text that is easy to count
 apps/
-  7guis/         one directory per task, one implementation per variant
+  7guis/         one directory per task
   stress/        large list, editor, dashboard, idle
-bench/           harness, replay scripts, result schema
+bench/           harness, replay scripts, result schema; null/ is the baseline
 results/         raw benchmark results, one file per run
 notes/
   devlog.org     dated lab notebook
   decisions/     records 0001 to 0031, frozen (none added since 2026-10-30)
   research.org   annotated bibliography
 design/          design tokens, screenshots, gallery
-spikes/          throwaway programs that answer one question each
 vendored/        third-party sources, fetched with vend (see Makefile)
 scripts/         repository maintenance scripts
 docs/            release notes, the release guide, and guide/ (the teaching pages; open guide/index.html)
@@ -794,7 +791,7 @@ after that release.
 The stages; each ends in a devlog entry, and a stage is done when the suite passes.
 - [X] Stage 0: archive tags, =master= brought up to the line and pushed
 - [X] Stage 1: the process (this charter, no decision records, =CLAUDE.md=)
-- [ ] Stage 2: one variant (the others, McCLIM and the spikes archived)
+- [X] Stage 2: one variant (the others, McCLIM and the spikes archived)
 - [ ] Stage 3: integration and end-to-end tests only
 - [ ] Stage 4: the ui folded into the core: one system, one tree
 - [ ] Stage 5: the library's surface: a public package, entry points, README, an example

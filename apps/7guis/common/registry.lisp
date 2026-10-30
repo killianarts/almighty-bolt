@@ -23,7 +23,7 @@
 
 (defparameter +tasks+ '(:counter :temperature :flight :timer :crud :circles :cells :layout :dialog
                         :dashboard :rows :editor))
-(defparameter +variants+ '(:retained :reactive :immediate))
+(defparameter +variants+ '(:immediate))
 
 (defstruct (app (:constructor make-app (variant task constructor width height title)))
   (variant nil :read-only t)
@@ -40,10 +40,7 @@
 window WIDTH by HEIGHT points. CONSTRUCTOR is the name of a function, not the function: a name
 is looked up when the app is made, so an app whose function was compiled again is made from the
 new one, which is what hot reload needs (decision record 0030). #'name would keep the old."
-  ;; :cursor is the experiment of record 0022, archived, not a variant of the comparison: it
-  ;; is not in +VARIANTS+, so the acceptance tests of the seven tasks do not run it, and it is
-  ;; here only so that make 7guis VARIANT=cursor still opens it.
-  (check-type variant (member :retained :reactive :immediate :cursor))
+  (check-type variant (member :immediate))
   (check-type task (member :counter :temperature :flight :timer :crud :circles :cells :layout
                            :dialog :dashboard :rows :editor))
   (setf *apps* (remove-if (lambda (app) (and (eq (app-variant app) variant) (eq (app-task app) task)))

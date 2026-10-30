@@ -32,22 +32,6 @@
                       (when bad
                         (error "~d stress app test~:p failed." (length bad))))))
 
-(defsystem "almighty-bolt-stress/retained"
-  :description "The stress apps in the retained variant"
-  :depends-on ("almighty-bolt-stress" "almighty-bolt-7guis" "almighty-bolt-variant-retained")
-  :serial t
-  :components ((:module "dashboard" :components ((:file "retained")))
-               (:module "rows" :components ((:file "retained")))
-               (:module "editor" :components ((:file "retained")))))
-
-(defsystem "almighty-bolt-stress/reactive"
-  :description "The stress apps in the reactive variant"
-  :depends-on ("almighty-bolt-stress" "almighty-bolt-7guis" "almighty-bolt-variant-reactive")
-  :serial t
-  :components ((:module "dashboard" :components ((:file "reactive")))
-               (:module "rows" :components ((:file "reactive")))
-               (:module "editor" :components ((:file "reactive")))))
-
 (defsystem "almighty-bolt-stress/immediate"
   :description "The stress apps in the immediate variant"
   :depends-on ("almighty-bolt-stress" "almighty-bolt-7guis" "almighty-bolt-variant-immediate")
@@ -57,9 +41,9 @@
                (:module "editor" :components ((:file "immediate")))))
 
 (defsystem "almighty-bolt-stress/acceptance"
-  :description "The same behavioural tests for every variant's version of every stress app"
-  :depends-on ("almighty-bolt-stress" "almighty-bolt-stress/retained" "almighty-bolt-stress/reactive"
-               "almighty-bolt-stress/immediate" "almighty-bolt-7guis/acceptance" "lisp-unit2")
+  :description "Behavioural tests of every stress app: events in, what the app shows out"
+  :depends-on ("almighty-bolt-stress" "almighty-bolt-stress/immediate"
+               "almighty-bolt-7guis/acceptance" "lisp-unit2")
   :components ((:module "t"
                 :components ((:module "acceptance"
                               :serial t

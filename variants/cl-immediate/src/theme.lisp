@@ -1,4 +1,4 @@
-(defpackage #:almighty-bolt-variant-retained/theme
+(defpackage #:almighty-bolt-variant-immediate/theme
   (:use #:cl)
   (:import-from #:almighty-bolt-core
                 #:pack-color)
@@ -24,9 +24,9 @@
            #:+control-radius+
            #:button-color))
 
-(in-package #:almighty-bolt-variant-retained/theme)
+(in-package #:almighty-bolt-variant-immediate/theme)
 
-;;; How the retained widgets look: a dark theme, with one blue.
+;;; How the widgets look: a dark theme, with one blue.
 
 (defparameter +background+ (pack-color 36 40 56))
 (defparameter +panel-color+ (pack-color 48 53 74))

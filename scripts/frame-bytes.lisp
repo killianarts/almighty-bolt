@@ -17,7 +17,7 @@
 ;;;; drawn to warm it, and then FRAMES more are timed, each a sixtieth of a second after the one
 ;;;; before. This is the cost of describing and laying out a screen in which everything changes,
 ;;;; the same for every variant. From the repository root:
-;;;;   VARIANTS="retained reactive immediate" TASKS="dashboard timer" FRAMES=2000 sbcl ... --load scripts/frame-bytes.lisp
+;;;;   VARIANTS="immediate" TASKS="dashboard timer" FRAMES=2000 sbcl ... --load scripts/frame-bytes.lisp
 ;;;; (the command line of scripts/frame-hashes.lisp). Each line is: variant task bytes/frame us/frame.
 
 (defun words (name default)
@@ -40,7 +40,7 @@
 
 (defun main ()
   (let ((frames (parse-integer (or (uiop:getenv "FRAMES") "500"))))
-    (dolist (variant (words "VARIANTS" "retained reactive immediate"))
+    (dolist (variant (words "VARIANTS" "immediate"))
       (dolist (task (words "TASKS" "dashboard timer"))
         (measure variant task frames)))))
 

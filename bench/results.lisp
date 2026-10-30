@@ -49,7 +49,7 @@
 ;;; There is no window, so no vsync and no wait for a drawable: those numbers are not those of a
 ;;; window and are not to be compared with them.
 
-(defparameter +variants+ '(:retained :reactive :immediate))
+(defparameter +variants+ '(:immediate))
 
 (defun environment-number (name default)
   (let ((value (uiop:getenv name)))

@@ -6,8 +6,9 @@
   :license "MIT"
   :pathname "src"
   :serial t
-  :depends-on ("almighty-bolt-core" "almighty-bolt-variant-retained")
-  :components ((:file "hash")
+  :depends-on ("almighty-bolt-core")
+  :components ((:file "theme")
+               (:file "hash")
                (:file "box")
                (:file "ui")
                (:file "widgets")

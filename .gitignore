@@ -5,7 +5,7 @@ tmp/
 
 *.fasl
 
-# Third-party sources: `make deps` fetches them (and cl-nextstep, for Spike A).
+# Third-party sources: `make deps` fetches them.
 vendored/
 *.dylib
 build/

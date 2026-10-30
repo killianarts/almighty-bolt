@@ -22,7 +22,7 @@
                 #:display-list-count
                 #:replace-display-list
                 #:+max-builds+)
-  (:import-from #:almighty-bolt-variant-retained/theme
+  (:import-from #:almighty-bolt-variant-immediate/theme
                 #:+background+)
   (:import-from #:almighty-bolt-variant-immediate/hash
                 #:mix)

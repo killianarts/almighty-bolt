@@ -10,10 +10,9 @@
 ;;;; One variant's compile times, in a process that has nothing compiled: the fasls go into the
 ;;;; directory CACHE (a new one), so every step starts from nothing. Prints a line for each step:
 ;;;;   step <name> <seconds of real time>
-;;;; The steps are the core, the 7GUIs models that every variant shares, the retained library (the
-;;;; others are built on it), the variant's own library (not for retained), the variant's seven
-;;;; apps, and then two changes by touching a file: one in the variant's library and one in an
-;;;; app, to see what an incremental build costs. Run by bench/compile-time.lisp, or:
+;;;; The steps are the core, the 7GUIs models, the variant's own library, the variant's apps, and
+;;;; then two changes by touching a file: one in the variant's library and one in an app, to see
+;;;; what an incremental build costs. Run by bench/compile-time.lisp, or:
 ;;;;   VARIANT=immediate CACHE=/tmp/cache/ sbcl --non-interactive --load scripts/compile-time.lisp
 
 (let* ((variant (string-downcase (or (uiop:getenv "VARIANT") (error "Say which variant."))))
@@ -39,12 +38,9 @@
            (uiop:run-program (list "touch" path))))
     (timed "core" (lambda () (asdf:load-system "almighty-bolt-core")))
     (timed "shared-models" (lambda () (asdf:load-system "almighty-bolt-7guis")))
-    (timed "retained-library" (lambda () (asdf:load-system "almighty-bolt-variant-retained")))
-    (unless (string= variant "retained")
-      (timed "variant-library" (lambda () (asdf:load-system library))))
+    (timed "variant-library" (lambda () (asdf:load-system library)))
     (timed "apps" (lambda () (asdf:load-system apps)))
-    (touch (format nil "variants/cl-~a/src/~a" variant
-                   (if (string= variant "reactive") "views.lisp" "widgets.lisp")))
+    (touch (format nil "variants/cl-~a/src/widgets.lisp" variant))
     (timed "incremental-library-file" (lambda () (asdf:load-system apps)))
     (touch (format nil "apps/7guis/counter/~a.lisp" variant))
     (timed "incremental-app-file" (lambda () (asdf:load-system apps)))))

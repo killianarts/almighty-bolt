@@ -1761,3 +1761,48 @@ summaries (core 399, 7GUIs 322, stress 164, retained 135, reactive 61, immediate
 - Stage 3 will remove the unit tests. The properties they guarded get an end-to-end check first (the
   list is in the Stage 3 entry when it is done); the baseline of the replay frame hashes is taken
   before the removal.
+
+** Stage 2: one variant (2026-10-30)
+- Removed from the main line (all still on =archive/three-variants=): =variants/cl-retained=,
+  =cl-reactive=, =cl-cursor=; the retained, reactive and cursor files of every 7GUIs task and stress
+  app, =apps/7guis/cursor/=, =spikes/=; the cross-variant tools (=bench/compare=, =layout-spike=,
+  =cursor-spike=, =variants/support/compare=, and the scripts =change-cost-report=, =diff-size=,
+  =app-tokens=, =app-size=, =snapshot-cursor=); the Makefile's targets for them, and the clone of
+  cl-nextstep that =make deps= made for Spike A. 90 files deleted, 121 touched, 12,592 lines out.
+  =vendored/= on disk is untouched.
+- The immediate variant took its theme with it: =theme.lisp= was in the retained variant, and four
+  immediate files imported it, so the immediate system depended on retained. It is now
+  =almighty-bolt-variant-immediate/theme= and the dependency is gone.
+- =variants/null= is now =bench/null/= (same system name): the host's own cost, kept as a baseline.
+- The registry takes only =:immediate=; the bench's variant lists are =immediate= only.
+- Two acceptance tests compared the same screen across variants and asked for three of them (the
+  layout spike and the dialog at every width). They now check what is left of them: the screen is
+  built once at every width.
+- The compile-time script lost its retained library step; =make bench-report= still prints the old
+  records of the three variants, as history.
+** What I measured
+- =make test=: 687 tests, 54,593 assertions in 57 summaries, 0 failures, 31 s. Before (Stage 1): 1128
+  and 56,356 in 70. The difference is exactly the removed variants: 135 retained and 61 reactive tests,
+  and the acceptance tests that ran once for each variant (124 immediate, 121 reactive, 124 retained
+  before; 124 immediate now). Core (399), immediate (40) and null (7) are the same.
+- A fresh image that loads the launcher, the immediate apps and the bench has nine of our systems and
+  none with retained, reactive or cursor in its name. A grep for the removed systems, packages and
+  paths finds them only in =notes/= and =results/= (history).
+- Real window, a saved CRUD file, state kept: the person added, the keyboard in the name field at the
+  caret, 0.57 s from the save to the new app and 0.70 s back, entries and caret as they were, typing
+  goes on at the caret (the harness of the hot reload work, pointed at this checkout; the file was
+  put back and =git diff= is empty). From a Slynk started as Sly starts it, C-c C-c on =make-crud=:
+  entries and keyboard the same after, typing goes on. =make 7guis-repl-smoke= passes. =make deps=
+  resolves.
+** Read with care
+- The window smoke (=make 7guis-smoke=) says that a key typed would not reach the app until the
+  window is clicked: the window is not the key window and the application is not active when it is
+  started from an agent's shell. It is not new (the same code), and Micah's own run says otherwise.
+- =make bench-run=, =bench-app= and =bench-compile= were not run: only loaded, and =bench-report=
+  read the old records. The trimmed bench code gets its first run in Stage 3, when the baseline is
+  taken.
+- The compiled files of this tree are in ASDF's cache under =~/.cache/common-lisp/sbcl-2.6.3-macosx-arm64/=
+  (there is also a =...-arm64-s= directory, which holds only =vendored/= here). Before a gate I cleared
+  the project's directories there (not =vendored/=); a glob for =sbcl-*= picks the =-s= one first.
+- The charter's "Repository layout" block describes the tree after this stage; it changes again in
+  Stage 4.

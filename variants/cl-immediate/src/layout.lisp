@@ -42,7 +42,7 @@
                 #:+row-height+
                 #:+dot-size+
                 #:+option-gap+)
-  (:import-from #:almighty-bolt-variant-retained/theme
+  (:import-from #:almighty-bolt-variant-immediate/theme
                 #:+font-name+)
   (:export #:layout-box))
 

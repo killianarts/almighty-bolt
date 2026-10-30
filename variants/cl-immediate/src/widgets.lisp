@@ -87,7 +87,7 @@
                 #:+key-down+
                 #:+key-home+
                 #:+key-end+)
-  (:import-from #:almighty-bolt-variant-retained/theme
+  (:import-from #:almighty-bolt-variant-immediate/theme
                 #:+font-name+
                 #:+font-size+)
   (:export #:label

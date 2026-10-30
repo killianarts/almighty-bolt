@@ -55,7 +55,7 @@
                 #:+row-height+
                 #:+thumb-size+
                 #:+dot-size+)
-  (:import-from #:almighty-bolt-variant-retained/theme
+  (:import-from #:almighty-bolt-variant-immediate/theme
                 #:+text-color+
                 #:+dim-text-color+
                 #:+button-text-color+

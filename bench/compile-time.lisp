@@ -12,7 +12,7 @@
 ;;; the variant. The files that the incremental steps touch are touched back to what they were:
 ;;; only their modification times change.
 
-(defparameter +variants+ '("retained" "reactive" "immediate"))
+(defparameter +variants+ '("immediate"))
 
 (defun run-once (variant)
   "The steps of one compile of VARIANT, as a list of (name . seconds)."

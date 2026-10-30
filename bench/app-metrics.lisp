@@ -21,7 +21,7 @@
 ;;; as it is open (the dashboard) is measured in the ten seconds after its first frame instead, and
 ;;; its record says :state :animating.
 
-(defparameter +variants+ '(:retained :reactive :immediate))
+(defparameter +variants+ '(:immediate))
 (defparameter +tasks+ '(:counter :temperature :flight :timer :crud :circles :cells))
 (defparameter +animated-tasks+ '(:dashboard)
   "The tasks that never stop drawing. They cannot be waited on to be quiet, so the window that is
