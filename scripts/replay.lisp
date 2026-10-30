@@ -26,7 +26,7 @@
 
 (defun run-once (script variant task)
   "Play SCRIPT into a new VARIANT app of TASK. Returns the result."
-  (let ((object (funcall (registry:app-constructor (registry:find-app variant task)))))
+  (let ((object (registry:make-app-object (registry:find-app variant task))))
     (with-masked-float-traps
       (with-autorelease-pool
         (let* ((host (make-host (make-instance 'core:variant) (default-device)

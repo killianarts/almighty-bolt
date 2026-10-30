@@ -48,7 +48,7 @@
 
 (defun what-the-editor-does (variant task)
   (let* ((started (get-internal-real-time))
-         (host (call "ALMIGHTY-BOLT-7GUIS/LAUNCHER" "OPEN-APP" variant task))
+         (host (call "ALMIGHTY-BOLT-7GUIS/LAUNCHER" "OPEN-TASK" variant task))
          (took (/ (- (get-internal-real-time) started) internal-time-units-per-second 1.0)))
     (check "the window is open and the REPL has its thread back" (and host (host-call "RUNNING-HOST")))
     (check (format nil "that took ~,2f s, which is not a second" took) (< took 1))
@@ -63,13 +63,13 @@
       (check "compiling a definition makes the app again, in the same window"
              (wait-until (lambda () (not (eq app (host-call "HOST-VARIANT" host))))))
       (check "and the window draws it" (wait-until (lambda () (> (frames host) before)))))
-    (check "closing the window leaves the Lisp running" (eq host (call "ALMIGHTY-BOLT-7GUIS/LAUNCHER" "CLOSE-APP")))
+    (check "closing the window leaves the Lisp running" (eq host (call "ALMIGHTY-BOLT-7GUIS/LAUNCHER" "CLOSE-TASK")))
     (check "and no window is open" (null (host-call "RUNNING-HOST")))
-    (check "closing it again does nothing" (null (call "ALMIGHTY-BOLT-7GUIS/LAUNCHER" "CLOSE-APP")))
-    (let ((again (call "ALMIGHTY-BOLT-7GUIS/LAUNCHER" "OPEN-APP" variant task)))
+    (check "closing it again does nothing" (null (call "ALMIGHTY-BOLT-7GUIS/LAUNCHER" "CLOSE-TASK")))
+    (let ((again (call "ALMIGHTY-BOLT-7GUIS/LAUNCHER" "OPEN-TASK" variant task)))
       (check "a window can be opened again" (and again (not (eq again host))
                                                  (wait-until (lambda () (plusp (frames again))))))
-      (call "ALMIGHTY-BOLT-7GUIS/LAUNCHER" "CLOSE-APP"))
+      (call "ALMIGHTY-BOLT-7GUIS/LAUNCHER" "CLOSE-TASK"))
     (not *failed*)))
 
 (defun the-lisp-can-exit-with-a-window-open (variant task)
@@ -77,7 +77,7 @@
 it says that the check passed before the exit that proves it, and a watchdog says that it did not
 if the exit hangs. AppKit's own quit ends the process with code 0, which is why the Makefile
 looks for the words and not for the code."
-  (let ((host (call "ALMIGHTY-BOLT-7GUIS/LAUNCHER" "OPEN-APP" variant task)))
+  (let ((host (call "ALMIGHTY-BOLT-7GUIS/LAUNCHER" "OPEN-TASK" variant task)))
     (wait-until (lambda () (plusp (frames host))))
     (format t "~&The REPL check passed, if the Lisp now exits with a window open.~%")
     (finish-output)

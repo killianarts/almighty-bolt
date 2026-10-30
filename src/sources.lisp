@@ -1,18 +1,17 @@
-(defpackage #:almighty-bolt-7guis/common/sources
+(defpackage #:almighty-bolt/sources
   (:use #:cl)
   (:import-from #:almighty-bolt/redefinition
                 #:with-redefinitions-held)
   (:export #:changed-files
            #:watch-files
            #:stop-watching-files
-           #:loaded-system-names
            #:system-files
            #:reload-systems
            #:watch-sources))
 
-(in-package #:almighty-bolt-7guis/common/sources)
+(in-package #:almighty-bolt/sources)
 
-;;; Saving a file is enough to change an open window (decision record 0030). A thread looks at
+;;; Saving a file is enough to change an open window. A thread looks at
 ;;; the source files of the loaded systems; when one has changed it loads the systems again,
 ;;; which compiles what changed, and the definitions that come from that are what tell the window
 ;;; to make the app again (WATCH-REDEFINITIONS in the core). This is for someone who edits in
@@ -103,11 +102,6 @@ it wakes a few times a second, which is for development only."
 
 ;;; --- loading systems again ---
 
-(defun loaded-system-names ()
-  "The names of the loaded systems that belong to this project."
-  (remove-if-not (lambda (name) (eql 0 (search "almighty-bolt" name)))
-                 (asdf:already-loaded-systems)))
-
 (defun system-files (names)
   "The source files of the systems NAMES: the .lisp file of each of their components, and the .asd
 file they are defined in. A system is what it names, not what lies under its directory: the library
@@ -155,9 +149,9 @@ FORGET-COMPILED-FILES). A function that is defined again is not worth a warning.
       (dolist (name names)
         (asdf:load-system name)))))
 
-(defun watch-sources (&key (names (loaded-system-names)) (interval 0.25))
-  "Load the systems NAMES again whenever one of their files changes, and say which. Returns
-the watcher, for STOP-WATCHING-FILES."
+(defun watch-sources (names &key (interval 0.25))
+  "Load the systems NAMES (strings) again whenever one of their files changes, and say which.
+Returns the watcher, for STOP-WATCHING-FILES."
   (watch-files (system-files names)
                (lambda (changed)
                  (format t "~&Hot reload: ~{~a~^, ~} changed; loading.~%"

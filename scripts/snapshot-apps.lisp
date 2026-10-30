@@ -21,7 +21,7 @@
 
 (defun snap (variant task fn)
   (let* ((app (r:find-app variant task))
-         (object (funcall (r:app-constructor app)))
+         (object (r:make-app-object app))
          (out (or (uiop:getenv "OUT") "snapshots/")))
     (ensure-directories-exist out)
     (s:with-snapshot-host (host target object :width (r:app-width app) :height (r:app-height app))

@@ -1,5 +1,7 @@
 (defpackage #:almighty-bolt-7guis/common/registry
   (:use #:cl)
+  (:import-from #:almighty-bolt/app
+                #:make-app-instance)
   (:export #:app
            #:app-variant
            #:app-task
@@ -9,17 +11,17 @@
            #:app-title
            #:register-app
            #:find-app
+           #:make-app-object
            #:all-apps
            #:+tasks+
            #:+variants+))
 
 (in-package #:almighty-bolt-7guis/common/registry)
 
-;;; Which apps exist: a task in a variant. Each variant's file for a task registers a
-;;; constructor, a function of no arguments that returns the variant object to run, so
-;;; that the launcher and the acceptance tests can run any of them by name without
-;;; knowing which variant it is. The constructor is a name, so that a constructor compiled again
-;;; is the one that is called.
+;;; Which apps exist: a task in a variant. Each file for a task registers a constructor, a
+;;; function of no arguments that returns the function that describes the screen, so that the
+;;; launcher and the acceptance tests can run any of them by name. The constructor is a name, so
+;;; that a constructor compiled again is the one that is called.
 
 (defparameter +tasks+ '(:counter :temperature :flight :timer :crud :circles :cells :layout :dialog
                         :dashboard :rows :editor))
@@ -52,6 +54,12 @@ new one, which is what hot reload needs (decision record 0030). #'name would kee
 
 (defun find-app (variant task)
   (find-if (lambda (app) (and (eq (app-variant app) variant) (eq (app-task app) task))) *apps*))
+
+(defun make-app-object (app)
+  "A new instance of APP, for the host to run: the function that its constructor makes, which
+describes the screen, in what the host runs. The constructor is a name, so one compiled again is
+the one that is called."
+  (make-app-instance (app-constructor app)))
 
 (defun all-apps ()
   (reverse *apps*))

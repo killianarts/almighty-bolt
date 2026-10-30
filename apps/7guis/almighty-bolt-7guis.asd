@@ -6,7 +6,7 @@
   :license "MIT"
   :serial t
   :depends-on ("almighty-bolt")
-  :components ((:module "common" :components ((:file "numbers") (:file "registry") (:file "sources")))
+  :components ((:module "common" :components ((:file "numbers") (:file "registry")))
                (:module "temperature" :components ((:file "model")))
                (:module "flight" :components ((:file "model")))
                (:module "timer" :components ((:file "model")))

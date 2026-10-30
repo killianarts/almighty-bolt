@@ -87,7 +87,7 @@ clock the app sees is a virtual one, which ADVANCE-TIME moves."
                                           :height (float (registry:app-height app) 1f0)))
          (clock (core:make-virtual-clock 1000000000))
          (driver (%make-driver nil context clock (core:make-display-list :capacity 65536))))
-    (setf (driver-constructor driver) (registry:app-constructor app))
+    (setf (driver-constructor driver) (lambda () (registry:make-app-object app)))
     (let ((core:*time-source* (core:virtual-clock-source clock)))
       (setf (driver-variant driver)
             (core:with-kept-state ((driver-kept-state driver))

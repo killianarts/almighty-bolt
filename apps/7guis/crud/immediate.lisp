@@ -22,8 +22,6 @@
                 #:row
                 #:text-field
                 #:list-box)
-  (:import-from #:almighty-bolt/ui/immediate
-                #:make-immediate-variant)
   (:export #:make-crud))
 
 (in-package #:almighty-bolt-7guis/crud/immediate)
@@ -38,49 +36,48 @@
              (picked nil)
              (name "")
              (surname ""))
-    (make-immediate-variant
-     (lambda ()
-       (let* ((shown (entries-filtered entries filter))
-              (picked-entry (find picked shown :key #'entry-id)))
-         (padding (:all 20)
-           (column (:gap 14)
-             (row (:gap 10 :cross-align :center)
-               (label "Filter prefix:" :id :filter-label)
-               (multiple-value-bind (text changed) (text-field filter :id :filter :width 160)
-                 (when changed
-                   (setf filter text))))
-             (row (:gap 20)
-               (multiple-value-bind (index changed)
-                   (list-box (mapcar #'entry-display shown)
-                             (position picked shown :key #'entry-id) :id :list :width 220 :rows 6)
-                 (when changed
-                   (let ((entry (nth index shown)))
-                     (setf picked (entry-id entry)
-                           name (entry-name entry)
-                           surname (entry-surname entry)))))
-               (column (:gap 10)
-                 (row (:gap 10 :cross-align :center)
-                   (label "Name:" :id :name-label)
-                   (multiple-value-bind (text changed) (text-field name :id :name :width 160)
-                     (when changed
-                       (setf name text))))
-                 (row (:gap 10 :cross-align :center)
-                   (label "Surname:" :id :surname-label)
-                   (multiple-value-bind (text changed) (text-field surname :id :surname :width 160)
-                     (when changed
-                       (setf surname text))))))
-             (row (:gap 10)
-               (when (button "Create" :id :create
-                                      :enabled (plusp (+ (length name) (length surname))))
-                 (multiple-value-bind (new entry) (entries-add entries name surname)
-                   (setf entries new
-                         picked (entry-id entry))))
-               (when (button "Update" :id :update :enabled (and picked-entry t))
-                 (setf entries (entries-update entries picked name surname)))
-               (when (button "Delete" :id :delete :enabled (and picked-entry t))
-                 (setf entries (entries-remove entries picked)
-                       picked nil
-                       name ""
-                       surname ""))))))))))
+    (lambda ()
+      (let* ((shown (entries-filtered entries filter))
+             (picked-entry (find picked shown :key #'entry-id)))
+        (padding (:all 20)
+          (column (:gap 14)
+            (row (:gap 10 :cross-align :center)
+              (label "Filter prefix:" :id :filter-label)
+              (multiple-value-bind (text changed) (text-field filter :id :filter :width 160)
+                (when changed
+                  (setf filter text))))
+            (row (:gap 20)
+              (multiple-value-bind (index changed)
+                  (list-box (mapcar #'entry-display shown)
+                            (position picked shown :key #'entry-id) :id :list :width 220 :rows 6)
+                (when changed
+                  (let ((entry (nth index shown)))
+                    (setf picked (entry-id entry)
+                          name (entry-name entry)
+                          surname (entry-surname entry)))))
+              (column (:gap 10)
+                (row (:gap 10 :cross-align :center)
+                  (label "Name:" :id :name-label)
+                  (multiple-value-bind (text changed) (text-field name :id :name :width 160)
+                    (when changed
+                      (setf name text))))
+                (row (:gap 10 :cross-align :center)
+                  (label "Surname:" :id :surname-label)
+                  (multiple-value-bind (text changed) (text-field surname :id :surname :width 160)
+                    (when changed
+                      (setf surname text))))))
+            (row (:gap 10)
+              (when (button "Create" :id :create
+                                     :enabled (plusp (+ (length name) (length surname))))
+                (multiple-value-bind (new entry) (entries-add entries name surname)
+                  (setf entries new
+                        picked (entry-id entry))))
+              (when (button "Update" :id :update :enabled (and picked-entry t))
+                (setf entries (entries-update entries picked name surname)))
+              (when (button "Delete" :id :delete :enabled (and picked-entry t))
+                (setf entries (entries-remove entries picked)
+                      picked nil
+                      name ""
+                      surname "")))))))))
 
 (register-app :immediate :crud 'make-crud :width 640 :height 280)

@@ -20,6 +20,7 @@
                (:file "settle")
                (:file "redefinition")
                (:file "kept")
+               (:file "sources")
                (:module "replay"
                 :serial t
                 :components
@@ -86,7 +87,10 @@
                  (:file "widgets")
                  (:file "layout")
                  (:file "paint")
-                 (:file "immediate"))))
+                 (:file "immediate")))
+               ;; How an app is started, and the face of the library.
+               (:file "app" :if-feature :darwin)
+               (:file "almighty-bolt" :if-feature :darwin))
   :in-order-to ((test-op (test-op "almighty-bolt/tests"))))
 
 (defsystem "almighty-bolt/test-support"
@@ -100,11 +104,13 @@
   ;; section). flexi-streams is not used here. cl-unicode (lisp-unit2 -> cl-interpol ->
   ;; cl-unicode) generates its source files with it on first load, and vend
   ;; only finds it if some system names it.
-  :depends-on ("almighty-bolt" "almighty-bolt/test-support" "lisp-unit2" "flexi-streams")
+  :depends-on ("almighty-bolt" "almighty-bolt/test-support" "almighty-bolt-examples"
+               "lisp-unit2" "flexi-streams")
   :components ((:module "t"
                 :serial t
                 :components
-                ((:module "ui"
+                ((:file "app" :if-feature :darwin)
+                 (:module "ui"
                   :serial t
                   :components
                   ((:file "widgets")))
@@ -138,7 +144,8 @@
                     ;; Run every test package, then fail the build (and so
                     ;; `make test`) if any test failed or signalled an error.
                     (let* ((results
-                             (loop :for package :in '(:almighty-bolt/t/ui/widgets
+                             (loop :for package :in '(#+darwin :almighty-bolt/t/app
+                                                      :almighty-bolt/t/ui/widgets
                                                       #+darwin :almighty-bolt/t/platform/macos/objc
                                                       #+darwin :almighty-bolt/t/platform/macos/image
                                                       #+darwin :almighty-bolt/t/platform/macos/text-input

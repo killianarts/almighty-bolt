@@ -64,8 +64,7 @@ returned: the variant builds its tables in the first frame of its first play."
                (context (host-context host)))
           (flet ((once (measure)
                    (core:replay script
-                                (funcall (registry:app-constructor
-                                          (registry:find-app :immediate task)))
+                                (registry:make-app-object (registry:find-app :immediate task))
                                 context :measure measure)))
             (once nil)
             (once nil)

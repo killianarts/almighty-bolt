@@ -15,8 +15,6 @@
                 #:panel
                 #:column
                 #:row)
-  (:import-from #:almighty-bolt/ui/immediate
-                #:make-immediate-variant)
   (:export #:make-layout))
 
 (in-package #:almighty-bolt-7guis/layout/immediate)
@@ -27,23 +25,22 @@
 ;;; build and no lag.
 
 (defun make-layout ()
-  (make-immediate-variant
-   (lambda ()
-     (padding (:all +margin+)
-       (row (:gap +gap+ :cross-align :stretch :fill t)
-         (panel (:all +gap+ :flex 1 :id :sidebar)
-           (column (:gap +gap+)
-             (label "Sidebar" :id :sidebar-title)
-             (paragraph +sidebar-text+ :id :sidebar-text)))
-         (column (:gap +gap+ :flex 2 :cross-align :stretch)
-           (panel (:all +gap+ :flex 1 :id :top)
-             (column (:gap +gap+)
-               (label "Top" :id :top-title)
-               (paragraph +top-text+ :id :top-text)))
-           (row (:gap +gap+ :flex 1 :cross-align :stretch)
-             (panel (:all +gap+ :flex 1 :id :bottom-left)
-               (paragraph +small-text+ :id :left-text))
-             (panel (:all +gap+ :flex 1 :id :bottom-right)
-               (paragraph +small-text+ :id :right-text)))))))))
+  (lambda ()
+    (padding (:all +margin+)
+      (row (:gap +gap+ :cross-align :stretch :fill t)
+        (panel (:all +gap+ :flex 1 :id :sidebar)
+          (column (:gap +gap+)
+            (label "Sidebar" :id :sidebar-title)
+            (paragraph +sidebar-text+ :id :sidebar-text)))
+        (column (:gap +gap+ :flex 2 :cross-align :stretch)
+          (panel (:all +gap+ :flex 1 :id :top)
+            (column (:gap +gap+)
+              (label "Top" :id :top-title)
+              (paragraph +top-text+ :id :top-text)))
+          (row (:gap +gap+ :flex 1 :cross-align :stretch)
+            (panel (:all +gap+ :flex 1 :id :bottom-left)
+              (paragraph +small-text+ :id :left-text))
+            (panel (:all +gap+ :flex 1 :id :bottom-right)
+              (paragraph +small-text+ :id :right-text))))))))
 
 (register-app :immediate :layout 'make-layout :width 640 :height 420)

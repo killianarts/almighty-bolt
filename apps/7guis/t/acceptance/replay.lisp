@@ -13,7 +13,7 @@
 ;;; trusted.
 
 (defun make-app (variant task)
-  (funcall (registry:app-constructor (registry:find-app variant task))))
+  (registry:make-app-object (registry:find-app variant task)))
 
 (defun make-context (variant task)
   (let ((app (registry:find-app variant task)))

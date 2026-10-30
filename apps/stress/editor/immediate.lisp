@@ -22,7 +22,6 @@
                 #:column
                 #:canvas)
   (:import-from #:almighty-bolt/ui/immediate
-                #:make-immediate-variant
                 #:current-context)
   (:export #:make-editor-app))
 
@@ -49,13 +48,12 @@
                  (:text (editor-text document (second event)))
                  (:composition (apply #'editor-composition document (rest event)))
                  ((:move :exit :release) nil))))
-      (make-immediate-variant
-       (lambda ()
-         (padding (:all 20)
-           (column (:gap 12)
-             (label (status-text document) :id :status)
-             (dolist (event (canvas +editor-width+ +editor-height+ #'draw :id :editor
-                                    :focusable t :autofocus t))
-               (handle event)))))))))
+      (lambda ()
+        (padding (:all 20)
+          (column (:gap 12)
+            (label (status-text document) :id :status)
+            (dolist (event (canvas +editor-width+ +editor-height+ #'draw :id :editor
+                                   :focusable t :autofocus t))
+              (handle event))))))))
 
 (register-app :immediate :editor 'make-editor-app :width 740 :height 560)

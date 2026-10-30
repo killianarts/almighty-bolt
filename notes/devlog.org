@@ -1983,3 +1983,42 @@ ids, because a name made in the frame would allocate).
   the button), the message not naming the widget. My first mutation run was worthless: the new test
   directory had not been copied to the scratch worktree, so every run "failed" for want of the
   package; I now run the test unmutated in the worktree before trusting a mutation.
+*** Step 2: the entry points, the shape of an app, the public package
+- =almighty-bolt= is a package now (=src/almighty-bolt.lisp=, last in the system): it defines nothing and
+  re-exports 62 symbols: =run-app=, =open-app=, =close-app=, =kept-let=, =kept-value=, the eleven widgets
+  and =missing-id=, the six containers, =now=, =ask-for-frame=, =current-context=, and what a canvas
+  needs (drawing, key events and constants, text editing). The variant contract, the host and the display
+  list's internals stay in =almighty-bolt/internals=.
+- =src/app.lisp=: =run-app=, =open-app= and =close-app= are what the launcher's =run= and =open-app= did,
+  for any constructor. An app's constructor makes the function that describes the screen; =make-app-instance=
+  wraps it for the host (the apps no longer call =make-immediate-variant=; 12 files, the wrapper taken
+  out and the body moved back). =run-app= takes =:hot= (remake the app when code is compiled) and
+  =:watch-systems= (also load the systems again when a file is saved); closing its window ends the
+  process, as =run-variant= always did, and the docstring now says so. The source watcher moved from the
+  7GUIs to =src/sources.lisp= and takes its systems explicitly.
+- The 7GUIs launcher's own =open-app= and =close-app= are =open-task= and =close-task= (they find a task
+  in the registry and call the library's). Micah's commands from the earlier try-it steps change to
+  =(almighty-bolt-7guis/launcher:open-task :immediate :crud)=. The registry has =make-app-object=.
+- Two examples that use only the public package (=examples/=, the system =almighty-bolt-examples=): the
+  counter, and a to-do list with a text field, a button, check boxes whose ids are the things' own numbers
+  and a count of what is left.
+*** The checks
+- =t/app.lisp=: the examples are made as the host makes them, shown, clicked, typed into (the text read
+  back from the display list), the counter made again by new code with its count kept, Return in the
+  field adds a thing, a check box checked off; the test package =:use=s the public one whole, so a clash
+  of an exported symbol with Common Lisp's would fail it; every exported symbol is bound to something.
+- =make examples-smoke=: in a real window, the counter is started with =run-app :hot t= on the main
+  thread, clicked twice, redefined while it runs (as compiling from an editor does), and the new app is
+  there with the count where it was. =make smoke= runs it with the others: 31 checks in three scripts.
+- Mutations, each caught by the check meant for it: the app not wrapped for the host (every test), a check
+  box that never reports a change, =kept-let= not taking the cell the store has, the public package not
+  exporting =checkbox= (the to-do example fails to compile), the text field never reporting Return (the
+  new Return test), a field that never has the keyboard (typing goes nowhere), and for =run-app=: ignoring
+  =:hot=, not giving the host the store, making the first app outside the store. One of mine was an
+  equivalent mutant (it changed a variable to its own initial value) and proved nothing; the real one
+  needed a test for Return that did not exist, which I added.
+- A scare, and what it was: with 50 ms between the events of two clicks, the smoke saw one click, not two.
+  Not a lost click: the ui takes one change of the button a frame ("the rest wait for the next frame"),
+  and the host asks for the next frame, so a quick double click is four frames, about 67 ms, from being
+  counted, and the smoke read the count too soon. It now waits for the count. (My first headless
+  "burst" test drew one frame, which is the same mistake.)

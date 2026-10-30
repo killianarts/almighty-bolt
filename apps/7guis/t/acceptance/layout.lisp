@@ -65,7 +65,7 @@
   "Build a frame of a new VARIANT of the spike at WIDTH. Returns its builds and display list
 hash."
   (let* ((app (registry:find-app variant :layout))
-         (object (funcall (registry:app-constructor app)))
+         (object (registry:make-app-object app))
          (context (fake:make-fake-context :width (float width 1f0) :height 420f0))
          (list (core:make-display-list :capacity 65536)))
     (values (core:settle-frame object context list)
@@ -84,7 +84,7 @@ hash."
   ;; is resized, and then not, must still get the frame of its size.
   (dolist (variant (d:available-variants :layout))
     (let* ((app (registry:find-app variant :layout))
-           (object (funcall (registry:app-constructor app)))
+           (object (registry:make-app-object app))
            (context (fake:make-fake-context :width 640f0 :height 420f0))
            (list (core:make-display-list :capacity 65536)))
       (dolist (width '(640 300 520 520 900 280 640))

@@ -41,7 +41,8 @@ function that describes the screen; `open-app` does the wrapping that `(make-imm
 4. Close the window (the button, Command-W or Command-Q) or `(close-app)`: Lisp keeps running, and
    `open-app` opens it again from the start.
 5. For a program that is only a window, `(run-app 'make-counter ...)` runs on the main thread and
-   returns when the window closes, and `:watch-sources t` also reloads when a source file is saved.
+   closing the window ends the process; `:hot t` remakes the app when code is compiled, and
+   `:watch-systems '("my-system")` also reloads when a source file is saved.
 
 ## The public package `almighty-bolt`
 

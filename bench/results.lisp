@@ -79,7 +79,7 @@
     (format nil "~4,'0d~2,'0d~2,'0dT~2,'0d~2,'0d~2,'0dZ" year month day hour minute second)))
 
 (defun run-once (script variant task host-context)
-  (let ((object (funcall (registry:app-constructor (registry:find-app variant task)))))
+  (let ((object (registry:make-app-object (registry:find-app variant task))))
     (core:replay script object host-context :measure t)))
 
 (defun measure-script (script variant task context &key (repetitions 10) (warmups 3))
@@ -178,7 +178,7 @@ ring, one for each frame (see +RING-COLUMNS+)."
          (pass (offscreen-target-descriptor target))
          (context (host-context host))
          (ring (host-ring host))
-         (object (funcall (registry:app-constructor (registry:find-app variant task)))))
+         (object (registry:make-app-object (registry:find-app variant task))))
     (setf (host-variant host) object
           (host-acquire host) (lambda () (values pass 0))
           (core:context-scale context) (float scale 1f0))

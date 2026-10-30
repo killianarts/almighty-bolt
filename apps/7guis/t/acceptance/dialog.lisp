@@ -57,5 +57,5 @@
       (dolist (variant variants)
         (let* ((app (registry:find-app variant :dialog))
                (list (core:make-display-list :capacity 65536)))
-          (assert-eql 1 (draw (funcall (registry:app-constructor app)) (context-at width) list)
+          (assert-eql 1 (draw (registry:make-app-object app) (context-at width) list)
                       variant width))))))

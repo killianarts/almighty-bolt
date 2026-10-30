@@ -10,8 +10,6 @@
                 #:text-field
                 #:padding
                 #:row)
-  (:import-from #:almighty-bolt/ui/immediate
-                #:make-immediate-variant)
   (:export #:make-temperature))
 
 (in-package #:almighty-bolt-7guis/temperature/immediate)
@@ -23,23 +21,22 @@
 (defun make-temperature ()
   (let ((celsius "")
         (fahrenheit ""))
-    (make-immediate-variant
-     (lambda ()
-       (padding (:all 20)
-         (row (:gap 10 :cross-align :center)
-           (multiple-value-bind (text changed) (text-field celsius :id :celsius :width 100)
-             (when changed
-               (setf celsius text)
-               (let ((other (celsius-text->fahrenheit-text text)))
-                 (when other
-                   (setf fahrenheit other)))))
-           (label "Celsius =" :id :celsius-label)
-           (multiple-value-bind (text changed) (text-field fahrenheit :id :fahrenheit :width 100)
-             (when changed
-               (setf fahrenheit text)
-               (let ((other (fahrenheit-text->celsius-text text)))
-                 (when other
-                   (setf celsius other)))))
-           (label "Fahrenheit" :id :fahrenheit-label)))))))
+    (lambda ()
+      (padding (:all 20)
+        (row (:gap 10 :cross-align :center)
+          (multiple-value-bind (text changed) (text-field celsius :id :celsius :width 100)
+            (when changed
+              (setf celsius text)
+              (let ((other (celsius-text->fahrenheit-text text)))
+                (when other
+                  (setf fahrenheit other)))))
+          (label "Celsius =" :id :celsius-label)
+          (multiple-value-bind (text changed) (text-field fahrenheit :id :fahrenheit :width 100)
+            (when changed
+              (setf fahrenheit text)
+              (let ((other (fahrenheit-text->celsius-text text)))
+                (when other
+                  (setf celsius other)))))
+          (label "Fahrenheit" :id :fahrenheit-label))))))
 
 (register-app :immediate :temperature 'make-temperature :width 520 :height 90)

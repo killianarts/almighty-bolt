@@ -22,8 +22,6 @@
                 #:padding
                 #:column
                 #:canvas)
-  (:import-from #:almighty-bolt/ui/immediate
-                #:make-immediate-variant)
   (:export #:make-rows-app))
 
 (in-package #:almighty-bolt-stress/rows/immediate)
@@ -66,12 +64,11 @@
                           (setf selected new-selected
                                 top new-top))))))
                  ((:move :exit) nil))))
-      (make-immediate-variant
-       (lambda ()
-         (padding (:all 20)
-           (column (:gap 12)
-             (label (status-text selected) :id :status)
-             (dolist (event (canvas +list-width+ +list-height+ #'draw :id :list :focusable t))
-               (handle event)))))))))
+      (lambda ()
+        (padding (:all 20)
+          (column (:gap 12)
+            (label (status-text selected) :id :status)
+            (dolist (event (canvas +list-width+ +list-height+ #'draw :id :list :focusable t))
+              (handle event))))))))
 
 (register-app :immediate :rows 'make-rows-app :width 640 :height 470)

@@ -40,8 +40,6 @@
                 #:column
                 #:row
                 #:canvas)
-  (:import-from #:almighty-bolt/ui/immediate
-                #:make-immediate-variant)
   (:export #:make-cells))
 
 (in-package #:almighty-bolt-7guis/cells/immediate)
@@ -125,23 +123,22 @@
              (draw (list context width height)
                (paint-grid context list 0f0 0f0 width height sheet selected-column selected-row
                            first-column first-row editing)))
-      (make-immediate-variant
-       (lambda ()
-         (padding (:all 20)
-           (column (:gap 12)
-             (row (:gap 10 :cross-align :center)
-               (label "Cell:" :id :cell-label)
-               (label (format-ref selected-column selected-row) :id :cell-name)
-               (label "Contents:" :id :contents-label)
-               (label (if editing
-                          (text-state-string editing)
-                          (sheet-text sheet selected-column selected-row))
-                      :id :formula))
-             (dolist (event (canvas +grid-width+ +grid-height+ #'draw :id :grid :focusable t))
-               (ecase (first event)
-                 (:press (press (second event) (third event) (fourth event) (fifth event)))
-                 (:key (key (second event)))
-                 (:wheel (scroll (second event) (third event)))
-                 ((:move :drag :release :exit) nil))))))))))
+      (lambda ()
+        (padding (:all 20)
+          (column (:gap 12)
+            (row (:gap 10 :cross-align :center)
+              (label "Cell:" :id :cell-label)
+              (label (format-ref selected-column selected-row) :id :cell-name)
+              (label "Contents:" :id :contents-label)
+              (label (if editing
+                         (text-state-string editing)
+                         (sheet-text sheet selected-column selected-row))
+                     :id :formula))
+            (dolist (event (canvas +grid-width+ +grid-height+ #'draw :id :grid :focusable t))
+              (ecase (first event)
+                (:press (press (second event) (third event) (fourth event) (fifth event)))
+                (:key (key (second event)))
+                (:wheel (scroll (second event) (third event)))
+                ((:move :drag :release :exit) nil)))))))))
 
 (register-app :immediate :cells 'make-cells :width 640 :height 440)

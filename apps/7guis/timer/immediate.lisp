@@ -18,7 +18,6 @@
                 #:progress
                 #:slider)
   (:import-from #:almighty-bolt/ui/immediate
-                #:make-immediate-variant
                 #:now
                 #:ask-for-frame)
   (:export #:make-timer-app))
@@ -36,31 +35,30 @@
         (last-time nil))
     (flet ((timer ()
              (make-timer :duration duration :elapsed elapsed)))
-      (make-immediate-variant
-       (lambda ()
-         (let ((now (now)))
-           (cond ((timer-running-p (timer))
-                  (when last-time
-                    (setf elapsed (timer-elapsed (timer-advance (timer)
-                                                                (/ (- now last-time) 1d9)))))
-                  (setf last-time now))
-                 (t (setf last-time nil))))
-         (when (timer-running-p (timer))
-           (ask-for-frame))
-         (padding (:all 24)
-           (column (:gap 14)
-             (row (:gap 12 :cross-align :center)
-               (label "Elapsed time:" :id :elapsed-label)
-               (progress (timer-fraction (timer)) :id :gauge :width 240))
-             (label (format-seconds elapsed) :id :elapsed)
-             (row (:gap 12 :cross-align :center)
-               (label "Duration:" :id :duration-label)
-               (multiple-value-bind (new changed) (slider duration 1 30 :id :duration :width 240)
-                 (when changed
-                   (setf duration new)))
-               (label (format-seconds duration) :id :duration-label))
-             (when (button "Reset" :id :reset)
-               (setf elapsed 0d0
-                     last-time nil)))))))))
+      (lambda ()
+        (let ((now (now)))
+          (cond ((timer-running-p (timer))
+                 (when last-time
+                   (setf elapsed (timer-elapsed (timer-advance (timer)
+                                                               (/ (- now last-time) 1d9)))))
+                 (setf last-time now))
+                (t (setf last-time nil))))
+        (when (timer-running-p (timer))
+          (ask-for-frame))
+        (padding (:all 24)
+          (column (:gap 14)
+            (row (:gap 12 :cross-align :center)
+              (label "Elapsed time:" :id :elapsed-label)
+              (progress (timer-fraction (timer)) :id :gauge :width 240))
+            (label (format-seconds elapsed) :id :elapsed)
+            (row (:gap 12 :cross-align :center)
+              (label "Duration:" :id :duration-label)
+              (multiple-value-bind (new changed) (slider duration 1 30 :id :duration :width 240)
+                (when changed
+                  (setf duration new)))
+              (label (format-seconds duration) :id :duration-label))
+            (when (button "Reset" :id :reset)
+              (setf elapsed 0d0
+                    last-time nil))))))))
 
 (register-app :immediate :timer 'make-timer-app :width 460 :height 250)

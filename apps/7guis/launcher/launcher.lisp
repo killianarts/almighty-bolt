@@ -37,23 +37,25 @@
                 #:+modifier-super+)
   (:import-from #:almighty-bolt/platform/macos/host
                 #:run-variant
-                #:open-variant
-                #:close-variant
                 #:host-ring
                 #:host-keyboard-state
                 #:close-host-window)
+  (:import-from #:almighty-bolt/app
+                #:open-app
+                #:close-app)
   (:import-from #:almighty-bolt-7guis/common/registry
                 #:find-app
+                #:make-app-object
                 #:app-constructor
                 #:app-width
                 #:app-height
                 #:app-title)
-  (:import-from #:almighty-bolt-7guis/common/sources
+  (:import-from #:almighty-bolt/sources
                 #:watch-sources
                 #:stop-watching-files)
   (:export #:run
-           #:open-app
-           #:close-app
+           #:open-task
+           #:close-task
            #:image-main))
 
 (in-package #:almighty-bolt-7guis/launcher)
@@ -169,8 +171,13 @@ line of words and numbers."
 the app may have been defined again since the window opened. With LOG it logs."
   (let* ((app (or (find-app variant task)
                   (error "There is no ~(~a~) app for ~(~a~)." variant task)))
-         (object (funcall (app-constructor app))))
+         (object (make-app-object app)))
     (if log (logged object) object)))
+
+(defun loaded-system-names ()
+  "The names of the loaded systems that belong to this project."
+  (remove-if-not (lambda (name) (eql 0 (search "almighty-bolt" name)))
+                 (asdf:already-loaded-systems)))
 
 (defun run (variant task &key log smoke record measure hot)
   "Open the app of TASK in VARIANT (keywords) in a window, and run until it is closed. With
@@ -204,7 +211,7 @@ widgets hold, is kept."
                 (app-title app) record)
         (finish-output))
       (when hot
-        (setf sources (watch-sources))
+        (setf sources (watch-sources (loaded-system-names)))
         (format t "~&~a: hot reload is on. Save a source file, or compile a definition, and the ~
                    app is made again here.~%" (app-title app))
         (finish-output))
@@ -219,23 +226,19 @@ widgets hold, is kept."
         (when sources
           (stop-watching-files sources))))))
 
-(defun open-app (variant task &key log)
+(defun open-task (variant task)
   "Open the app of TASK in VARIANT (keywords) in a window and return its host at once, with the
-REPL free (OPEN-VARIANT). The app is made again, in the same window, whenever code is compiled
-into the image, from the editor or by loading a file (decision record 0030); closing the window
-leaves the Lisp running. The state that the app keeps (KEPT-LET) is kept when it is made again."
-  (let* ((app (or (find-app variant task)
-                  (error "There is no ~(~a~) app for ~(~a~)." variant task)))
-         (state (make-kept-state)))
-    (open-variant (with-kept-state (state)
-                    (make-app-variant variant task log))
-                  :title (app-title app) :width (app-width app) :height (app-height app)
-                  :kept-state state
-                  :rebuild (lambda () (make-app-variant variant task log)))))
+REPL free: the library's OPEN-APP, for an app that is registered here. Whenever code is compiled
+into the image the app is made again in the same window, with the state it keeps (KEPT-LET);
+closing the window leaves the Lisp running."
+  (let ((app (or (find-app variant task)
+                 (error "There is no ~(~a~) app for ~(~a~)." variant task))))
+    (open-app (app-constructor app)
+              :title (app-title app) :width (app-width app) :height (app-height app))))
 
-(defun close-app ()
-  "Close the window that OPEN-APP opened. Returns its host, or NIL if there was none."
-  (close-variant))
+(defun close-task ()
+  "Close the window that OPEN-TASK opened. Returns its host, or NIL if there was none."
+  (close-app))
 
 (defun environment (name)
   (let ((value (uiop:getenv name)))
