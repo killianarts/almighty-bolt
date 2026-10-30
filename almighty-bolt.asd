@@ -89,6 +89,13 @@
                  (:file "paint")
                  (:file "immediate")
                  (:file "semantics")))
+               ;; How a program or an agent looks at an app and works it.
+               (:module "machine"
+                :serial t
+                :components
+                ((:file "png")
+                 (:file "protocol")
+                 (:file "host-session" :if-feature :darwin)))
                ;; How an app is started, and the face of the library.
                (:file "app" :if-feature :darwin)
                (:file "almighty-bolt" :if-feature :darwin))

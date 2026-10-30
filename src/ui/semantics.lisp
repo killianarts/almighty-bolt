@@ -31,7 +31,11 @@
                 #:ui-focus
                 #:ui-hot)
   (:import-from #:almighty-bolt/ui/widgets
-                #:field-state-state)
+                #:field-state-state
+                #:choice-state-lefts
+                #:choice-state-widths
+                #:list-state-top
+                #:+row-height+)
   (:import-from #:almighty-bolt/ui/immediate
                 #:immediate-variant
                 #:immediate-variant-ui)
@@ -111,7 +115,7 @@
                  (and (>= selected 0) (nth (round selected) items))))
     (t nil)))
 
-(defun state-of (ui box)
+(defun state-of (ui box x y)
   (let ((state '()))
     (flet ((note (key value) (setf state (append state (list key value)))))
       (unless (box-enabled box) (note :disabled t))
@@ -131,11 +135,30 @@
              (note :minimum (aref aux 1))
              (note :maximum (aref aux 2)))))
         (:checkbox (note :checked (= (box-n3 box) 1)))
-        (:choice (note :selected (box-n3 box))
-                 (note :options (car (box-data box))))
-        (:list-box (note :selected (let ((selected (box-n2 box)))
-                                     (and (>= selected 0) (round selected))))
-                   (note :items (car (box-data box))))))
+        (:choice
+         (note :selected (box-n3 box))
+         (note :options (car (box-data box)))
+         ;; Where each option is, so that it can be pressed.
+         (let ((state (cdr (box-data box))))
+           (note :option-bounds
+                 (loop :for left :across (choice-state-lefts state)
+                       :for width :across (choice-state-widths state)
+                       :collect (list (+ x left) y width (box-h box))))))
+        (:list-box
+         (note :selected (let ((selected (box-n2 box)))
+                           (and (>= selected 0) (round selected))))
+         (note :items (car (box-data box)))
+         ;; The rows that show: the first one's index, and where each is.
+         (let* ((state (cdr (box-data box)))
+                (top (list-state-top state))
+                (rows (box-n3 box))
+                (count (length (car (box-data box)))))
+           (note :first-visible top)
+           (note :item-bounds
+                 (loop :for index :from top :below (min count (+ top rows))
+                       :for row :from 0
+                       :collect (list x (+ y 1 (* row +row-height+)) (box-w box)
+                                      +row-height+)))))))
     state))
 
 (defun node-of (ui box x y)
@@ -144,7 +167,7 @@
          (id (box-id box))
          (name (name-of ui box))
          (value (value-of box))
-         (state (state-of ui box))
+         (state (state-of ui box x y))
          (children (loop :for child :across (box-children box)
                          :collect (node-of ui child x y))))
     (append (and id (list :id id))

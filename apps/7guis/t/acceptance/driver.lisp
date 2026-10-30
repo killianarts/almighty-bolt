@@ -1,6 +1,7 @@
 (defpackage #:almighty-bolt-7guis/t/acceptance/driver
   (:use #:cl)
   (:local-nicknames (#:core #:almighty-bolt/internals)
+                    (#:machine #:almighty-bolt/machine)
                     (#:fake #:almighty-bolt/test-support/fake-context)
                     (#:registry #:almighty-bolt-7guis/common/registry))
   (:export #:driver
@@ -16,6 +17,7 @@
            #:click
            #:click-at
            #:click-at-point
+           #:driver-session
            #:double-click-at
            #:right-click
            #:press-at
@@ -182,6 +184,18 @@ something is from the semantic tree and not from an id."
   (pointer driver :move x y)
   (pointer driver :down x y :button button :buttons (if (zerop button) 1 2))
   (pointer driver :up x y :button button))
+
+(defun driver-session (driver)
+  "A session of the machine interface on DRIVER: what a window is to a program, for a test. The
+events go in as the window's do, each followed by a frame, and the app has answered when the
+frames that its queue needs have been made."
+  (machine:make-session
+   :variant (lambda () (driver-variant driver))
+   :deliver (lambda (event)
+              (core:handle-event (driver-variant driver) event)
+              (redraw driver))
+   :settle (lambda () (redraw driver 4))
+   :on-main #'funcall))
 
 (defun double-click-at (driver id fx fy)
   "Click twice in a row at the fraction FX, FY of the way across and down the control ID, the

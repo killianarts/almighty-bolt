@@ -1,6 +1,6 @@
 (defpackage #:almighty-bolt-snapshot/snapshot
   (:use #:cl)
-  (:import-from #:almighty-bolt-snapshot/png
+  (:import-from #:almighty-bolt/machine/png
                 #:write-png)
   (:import-from #:almighty-bolt/platform/macos/objc
                 #:with-masked-float-traps

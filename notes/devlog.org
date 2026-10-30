@@ -2127,3 +2127,53 @@ variable, which is an unused symbol macro and warns of nothing; it proved nothin
 - Two bugs of mine on the way, both found by the tests: the state's property list was =nreverse=d, which
   swaps keys and values; and my tests asked for a node by name alone, which matches a label and the field it
   names (role and name is how a node is addressed).
+*** Step 2: the protocol: see, act, wait, look
+=src/machine/protocol.lisp= (the package =almighty-bolt/machine=), with no transport:
+- A *session* is what the operations need of a place where an app runs: how to get what is running, how to
+  deliver an event as the window would, how to wait until the app has answered, how to call something on
+  the thread that owns the ui, and how to take a screenshot. =host-session= is a window's
+  (=open-session= is the one that =open-app= or =run-app= opened); the acceptance driver has a stand-in
+  (=driver-session=), so the same operations run against a window and in a test.
+- *See*: =see= is the semantic tree; =find-node= is the one thing with the given id, role and name (an
+  error in words if there is none, or if there are several, which it lists); the tree now also says where
+  each option of a choice and each visible row of a list is, so that they can be pressed.
+- *Act*, by what things are and not where they are, with the events a person's hands would make through the
+  same input path: =click=, =double-click=, =focus=, =type-text= (a key for each character, into the thing
+  that has the keyboard or into one that is named), =press-key= (a name such as "Enter", "Backspace",
+  "ArrowLeft", with modifiers), =scroll=, =select-item= (scrolls a list until the item shows), and
+  =set-value=, which does for each kind of thing what a person does: selects what is in a text field
+  and types over it (or deletes it), presses a check box only if it is not as wanted, presses a slider
+  where the value is, presses the option of a choice, picks the item of a list. A disabled thing, a value
+  of the wrong kind or out of range, and a key that does not exist are refused in words.
+- *Wait*: every action ends by waiting for the app, and =wait= does it on its own. The host knows when it
+  is idle (=host-idle-p=, =wait-for-idle=): no frame is being made, none is asked for, and no draw is on its
+  way. It was not tracked before: outside a frame a request wakes the view directly and sets no flag, so
+  there was a gap between "a draw was asked for" and "it started". The host marks a draw as pending, and
+  the frame that ends with nothing more wanted wakes whoever waits; a window that nobody waits for pays one
+  fixnum read a frame (the benchmark is where it was). It does not poll: an earlier plan said so too.
+- *Look*: =screenshot= draws the last frame's display list again with the host's own renderer (the glyphs it
+  names are in that renderer's atlas) into a texture that nobody sees, between frames on the main thread,
+  and returns it as a PNG (the writer moved from the snapshot script into the library and has an in-memory
+  form; the script uses it from there). I looked at one: the counter after the protocol's own click.
+*** The checks
+- The charter's agent task, "add a person named Ada Lovelace in CRUD", is a test
+  (=apps/7guis/t/acceptance/machine.lisp=) that uses only roles, names and values; also picking someone
+  from the list by name and deleting them, editing a field by typing over it, typing and pressing keys
+  with modifiers into the temperature converter, a slider, a choice, the messages of the refusals, and
+  the names of the keys; and one in =t/app.lisp= for the to-do list (check boxes, Return).
+- In a real window (=make examples-smoke=): the protocol presses the counter's button by its name, waits,
+  and the tree is true at once; a screenshot is a PNG of the window's size twice over (the scale).
+- The wait is the thing that is hard to test, and I got it wrong first. The smoke slept 50 ms after each
+  event, which let the frames drain by luck, so an idle that was always true passed. Without the sleeps
+  the events of a click arrive within a millisecond and the count is behind until the host is idle; and one
+  wait at the end never entered the gap that a frame leaves between asking for another and starting it,
+  so a mutant without the mark for that case passed too. The smoke now clicks thirty times, begins the wait
+  at a random point of the frames that take the click in, and compares the count each time: the unmutated
+  host is right 30 of 30 (six runs); with the mark for the next frame left out it was wrong 10 to 14 times
+  of 30.
+- Mutations, each caught by the check meant for it: the tree (eight, above), the protocol (clicks that
+  miss, no select-all before typing over a field, the first match taken when there are several, the
+  "arrow" prefix of key names kept, the slider's thumb offset, a disabled thing pressed, a check box
+  pressed whether or not it is as wanted, Return that is Tab), the host's idle (always idle; no wake for
+  the waiter; a draw on the main thread not marked; the frame that asks for another not marked) and the
+  window session (no wait; a screenshot at the wrong scale).

@@ -7,5 +7,4 @@
   :pathname "src"
   :serial t
   :depends-on ("almighty-bolt")
-  :components ((:file "png")
-               (:file "snapshot" :if-feature :darwin)))
+  :components ((:file "snapshot" :if-feature :darwin)))

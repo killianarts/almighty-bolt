@@ -44,7 +44,8 @@
                                (:file "layout")
                                (:file "dialog")
                                (:file "reload")
-                               (:file "semantics"))))))
+                               (:file "semantics")
+                               (:file "machine"))))))
   :perform (test-op (o s)
                     (let* ((results
                              (loop :for package :in '(:almighty-bolt-7guis/t/acceptance/counter
@@ -58,7 +59,8 @@
                                                       :almighty-bolt-7guis/t/acceptance/layout
                                                       :almighty-bolt-7guis/t/acceptance/dialog
                                                       :almighty-bolt-7guis/t/acceptance/reload
-                                                      :almighty-bolt-7guis/t/acceptance/semantics)
+                                                      :almighty-bolt-7guis/t/acceptance/semantics
+                                                      :almighty-bolt-7guis/t/acceptance/machine)
                                    :collect (uiop:symbol-call :lisp-unit2 :run-tests
                                                               :package package)))
                            (bad (loop :for db :in results

@@ -1,8 +1,9 @@
-(defpackage #:almighty-bolt-snapshot/png
+(defpackage #:almighty-bolt/machine/png
   (:use #:cl)
-  (:export #:write-png))
+  (:export #:png-octets
+           #:write-png))
 
-(in-package #:almighty-bolt-snapshot/png)
+(in-package #:almighty-bolt/machine/png)
 
 ;;; A PNG writer with no compression: the pixels go into stored deflate blocks, which
 ;;; every PNG reader accepts, so that no library is needed. For looking at what was
@@ -41,12 +42,14 @@
     (dotimes (i 4 bytes)
       (setf (aref bytes i) (ldb (byte 8 (* 8 (- 3 i))) value)))))
 
-(defun write-chunk (stream type data)
+(defun chunk-octets (type data)
+  "The bytes of one PNG chunk of TYPE (a string of four letters) holding DATA."
   (let ((type-bytes (map '(simple-array (unsigned-byte 8) (*)) #'char-code type)))
-    (write-sequence (u32-bytes (length data)) stream)
-    (write-sequence type-bytes stream)
-    (write-sequence data stream)
-    (write-sequence (u32-bytes (logxor #xFFFFFFFF (crc32 data (crc32 type-bytes)))) stream)))
+    (concatenate '(simple-array (unsigned-byte 8) (*))
+                 (u32-bytes (length data))
+                 type-bytes
+                 data
+                 (u32-bytes (logxor #xFFFFFFFF (crc32 data (crc32 type-bytes)))))))
 
 (defun zlib-stored (raw)
   "RAW wrapped as a zlib stream of stored blocks."
@@ -70,8 +73,8 @@
           (put (ldb (byte 8 (* 8 (- 3 i))) adler)))))
     out))
 
-(defun write-png (path width height bgra)
-  "Write a PNG of WIDTH by HEIGHT pixels to PATH from BGRA, a vector of four bytes a
+(defun png-octets (width height bgra)
+  "A PNG of WIDTH by HEIGHT pixels, as a vector of bytes, from BGRA, a vector of four bytes a
 pixel (blue, green, red, alpha), row by row from the top."
   (let* ((row (* 4 width))
          (raw (make-array (* height (1+ row)) :element-type '(unsigned-byte 8)
@@ -87,13 +90,17 @@ pixel (blue, green, red, alpha), row by row from the top."
                   (aref raw (+ o 1)) (aref bgra (+ i 1))
                   (aref raw (+ o 2)) (aref bgra i)
                   (aref raw (+ o 3)) (aref bgra (+ i 3)))))))
-    (with-open-file (stream path :direction :output :if-exists :supersede
-                                 :element-type '(unsigned-byte 8))
-      (write-sequence #(137 80 78 71 13 10 26 10) stream)
-      (write-chunk stream "IHDR"
-                   (concatenate '(simple-array (unsigned-byte 8) (*))
-                                (u32-bytes width) (u32-bytes height)
-                                (vector 8 6 0 0 0)))
-      (write-chunk stream "IDAT" (zlib-stored raw))
-      (write-chunk stream "IEND" (make-array 0 :element-type '(unsigned-byte 8))))
-    path))
+    (concatenate '(simple-array (unsigned-byte 8) (*))
+                 #(137 80 78 71 13 10 26 10)
+                 (chunk-octets "IHDR" (concatenate '(simple-array (unsigned-byte 8) (*))
+                                                   (u32-bytes width) (u32-bytes height)
+                                                   (vector 8 6 0 0 0)))
+                 (chunk-octets "IDAT" (zlib-stored raw))
+                 (chunk-octets "IEND" (make-array 0 :element-type '(unsigned-byte 8))))))
+
+(defun write-png (path width height bgra)
+  "Write a PNG of WIDTH by HEIGHT pixels to PATH from BGRA (see PNG-OCTETS)."
+  (with-open-file (stream path :direction :output :if-exists :supersede
+                               :element-type '(unsigned-byte 8))
+    (write-sequence (png-octets width height bgra) stream))
+  path)

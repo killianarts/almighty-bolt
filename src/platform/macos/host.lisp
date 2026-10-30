@@ -96,6 +96,8 @@
            #:host-view
            #:host-acquire
            #:host-wake
+           #:host-idle-p
+           #:wait-for-idle
            #:host-kept-state
            #:swap-variant
            #:reload-host
@@ -184,7 +186,14 @@ glyph atlas. FONTS keeps the fonts made, by name and then by size."
   ;; allocate, which REQUEST-DRAW (it makes a closure to hand to the main thread)
   ;; does. NIL for a host with no view, which leaves requests as a flag for whoever
   ;; drives it.
-  (wake nil :type (or null function)))
+  (wake nil :type (or null function))
+  ;; True from the moment a draw is asked for until the frame that answers it starts, so that "no
+  ;; frame is being made and none is wanted" (HOST-IDLE-P) has no gap in it.
+  (draw-pending nil :type boolean)
+  ;; Callers of WAIT-FOR-IDLE, and the queue they wait on. A frame that ends with nothing more
+  ;; wanted wakes them if there are any; with none it reads one number.
+  (waiters 0 :type fixnum)
+  (idle-queue (sb-thread:make-waitqueue :name "host idle")))
 
 (defmethod print-object ((host host) stream)
   ;; What a REPL shows after (OPEN-APP ...), which returns the host: not its parts.
@@ -201,8 +210,8 @@ flag set."
           (view (host-view host)))
       (cond ((or (host-drawing-p host) (null wake))
              (setf (context-frame-requested (host-context host)) t))
-            ((on-main-thread-p) (funcall wake))
-            (view (request-draw view))
+            ((on-main-thread-p) (setf (host-draw-pending host) t) (funcall wake))
+            (view (setf (host-draw-pending host) t) (request-draw view))
             (t (setf (context-frame-requested (host-context host)) t))))))
 
 (defun make-host (variant device pixel-format
@@ -240,15 +249,56 @@ the main thread, once for each event, in order."
 
 (defun start-drawing (host)
   (sb-thread:with-mutex ((host-lock host))
-    (setf (host-drawing-p host) t)))
+    (setf (host-drawing-p host) t
+          (host-draw-pending host) nil)))
 
 (defun stop-drawing (host)
   "End a frame. Returns true if a frame was requested while it was made and there is
 a way to ask for another."
   (sb-thread:with-mutex ((host-lock host))
     (setf (host-drawing-p host) nil)
-    (and (host-wake host)
-         (take-frame-request (host-context host)))))
+    (let ((again (and (host-wake host)
+                      (take-frame-request (host-context host)))))
+      (cond (again
+             ;; The caller wakes the view next, outside the lock.
+             (setf (host-draw-pending host) t))
+            ((plusp (host-waiters host))
+             (sb-thread:condition-broadcast (host-idle-queue host))))
+      again)))
+
+(defun idle-p (host)
+  (and (not (host-drawing-p host))
+       (not (host-draw-pending host))
+       (not (context-frame-requested (host-context host)))))
+
+(defun host-idle-p (host)
+  "True if no frame is being made and none is wanted: what the app was asked is answered on the
+screen."
+  (sb-thread:with-mutex ((host-lock host))
+    (idle-p host)))
+
+(defun wait-for-idle (host &key (timeout 5))
+  "Wait until HOST-IDLE-P, at most TIMEOUT seconds. Returns true if it is idle. The frame that
+ends with nothing more wanted wakes the waiter; nothing polls, and a window that nobody waits for pays
+a read of one number a frame."
+  (let ((deadline (+ (get-internal-real-time) (* timeout internal-time-units-per-second))))
+    (sb-thread:with-mutex ((host-lock host))
+      (incf (host-waiters host))
+      (unwind-protect
+           (loop
+             (when (idle-p host)
+               (return t))
+             (let ((left (/ (- deadline (get-internal-real-time)) internal-time-units-per-second)))
+               (when (<= left 0)
+                 (return nil))
+               (let ((woken (sb-thread:condition-wait (host-idle-queue host) (host-lock host)
+                                                      :timeout left)))
+                 ;; A wait that times out may return without the lock.
+                 (unless (sb-thread:holding-mutex-p (host-lock host))
+                   (sb-thread:grab-mutex (host-lock host)))
+                 (unless woken
+                   (return (idle-p host))))))
+        (decf (host-waiters host))))))
 
 (defun report-hot-reload (what condition)
   "Say on the error output that WHAT happened, and why. Printed without the pretty printer, which
