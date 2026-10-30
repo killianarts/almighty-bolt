@@ -2230,3 +2230,16 @@ variable, which is an unused symbol macro and warns of nothing; it proved nothin
   thing worth doing.
 - =vend get= finds jzon from the .asd (jzon is in =vendored/= since the system was added; running it again
   added nothing else).
+** A-008 and A-009 checked; an SBCL-only guard (2026-10-30)
+- Micah tried the REPL path in their own Emacs (Sly, started as =vend repl sbcl --dynamic-space-size 4096=
+  by =sly-lisp-implementations=): saving a file and compiling a form both changed the open window, "everything
+  worked". A-008 and A-009 are VERIFIED (=notes/assumptions.org=).
+- The first try failed with =Unbound variable: +WORDS-PER-RECORD+= while compiling =src/ring.lisp=. I could
+  not make it fail in SBCL: the same launch through Slynk, from another project's directory, with the
+  user's =.sbclrc= and its own ASDF, loaded through the REPL, =C-c C-k= and =load=, with the compiled files
+  wiped each time. The cause was that Micah's REPL was CCL (=C-u M-x sly= asks which Lisp, and their list
+  has =ccl=). I took the restarts' wording for SBCL's when it is CCL's, and spent an hour on it. CCL does not
+  evaluate a =defconstant= at compile time, so the =#.= two lines below it reads an unbound variable.
+- =almighty-bolt.asd= now stops a Lisp that is not SBCL with "almighty-bolt runs on SBCL only, and this is
+  Clozure Common Lisp", before anything is compiled; checked in CCL 1.13 (ASDF reports it as the error
+  loading the definition of the system).

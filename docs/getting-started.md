@@ -6,7 +6,7 @@ This takes you from a clone of the repository to a small app that you change whi
 
 almighty-bolt opens its window from a thread other than the main one and runs the window's event loop on the main thread, which has to be waiting for something. An editor that starts Lisp itself does exactly that: it starts `sbcl` with a pipe for its input, sends it the form that starts its server, and then waits. So:
 
-- **Emacs with Sly.** Start with `C-u M-x sly` and pick `sbcl`. (If your `sly-default-lisp` is something else, such as CCL, this library does not run in it.) Open a file from the repository first, so that Sly starts in the right directory.
+- **Emacs with Sly.** Start with `C-u M-x sly` and pick `sbcl`. (If your `sly-default-lisp` is something else, such as CCL, this library does not run in it, and loading it there stops with a message that says so.) Open a file from the repository first, so that Sly starts in the right directory.
 - **SLIME** with threads works the same way.
 - **A terminal `sbcl`** runs its REPL on the main thread, which is the window's. There, use `run-app` (section 6) and do not expect a REPL while the window is open.
 

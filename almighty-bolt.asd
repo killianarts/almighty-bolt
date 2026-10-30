@@ -1,3 +1,10 @@
+;;; The library is SBCL only for now (CFFI calls into AppKit and Metal, and it uses SBCL's own hooks for
+;;; hot reload). Another Lisp gets as far as the first file that reads a constant at read time and fails
+;;; with an error about an unbound variable; this says why, first.
+#-sbcl
+(error "almighty-bolt runs on SBCL only, and this is ~a. In Sly, M-x sly starts your default Lisp, and C-u M-x sly asks which."
+       (lisp-implementation-type))
+
 (defsystem "almighty-bolt"
   :version "0.0.1"
   :description "A GUI library for Common Lisp: the platform, the renderer, text and layout, and the immediate-mode ui"
