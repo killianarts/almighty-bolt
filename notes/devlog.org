@@ -1726,3 +1726,38 @@ Micah: "Hot restart is not good enough. State should be kept between reloads." R
 - A variable that is renamed starts again, and so does one whose initial form was edited.
 - The old app's =computed= values stay subscribed to shared signals (reactive), marked stale.
 - I have not seen it in Micah's Emacs. What was run is a script that speaks Slynk's protocol.
+
+* 2026-10-30 — Immediate for now, and the process changes
+** What Micah decided
+- Settle on the immediate-mode variant for now. The retained, reactive and cursor variants, the McCLIM
+  comparison and the spikes are archived and the library grows from the immediate variant. This is
+  Micah's choice; it is not a result of the usability rubric (still unscored) and settles no hypothesis
+  (the charter says so).
+- No more decision records. The devlog stays. A decision is written in the devlog entry of the day,
+  with its evidence, and in the commit message. Records 0001 to 0031 are frozen; 0030 and 0031 stay
+  proposed.
+- For now, no unit tests: integration and end-to-end tests only.
+- The plan: a macOS v0.1 of the Common Lisp library with the semantic tree and the machine interface
+  (an opt-in MCP server), the VoiceOver bridge right after; the ui folded into the core so that it is
+  one system and one tree; =master= is the line. Stages 0 to 7 are in the charter's roadmap.
+** What I did (Stages 0 and 1)
+- Tags =archive/three-variants= (the tip of =hot-reload=, =43ddb88=) and =archive/mcclim= (=deba9e7=),
+  =master= fast-forwarded from =aa144d8= to =43ddb88= without a checkout, and =master= and both tags
+  pushed (Micah said so). The uncommitted diff to =apps/7guis/crud/immediate.lisp= was discarded and
+  =PLAN.org= (an empty file) deleted, both at Micah's word.
+- Process: the charter no longer asks for decision records anywhere (the Priorities, the core's
+  boundary rule, the layout spike, the boundary options, the Coalton exception all say "devlog"), has a
+  Testing section, new graduation criteria and a roadmap for v0.1, and no decision-record template;
+  =scripts/auto-commit.sh= has no =Decision:= trailer (and the trailers are now their own paragraph);
+  =notes/decisions/README.org= says the records ended; =CLAUDE.md= holds the working rules, which were in
+  memory only.
+** What I measured
+The suite on =master= before any removal, the baseline for Stage 2: 1128 tests, 56,356 assertions in 70
+summaries (core 399, 7GUIs 322, stress 164, retained 135, reactive 61, immediate 40, null 7), 0 failures,
+45 s with the compiled files in place.
+** Read with care
+- The charter's Repository layout block describes the layout as it is; it is updated in Stages 2 and 4
+  when the layout changes, not before.
+- Stage 3 will remove the unit tests. The properties they guarded get an end-to-end check first (the
+  list is in the Stage 3 entry when it is done); the baseline of the replay frame hashes is taken
+  before the removal.

@@ -32,8 +32,8 @@ the experiment.
 
 * Priorities
 
-Write this section before any implementation and revisit it only through a
-decision record (see [[*Decision records][Decision records]]). It keeps decisions consistent and
+Write this section before any implementation; a change to it is made in the
+devlog, with the reason (see [[*Recording system][Recording system]]). It keeps decisions consistent and
 makes deviations visible in the story.
 
 ** Weighting
@@ -61,6 +61,14 @@ Fill in weights (summing to 100) and a one-line rationale for each.
 
 Each hypothesis gets a state: OPEN, CONFIRMED, REFUTED or INCONCLUSIVE, and
 links to the evidence (benchmark runs, decision records) that settled it.
+
+*The comparison stopped on 2026-10-30.* Micah chose the immediate-mode variant
+for now, and the retained, reactive, cursor and McCLIM variants and the spikes
+were archived (tags =archive/three-variants= and =archive/mcclim=). The states
+below are as they were when it stopped; none was settled by the choice, and the
+choice is Micah's, not a result of the usability rubric (still unscored). The
+evidence is in =results/= and on the tags. H4 (Coalton) stays open and is
+deferred until after the first release of the Common Lisp library.
 
 ** OPEN H1: The UI approach mostly affects code size and usability, not raw speed
 Expectation: retained, immediate-with-cache and reactive hybrid variants can
@@ -140,7 +148,7 @@ instrumentation are added when their triggers are reached (see the roadmap).
 *** Rules for the core
 - *Narrow boundary.* A variant talks to the core only through the variant
   contract below. Anything a variant needs that is not in the contract is a
-  request to change the core, made through a decision record.
+  request to change the core, with the reason in the devlog.
 - *No policy.* The core provides mechanisms (draw this, measure that, is this
   point inside that shape) and never decides /what/ to draw or /when/ state
   changes. Those decisions are the experiment.
@@ -434,7 +442,7 @@ panel, and a wrapped paragraph in a resizable container. Record, per front
 end: layout-related lines of code; layout time per frame (the layout phase in
 the instrumentation); builds per settled frame; and whether display-list
 hashes match across front ends for the same app. Write the
-outcome as a decision record.
+outcome in the devlog.
 
 ** Variant matrix
 Each cell is a front end built on the shared core.
@@ -490,7 +498,7 @@ bench/           harness, replay scripts, result schema
 results/         raw benchmark results, one file per run
 notes/
   devlog.org     dated lab notebook
-  decisions/     one file per decision record
+  decisions/     records 0001 to 0031, frozen (none added since 2026-10-30)
   research.org   annotated bibliography
 design/          design tokens, screenshots, gallery
 spikes/          throwaway programs that answer one question each
@@ -535,8 +543,8 @@ benefits outweigh the costs, measured rather than argued. Proposed bar:
   and
 - the wrapper code needed to give Common Lisp users that API is smaller than
   maintaining a second front end.
-Falling short on any point keeps the two-library plan. Record the outcome as a
-decision record either way.
+Falling short on any point keeps the two-library plan. Record the outcome in
+the devlog either way.
 
 ** Expected benefits
 - Type inference supplies the compiler with type information that Common Lisp
@@ -601,7 +609,7 @@ underneath:
 
 The experiment's variants already use option 1 (one shared core), so it is
 the starting point; the three-way comparison in [[*Fair comparison][Fair comparison]] says whether
-option 2 is worth it. Record the choice as a decision record.
+option 2 is worth it. Record the choice in the devlog.
 
 * Reference apps
 
@@ -663,7 +671,7 @@ edited, only superseded.
 
 ** Continuous tracking
 Run the suite in CI on each merge and chart results over time, so wins and
-regressions are visible and can be linked from decision records. With no
+regressions are visible and can be linked from the devlog. With no
 software renderer, the benchmark and renderer jobs need a runner with a GPU
 (a dedicated machine if hosted runners lack one). Display-list and layout
 tests run on any runner.
@@ -725,6 +733,20 @@ likely stuck.
 - Prefer fewer, more general concepts over many special cases.
 - When two solutions measure the same, take the beautiful one.
 
+* Testing
+
+For now the tests are integration and end-to-end tests, and no unit tests are
+written. A test starts from outside the thing it checks (events, frames or
+replay scripts in; a display list, pixels, a window or the REPL out), or runs
+against the real operating system, GPU or window. A test of one function,
+struct or module with fakes is a unit test and is not added; the unit tests
+that exist are removed in Stage 3 of the roadmap, and stay on the tag
+=archive/three-variants=. A property that matters (no allocation per frame
+after warm-up, an idle app asking for no frames, a reload that keeps state) is
+checked from outside, over a replay script or in a window. Each new or changed
+test is mutation-checked: a deliberate defect in the code it covers must make it
+fail.
+
 * Recording system
 
 ** Devlog
@@ -732,30 +754,57 @@ likely stuck.
 tried, what was read, what was measured, what failed and what was learned.
 Dead ends are as valuable as wins.
 
-** Decision records
-=notes/decisions/NNNN-short-title.org=, one per significant decision. Each
-links to the evidence it rests on. Decisions are never edited after the fact;
-a later decision supersedes an earlier one.
+** Decisions
+There are no decision records since 2026-10-30. A decision is written in the
+devlog entry of the day, with the evidence it rests on, and in the message of
+the commit that carries it. Records 0001 to 0031 in =notes/decisions/= stay as
+they were written, as history, and none is edited. A change that a user of the
+library would see goes in =CHANGELOG.md= and =docs/releases/dev.md=.
 
 ** Research notes
 =notes/research.org=: an annotated bibliography. For each source: a summary
 in my own words, the ideas I take from it, and the ideas I reject.
 
 ** Telling the story
-The devlog, decision records and benchmark history are the raw material for
-blog posts and a final report. Write a short post at the end of each phase
-while the reasoning is fresh.
+The devlog, the decision records (0001 to 0031) and benchmark history are the
+raw material for blog posts and a final report. Write a short post at the end of
+each phase while the reasoning is fresh.
 
 * Graduation criteria
 
-The experimental phase ends when:
-- every hypothesis is CONFIRMED, REFUTED or INCONCLUSIVE with linked evidence;
-- in each language, one variant (or a synthesis) wins or ties on benchmarks
-  /and/ change-cost tests under the weights in [[*Priorities][Priorities]];
-- the CL vs. Coalton question has a recorded answer, including what the two
-  libraries share and whether the single-library exception applies.
+The comparison of variants ended on 2026-10-30, when Micah chose the
+immediate-mode variant for now. The next milestone is the first release of the
+Common Lisp library (v0.1.0, macOS only), which is done when:
+- the library loads as one system, =almighty-bolt=, and a program that uses only
+  its public package can open a window, draw, handle input and be reloaded from
+  the REPL with its state kept;
+- the integration and end-to-end suite passes, and the benchmark records show no
+  allocation per frame after warm-up and the idle floor met;
+- the semantic tree and the machine interface (see, act, observe, wait,
+  reproduce) work, with an opt-in local MCP server;
+- there is a README, a getting-started page and an example outside the 7GUIs;
+- the release follows =docs/releasing.md=.
+
+The Coalton question (H4, and whether two libraries or one) is taken up again
+after that release.
 
 * Roadmap
+
+** NEXT Library v0.1 (from 2026-10-30)
+The stages; each ends in a devlog entry, and a stage is done when the suite passes.
+- [X] Stage 0: archive tags, =master= brought up to the line and pushed
+- [X] Stage 1: the process (this charter, no decision records, =CLAUDE.md=)
+- [ ] Stage 2: one variant (the others, McCLIM and the spikes archived)
+- [ ] Stage 3: integration and end-to-end tests only
+- [ ] Stage 4: the ui folded into the core: one system, one tree
+- [ ] Stage 5: the library's surface: a public package, entry points, README, an example
+- [ ] Stage 6: the semantic tree and the machine interface, with an opt-in MCP server
+- [ ] Stage 7: release v0.1.0 (macOS only); the VoiceOver bridge comes next
+
+Phases 0 to 6 below are the roadmap of the experiment. Phases 0 to 3 are history
+(the devlog has what was done; the unticked boxes of Phase 3 that the stages do
+not name were dropped when the comparison stopped). Phases 4 to 6 are deferred
+until after v0.1.
 
 ** TODO Phase 0: Foundations
 - [X] Fill in the priorities table and decision rules
@@ -792,15 +841,15 @@ The experimental phase ends when:
 - [ ] Change-cost tests and usability rubric
 - [ ] Machine interface with an MCP adapter; agent tasks in each variant
 
-** TODO Phase 4: Coalton
-- [ ] Choose the boundary design (decision record)
+** TODO Phase 4: Coalton (deferred until after v0.1)
+- [ ] Choose the boundary design (devlog)
 - [ ] Port the two most promising variants
 - [ ] Three-way comparison: CL idiomatic, CL declared, Coalton
 
-** TODO Phase 5: Analysis and decision
-- [ ] Settle every hypothesis
-- [ ] Decide two libraries vs. the single-library exception (decision record)
-- [ ] Write the decision records choosing each library's design
+** TODO Phase 5: Analysis and decision (deferred; the comparison of variants stopped)
+- [ ] Settle every hypothesis that is still open
+- [ ] Decide two libraries vs. the single-library exception (devlog)
+- [ ] Write down the choices for each library's design in the devlog
 - [ ] Publish the phase report
 
 ** TODO Phase 6: Hardening and release
@@ -816,28 +865,8 @@ The experimental phase ends when:
 
 * Templates
 
-** Decision record
-#+begin_src org
-,#+TITLE: NNNN — Short title
-,#+DATE: YYYY-MM-DD
-- Status :: proposed | accepted | superseded by NNNN
-
-,* Context
-What forces are at play? Which priorities are involved?
-
-,* Options
-1. ...
-2. ...
-
-,* Evidence
-Links to benchmark results, devlog entries and research notes.
-
-,* Decision
-What we chose, in one or two sentences.
-
-,* Consequences
-What becomes easier, what becomes harder, what we give up.
-#+end_src
+The decision-record template was removed on 2026-10-30, with the records (see
+[[*Decisions][Decisions]]).
 
 ** Devlog entry
 #+begin_src org
