@@ -18,7 +18,7 @@ deps:
 # real operating system, text engine and GPU, and the apps driven by events and replay scripts. No
 # window is opened; make smoke does that.
 test:
-	$(SBCL) $(REGISTRY) --eval '(asdf:test-system "almighty-bolt-core")'
+	$(SBCL) $(REGISTRY) --eval '(asdf:test-system "almighty-bolt")'
 	$(SBCL) $(REGISTRY) --eval '(asdf:test-system "almighty-bolt-7guis/acceptance")'
 	$(SBCL) $(REGISTRY) --eval '(asdf:test-system "almighty-bolt-stress/acceptance")'
 

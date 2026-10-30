@@ -5,7 +5,7 @@
   :maintainer "Micah Killian <micah@almightylisp.com>"
   :license "MIT"
   :serial t
-  :depends-on ("almighty-bolt-core")
+  :depends-on ("almighty-bolt")
   :components ((:module "common" :components ((:file "numbers") (:file "registry") (:file "sources")))
                (:module "temperature" :components ((:file "model")))
                (:module "flight" :components ((:file "model")))
@@ -18,13 +18,13 @@
 
 (defsystem "almighty-bolt-7guis/launcher"
   :description "Open a task of a variant in a window"
-  :depends-on ("almighty-bolt-7guis" "almighty-bolt-core")
+  :depends-on ("almighty-bolt-7guis" "almighty-bolt")
   :serial t
   :components ((:module "launcher" :if-feature :darwin :components ((:file "launcher")))))
 
 (defsystem "almighty-bolt-7guis/acceptance"
   :description "Behavioural tests of every task: events in, what the app shows out"
-  :depends-on ("almighty-bolt-7guis" "almighty-bolt-variant-support"
+  :depends-on ("almighty-bolt-7guis" "almighty-bolt/test-support"
                "almighty-bolt-7guis/immediate"
                "lisp-unit2" "flexi-streams")
   :serial t
@@ -69,7 +69,7 @@
 
 (defsystem "almighty-bolt-7guis/immediate"
   :description "The seven 7GUIs tasks in the immediate variant"
-  :depends-on ("almighty-bolt-7guis" "almighty-bolt-variant-immediate")
+  :depends-on ("almighty-bolt-7guis")
   :serial t
   :components ((:module "counter" :components ((:file "immediate")))
                (:module "temperature" :components ((:file "immediate")))

@@ -2,8 +2,7 @@
   (:use #:cl)
   (:import-from #:almighty-bolt-core/redefinition
                 #:with-redefinitions-held)
-  (:export #:lisp-files-under
-           #:changed-files
+  (:export #:changed-files
            #:watch-files
            #:stop-watching-files
            #:loaded-system-names
@@ -21,21 +20,6 @@
 ;;; without it.
 
 ;;; --- looking at files ---
-
-(defun lisp-files-under (directory)
-  "The .lisp and .asd files in DIRECTORY and the directories under it, except those under a
-directory called t (tests), vendored or build."
-  (let ((files '()))
-    (labels ((walk (directory)
-               (dolist (file (uiop:directory-files directory))
-                 (when (member (pathname-type file) '("lisp" "asd") :test #'equal)
-                   (push file files)))
-               (dolist (subdirectory (uiop:subdirectories directory))
-                 (unless (member (car (last (pathname-directory subdirectory)))
-                                 '("t" "vendored" "build") :test #'string=)
-                   (walk subdirectory)))))
-      (walk directory))
-    (sort files #'string< :key #'namestring)))
 
 (defun file-signature (file)
   "What says whether FILE changed: its write date, which has the resolution of a second, and,
@@ -125,13 +109,23 @@ it wakes a few times a second, which is for development only."
                  (asdf:already-loaded-systems)))
 
 (defun system-files (names)
-  "The source files of the systems NAMES, each directory once."
-  (let ((directories '()))
-    (dolist (name names)
-      (pushnew (asdf:system-source-directory (asdf:find-system name)) directories :test #'equal))
-    (remove-duplicates (loop :for directory :in (reverse directories)
-                             :append (lisp-files-under directory))
-                       :test #'equal)))
+  "The source files of the systems NAMES: the .lisp file of each of their components, and the .asd
+file they are defined in. A system is what it names, not what lies under its directory: the library
+is defined at the root of the repository, where a walk of the directory would find the apps, the
+benchmarks and the scripts too."
+  (let ((files '()))
+    (labels ((note (path)
+               (when (and path (probe-file path))
+                 (pushnew (uiop:truenamize path) files :test #'equal)))
+             (walk (component)
+               (typecase component
+                 (asdf:cl-source-file (note (asdf:component-pathname component)))
+                 (asdf:parent-component (mapc #'walk (asdf:component-children component))))))
+      (dolist (name names)
+        (let ((system (asdf:find-system name)))
+          (walk system)
+          (note (asdf:system-source-file system)))))
+    (sort files #'string< :key #'namestring)))
 
 (defun forget-compiled-files (names files)
   "Delete the compiled files of the components of the systems NAMES whose source is one of

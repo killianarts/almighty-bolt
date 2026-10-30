@@ -6,6 +6,6 @@
   :license "MIT"
   :pathname "src"
   :serial t
-  :depends-on ("almighty-bolt-core")
+  :depends-on ("almighty-bolt")
   :components ((:file "png")
                (:file "snapshot" :if-feature :darwin)))

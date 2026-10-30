@@ -5,7 +5,7 @@
   :maintainer "Micah Killian <micah@almightylisp.com>"
   :license "MIT"
   :serial t
-  :depends-on ("almighty-bolt-core")
+  :depends-on ("almighty-bolt")
   :components ((:module "dashboard" :components ((:file "model") (:file "paint")))
                (:module "rows" :components ((:file "model") (:file "paint")))
                (:module "editor"
@@ -13,7 +13,7 @@
 
 (defsystem "almighty-bolt-stress/immediate"
   :description "The stress apps in the immediate variant"
-  :depends-on ("almighty-bolt-stress" "almighty-bolt-7guis" "almighty-bolt-variant-immediate")
+  :depends-on ("almighty-bolt-stress" "almighty-bolt-7guis")
   :serial t
   :components ((:module "dashboard" :components ((:file "immediate")))
                (:module "rows" :components ((:file "immediate")))

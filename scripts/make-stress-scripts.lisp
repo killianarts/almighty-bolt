@@ -1,7 +1,7 @@
 (require :asdf)
 (asdf:initialize-source-registry
  (list :source-registry (list :tree (uiop:getcwd)) :ignore-inherited-configuration))
-(asdf:load-system "almighty-bolt-core")
+(asdf:load-system "almighty-bolt")
 
 (defpackage #:almighty-bolt-scripts/make-stress-scripts
   (:use #:cl)
@@ -11,7 +11,7 @@
 
 ;;;; Writes the replay scripts of the stress apps into apps/stress/replay/, from the repository root:
 ;;;;   sbcl --script scripts/make-stress-scripts.lisp
-;;;; They are made here, in the script format of core/src/replay/script.lisp, and not recorded from a
+;;;; They are made here, in the script format of src/replay/script.lisp, and not recorded from a
 ;;;; session, because a session of a person's is not the same twice and these have to be: each is a
 ;;;; fixed timeline of events at the control that they name, so that every variant is driven the same.
 ;;;; Times are in nanoseconds; an event is at a fraction of a control.

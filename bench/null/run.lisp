@@ -6,7 +6,7 @@
 
 (in-package #:almighty-bolt-variant-null/run)
 
-(asdf:load-system "almighty-bolt-variant-null")
+(asdf:load-system "almighty-bolt-bench-null")
 
 ;; Runs the event loop on this, the main, thread; prints the report and quits.
 (almighty-bolt-variant-null/measure:main)

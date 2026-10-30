@@ -12,7 +12,7 @@
 (require :asdf)
 (asdf:initialize-source-registry
  (list :source-registry (list :tree ~s) :ignore-inherited-configuration))
-(asdf:load-system \"almighty-bolt-core\")
+(asdf:load-system \"almighty-bolt\")
 (use-package :almighty-bolt-core/platform/macos/objc)
 (sb-ext:save-lisp-and-die ~s
   :executable t

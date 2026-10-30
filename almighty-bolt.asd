@@ -1,6 +1,6 @@
-(defsystem "almighty-bolt-core"
+(defsystem "almighty-bolt"
   :version "0.0.1"
-  :description "Shared core for the almighty-bolt GUI experiment: clock, instrumentation, events, display list and layout"
+  :description "A GUI library for Common Lisp: the platform, the renderer, text and layout, and the immediate-mode ui"
   :author "Micah Killian"
   :maintainer "Micah Killian <micah@almightylisp.com>"
   :license "MIT"
@@ -73,15 +73,34 @@
                 :if-feature :darwin
                 :components
                 ((:file "host")))
-               (:file "package"))
-  :in-order-to ((test-op (test-op "almighty-bolt-core/tests"))))
+               (:file "package")
+               ;; The ui: the interface is described again every frame, and unchanged layout
+               ;; and painting are skipped by comparing what was described.
+               (:module "ui"
+                :serial t
+                :components
+                ((:file "theme")
+                 (:file "hash")
+                 (:file "box")
+                 (:file "ui")
+                 (:file "widgets")
+                 (:file "layout")
+                 (:file "paint")
+                 (:file "immediate"))))
+  :in-order-to ((test-op (test-op "almighty-bolt/tests"))))
 
-(defsystem "almighty-bolt-core/tests"
+(defsystem "almighty-bolt/test-support"
+  :description "What the tests of the apps share: a context with text that is easy to count"
+  :depends-on ("almighty-bolt")
+  :pathname "t/support"
+  :components ((:file "fake-context")))
+
+(defsystem "almighty-bolt/tests"
   ;; Integration tests, against the real operating system, text engine and GPU (the charter's Testing
   ;; section). flexi-streams is not used here. cl-unicode (lisp-unit2 -> cl-interpol ->
   ;; cl-unicode) generates its source files with it on first load, and vend
   ;; only finds it if some system names it.
-  :depends-on ("almighty-bolt-core" "lisp-unit2" "flexi-streams")
+  :depends-on ("almighty-bolt" "lisp-unit2" "flexi-streams")
   :components ((:module "t"
                 :serial t
                 :components
@@ -131,4 +150,4 @@
                       (dolist (db results)
                         (uiop:symbol-call :lisp-unit2 :print-summary db))
                       (when bad
-                        (error "~d almighty-bolt-core test~:p failed." (length bad))))))
+                        (error "~d almighty-bolt test~:p failed." (length bad))))))

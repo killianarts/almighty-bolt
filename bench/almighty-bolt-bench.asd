@@ -5,8 +5,7 @@
   :maintainer "Micah Killian <micah@almightylisp.com>"
   :license "MIT"
   :serial t
-  :depends-on ("almighty-bolt-core" "almighty-bolt-variant-immediate"
-               "almighty-bolt-7guis/immediate" "almighty-bolt-variant-null"
+  :depends-on ("almighty-bolt" "almighty-bolt-7guis/immediate" "almighty-bolt-bench-null"
                "almighty-bolt-stress/immediate")
   :components ((:file "results" :if-feature :darwin)
                (:file "app-metrics" :if-feature :darwin)

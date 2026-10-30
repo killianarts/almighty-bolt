@@ -159,7 +159,7 @@ its pixels."
 ;;; allows a small difference in each channel.
 
 (defun golden-path ()
-  (asdf:system-relative-pathname "almighty-bolt-core/tests" "t/golden/shapes.ppm"))
+  (asdf:system-relative-pathname "almighty-bolt/tests" "t/golden/shapes.ppm"))
 
 (defun shapes-scene ()
   "A red rectangle, a blue rounded one, and a translucent green pill over both."

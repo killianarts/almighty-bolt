@@ -1,4 +1,4 @@
-(defsystem "almighty-bolt-variant-null"
+(defsystem "almighty-bolt-bench-null"
   :version "0.0.1"
   :description "The null baseline variant: replays a fixed display list, to measure the core's own cost"
   :author "Micah Killian"
@@ -6,6 +6,6 @@
   :license "MIT"
   :pathname "src"
   :serial t
-  :depends-on ("almighty-bolt-core")
+  :depends-on ("almighty-bolt")
   :components ((:file "null")
                (:file "measure" :if-feature :darwin)))
