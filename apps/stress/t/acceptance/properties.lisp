@@ -17,14 +17,18 @@
 (in-package #:almighty-bolt-stress/t/acceptance/properties)
 
 ;;; What the library promises whatever an app does, checked from outside, as the charter's Testing
-;;; section asks: the shipped replay scripts are played into the apps with the
-;;; real text engine and no window, as the benchmark protocol plays them, and an app that has
-;;; nothing going on is left alone. Three properties:
-;;;   - a frame settles: no frame of any script hits the settle cap, and every checkpoint (the hash
-;;;     of the frame after an event, frozen into four of the scripts) holds;
+;;; section asks: the shipped replay scripts are played into the apps with the real text engine and no
+;;; window, as the benchmark protocol plays them, and an app that has nothing going on is left alone.
+;;;   - a frame settles: no frame of any script hits the settle cap;
+;;;   - determinism: a script played twice, into a new app each time, draws the same frames (the
+;;;     hash of every frame is the same), which the charter wants before any measurement is trusted;
 ;;;   - allocation: after the first frame, three of the scripts allocate nothing in a frame and the
-;;;     other three no more than about twice what they did when this was written;
-;;;   - idle: an app that is not animating asks for no frame, at the start, after time passes.
+;;;     other three no more than about twice what they did when this was written (bytes consed are
+;;;     counted in steps of an allocation region, so a script of a dozen frames cannot show less
+;;;     than about a kilobyte a frame);
+;;;   - idle: an app that is not animating asks for no frame, at the start and after time passes.
+;;; The checkpoints of the shipped scripts name a moment and carry no hash (a hash is of this
+;;; machine's text engine, and is frozen locally with make replay FREEZE=), so they check nothing here.
 
 (defparameter +scripts+
   '(("7guis" "replay/counter-clicks.script")
@@ -65,24 +69,44 @@ returned: the variant builds its tables in the first frame of its first play."
                                 context :measure measure)))
             (once nil)
             (once nil)
+            ;; Garbage from what ran before, such as a compile in this process, is not the
+            ;; frames' to pay for.
+            (when measure (sb-ext:gc :full t))
             (once measure)))))))
 
 (defun mean-bytes-after-the-first-frame (result)
   (let ((frames (rest (coerce (core:replay-result-samples result) 'list))))
     (/ (reduce #'+ (mapcar #'third frames)) (max 1 (length frames)) 1.0)))
 
-(define-test every-script-settles-and-its-checkpoints-hold ()
+(defun least-bytes-per-frame (path)
+  "The bytes a frame conses after the first, the least of three plays. What the frames cons they
+cons in every play; a stray allocation of something else (a thread of the system, a collection)
+lands in one, and counts as a whole allocation region, which a dozen frames cannot tell from a
+frame that allocates."
+  (loop :repeat 3
+        :minimize (mean-bytes-after-the-first-frame (play path :measure t))))
+
+(defun hashes (result)
+  (map 'vector #'cdr (core:replay-result-hashes result)))
+
+(define-test every-script-settles ()
   (loop :for (system relative) :in +scripts+
         :do (let ((result (play (script-path system relative))))
               (assert-eql 0 (core:replay-result-capped result) relative)
               (assert-true (core:replay-ok-p result) relative))))
 
+(define-test every-script-replays-to-the-same-frames-every-time ()
+  (loop :for (system relative) :in +scripts+
+        :do (let ((first (play (script-path system relative)))
+                  (second (play (script-path system relative))))
+              (assert-true (plusp (length (core:replay-result-hashes first))) relative)
+              (assert-equalp (hashes first) (hashes second) relative))))
+
 (define-test the-scripts-allocate-what-they-did-after-the-first-frame ()
   (loop :for (system relative) :in +scripts+
         :do (let* ((name (pathname-name relative))
                    (allowed (cdr (assoc name +bytes-per-frame-allowed+ :test #'string=)))
-                   (bytes (mean-bytes-after-the-first-frame
-                           (play (script-path system relative) :measure t))))
+                   (bytes (least-bytes-per-frame (script-path system relative))))
               (assert-true allowed name)
               (assert-true (<= bytes allowed) name bytes allowed))))
 
