@@ -76,7 +76,7 @@ Look at the app from the REPL:
 
 ## 5. Ids
 
-Every widget has a required `:id`, and you wrote them above without being told why. The ui matches what it described this frame with what it described last frame by the id, and everything the person has done to a widget is kept under it. Without one, adding a widget above a text field would give the field's caret to the widget after it; so leaving it out is an error (`missing-id`, with the widget's name), and two siblings with the same id would be one widget.
+Every widget has a required `:id`, and you wrote them above without being told why. The ui matches what it described this frame with what it described last frame by the id, and everything the person has done to a widget is kept under it. Without one, adding a widget above a text field would give the field's caret to the widget after it; so leaving it out is an error (`missing-id`, with the widget's name), and so are two things in one container with the same id (`duplicate-id`, which names both and the container), because they would be one widget.
 
 Open the second example, [`examples/todo.lisp`](../examples/todo.lisp):
 

@@ -2243,3 +2243,28 @@ variable, which is an unused symbol macro and warns of nothing; it proved nothin
 - =almighty-bolt.asd= now stops a Lisp that is not SBCL with "almighty-bolt runs on SBCL only, and this is
   Clozure Common Lisp", before anything is compiled; checked in CCL 1.13 (ASDF reports it as the error
   loading the definition of the system).
+** Duplicate ids are an error in the library (2026-10-30)
+- Micah's call on the open question of Stage 5 (two siblings with one id are one widget to the ui and nothing
+  said so): the library refuses it. =open-box= claims each box's key in a table that belongs to the ui,
+  open addressing over two fixnum vectors, an entry counting only if its stamp is the build's, so nothing is
+  cleared between builds and nothing is allocated (it grows when the boxes outnumber half its slots, putting
+  the keys so far back in). A box whose key is claimed signals =duplicate-id=: the id, the kinds of the two
+  boxes, and the container (=the row :controls=, =the column=). It checks every box and not only those with
+  an id because an id that is a number is the same key as the place of a box with none (=:id 0= and the
+  first container without an id); that case has its own wording. Two things at the top of the window (the
+  screen is described by one) are the same error, which used to be silent: the second replaced the first.
+- Cost, by interleaved A/B of =make bench-run= (three of each, the commit before against this): dashboard
+  87.0, 86.3, 90.2 us before and 87.8, 87.3, 86.8 after (medians 87.0 and 87.3), timer 2.3 to 2.5 both, the
+  rest the same, 0 bytes a frame after the first for the counter and the dashboard as before. Of the three
+  options in the Stage 5 entry this is the second, with a vector in place of a hash table, which made it
+  cost about a third of what I estimated; the first (siblings against siblings) is quadratic in a loop over
+  data and the third (first build only) would miss a list that comes to have a repeat later.
+- Tests: =t/ui/widgets.lisp= (frames in, an error out): two siblings, the container named by its id, the
+  same id in different containers and the same place of unnamed containers (fine), a loop that repeats an id,
+  a number that is a place, two things at the top, the same ids in five frames in a row (the stamp), three
+  thousand boxes with a repeat after the table has grown. The white box scan of the Stage 5 entry
+  (=duplicate-siblings=, which read the ui's boxes) is gone; =no-app-has-two-things-that-the-ui-cannot-tell-apart=
+  runs every app and what is done to it before and after a reload and looks at the screen through the
+  machine interface, and any duplicate raises on the way. All 273 + 8 tests pass and the frame hashes are
+  the baseline's. Only widgets need an id: Micah said so; the containers keep their optional =:id=, which
+  the layout and dialog tests of the 7GUIs use.

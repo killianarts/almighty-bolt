@@ -3,19 +3,21 @@
   (:local-nicknames (#:core #:almighty-bolt/internals)
                     (#:i #:almighty-bolt/ui/immediate)
                     (#:w #:almighty-bolt/ui/widgets)
+                    (#:u #:almighty-bolt/ui/ui)
                     (#:fake #:almighty-bolt/test-support/fake-context)))
 
 (in-package #:almighty-bolt/t/ui/widgets)
 
 ;;; What a person writing an app meets first: a frame is built from the function that describes the
-;;; screen, and a widget without an :id is an error that says which widget. Frames in, an error or a
-;;; display list out; nothing of the ui's insides is called.
+;;; screen, a widget without an :id is an error that says which widget, and two things that the ui
+;;; could not tell apart are an error that says which. Frames in, an error or a display list out;
+;;; nothing of the ui's insides is called.
 
-(defun frame-of (view)
+(defun frame-of (view &key (capacity 4096))
   "Build the first frame of an app whose screen is described by VIEW, a function."
   (let ((variant (i:make-immediate-variant view))
         (context (fake:make-fake-context :width 300f0 :height 200f0))
-        (list (core:make-display-list :capacity 4096)))
+        (list (core:make-display-list :capacity capacity)))
     (core:settle-frame variant context list)
     list))
 
@@ -64,3 +66,89 @@
                    (w:missing-id (condition) (princ-to-string condition)))))
     (assert-true (search "button" message) message)
     (assert-true (search ":id" message) message)))
+
+;;; --- two things with one id ---
+
+(defun duplicate-in (view &key (capacity 4096))
+  "The DUPLICATE-ID that the first frame of VIEW signals, or NIL if it builds."
+  (handler-case (progn (frame-of view :capacity capacity) nil)
+    (u:duplicate-id (condition) condition)))
+
+(define-test two-siblings-with-one-id-are-an-error-that-names-both ()
+  (let ((condition (duplicate-in (lambda ()
+                                   (w:column ()
+                                     (w:button "Go" :id :go)
+                                     (w:label "Gone" :id :go))))))
+    (assert-true condition)
+    (assert-eq :go (u:duplicate-id-id condition))
+    (assert-equal '(:button :label) (u:duplicate-id-kinds condition))
+    (let ((message (princ-to-string condition)))
+      (dolist (word '(":GO" "button" "label" "column" "loop over data"))
+        (assert-true (search word message) (list word message))))))
+
+(define-test the-container-is-named-by-its-id-if-it-has-one ()
+  (let ((condition (duplicate-in (lambda ()
+                                   (w:row (:id :controls)
+                                     (w:button "A" :id :same)
+                                     (w:button "B" :id :same))))))
+    (assert-true (search "row :CONTROLS" (princ-to-string condition)))))
+
+(define-test the-same-id-in-different-containers-is-two-things ()
+  (assert-false (duplicate-in (lambda ()
+                                (w:column ()
+                                  (w:row (:id :first) (w:button "A" :id :go))
+                                  (w:row (:id :second) (w:button "B" :id :go))))))
+  ;; Containers that have no id are told apart by their places.
+  (assert-false (duplicate-in (lambda ()
+                                (w:column ()
+                                  (w:row () (w:button "A" :id :go))
+                                  (w:row () (w:button "B" :id :go)))))))
+
+(define-test a-loop-over-data-that-repeats-an-id-is-an-error ()
+  (let ((condition (duplicate-in (lambda ()
+                                   (w:column ()
+                                     (dolist (task '(1 2 3 1))
+                                       (w:checkbox "task" nil :id task)))))))
+    (assert-true condition)
+    (assert-eql 1 (u:duplicate-id-id condition))))
+
+(define-test a-number-that-is-the-place-of-a-thing-without-an-id-is-an-error ()
+  ;; A container with no id is known by its place, 0 for the first; an id of 0 would be the same.
+  (let ((condition (duplicate-in (lambda ()
+                                   (w:column ()
+                                     (w:row ())
+                                     (w:button "A" :id 0))))))
+    (assert-true condition)
+    (assert-true (search "same to the ui" (princ-to-string condition)))))
+
+(define-test two-things-at-the-top-of-the-screen-are-an-error ()
+  (let ((condition (duplicate-in (lambda ()
+                                   (w:column ())
+                                   (w:column ())))))
+    (assert-true condition)
+    (assert-true (search "one thing" (princ-to-string condition)))))
+
+(define-test the-same-ids-in-the-next-frame-are-not-a-duplicate ()
+  (let ((variant (i:make-immediate-variant
+                  (lambda ()
+                    (w:column ()
+                      (w:button "A" :id :a)
+                      (w:button "B" :id :b)))))
+        (context (fake:make-fake-context :width 300f0 :height 200f0))
+        (list (core:make-display-list :capacity 4096)))
+    (dotimes (frame 5)
+      (core:settle-frame variant context list))
+    (assert-true (plusp (core:display-list-count list)))))
+
+(define-test a-screen-with-thousands-of-things-is-checked-too ()
+  (flet ((screen (ids)
+           (lambda ()
+             (w:column ()
+               (dolist (id ids)
+                 (w:button "x" :id id))))))
+    (assert-false (duplicate-in (screen (loop :for id :below 3000 :collect id)) :capacity 100000))
+    ;; The repeat is of one from before the table of what was seen had to grow.
+    (let ((condition (duplicate-in (screen (append (loop :for id :below 3000 :collect id) '(7)))
+                                   :capacity 100000)))
+      (assert-true condition)
+      (assert-eql 7 (u:duplicate-id-id condition)))))

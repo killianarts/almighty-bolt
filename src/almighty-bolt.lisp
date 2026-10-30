@@ -47,6 +47,9 @@
                 #:text-state-selection-p
                 #:text-state-selection-start
                 #:text-state-selection-end)
+  (:import-from #:almighty-bolt/ui/ui
+                #:duplicate-id
+                #:duplicate-id-id)
   (:import-from #:almighty-bolt/ui/widgets
                 #:missing-id
                 #:label
@@ -72,7 +75,7 @@
                 #:current-context)
   (:export #:run-app #:open-app #:close-app #:app-value
            #:kept-let
-           #:missing-id
+           #:missing-id #:duplicate-id #:duplicate-id-id
            #:label #:paragraph #:button #:text-field #:slider #:choice #:checkbox #:list-box
            #:progress #:canvas #:scrim
            #:column #:row #:stack #:padding #:panel #:center

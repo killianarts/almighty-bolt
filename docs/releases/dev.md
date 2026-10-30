@@ -50,7 +50,7 @@ What the person did to the widgets is kept too (the caret and selection of text 
 
 ### Widgets and ids
 
-Eleven widgets and six containers. Every widget takes a required `:id`, a name that stays with it from frame to frame; leaving it out is a `missing-id` error that names the widget. See [Widgets](../../README.md#widgets).
+Eleven widgets and six containers. Every widget takes a required `:id`, a name that stays with it from frame to frame; leaving it out is a `missing-id` error that names the widget, and two things in one container with the same id are a `duplicate-id` error that names both and the container (an id in a loop over data is the item's own). See [Widgets](../../README.md#widgets).
 
 ### A canvas for drawing
 

@@ -9,6 +9,7 @@
                 #:reset-box
                 #:box-key
                 #:box-id
+                #:box-kind
                 #:box-labelled-by
                 #:box-parent
                 #:box-children)
@@ -94,6 +95,9 @@
            #:hit-h
            #:hit-focusable
            #:hit-moves
+           #:duplicate-id
+           #:duplicate-id-id
+           #:duplicate-id-kinds
            #:open-box
            #:close-box
            #:begin-build
@@ -186,6 +190,14 @@
   ;; painted for it.
   (states (make-hash-table))
   (rects (make-hash-table))
+  ;; The keys of the boxes of this build, to see that no two are the same (CLAIM-KEY): an open
+  ;; addressing table whose entries count only if their stamp is this build's, so that it is not
+  ;; cleared between builds.
+  (seen-keys (make-array 256 :element-type 'fixnum :initial-element 0)
+   :type (simple-array fixnum (*)))
+  (seen-stamps (make-array 256 :element-type 'fixnum :initial-element -1)
+   :type (simple-array fixnum (*)))
+  (build-stamp 0 :type fixnum)
   ;; The records that RECTS and ID-RECTS refer to: the first RECT-COUNT of the pool, kept and
   ;; reused from layout to layout.
   (rect-pool (make-array 32 :adjustable t :fill-pointer 0))
@@ -225,10 +237,82 @@
     (or (svref boxes count)
         (setf (svref boxes count) (make-box)))))
 
+(define-condition duplicate-id (error)
+  ((id :initarg :id :reader duplicate-id-id)
+   (kinds :initarg :kinds :reader duplicate-id-kinds)
+   (container :initarg :container :reader duplicate-id-container)
+   ;; True if one of the two has no id and is known by its place.
+   (by-place :initarg :by-place :reader duplicate-id-by-place))
+  (:report (lambda (condition stream)
+             (destructuring-bind (first second) (duplicate-id-kinds condition)
+               (cond ((null (duplicate-id-container condition))
+                      (format stream "A screen is described by one thing, and this is a ~(~a~) and a ~(~a~) ~
+                                      at the top. Put them in a container, such as (column () ...)."
+                              first second))
+                     ((not (duplicate-id-by-place condition))
+                      (format stream "Two things inside ~a have the id ~s: a ~(~a~) and a ~(~a~). An id names ~
+                                      one thing from frame to frame (its caret, its scroll and the keyboard ~
+                                      stay with it), so each needs its own. In a loop over data, use something ~
+                                      that belongs to each item, such as (task-id task)."
+                              (duplicate-id-container condition) (duplicate-id-id condition) first second))
+                     (t
+                      (format stream "Two things inside ~a are the same to the ui: a ~(~a~) and a ~(~a~). ~
+                                      A number used as an id (here ~s) can be the same as the place of a thing ~
+                                      with no id among its container's children; give each a name that is not ~
+                                      a number."
+                              (duplicate-id-container condition) first second (duplicate-id-id condition)))))))
+  (:documentation "Two boxes of one build that the ui could not tell apart: the same id inside the
+same container (or an id that is a number and the place of a box that has none)."))
+
+(declaim (inline claim-key))
+(defun claim-key (ui key)
+  "Record KEY as the key of a box of this build. True if an earlier box of this build has it."
+  (declare (type fixnum key) (optimize speed (safety 0)))
+  (let* ((stamp (ui-build-stamp ui))
+         (keys (ui-seen-keys ui))
+         (stamps (ui-seen-stamps ui))
+         (mask (1- (length keys)))
+         (index (logand key mask)))
+    (declare (type fixnum stamp mask index))
+    (loop
+      (cond ((/= (aref stamps index) stamp)
+             (setf (aref keys index) key
+                   (aref stamps index) stamp)
+             (return nil))
+            ((= (aref keys index) key)
+             (return t)))
+      (setf index (logand (1+ index) mask)))))
+
+(defun grow-seen-keys (ui)
+  "Make the table of keys seen this build bigger, and put in it the keys of the boxes so far (all
+but the last, which is being opened)."
+  (let ((size 256)
+        (count (ui-count ui)))
+    (loop :while (< size (* 4 count)) :do (setf size (* 2 size)))
+    (setf (ui-seen-keys ui) (make-array size :element-type 'fixnum :initial-element 0)
+          (ui-seen-stamps ui) (make-array size :element-type 'fixnum :initial-element -1))
+    (let ((boxes (ui-boxes ui)))
+      (dotimes (index (1- count))
+        (claim-key ui (box-key (svref boxes index)))))))
+
+(defun refuse-duplicate (ui kind id parent key)
+  "Signal that the box being opened, of KIND with ID inside PARENT, has the key of an earlier box."
+  (let* ((boxes (ui-boxes ui))
+         (earlier (loop :for index :below (1- (ui-count ui))
+                        :for box = (svref boxes index)
+                        :when (= (box-key box) key) :return box)))
+    (error 'duplicate-id
+           :id (or id (and earlier (box-id earlier)))
+           :by-place (or (null id) (null earlier) (null (box-id earlier)))
+           :kinds (list (if earlier (box-kind earlier) :box) kind)
+           :container (and parent
+                           (format nil "the ~(~a~)~@[ ~s~]" (box-kind parent) (box-id parent))))))
+
 (defun open-box (ui kind &key id labelled-by)
   "Start a box of KIND inside the one that is open. Its key is made from its parent's and
 its ID (or, with none, its place among its parent's children), so it is the same from one
-frame to the next as long as it is described in the same place."
+frame to the next as long as it is described in the same place. Two boxes of one build with
+the same key are an error (DUPLICATE-ID): the ui could not tell them apart."
   (let* ((box (reset-box (next-box ui) kind))
          (parent (ui-parent ui)))
     (setf (box-id box) id
@@ -237,6 +321,10 @@ frame to the next as long as it is described in the same place."
     (let ((key (mix (if parent (box-key parent) +seed+)
                     (if id (hash-of id) (if parent (fill-pointer (box-children parent)) 0)))))
       (setf (box-key box) (if (zerop key) 1 key)))
+    (when (> (* 2 (ui-count ui)) (length (ui-seen-keys ui)))
+      (grow-seen-keys ui))
+    (when (claim-key ui (box-key box))
+      (refuse-duplicate ui kind id parent (box-key box)))
     (if parent
         (vector-push-extend box (box-children parent))
         (setf (ui-root ui) box))
@@ -250,6 +338,7 @@ frame to the next as long as it is described in the same place."
   "Get UI ready for the interface to be described: no boxes yet."
   (setf (ui-context ui) context
         (ui-count ui) 0
+        (ui-build-stamp ui) (1+ (ui-build-stamp ui))
         (ui-parent ui) nil
         (ui-root ui) nil
         (ui-consumed ui) nil

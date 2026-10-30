@@ -1,9 +1,8 @@
 (defpackage #:almighty-bolt-stress/t/acceptance/properties
   (:use #:cl #:lisp-unit2)
   (:local-nicknames (#:core #:almighty-bolt/internals)
-                    (#:box #:almighty-bolt/ui/box)
-                    (#:ui #:almighty-bolt/ui/ui)
-                    (#:immediate #:almighty-bolt/ui/immediate)
+                    (#:m #:almighty-bolt/machine)
+                    (#:sem #:almighty-bolt/ui/semantics)
                     (#:registry #:almighty-bolt-7guis/common/registry)
                     (#:d #:almighty-bolt-7guis/t/acceptance/driver))
   (:import-from #:almighty-bolt/platform/macos/objc
@@ -189,33 +188,24 @@ frame that allocates."
 
 ;;; --- ids ---
 ;;;
-;;; The ids are typed by the person who writes the app, and two siblings with the same one are one
-;;; widget to the ui: they share a key, so they share the keyboard, the caret and the cache of what
-;;; was drawn. Nothing says so; the second just looks wrong or draws more slowly than it should (the
-;;; Timer's two "duration" labels did the second). So no app may have two.
+;;; Two things with one id are one widget to the ui: they share a key, so they share the keyboard, the
+;;; caret and the cache of what was drawn, and nothing used to say so (the Timer's two "duration"
+;;; labels drew more slowly than they should). The library refuses it as the frame is built
+;;; (DUPLICATE-ID), so an app that has two fails wherever it is run. This runs every app, and what is
+;;; done to each before and after a reload, and looks at the screen as a program would after each.
 
-(defun duplicate-siblings (driver)
-  "The (parent-id id kind) of every box of the last frame of DRIVER that has the key of an earlier
-box in the same container."
-  (let* ((ui (immediate:immediate-variant-ui (d:driver-variant driver)))
-         (found '()))
-    (labels ((walk (parent)
-               (let ((seen (make-hash-table)))
-                 (loop :for child :across (box:box-children parent)
-                       :do (when (gethash (box:box-key child) seen)
-                             (push (list (box:box-id parent) (box:box-id child) (box:box-kind child))
-                                   found))
-                           (setf (gethash (box:box-key child) seen) t)
-                           (walk child)))))
-      (walk (ui:ui-root ui)))
-    (nreverse found)))
+(defun things-on-screen (driver)
+  (let ((count 0))
+    (sem:walk-nodes (lambda (node) (declare (ignore node)) (incf count))
+                    (m:see (d:driver-session driver)))
+    count))
 
-(define-test no-app-has-two-siblings-with-the-same-id ()
+(define-test no-app-has-two-things-that-the-ui-cannot-tell-apart ()
   (dolist (task registry:+tasks+)
-    (assert-equal '() (duplicate-siblings (d:start :immediate task)) task))
+    (assert-true (> (things-on-screen (d:start :immediate task)) 1) task))
   (loop :for (task before after) :in +things-done-before-and-after-a-reload+
         :do (let ((driver (d:start :immediate task)))
               (funcall before driver)
-              (assert-equal '() (duplicate-siblings driver) task)
+              (assert-true (> (things-on-screen driver) 1) task)
               (funcall after driver)
-              (assert-equal '() (duplicate-siblings driver) task))))
+              (assert-true (> (things-on-screen driver) 1) task))))
