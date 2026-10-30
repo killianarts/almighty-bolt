@@ -39,5 +39,5 @@
     (timed "apps" (lambda () (asdf:load-system apps)))
     (touch "src/ui/widgets.lisp")
     (timed "incremental-library-file" (lambda () (asdf:load-system apps)))
-    (touch (format nil "apps/7guis/counter/~a.lisp" variant))
+    (touch (format nil "examples/7guis/counter/~a.lisp" variant))
     (timed "incremental-app-file" (lambda () (asdf:load-system apps)))))

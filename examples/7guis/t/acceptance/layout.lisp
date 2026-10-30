@@ -11,7 +11,7 @@
 ;;; into lines to the width of their pane, in a window that is resized. A split is a row or a
 ;;; column with flex factors: the sidebar 1 and the right side 2 across, and on the right the
 ;;; top 1 and the bottom 1 down, the bottom split again 1 and 1. The window is 640 by 420 with a
-;;; margin of 12 and a gap of 8 (apps/7guis/layout/text.lisp).
+;;; margin of 12 and a gap of 8 (examples/7guis/layout/text.lisp).
 
 (defun width-of (driver id) (third (d:rectangle driver id)))
 (defun height-of (driver id) (fourth (d:rectangle driver id)))

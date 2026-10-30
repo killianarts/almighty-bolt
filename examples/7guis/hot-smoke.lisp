@@ -7,7 +7,7 @@
 ;;;; the file is put back, and the app must change back. Then two saves that do not work (a file that
 ;;;; does not read, and code that fails when the app runs) must leave the old app in the window.
 ;;;; It says "The hot reload check passed" when every check holds.
-;;;; It writes apps/7guis/crud/immediate.lisp and writes back what it read, whatever happens (a
+;;;; It writes examples/7guis/crud/immediate.lisp and writes back what it read, whatever happens (a
 ;;;; watchdog does too). If the Lisp is killed in the middle, git checkout puts the file back.
 
 (asdf:load-system "almighty-bolt-7guis/launcher")
@@ -36,7 +36,7 @@
 
 (in-package #:almighty-bolt-7guis/hot-smoke)
 
-(defparameter *file* (merge-pathnames "apps/7guis/crud/immediate.lisp" (uiop:getcwd)))
+(defparameter *file* (merge-pathnames "examples/7guis/crud/immediate.lisp" (uiop:getcwd)))
 (defparameter *label* "(label \"Filter prefix:\" :id :filter-label)")
 (defparameter *labelled* "(label \"Filter prefix:\" :id :probe)")
 (defparameter *original* (uiop:read-file-string *file*))
