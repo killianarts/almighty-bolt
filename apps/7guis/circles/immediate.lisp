@@ -15,7 +15,7 @@
                 #:drawing-circle-at
                 #:circle-id
                 #:circle-diameter)
-  (:import-from #:almighty-bolt/ui/widgets
+  (:import-from #:almighty-bolt
                 #:label
                 #:button
                 #:padding
@@ -26,7 +26,8 @@
                 #:column
                 #:row
                 #:slider
-                #:canvas)
+                #:canvas
+                #:kept-let)
   (:export #:make-circles))
 
 (in-package #:almighty-bolt-7guis/circles/immediate)
@@ -37,10 +38,10 @@
 ;;; circle is being adjusted.
 
 (defun make-circles ()
-  (let ((drawing (make-drawing))
-        (hot nil)
-        (adjusting nil)
-        (preview 40))
+  (kept-let ((drawing (make-drawing))
+             (hot nil)
+             (adjusting nil)
+             (preview 40))
     (labels ((close-dialog ()
                (when adjusting
                  (setf drawing (drawing-resize drawing adjusting preview)

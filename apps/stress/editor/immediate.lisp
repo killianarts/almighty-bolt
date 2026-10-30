@@ -16,13 +16,13 @@
                 #:editor-wheel
                 #:editor-press
                 #:editor-drag)
-  (:import-from #:almighty-bolt/ui/widgets
+  (:import-from #:almighty-bolt
                 #:label
                 #:padding
                 #:column
-                #:canvas)
-  (:import-from #:almighty-bolt/ui/immediate
-                #:current-context)
+                #:canvas
+                #:current-context
+                #:kept-let)
   (:export #:make-editor-app))
 
 (in-package #:almighty-bolt-stress/editor/immediate)
@@ -32,7 +32,7 @@
 ;;; own coordinates, caret included; the variant puts the caret where the canvas is in the window.
 
 (defun make-editor-app ()
-  (let ((document (make-sample-document)))
+  (kept-let ((document (make-sample-document)))
     (labels ((draw (list context width height)
                (paint-editor context list 0f0 0f0 width height document))
              (handle (event)

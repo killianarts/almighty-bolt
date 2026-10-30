@@ -1,8 +1,13 @@
 (defpackage #:almighty-bolt-stress/rows/immediate
   (:use #:cl)
-  (:import-from #:almighty-bolt/internals
+  (:import-from #:almighty-bolt
                 #:key-event-kind
-                #:key-event-logical-key)
+                #:key-event-logical-key
+                #:label
+                #:padding
+                #:column
+                #:canvas
+                #:kept-let)
   (:import-from #:almighty-bolt-7guis/common/registry
                 #:register-app)
   (:import-from #:almighty-bolt-stress/rows/model
@@ -17,11 +22,6 @@
                 #:status-text)
   (:import-from #:almighty-bolt-stress/rows/paint
                 #:paint-rows)
-  (:import-from #:almighty-bolt/ui/widgets
-                #:label
-                #:padding
-                #:column
-                #:canvas)
   (:export #:make-rows-app))
 
 (in-package #:almighty-bolt-stress/rows/immediate)
@@ -31,7 +31,7 @@
 ;;; to it, which is handled where it is described.
 
 (defun make-rows-app ()
-  (let ((top 0) (selected nil) (remainder 0f0) (dragging nil))
+  (kept-let ((top 0) (selected nil) (remainder 0f0) (dragging nil))
     (labels ((draw (list context width height)
                (paint-rows context list 0f0 0f0 width height top selected))
              (handle (event)

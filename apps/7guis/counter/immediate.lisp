@@ -2,11 +2,12 @@
   (:use #:cl)
   (:import-from #:almighty-bolt-7guis/common/registry
                 #:register-app)
-  (:import-from #:almighty-bolt/ui/widgets
+  (:import-from #:almighty-bolt
                 #:label
                 #:button
                 #:padding
-                #:row)
+                #:row
+                #:kept-let)
   (:export #:make-counter))
 
 (in-package #:almighty-bolt-7guis/counter/immediate)
@@ -15,7 +16,7 @@
 ;;; screen is called again for every frame. The button says whether it was clicked.
 
 (defun make-counter ()
-  (let ((count 0))
+  (kept-let ((count 0))
     (lambda ()
       (padding (:all 24)
         (row (:gap 16 :cross-align :center)

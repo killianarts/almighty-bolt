@@ -17,17 +17,17 @@
                 #:tile-fraction)
   (:import-from #:almighty-bolt-stress/dashboard/paint
                 #:paint-chart)
-  (:import-from #:almighty-bolt/ui/widgets
+  (:import-from #:almighty-bolt
                 #:label
                 #:padding
                 #:panel
                 #:column
                 #:row
                 #:progress
-                #:canvas)
-  (:import-from #:almighty-bolt/ui/immediate
+                #:canvas
                 #:now
-                #:ask-for-frame)
+                #:ask-for-frame
+                #:kept-let)
   (:export #:make-dashboard-app))
 
 (in-package #:almighty-bolt-stress/dashboard/immediate)
@@ -37,7 +37,7 @@
 ;;; and describes the 36 tiles and the chart.
 
 (defun make-dashboard-app ()
-  (let ((model (make-dashboard)))
+  (kept-let ((model (make-dashboard)))
     (lambda ()
       (advance-dashboard model (step-at (now)))
       (ask-for-frame)

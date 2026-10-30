@@ -1,7 +1,13 @@
 (defpackage #:almighty-bolt-7guis/t/acceptance/reload
   (:use #:cl #:lisp-unit2)
+  (:import-from #:almighty-bolt
+                #:label
+                #:button
+                #:padding
+                #:row)
   (:local-nicknames (#:d #:almighty-bolt-7guis/t/acceptance/driver)
-                    (#:core #:almighty-bolt/internals)))
+                    (#:core #:almighty-bolt/internals)
+                    (#:app #:almighty-bolt/app)))
 
 (in-package #:almighty-bolt-7guis/t/acceptance/reload)
 
@@ -117,11 +123,31 @@ and return, for each variant, what the two ended showing."
              (setf (fdefinition name) original)))
       (setf (fdefinition name) original))))
 
-(define-test an-app-that-keeps-nothing-starts-again ()
-  ;; The apps that have not been given KEPT-LET start from their first state, as before.
+(defun plain-counter ()
+  "The Counter written with LET, which keeps nothing, made as the host makes an app."
+  (app:make-app-instance
+   (lambda ()
+     (let ((count 0))
+       (lambda ()
+         (padding (:all 24)
+           (row (:gap 16 :cross-align :center)
+             (label (princ-to-string count) :id :count :size 32)
+             (when (button "Count" :id :count-button)
+               (incf count)))))))))
+
+(define-test an-app-written-with-let-keeps-nothing-and-starts-again ()
+  (dolist (variant (d:available-variants :counter))
+    (let ((driver (d:start variant :counter)))
+      (d:reload driver #'plain-counter)
+      (d:click driver :count-button)
+      (assert-equal "1" (d:text-in driver :count) variant)
+      (d:reload driver #'plain-counter)
+      (assert-equal "0" (d:text-in driver :count) variant))))
+
+(define-test an-app-written-with-kept-let-keeps-its-count ()
   (dolist (variant (d:available-variants :counter))
     (let ((driver (d:start variant :counter)))
       (d:click driver :count-button)
-      (assert-equal "1" (d:text-in driver :count) variant)
+      (d:click driver :count-button)
       (d:reload driver)
-      (assert-equal "0" (d:text-in driver :count) variant))))
+      (assert-equal "2" (d:text-in driver :count) variant))))

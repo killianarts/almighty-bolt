@@ -9,17 +9,17 @@
                 #:timer-fraction
                 #:timer-advance
                 #:format-seconds)
-  (:import-from #:almighty-bolt/ui/widgets
+  (:import-from #:almighty-bolt
                 #:label
                 #:button
                 #:padding
                 #:column
                 #:row
                 #:progress
-                #:slider)
-  (:import-from #:almighty-bolt/ui/immediate
+                #:slider
                 #:now
-                #:ask-for-frame)
+                #:ask-for-frame
+                #:kept-let)
   (:export #:make-timer-app))
 
 (in-package #:almighty-bolt-7guis/timer/immediate)
@@ -30,9 +30,9 @@
 ;;; coming.
 
 (defun make-timer-app ()
-  (let ((elapsed 0d0)
-        (duration 10d0)
-        (last-time nil))
+  (kept-let ((elapsed 0d0)
+             (duration 10d0)
+             (last-time nil))
     (flet ((timer ()
              (make-timer :duration duration :elapsed elapsed)))
       (lambda ()
@@ -48,11 +48,11 @@
         (padding (:all 24)
           (column (:gap 14)
             (row (:gap 12 :cross-align :center)
-              (label "Elapsed time:" :id :elapsed-label)
+              (label "Elapsed time:" :id :elapsed-caption)
               (progress (timer-fraction (timer)) :id :gauge :width 240))
             (label (format-seconds elapsed) :id :elapsed)
             (row (:gap 12 :cross-align :center)
-              (label "Duration:" :id :duration-label)
+              (label "Duration:" :id :duration-caption)
               (multiple-value-bind (new changed) (slider duration 1 30 :id :duration :width 240)
                 (when changed
                   (setf duration new)))

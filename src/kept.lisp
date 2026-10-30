@@ -111,7 +111,7 @@ state: what is worked out from the state is made again from the new code, so kee
     `(let ,(loop :for (name initial) :in bindings
                  :for cell :in cells
                  :collect `(,cell (kept-cell ',name ',initial (lambda () ,initial))))
-       (declare (ignorable ,@cells))
+       (declare (ignorable ,@cells) (type cell ,@cells))
        (symbol-macrolet ,(loop :for (name) :in bindings
                                :for cell :in cells
                                :collect `(,name (cell-value ,cell)))

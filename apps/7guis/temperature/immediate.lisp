@@ -5,11 +5,12 @@
   (:import-from #:almighty-bolt-7guis/temperature/model
                 #:celsius-text->fahrenheit-text
                 #:fahrenheit-text->celsius-text)
-  (:import-from #:almighty-bolt/ui/widgets
+  (:import-from #:almighty-bolt
                 #:label
                 #:text-field
                 #:padding
-                #:row)
+                #:row
+                #:kept-let)
   (:export #:make-temperature))
 
 (in-package #:almighty-bolt-7guis/temperature/immediate)
@@ -19,8 +20,8 @@
 ;;; both.
 
 (defun make-temperature ()
-  (let ((celsius "")
-        (fahrenheit ""))
+  (kept-let ((celsius "")
+             (fahrenheit ""))
     (lambda ()
       (padding (:all 20)
         (row (:gap 10 :cross-align :center)

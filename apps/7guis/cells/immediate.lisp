@@ -1,6 +1,6 @@
 (defpackage #:almighty-bolt-7guis/cells/immediate
   (:use #:cl)
-  (:import-from #:almighty-bolt/internals
+  (:import-from #:almighty-bolt
                 #:make-text-state
                 #:text-state-string
                 #:edit-text
@@ -14,7 +14,13 @@
                 #:+key-down+
                 #:+key-left+
                 #:+key-right+
-                #:+key-delete-forward+)
+                #:+key-delete-forward+
+                #:label
+                #:padding
+                #:column
+                #:row
+                #:canvas
+                #:kept-let)
   (:import-from #:almighty-bolt-7guis/common/registry
                 #:register-app)
   (:import-from #:almighty-bolt-7guis/cells/model
@@ -34,12 +40,6 @@
                 #:clamp-first)
   (:import-from #:almighty-bolt-7guis/cells/paint
                 #:paint-grid)
-  (:import-from #:almighty-bolt/ui/widgets
-                #:label
-                #:padding
-                #:column
-                #:row
-                #:canvas)
   (:export #:make-cells))
 
 (in-package #:almighty-bolt-7guis/cells/immediate)
@@ -50,14 +50,14 @@
 ;;; that follows.
 
 (defun make-cells ()
-  (let ((sheet (make-sheet))
-        (selected-column 0)
-        (selected-row 0)
-        (first-column 0)
-        (first-row 0)
-        (editing nil)
-        (remainder-x 0f0)
-        (remainder-y 0f0))
+  (kept-let ((sheet (make-sheet))
+             (selected-column 0)
+             (selected-row 0)
+             (first-column 0)
+             (first-row 0)
+             (editing nil)
+             (remainder-x 0f0)
+             (remainder-y 0f0))
     (labels ((commit ()
                (when editing
                  (sheet-set sheet selected-column selected-row (text-state-string editing))

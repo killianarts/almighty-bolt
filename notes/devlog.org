@@ -2022,3 +2022,39 @@ ids, because a name made in the frame would allocate).
   and the host asks for the next frame, so a quick double click is four frames, about 67 ms, from being
   counted, and the smoke read the count too soon. It now waits for the count. (My first headless
   "burst" test drew one frame, which is the same mistake.)
+*** Step 3: every app that has state keeps it
+- =kept-let= in the counter, temperature, flight, timer, circles, cells, and the dashboard, rows and
+  editor of the stress apps (the CRUD had it). The layout and dialog tasks hold no state. The apps now
+  import from =almighty-bolt=, the public package, wherever a symbol is exported (a script moved the
+  imports); what is left from the internal packages is the model of each app and the registry. The
+  =kept-let= expansion declares its cells to be cells; it measured no faster (the cost was elsewhere,
+  below) but it removes a type check for nothing.
+- The test "an app that keeps nothing starts again" used the Counter, which keeps something now. It is two
+  tests: a Counter written with =let= (made as the host makes an app) starts again at a reload, and the
+  Counter with =kept-let= keeps its count.
+- =every-app-that-keeps-state-shows-the-same-after-a-reload= (stress acceptance, =properties=): for the
+  nine apps, the same things are done to two apps, one is made again in the middle, and they must end with
+  the same text and the same hash of the frame. Nine mutations, each app put back to =let=: each caught,
+  on its own app.
+*** A mistake of mine, and a guard
+=make bench-run= after the conversion showed the timer at 3.3 us a frame against 2.3 before, and nothing
+else moved. It was not =kept-let= (the timer with =let= was as slow). A bisect over the Stage 5 commits
+put it in the one that made the ids required, and the cause was mine: I had given the timer's "Duration:"
+caption the id =:duration-label=, which the label that shows the value next to it already had. Two
+siblings with one id are one widget to the ui: they share a key, the keyboard, the caret and the cache of
+what was drawn, and nothing says so; the cache of the two thrashed. The captions are =:elapsed-caption=
+and =:duration-caption= now, the timer is 2.3 us again, and =no-app-has-two-siblings-with-the-same-id=
+looks for two siblings with one key in every app at the start and after the interactions above (it reads
+the ui's boxes, which is white box, but it would have caught this at once); mutated back, it fails for
+the timer. The scan found no other.
+Open: the library could refuse a duplicate itself. The cheap ways each cost something: a check of a box
+against its siblings is quadratic in a container's children; a table of keys seen costs about 1.5% of the
+dashboard's build; a check only in the first build after an app is made costs nothing in the steady state
+and catches what a person sees in the first frame, which is the case while editing with hot reload.
+Micah's call.
+*** About the scratch worktree
+Syncing it with =rsync -a= keeps the sources' old modification times, so ASDF trusted compiled files built
+from earlier versions of the same sources, and an unmutated run failed 11 assertions that pass in the real
+tree. After a sync I now clear the worktree's compile cache and run the test unmutated before any
+mutation. The mutation series of this stage each followed a passing unmutated run; the one run that did not
+(=d1=) was done again.

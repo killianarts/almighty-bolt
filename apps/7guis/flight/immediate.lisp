@@ -7,13 +7,14 @@
                 #:return-date-enabled-p
                 #:flight-valid-p
                 #:booking-message)
-  (:import-from #:almighty-bolt/ui/widgets
+  (:import-from #:almighty-bolt
                 #:label
                 #:button
                 #:padding
                 #:column
                 #:text-field
-                #:choice)
+                #:choice
+                #:kept-let)
   (:export #:make-flight))
 
 (in-package #:almighty-bolt-7guis/flight/immediate)
@@ -25,10 +26,10 @@
 (defparameter +first-date+ "27.03.2026")
 
 (defun make-flight ()
-  (let ((kind 0)
-        (start +first-date+)
-        (return +first-date+)
-        (message ""))
+  (kept-let ((kind 0)
+             (start +first-date+)
+             (return +first-date+)
+             (message ""))
     (lambda ()
       (let* ((flight-kind (if (zerop kind) :one-way :return))
              (return-enabled (return-date-enabled-p flight-kind)))

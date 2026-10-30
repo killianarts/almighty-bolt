@@ -1,6 +1,9 @@
 (defpackage #:almighty-bolt-stress/t/acceptance/properties
   (:use #:cl #:lisp-unit2)
   (:local-nicknames (#:core #:almighty-bolt/internals)
+                    (#:box #:almighty-bolt/ui/box)
+                    (#:ui #:almighty-bolt/ui/ui)
+                    (#:immediate #:almighty-bolt/ui/immediate)
                     (#:registry #:almighty-bolt-7guis/common/registry)
                     (#:d #:almighty-bolt-7guis/t/acceptance/driver))
   (:import-from #:almighty-bolt/platform/macos/objc
@@ -119,3 +122,100 @@ frame that allocates."
         (assert-false (d:frame-requested-p driver) task variant)
         (d:advance-time driver 5d0)
         (assert-false (d:frame-requested-p driver) task variant)))))
+
+;;; --- state kept ---
+;;;
+;;; An app that is made again by the same code, as when a definition is compiled, is the same app to
+;;; the person using it: what they had done, they have still. For every app that keeps state, the same
+;;; things are done to two apps, and one is made again in the middle; both must end showing the same
+;;; frame (the same text, the same commands).
+
+(defun the-same-with-and-without-a-reload (task before after)
+  (let ((plain (d:start :immediate task))
+        (reloaded (d:start :immediate task)))
+    (funcall before plain)
+    (funcall before reloaded)
+    (d:reload reloaded)
+    (funcall after plain)
+    (funcall after reloaded)
+    (values (d:screen-text plain) (d:screen-text reloaded)
+            (core:display-list-hash (d:driver-list plain))
+            (core:display-list-hash (d:driver-list reloaded)))))
+
+(defun type-into (driver id text)
+  (d:click driver id)
+  (d:type-text driver text))
+
+(defparameter +things-done-before-and-after-a-reload+
+  ;; (task before after): what is done to the app, and what is done after the reload.
+  (list
+   (list :counter
+         (lambda (driver) (d:click driver :count-button) (d:click driver :count-button))
+         (lambda (driver) (d:click driver :count-button)))
+   (list :temperature
+         (lambda (driver) (type-into driver :celsius "100"))
+         (lambda (driver) (type-into driver :fahrenheit "5")))
+   (list :flight
+         (lambda (driver) (d:click-at driver :kind 0.75 0.5) (type-into driver :start "7"))
+         (lambda (driver) (type-into driver :return "x")))
+   (list :timer
+         (lambda (driver) (d:advance-time driver 2.5d0))
+         (lambda (driver) (d:advance-time driver 4d0)))
+   (list :circles
+         (lambda (driver) (d:click-at driver :canvas 0.3 0.3) (d:click-at driver :canvas 0.6 0.5))
+         (lambda (driver) (d:click-at driver :canvas 0.5 0.8)))
+   (list :cells
+         (lambda (driver)
+           (d:click-at driver :grid 0.3 0.2)
+           (d:type-text driver "12")
+           (d:press-key driver #\Return))
+         (lambda (driver) (d:type-text driver "7")))
+   (list :dashboard
+         (lambda (driver) (d:advance-time driver 0.5d0))
+         (lambda (driver) (d:advance-time driver 0.25d0)))
+   (list :rows
+         (lambda (driver) (d:scroll driver :list -10) (d:click-at driver :list 0.2 0.3))
+         (lambda (driver) (d:scroll driver :list -4)))
+   (list :editor
+         (lambda (driver) (d:click-at driver :editor 0.2 0.2) (d:input-text driver "ab"))
+         (lambda (driver) (d:input-text driver "c")))))
+
+(define-test every-app-that-keeps-state-shows-the-same-after-a-reload ()
+  (loop :for (task before after) :in +things-done-before-and-after-a-reload+
+        :do (multiple-value-bind (plain-text reloaded-text plain-hash reloaded-hash)
+                (the-same-with-and-without-a-reload task before after)
+              (assert-equal plain-text reloaded-text task)
+              (assert-eql plain-hash reloaded-hash task))))
+
+;;; --- ids ---
+;;;
+;;; The ids are typed by the person who writes the app, and two siblings with the same one are one
+;;; widget to the ui: they share a key, so they share the keyboard, the caret and the cache of what
+;;; was drawn. Nothing says so; the second just looks wrong or draws more slowly than it should (the
+;;; Timer's two "duration" labels did the second). So no app may have two.
+
+(defun duplicate-siblings (driver)
+  "The (parent-id id kind) of every box of the last frame of DRIVER that has the key of an earlier
+box in the same container."
+  (let* ((ui (immediate:immediate-variant-ui (d:driver-variant driver)))
+         (found '()))
+    (labels ((walk (parent)
+               (let ((seen (make-hash-table)))
+                 (loop :for child :across (box:box-children parent)
+                       :do (when (gethash (box:box-key child) seen)
+                             (push (list (box:box-id parent) (box:box-id child) (box:box-kind child))
+                                   found))
+                           (setf (gethash (box:box-key child) seen) t)
+                           (walk child)))))
+      (walk (ui:ui-root ui)))
+    (nreverse found)))
+
+(define-test no-app-has-two-siblings-with-the-same-id ()
+  (dolist (task registry:+tasks+)
+    (assert-equal '() (duplicate-siblings (d:start :immediate task)) task))
+  (loop :for (task before after) :in +things-done-before-and-after-a-reload+
+        :do (let ((driver (d:start :immediate task)))
+              (funcall before driver)
+              (assert-equal '() (duplicate-siblings driver) task)
+              (funcall after driver)
+              (assert-equal '() (duplicate-siblings driver) task))))

@@ -12,7 +12,7 @@
                 #:+status+
                 #:+margin+
                 #:+gap+)
-  (:import-from #:almighty-bolt/ui/widgets
+  (:import-from #:almighty-bolt
                 #:label
                 #:paragraph
                 #:padding
