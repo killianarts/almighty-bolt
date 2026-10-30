@@ -7,7 +7,7 @@ A GUI library for Common Lisp, on macOS first (AppKit and Metal, called straight
 - **Devlog.** One dated entry per working session in `notes/devlog.org`: what was tried, measured, failed and learned.
 - **Tests are integration and end-to-end only, for now.** No new unit tests. A property that matters is checked from outside (over a replay script, in a window). Mutation-check every new or changed test with a deliberate defect. `make test` is the headless suite (real OS, text engine and GPU, no window); `make smoke` opens windows and needs a logged-in Mac.
 - **Commits.** Use `scripts/auto-commit.sh`, and only when `make test` passes. Trailers: `Assumes:` (ids from `notes/assumptions.org`) and `Tests:`. Do not push without Micah's say-so, and ask again for each new push.
-- **User-facing changes** go in `CHANGELOG.md` and `docs/releases/dev.md` in the same commit.
+- **User-facing changes** go in `CHANGELOG.md` and `docs/releases/dev.md` (the notes of the release in progress, written for people who use the library) in the same commit. Until v0.1 ships, `dev.md` describes the library as a whole, and is kept true; after it, a change adds its entry.
 
 ## Code
 - One package per file, named after the project and the file (tests under `t/`). `.asd` files and `vendored/` are the exceptions.

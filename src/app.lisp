@@ -2,11 +2,14 @@
   (:use #:cl)
   (:import-from #:almighty-bolt/kept
                 #:make-kept-state
-                #:with-kept-state)
+                #:with-kept-state
+                #:kept-value)
   (:import-from #:almighty-bolt/platform/macos/host
                 #:run-variant
                 #:open-variant
-                #:close-variant)
+                #:close-variant
+                #:running-host
+                #:host-kept-state)
   (:import-from #:almighty-bolt/ui/immediate
                 #:make-immediate-variant)
   (:import-from #:almighty-bolt/sources
@@ -15,7 +18,8 @@
   (:export #:make-app-instance
            #:run-app
            #:open-app
-           #:close-app))
+           #:close-app
+           #:app-value))
 
 (in-package #:almighty-bolt/app)
 
@@ -73,3 +77,10 @@ error; RUN-APP does what is wanted there."
 (defun close-app ()
   "Close the window that OPEN-APP opened. Returns its host, or NIL if there was none."
   (close-variant))
+
+(defun app-value (name)
+  "The value of the kept variable NAME (a symbol: the one KEPT-LET was given, in the package it was
+read in) of the app that is open, for looking at it from the REPL. NIL if there is no window or the
+app keeps no such variable."
+  (let ((host (running-host)))
+    (and host (kept-value (host-kept-state host) name))))

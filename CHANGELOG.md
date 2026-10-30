@@ -14,6 +14,12 @@ are not listed.
 
 ### Added
 
+- Windowing: `open-app`, `run-app` and `close-app` open a window from the REPL or as a program ([0.1](docs/releases/dev.md#opening-a-window-from-the-repl)).
+- Reload: compiling or saving changes the open window, with `kept-let` state and the widgets' state kept ([0.1](docs/releases/dev.md#changing-an-app-while-it-is-open)).
+- Widgets: eleven widgets and six containers, each widget with a required `:id` ([0.1](docs/releases/dev.md#widgets-and-ids)).
+- Canvas: an area to draw in and handle input for ([0.1](docs/releases/dev.md#a-canvas-for-drawing)).
+- `app-value` reads a kept variable of the open app from the REPL.
+
 ### Changed
 
 ### Deprecated

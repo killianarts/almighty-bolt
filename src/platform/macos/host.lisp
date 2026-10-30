@@ -186,6 +186,10 @@ glyph atlas. FONTS keeps the fonts made, by name and then by size."
   ;; drives it.
   (wake nil :type (or null function)))
 
+(defmethod print-object ((host host) stream)
+  ;; What a REPL shows after (OPEN-APP ...), which returns the host: not its parts.
+  (print-unreadable-object (host stream :type t :identity t)))
+
 (defun request-host-frame (host)
   "What REQUEST-FRAME does for HOST. While a frame is being made, a request only
 sets a flag, and the host asks for the next frame once this one is presented. At

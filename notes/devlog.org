@@ -2070,3 +2070,26 @@ reported by SBCL as a redefinition; that is how ASDF builds a system and is not 
 =make test= starts with it. Mutated: an unused variable in the library, in an app, and a call of a function
 that does not exist in a test, each caught. (My first mutation of the app was an unused =kept-let=
 variable, which is an unused symbol macro and warns of nothing; it proved nothing and I made another.)
+*** Step 5: the README, the getting-started page, the release notes
+- =README.md= (what it is, the counter, how to get it, =open-app=, =run-app=, =kept-let=, the widgets
+  with their return values, the canvas, where the tests and the history are), =docs/getting-started.md=
+  (a REPL that can open a window, the counter, changing it while it is open, ids, the to-do list, as a
+  program), =docs/releases/dev.md= written as the notes of 0.1 (it describes the library as a whole until
+  it ships) and the first entries of =CHANGELOG.md=. =docs/api-sketch.md=, which they replace, is
+  deleted; its decisions are in the devlog above.
+- The README promised that a kept variable could be looked at from the REPL, but =kept-value= wants the
+  host's internal store. =app-value= is what it should have been: =(app-value 'counter::count)= reads
+  the variable of the app that is open, and =kept-value= is no longer in the public package. The examples
+  smoke reads the count with it (mutated to answer nil: three checks fail).
+- What the REPL prints after =(open-app ...)=, which returns the host, was a page of the host's insides.
+  It prints =#<ALMIGHTY-BOLT/PLATFORM/MACOS/HOST:HOST {7007ADC223}>= now; the REPL smoke checks that
+  it is a line (mutated: it fails).
+- Two sentences of the first release notes overreached and were cut back to the measurements: a still
+  window is "0 frames and 0 wakeups a second", not "no CPU" (the cpu column is 0.0 to 0.5% noise), and the
+  allocation of the shipped scripts is nothing or 0.8 to 3 KB a frame, not "about a kilobyte".
+** Read with care
+- The tutorial's edits (adding a label and compiling it with the count kept) are the ones the examples
+  smoke makes by redefining the function; I have not typed them into Sly myself, and I have not run the
+  README's install steps from a fresh clone (=make deps= was run in a tree that has =vendored/=).
+  A-008 and A-009 (does a save in Micah's Emacs reach the source watcher; does C-c C-c reach the hook) are
+  still open; they are the thing to try first.

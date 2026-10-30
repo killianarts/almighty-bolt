@@ -54,6 +54,8 @@
     (check (format nil "that took ~,2f s, which is not a second" took) (< took 1))
     (check "the REPL's thread is not the main thread"
            (not (eq sb-thread:*current-thread* (sb-thread:main-thread))))
+    (check "the REPL prints what it returned in a line, not the parts of a window"
+           (< (length (prin1-to-string host)) 60))
     (check "the window draws" (wait-until (lambda () (plusp (frames host)))))
     ;; What compiling a definition does. Any function does: the app is made again when code
     ;; changes, not when a particular function does.

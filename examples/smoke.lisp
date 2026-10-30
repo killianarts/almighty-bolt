@@ -10,7 +10,7 @@
   (:use #:cl)
   (:import-from #:almighty-bolt
                 #:run-app
-                #:kept-value)
+                #:app-value)
   (:import-from #:almighty-bolt/internals
                 #:lookup-target
                 #:frame-ring-total
@@ -21,7 +21,6 @@
                 #:host-variant
                 #:host-ring
                 #:host-deliver-event
-                #:host-kept-state
                 #:close-host-window))
 
 (in-package #:almighty-bolt-examples/smoke)
@@ -59,7 +58,8 @@
                                         :buttons 0 :click-count 1)))))
 
 (defun the-count (host)
-  (kept-value (host-kept-state host) 'almighty-bolt-examples/counter::count))
+  (declare (ignore host))
+  (app-value 'almighty-bolt-examples/counter::count))
 
 (defun edited-counter ()
   "What compiling the example again, with a label added, does."

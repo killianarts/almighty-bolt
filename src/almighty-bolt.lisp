@@ -3,11 +3,11 @@
   (:import-from #:almighty-bolt/app
                 #:run-app
                 #:open-app
-                #:close-app)
+                #:close-app
+                #:app-value)
   (:import-from #:almighty-bolt/internals
                 ;; state that survives a reload
                 #:kept-let
-                #:kept-value
                 ;; drawing in a canvas
                 #:pack-color
                 #:push-rect
@@ -70,8 +70,8 @@
                 #:now
                 #:ask-for-frame
                 #:current-context)
-  (:export #:run-app #:open-app #:close-app
-           #:kept-let #:kept-value
+  (:export #:run-app #:open-app #:close-app #:app-value
+           #:kept-let
            #:missing-id
            #:label #:paragraph #:button #:text-field #:slider #:choice #:checkbox #:list-box
            #:progress #:canvas #:scrim
