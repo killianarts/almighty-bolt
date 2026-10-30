@@ -47,12 +47,14 @@
   :components ((:module "t"
                 :components ((:module "acceptance"
                               :serial t
-                              :components ((:file "dashboard") (:file "rows") (:file "editor"))))))
+                              :components ((:file "dashboard") (:file "rows") (:file "editor")
+                                           (:file "properties"))))))
   :perform (test-op (o s)
                     (let* ((results
                              (loop :for package :in '(:almighty-bolt-stress/t/acceptance/dashboard
                                                       :almighty-bolt-stress/t/acceptance/rows
-                                                      :almighty-bolt-stress/t/acceptance/editor)
+                                                      :almighty-bolt-stress/t/acceptance/editor
+                                                      :almighty-bolt-stress/t/acceptance/properties)
                                    :collect (uiop:symbol-call :lisp-unit2 :run-tests
                                                               :package package)))
                            (bad (loop :for db :in results
