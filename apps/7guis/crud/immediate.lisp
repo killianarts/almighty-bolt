@@ -42,7 +42,8 @@
           (column (:gap 14)
             (row (:gap 10 :cross-align :center)
               (label "Filter prefix:" :id :filter-label)
-              (multiple-value-bind (text changed) (text-field filter :id :filter :width 160)
+              (multiple-value-bind (text changed)
+                  (text-field filter :id :filter :labelled-by :filter-label :width 160)
                 (when changed
                   (setf filter text))))
             (row (:gap 20)
@@ -57,12 +58,14 @@
               (column (:gap 10)
                 (row (:gap 10 :cross-align :center)
                   (label "Name:" :id :name-label)
-                  (multiple-value-bind (text changed) (text-field name :id :name :width 160)
+                  (multiple-value-bind (text changed)
+                      (text-field name :id :name :labelled-by :name-label :width 160)
                     (when changed
                       (setf name text))))
                 (row (:gap 10 :cross-align :center)
                   (label "Surname:" :id :surname-label)
-                  (multiple-value-bind (text changed) (text-field surname :id :surname :width 160)
+                  (multiple-value-bind (text changed)
+                      (text-field surname :id :surname :labelled-by :surname-label :width 160)
                     (when changed
                       (setf surname text))))))
             (row (:gap 10)

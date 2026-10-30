@@ -28,6 +28,7 @@
                 #:box-n2
                 #:box-n3
                 #:box-data
+                #:box-aux-doubles
                 #:box-interactive
                 #:box-focusable
                 #:box-moves
@@ -117,6 +118,7 @@
            #:center
            #:own-hashes
            #:field-state
+           #:field-state-state
            #:field-state-view-start
            #:choice-state
            #:choice-state-lefts
@@ -292,9 +294,9 @@ are not the ones that were drawn before."
     (close-box ui)
     nil))
 
-(defun progress (fraction &key (id (required-id 'progress)) (width 200) (flex 0))
+(defun progress (fraction &key (id (required-id 'progress)) labelled-by (width 200) (flex 0))
   "A bar that is FRACTION (0 to 1) full."
-  (let ((box (open-box *ui* :progress :id id)))
+  (let ((box (open-box *ui* :progress :id id :labelled-by labelled-by)))
     (setf (box-n1 box) (float (max 0 (min 1 fraction)) 1f0)
           (box-pref-w box) (float width 1f0)
           (box-flex box) (float flex 1f0))
@@ -364,12 +366,14 @@ or the space bar or Return was pressed with the keyboard on it."
               :do (incf start))
         (setf (field-state-view-start state) start)))))
 
-(defun text-field (string &key (id (required-id 'text-field)) (width 180) invalid (enabled t) (flex 0))
+(defun text-field (string
+                   &key (id (required-id 'text-field)) labelled-by
+                     (width 180) invalid (enabled t) (flex 0))
   "An editable line showing STRING. Returns the text now, whether the person changed it this
 frame, and whether Return was pressed. Pass what it returned back in the next frame; if the
 application passes something else, that is what is shown."
   (let* ((ui *ui*)
-         (box (open-box ui :text-field :id id))
+         (box (open-box ui :text-field :id id :labelled-by labelled-by))
          (key (box-key box))
          (state (state-of ui key #'make-field-state))
          (changed nil)
@@ -423,11 +427,12 @@ application passes something else, that is what is shown."
 
 ;;; --- a slider ---
 
-(defun slider (value minimum maximum &key (id (required-id 'slider)) (width 200) (enabled t) (flex 0))
+(defun slider (value minimum maximum
+               &key (id (required-id 'slider)) labelled-by (width 200) (enabled t) (flex 0))
   "A slider showing VALUE between MINIMUM and MAXIMUM. Returns the value now and whether the
 person changed it this frame."
   (let* ((ui *ui*)
-         (box (open-box ui :slider :id id))
+         (box (open-box ui :slider :id id :labelled-by labelled-by))
          (key (box-key box))
          (new (float value 1d0))
          (range (- (float maximum 1d0) (float minimum 1d0))))
@@ -474,6 +479,10 @@ person changed it this frame."
                              (float (/ (- new (float minimum 1d0)) range) 1f0)
                              0f0)
             (box-look box) (look-of ui key enabled))
+      (let ((aux (box-aux-doubles box)))
+        (setf (aref aux 0) new
+              (aref aux 1) (float minimum 1d0)
+              (aref aux 2) (float maximum 1d0)))
       (close-box ui)
       (values new (/= new (float value 1d0))))))
 
@@ -483,11 +492,11 @@ person changed it this frame."
   (lefts #() :type simple-vector)
   (widths #() :type simple-vector))
 
-(defun choice (options selected &key (id (required-id 'choice)) (enabled t) (flex 0))
+(defun choice (options selected &key (id (required-id 'choice)) labelled-by (enabled t) (flex 0))
   "A choice among OPTIONS (strings) side by side, with the SELECTED one (an index) marked.
 Returns the index now and whether the person changed it this frame."
   (let* ((ui *ui*)
-         (box (open-box ui :choice :id id))
+         (box (open-box ui :choice :id id :labelled-by labelled-by))
          (key (box-key box))
          (state (state-of ui key #'make-choice-state))
          (new selected))
@@ -566,11 +575,13 @@ the label, or the space bar was pressed with the keyboard on it."
   (top 0 :type fixnum)
   (remainder 0f0 :type single-float))
 
-(defun list-box (items selected &key (id (required-id 'list-box)) (rows 8) (width 200) (enabled t) (flex 0))
+(defun list-box (items selected
+                 &key (id (required-id 'list-box)) labelled-by
+                   (rows 8) (width 200) (enabled t) (flex 0))
   "A list of ITEMS (strings), showing ROWS at a time, with the SELECTED one (an index, or
 NIL) marked. Returns the index now and whether the person changed it this frame."
   (let* ((ui *ui*)
-         (box (open-box ui :list-box :id id))
+         (box (open-box ui :list-box :id id :labelled-by labelled-by))
          (key (box-key box))
          (state (state-of ui key #'make-list-state))
          (count (length items))
@@ -632,7 +643,8 @@ NIL) marked. Returns the index now and whether the person changed it this frame.
   (fragment (make-display-list :capacity 256))
   (was-hot nil))
 
-(defun canvas (width height painter &key (id (required-id 'canvas)) focusable autofocus (flex 0))
+(defun canvas (width height painter
+               &key (id (required-id 'canvas)) labelled-by focusable autofocus (flex 0))
   "An area of WIDTH by HEIGHT. PAINTER is called every frame with the list to append to, the
 context, and the width and height, and draws from the top left of the area, which it clips
 to; if what it draws is what it drew last frame, nothing more is done for it. Returns the
@@ -642,7 +654,7 @@ selection-length), (:wheel dx dy) and (:exit), with points in the canvas. The co
 them can ask CURRENT-CONTEXT for the context, which measures text. A FOCUSABLE canvas that is
 also AUTOFOCUS has the keyboard when the window opens, if nothing has it by then."
   (let* ((ui *ui*)
-         (box (open-box ui :canvas :id id))
+         (box (open-box ui :canvas :id id :labelled-by labelled-by))
          (key (box-key box))
          (state (state-of ui key #'make-canvas-state))
          (events '())

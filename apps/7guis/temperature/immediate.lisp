@@ -25,14 +25,16 @@
     (lambda ()
       (padding (:all 20)
         (row (:gap 10 :cross-align :center)
-          (multiple-value-bind (text changed) (text-field celsius :id :celsius :width 100)
+          (multiple-value-bind (text changed)
+              (text-field celsius :id :celsius :labelled-by :celsius-label :width 100)
             (when changed
               (setf celsius text)
               (let ((other (celsius-text->fahrenheit-text text)))
                 (when other
                   (setf fahrenheit other)))))
           (label "Celsius =" :id :celsius-label)
-          (multiple-value-bind (text changed) (text-field fahrenheit :id :fahrenheit :width 100)
+          (multiple-value-bind (text changed)
+              (text-field fahrenheit :id :fahrenheit :labelled-by :fahrenheit-label :width 100)
             (when changed
               (setf fahrenheit text)
               (let ((other (fahrenheit-text->celsius-text text)))

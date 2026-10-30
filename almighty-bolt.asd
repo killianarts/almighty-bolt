@@ -87,7 +87,8 @@
                  (:file "widgets")
                  (:file "layout")
                  (:file "paint")
-                 (:file "immediate")))
+                 (:file "immediate")
+                 (:file "semantics")))
                ;; How an app is started, and the face of the library.
                (:file "app" :if-feature :darwin)
                (:file "almighty-bolt" :if-feature :darwin))

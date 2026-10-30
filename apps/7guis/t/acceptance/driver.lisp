@@ -15,6 +15,7 @@
            #:rectangle
            #:click
            #:click-at
+           #:click-at-point
            #:double-click-at
            #:right-click
            #:press-at
@@ -174,6 +175,13 @@ control ID."
       (pointer driver :move px py)
       (pointer driver :down px py :button button :buttons (if (zerop button) 1 2))
       (pointer driver :up px py :button button))))
+
+(defun click-at-point (driver x y &key (button 0))
+  "Press and release the pointer at the point X, Y of the window, for a test that knows where
+something is from the semantic tree and not from an id."
+  (pointer driver :move x y)
+  (pointer driver :down x y :button button :buttons (if (zerop button) 1 2))
+  (pointer driver :up x y :button button))
 
 (defun double-click-at (driver id fx fy)
   "Click twice in a row at the fraction FX, FY of the way across and down the control ID, the

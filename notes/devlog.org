@@ -2093,3 +2093,37 @@ variable, which is an unused symbol macro and warns of nothing; it proved nothin
   README's install steps from a fresh clone (=make deps= was run in a tree that has =vendored/=).
   A-008 and A-009 (does a save in Micah's Emacs reach the source watcher; does C-c C-c reach the hook) are
   still open; they are the thing to try first.
+
+** Stage 6: the semantic tree and the machine interface (2026-10-30)
+*** Step 1: the tree
+- =accessibility-tree=, which has been a stub that returned NIL since the variant contract, is the tree
+  of what the last frame built (=src/ui/semantics.lisp=): for each thing its id, role, name, value, state
+  (disabled, focused, hovered, invalid, the caret and selection of a field, the range of a slider, the
+  options of a choice, the items of a list, whether a check box is checked) and bounds in points from the
+  top left of the window, and what is inside it. A node is a property list, so it prints, compares and
+  goes to JSON as it is. Made when asked for and nothing is done for it in a frame (the benchmark is
+  unchanged: timer 2.3 us and 802 bytes, dashboard 85.9 us and 0 bytes; the frame hashes are identical).
+- Roles: static-text, paragraph, progress-bar, button, text-field, slider, radio-group (the choice),
+  checkbox, list, canvas, overlay (the scrim), group (every container).
+- Names. A button, a check box and a label are called what they say. A text field, slider, choice, list,
+  progress bar or canvas is called what the widget it points to says: =:labelled-by= is a new keyword on
+  those widgets, the id of a label (=(text-field name :id :name :labelled-by :name-label)=). This was the
+  open design question of the plan; I chose the explicit link over "the label before the field", which is
+  a guess and breaks when a layout puts the label after or above the field (the temperature converter
+  has "Celsius =" to the right of its field). The CRUD, temperature converter and timer have them; the
+  flight booker's fields have no caption on the screen, so no name, which an agent will meet.
+- A box has two new slots: =labelled-by= and a small array of three doubles, made once, in which the
+  slider records its value, minimum and maximum (they were not kept anywhere), so that describing a frame
+  still allocates nothing for them.
+- Tests (=apps/7guis/t/acceptance/semantics.lisp= and a test in =t/app.lisp= for the to-do list's check
+  boxes): the CRUD's form with the names a person reads, what is disabled and what the person did (the
+  value, the keyboard, the caret), the bounds checked with the pointer (a press in the middle of a node's
+  bounds gives that field the keyboard and presses that button), every node of eight apps inside its
+  parent and the window, the temperature fields named by the labels beside them, the timer's slider and
+  bar, the flight booker's choice. Mutations, each caught by the test meant for it: the name not taken
+  from the label, bounds not made absolute, a text field called a static text, disabled never noted, the
+  keyboard never noted, the slider's value as its fraction, the first option as the chosen one, the
+  caret not noted.
+- Two bugs of mine on the way, both found by the tests: the state's property list was =nreverse=d, which
+  swaps keys and values; and my tests asked for a node by name alone, which matches a label and the field it
+  names (role and name is how a node is addressed).

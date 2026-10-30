@@ -27,6 +27,9 @@
            #:box-n2
            #:box-n3
            #:box-data
+           #:box-labelled-by
+           #:box-aux
+           #:box-aux-doubles
            #:box-interactive
            #:box-focusable
            #:box-moves
@@ -75,6 +78,12 @@
   (n2 0f0 :type single-float)
   (n3 0 :type fixnum)
   (data nil)
+  ;; The id of the widget that names this one (a label beside a field), for the semantic tree.
+  (labelled-by nil)
+  ;; A small array of doubles, made once and refilled, for a widget's numbers that the other slots
+  ;; do not hold (the slider's value, minimum and maximum), so that describing a frame allocates
+  ;; nothing for them.
+  (aux nil)
   (interactive nil)
   (focusable nil)
   ;; Whether it wants to be told of the pointer moving over it.
@@ -86,6 +95,12 @@
   (h 0f0 :type single-float)
   (layout-hash 0 :type (unsigned-byte 62))
   (paint-hash 0 :type (unsigned-byte 62)))
+
+(declaim (inline box-aux-doubles))
+(defun box-aux-doubles (box)
+  "The array of three doubles of BOX, made the first time it is asked for."
+  (or (box-aux box)
+      (setf (box-aux box) (make-array 3 :element-type 'double-float :initial-element 0d0))))
 
 (defun reset-box (box kind)
   "Make BOX ready to describe a new thing of KIND: everything but its storage is as it was
@@ -114,6 +129,7 @@ made."
         (box-n2 box) 0f0
         (box-n3 box) 0
         (box-data box) nil
+        (box-labelled-by box) nil
         (box-interactive box) nil
         (box-focusable box) nil
         (box-moves box) nil

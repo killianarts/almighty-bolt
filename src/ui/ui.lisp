@@ -9,6 +9,7 @@
                 #:reset-box
                 #:box-key
                 #:box-id
+                #:box-labelled-by
                 #:box-parent
                 #:box-children)
   (:import-from #:almighty-bolt/internals
@@ -224,13 +225,14 @@
     (or (svref boxes count)
         (setf (svref boxes count) (make-box)))))
 
-(defun open-box (ui kind &key id)
+(defun open-box (ui kind &key id labelled-by)
   "Start a box of KIND inside the one that is open. Its key is made from its parent's and
 its ID (or, with none, its place among its parent's children), so it is the same from one
 frame to the next as long as it is described in the same place."
   (let* ((box (reset-box (next-box ui) kind))
          (parent (ui-parent ui)))
     (setf (box-id box) id
+          (box-labelled-by box) labelled-by
           (box-parent box) parent)
     (let ((key (mix (if parent (box-key parent) +seed+)
                     (if id (hash-of id) (if parent (fill-pointer (box-children parent)) 0)))))
