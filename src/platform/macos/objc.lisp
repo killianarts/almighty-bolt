@@ -432,6 +432,13 @@ says which it is, and a second definition of it replaces the first."
                                  (remove ',name *startup-hooks* :key #'car)))
      (funcall function)))
 
+;;; Lisp objects behind Objective-C objects. A class made at run time keeps an
+;;; integer in an instance variable; that integer indexes this table, so a
+;;; method that receives only the Objective-C object can find its Lisp side.
+
+(defvar *objects* (make-array 64 :initial-element nil))
+(defvar *objects-lock* (sb-thread:make-mutex :name "objc objects"))
+
 (defun reinitialize-objc ()
   "Fill in the addresses of classes and selectors, make the run-time classes, and run the
 startup forms again: what an image that was saved needs when it starts. It runs by itself
@@ -464,13 +471,6 @@ at the start of an image, from SB-EXT:*INIT-HOOKS*."
   "The 64-bit word at OFFSET (from IVAR-OFFSET) in the Objective-C OBJECT. Can
 be set with SETF. Reading it costs no call into the runtime."
   `(sb-sys:sap-ref-64 (sb-sys:int-sap ,object) ,offset))
-
-;;; Lisp objects behind Objective-C objects. A class made at run time keeps an
-;;; integer in an instance variable; that integer indexes this table, so a
-;;; method that receives only the Objective-C object can find its Lisp side.
-
-(defvar *objects* (make-array 64 :initial-element nil))
-(defvar *objects-lock* (sb-thread:make-mutex :name "objc objects"))
 
 (defun register-object (object)
   "Remember the Lisp OBJECT and return its index (never zero)."

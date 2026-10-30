@@ -2058,3 +2058,15 @@ from earlier versions of the same sources, and an unmutated run failed 11 assert
 tree. After a sync I now clear the worktree's compile cache and run the test unmutated before any
 mutation. The mutation series of this stage each followed a passing unmutated run; the one run that did not
 (=d1=) was done again.
+*** Step 4: a library that compiles without a word
+Compiling the project from nothing printed one WARNING and fourteen STYLE-WARNINGs, hidden until now by
+compiled files that were already there. All gone: =*objects*= in =objc.lisp= is defined before the
+function that sets it, and the three Objective-C callbacks in =view.lisp= that return a structure (the
+only ones that cannot use =define-callback=, which counts every argument as used) mention the arguments
+they do not need. =make compile-clean= (=scripts/compile-clean.lisp=) compiles the library, its tests, the
+examples, the 7GUIs and stress apps and the benchmarks into a directory that is thrown away, with the
+dependencies as they are, and fails on any warning (a macro defined at compile time and again at load is
+reported by SBCL as a redefinition; that is how ASDF builds a system and is not counted). It takes 4 s and
+=make test= starts with it. Mutated: an unused variable in the library, in an app, and a call of a function
+that does not exist in a test, each caught. (My first mutation of the app was an unused =kept-let=
+variable, which is an unused symbol macro and warns of nothing; it proved nothing and I made another.)

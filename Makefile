@@ -1,4 +1,4 @@
-.PHONY: deps test bench-null image bench-run bench-overhead bench-app bench-compile bench-report snapshots replay 7guis 7guis-smoke 7guis-repl-smoke 7guis-hot-smoke examples-smoke smoke clean
+.PHONY: deps test compile-clean bench-null image bench-run bench-overhead bench-app bench-compile bench-report snapshots replay 7guis 7guis-smoke 7guis-repl-smoke 7guis-hot-smoke examples-smoke smoke clean
 
 # ASDF looks only in this tree (project and vendored/), never in ~/common-lisp/.
 SBCL = sbcl --noinform --non-interactive --no-sysinit --no-userinit
@@ -17,10 +17,15 @@ deps:
 # Integration and end-to-end tests, the only kind for now (the charter's Testing section): the
 # real operating system, text engine and GPU, and the apps driven by events and replay scripts. No
 # window is opened; make smoke does that.
-test:
+test: compile-clean
 	$(SBCL) $(REGISTRY) --eval '(asdf:test-system "almighty-bolt")'
 	$(SBCL) $(REGISTRY) --eval '(asdf:test-system "almighty-bolt-7guis/acceptance")'
 	$(SBCL) $(REGISTRY) --eval '(asdf:test-system "almighty-bolt-stress/acceptance")'
+
+# The project compiled from nothing, into a directory that is thrown away, without a warning of any
+# kind (scripts/compile-clean.lisp). make test starts with it.
+compile-clean:
+	sbcl --noinform --non-interactive --no-sysinit --no-userinit --load scripts/compile-clean.lisp
 
 # The window checks, which need a window server (a logged-in Mac) and nobody at the keyboard: the
 # app opens, draws and rests; the REPL entry; a saved file made into the app again with its state.

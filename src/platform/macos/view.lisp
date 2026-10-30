@@ -241,7 +241,7 @@ this is a place for it that is not allocated again for each call.")
 
 (sb-alien:define-alien-callable view-marked-range (sb-alien:struct almighty-bolt/platform/macos/objc::ns-range)
     ((self sb-alien:unsigned-long) (cmd sb-alien:unsigned-long))
-  (declare (ignore cmd))
+  cmd
   (let ((view (view-of self)))
     (if (metal-view-marked view)
         (range-result 0 (utf-16-length (metal-view-marked-text view)))
@@ -249,7 +249,7 @@ this is a place for it that is not allocated again for each call.")
 
 (sb-alien:define-alien-callable view-selected-range (sb-alien:struct almighty-bolt/platform/macos/objc::ns-range)
     ((self sb-alien:unsigned-long) (cmd sb-alien:unsigned-long))
-  (declare (ignore self cmd))
+  self cmd
   ;; The app has its own selection, which the input method is not told of.
   (range-result +not-found+ 0))
 
@@ -273,7 +273,7 @@ this is a place for it that is not allocated again for each call.")
     ((self sb-alien:unsigned-long) (cmd sb-alien:unsigned-long)
      (location sb-alien:unsigned-long) (length sb-alien:unsigned-long)
      (actual sb-alien:unsigned-long))
-  (declare (ignore cmd location length actual))
+  cmd location length actual
   (handler-case
       (multiple-value-bind (active x y width height) (funcall (metal-view-text-input (view-of self)))
         (declare (ignore active))
