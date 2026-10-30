@@ -29,4 +29,6 @@ are not listed.
 
 ### Fixed
 
+- Text: the letters of a line stand on one baseline. Some had been set up to a pixel higher or lower than their neighbours.
+
 ### Security

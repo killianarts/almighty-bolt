@@ -1,5 +1,7 @@
 (defpackage #:almighty-bolt/t/render/metal/draw-text
   (:use #:cl #:lisp-unit2)
+  (:import-from #:almighty-bolt/text/core-foundation
+                #:ccall)
   (:local-nicknames (#:objc #:almighty-bolt/platform/macos/objc)
                     (#:device #:almighty-bolt/render/metal/device)
                     (#:target #:almighty-bolt/render/metal/target)
@@ -77,6 +79,81 @@ black, or NIL if there is none."
                        bottom)
           ;; And it is not a speck: it fills most of the measured width.
           (assert-true (> (- right left) (* 0.8 width +scale+)) (- right left)))))))
+
+;;; --- the baseline ---
+
+(defun core-graphics-coverage (font-address glyph x baseline width height)
+  "What Core Graphics itself draws for GLYPH of the font at FONT-ADDRESS, with its origin at X and
+BASELINE (points, y down), in a WIDTH by HEIGHT points bitmap at +SCALE+ pixels a point: a byte of
+coverage for each pixel, row by row from the top. The atlas is held to this."
+  (let* ((pixel-width (* width +scale+))
+         (pixel-height (* height +scale+))
+         (pixels (make-array (* pixel-width pixel-height)
+                             :element-type '(unsigned-byte 8) :initial-element 0)))
+    (sb-alien:with-alien ((glyph-id (sb-alien:unsigned 16))
+                          (origin (array sb-alien:double 2)))
+      (setf glyph-id glyph
+            (sb-alien:deref origin 0) (float x 1d0)
+            (sb-alien:deref origin 1) (float (- height baseline) 1d0))
+      (sb-sys:with-pinned-objects (pixels)
+        (let ((context (ccall "CGBitmapContextCreate" :ulong
+                              (:pointer (sb-sys:sap-int (sb-sys:vector-sap pixels)))
+                              (:ulong pixel-width) (:ulong pixel-height)
+                              (:ulong 8) (:ulong pixel-width)
+                              (:ulong 0) (:uint 7))))       ; alpha only
+          (ccall "CGContextScaleCTM" :void (:ulong context) (:double (float +scale+ 1d0))
+                 (:double (float +scale+ 1d0)))
+          (ccall "CGContextSetShouldAntialias" :void (:ulong context) (:bool t))
+          (ccall "CGContextSetAllowsFontSmoothing" :void (:ulong context) (:bool nil))
+          (ccall "CGContextSetShouldSmoothFonts" :void (:ulong context) (:bool nil))
+          (ccall "CTFontDrawGlyphs" :void
+                 (:ulong font-address)
+                 (:pointer (sb-sys:sap-int (sb-alien:alien-sap (sb-alien:addr glyph-id))))
+                 (:pointer (sb-sys:sap-int (sb-alien:alien-sap origin)))
+                 (:ulong 1)
+                 (:ulong context))
+          (ccall "CGContextRelease" :void (:ulong context)))))
+    pixels))
+
+(define-test every-glyph-is-drawn-where-core-graphics-draws-it ()
+  ;; A glyph cut to the box of its own ink and set on a whole pixel is up to half a pixel off,
+  ;; a different fraction for each glyph, so that some letters of a line stand a little higher
+  ;; or lower than the rest. Drawn one at a time with the pen and the baseline on whole pixels,
+  ;; each has to come out as Core Graphics draws it there. White on black, so the red of a pixel
+  ;; is the coverage.
+  (with-text-scene (device renderer font)
+    (let ((atlas (renderer:renderer-atlas renderer))
+          (width 60) (height 60))
+      (loop :for char :across "oeHxpgyjQ,;acsfl&@"
+            :do (let* ((list (dl:make-display-list :capacity 8))
+                       (line (line:get-line font (string char))))
+                  (draw:push-line list atlas line 20f0 40f0 (dl:pack-color 255 255 255))
+                  (let* ((pixels (render-text device renderer list width height))
+                         (truth (core-graphics-coverage (aref (line:text-line-glyph-fonts line) 0)
+                                                        (aref (line:text-line-glyphs line) 0)
+                                                        20 40 width height))
+                         (worst (loop :for i :below (length truth)
+                                      :maximize (abs (- (aref pixels (+ (* 4 i) 2))
+                                                        (aref truth i))))))
+                    (assert-true (<= worst 8) char worst)))))))
+
+(define-test a-baseline-between-two-pixel-rows-moves-the-whole-line-together ()
+  ;; A line whose baseline is not on a pixel row is set on one row or the next, all of it: every
+  ;; glyph is rounded the same way, even when the baseline is exactly half way between the rows,
+  ;; where rounding each glyph's own sum would send some of them each way.
+  (with-text-scene (device renderer font)
+    (let ((atlas (renderer:renderer-atlas renderer))
+          (line (line:get-line font "Hxopgy,jQ")))
+      (flet ((drawn (baseline)
+               (let ((list (dl:make-display-list :capacity 32)))
+                 (draw:push-line list atlas line 20f0 (float baseline 1f0)
+                                 (dl:pack-color 255 255 255))
+                 (render-text device renderer list 160 60))))
+        (dolist (baseline '(40.25 40.75 40.1 40.3 40.6 40.9))
+          (let ((here (drawn baseline))
+                (above (drawn (/ (floor (* baseline +scale+)) (float +scale+))))
+                (below (drawn (/ (ceiling (* baseline +scale+)) (float +scale+)))))
+            (assert-true (or (equalp here above) (equalp here below)) baseline)))))))
 
 (define-test text-is-drawn-in-its-colour-with-full-coverage-in-the-stems ()
   (with-text-scene (device renderer font)

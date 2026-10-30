@@ -17,6 +17,17 @@
 ;;; does the drawing, so the result looks as the system draws text, except that
 ;;; the colour fringes of LCD smoothing are off: the coverage is the same
 ;;; whatever colour the text is later drawn in.
+;;;
+;;; The bitmap's edges are a whole number of pixels from the glyph's origin, so
+;;; the origin, and with it the baseline, is on a pixel boundary of the bitmap.
+;;; Drawn with its origin on a whole pixel, every glyph of a line then stands on
+;;; the same baseline. If the bitmap were cut to the ink's own box instead, the
+;;; baseline would fall a different fraction of a pixel into each glyph's bitmap,
+;;; and rounding the bitmaps to whole pixels would set some letters a little
+;;; higher or lower than others. The origin has to be on a whole pixel for Core
+;;; Graphics too: it drops the fraction of a glyph's origin, so one that is not
+;;; on a whole pixel would move the ink in the bitmap, by up to a pixel and by a
+;;; different amount for each glyph.
 
 (defconstant +padding+ 2
   "Empty pixels kept round the glyph. The antialiased edge of the ink reaches a
@@ -27,7 +38,8 @@ little past the box that Core Text reports for it, so a pixel is not enough.")
 (defstruct (glyph-bitmap (:constructor %make-glyph-bitmap))
   "A rasterized glyph. The pixels are WIDTH by HEIGHT bytes, row by row from the
 top. BEARING-X is how far, in points, the bitmap's left edge lies to the right of
-the glyph's origin, and BEARING-Y how far its top edge lies above the baseline."
+the glyph's origin, and BEARING-Y how far its top edge lies above the baseline;
+at the scale the glyph was rasterized at, both are whole numbers of pixels."
   (pixels (make-array 0 :element-type '(unsigned-byte 8))
    :type (simple-array (unsigned-byte 8) (*)) :read-only t)
   (width 0 :type fixnum :read-only t)
@@ -59,18 +71,22 @@ the glyph has no ink (a space)."
     (when (or (<= width 0d0) (<= height 0d0))
       (return-from rasterize-glyph nil))
     (let* ((scale (float scale 1d0))
-           (pixel-width (+ (ceiling (* width scale)) (* 2 +padding+)))
-           (pixel-height (+ (ceiling (* height scale)) (* 2 +padding+)))
+           ;; The bitmap's edges, in whole pixels from the origin (y up): the ink's box
+           ;; rounded outwards, and a margin.
+           (left (- (floor (* x scale)) +padding+))
+           (bottom (- (floor (* y scale)) +padding+))
+           (right (+ (ceiling (* (+ x width) scale)) +padding+))
+           (top (+ (ceiling (* (+ y height) scale)) +padding+))
+           (pixel-width (- right left))
+           (pixel-height (- top bottom))
            (pixels (make-array (* pixel-width pixel-height)
-                               :element-type '(unsigned-byte 8) :initial-element 0))
-           (pad (/ +padding+ scale)))
+                               :element-type '(unsigned-byte 8) :initial-element 0)))
       (sb-alien:with-alien ((glyph-id (sb-alien:unsigned 16))
                             (origin (array sb-alien:double 2)))
         (setf glyph-id glyph
-              ;; Put the ink's bottom left corner one padding in from the
-              ;; bitmap's bottom left.
-              (sb-alien:deref origin 0) (- pad x)
-              (sb-alien:deref origin 1) (- pad y))
+              ;; The origin is a whole number of pixels from the bitmap's bottom left.
+              (sb-alien:deref origin 0) (/ (- left) scale)
+              (sb-alien:deref origin 1) (/ (- bottom) scale))
         (sb-sys:with-pinned-objects (pixels)
           (let ((context (ccall "CGBitmapContextCreate" :ulong
                                 (:pointer (sb-sys:sap-int (sb-sys:vector-sap pixels)))
@@ -94,5 +110,5 @@ the glyph has no ink (a space)."
       (%make-glyph-bitmap :pixels pixels
                           :width pixel-width
                           :height pixel-height
-                          :bearing-x (float (- x pad) 1f0)
-                          :bearing-y (float (+ (- y pad) (/ pixel-height scale)) 1f0)))))
+                          :bearing-x (float (/ left scale) 1f0)
+                          :bearing-y (float (/ top scale) 1f0)))))

@@ -24,8 +24,10 @@
 (defun push-line (display-list atlas line x baseline color)
   "Append a glyph command for each glyph of LINE, which starts at X and whose
 baseline is BASELINE (points, y down), in COLOR. Glyphs are snapped to whole
-pixels so that the atlas bitmaps are sampled one texel to a pixel. A glyph not yet in the atlas
-is rasterized now. Returns the number of commands added (a space has none)."
+pixels so that the atlas bitmaps are sampled one texel to a pixel: the pen position and the
+baseline are rounded, once, and then each glyph's bitmap is placed by its own whole-pixel
+offsets from them, so that no glyph is rounded a different way from its neighbours. A glyph
+not yet in the atlas is rasterized now. Returns the number of commands added (a space has none)."
   (declare (type single-float x baseline))
   (let* ((scale (glyph-atlas-scale atlas))
          (inverse (/ 1f0 scale))
@@ -38,9 +40,10 @@ is rasterized now. Returns the number of commands added (a space has none)."
     (dotimes (i (text-line-glyph-count line))
       (let ((index (atlas-glyph-index atlas (aref fonts i) (aref glyphs i))))
         (when (>= index 0)
-          (let ((left (* inverse (round (* scale (+ x (aref xs i) (atlas-bearing-x atlas index))))))
-                (top (* inverse (round (* scale (- baseline (aref ys i)
-                                                   (atlas-bearing-y atlas index)))))))
+          (let* ((pen (round (* scale (+ x (aref xs i)))))
+                 (base (round (* scale (- baseline (aref ys i)))))
+                 (left (* inverse (+ pen (round (* scale (atlas-bearing-x atlas index))))))
+                 (top (* inverse (- base (round (* scale (atlas-bearing-y atlas index)))))))
             (push-glyph display-list left top
                         (atlas-width atlas index) (atlas-height atlas index)
                         index color)
