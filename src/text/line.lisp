@@ -46,7 +46,7 @@
 ;;; A string is shaped once into a TEXT-LINE, which keeps its glyphs, their fonts
 ;;; and positions (what drawing needs) and the Core Text line (what the caret
 ;;; queries need). Lines are cached per font by string, and a lookup that finds
-;;; its line allocates nothing. The cache is bounded (decision record 0025): it is of two
+;;; its line allocates nothing. The cache is bounded: it is of two
 ;;; generations, the lines used lately and the lines used before, and when the first holds
 ;;; *LINES-PER-GENERATION* the second is let go, with its Core Text lines, and the first
 ;;; becomes the second. A line that is found in the second is moved to the first. A

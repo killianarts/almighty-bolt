@@ -8,7 +8,7 @@
 
 (in-package #:almighty-bolt/redefinition)
 
-;;; Telling a running program that its code changed (decision record 0030). SBCL calls the
+;;; Telling a running program that its code changed. SBCL calls the
 ;;; functions in SB-INT:*SETF-FDEFINITION-HOOK* with the name whenever a function is defined,
 ;;; whether the definition comes from a compiled file, from COMPILE or EVAL, or from an
 ;;; editor's compile of one form, so no polling is needed and no file is watched. This file is

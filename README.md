@@ -143,7 +143,7 @@ window @0,0,222,80
 - [`examples/`](examples): a counter and a to-do list, written with the public package only.
 - [`apps/7guis/`](apps/7guis) and [`apps/stress/`](apps/stress): the seven 7GUIs tasks, and a dashboard, a million-row list and a text editor with input-method support. They are the acceptance suite as well as examples.
 - `make test` compiles the project into a directory that is thrown away and fails on any warning, then runs the integration and end-to-end tests (events and replay scripts in, display lists and frames out; the real operating system, text engine and GPU; no window). `make smoke` opens windows, and in one of them a client of the MCP server presses the counter's button, takes a screenshot that macOS then decodes, and does the same through `nc`. Unit tests are not written for now; see [`CLAUDE.md`](CLAUDE.md).
-- [`notes/devlog.org`](notes/devlog.org) is the lab notebook, and [`gui-framework-charter.org`](gui-framework-charter.org) the plan. The library began as an experiment comparing retained, reactive and immediate-mode approaches; the other approaches are archived on the tag `archive/three-variants`, and the immediate one was chosen for now.
+- The library began as an experiment comparing retained, reactive and immediate-mode approaches. The immediate one was chosen for now; the others are archived on the tag `archive/three-variants`.
 - [`docs/releases/dev.md`](docs/releases/dev.md) has the release notes of the release in progress.
 
 The systems are declared MIT in their `.asd` files.

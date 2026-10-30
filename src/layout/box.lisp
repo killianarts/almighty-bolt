@@ -12,7 +12,7 @@
 
 (in-package #:almighty-bolt/layout/box)
 
-;;; Layout for one child (decision record 0010). Each function takes the
+;;; Layout for one child. Each function takes the
 ;;; constraints it was given, a MEASURE function for its child, and options, and
 ;;; returns four values: its own width and height, and the x and y of the child
 ;;; inside it. MEASURE takes the minimum and maximum width and height the child may

@@ -12,7 +12,7 @@
 
 (in-package #:almighty-bolt/kept)
 
-;;; State that is still there when the app is made again (decision record 0031). An app's own
+;;; State that is still there when the app is made again. An app's own
 ;;; state is in variables that its constructor closes over, and a new call of the constructor makes
 ;;; new ones. KEPT-LET is LET for them: the window keeps a store of cells, by the name of the
 ;;; variable, and when the app is made again a name that is in the store gets the cell it had.

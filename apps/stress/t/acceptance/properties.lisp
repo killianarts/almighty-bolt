@@ -18,12 +18,12 @@
 
 (in-package #:almighty-bolt-stress/t/acceptance/properties)
 
-;;; What the library promises whatever an app does, checked from outside, as the charter's Testing
-;;; section asks: the shipped replay scripts are played into the apps with the real text engine and no
+;;; What the library promises whatever an app does, checked from outside: the shipped replay
+;;; scripts are played into the apps with the real text engine and no
 ;;; window, as the benchmark protocol plays them, and an app that has nothing going on is left alone.
 ;;;   - a frame settles: no frame of any script hits the settle cap;
 ;;;   - determinism: a script played twice, into a new app each time, draws the same frames (the
-;;;     hash of every frame is the same), which the charter wants before any measurement is trusted;
+;;;     hash of every frame is the same), which has to hold before any measurement is trusted;
 ;;;   - allocation: after the first frame, three of the scripts allocate nothing in a frame and the
 ;;;     other three no more than about twice what they did when this was written (bytes consed are
 ;;;     counted in steps of an allocation region, so a script of a dozen frames cannot show less

@@ -11,7 +11,7 @@
 
 (in-package #:almighty-bolt/layout/flex)
 
-;;; A row or a column of children (decision record 0010), after Flutter's
+;;; A row or a column of children, after Flutter's
 ;;; RenderFlex. Children that do not flex are measured first, with all the room on
 ;;; the main axis. What is left is shared among the children that flex, in
 ;;; proportion to their flex factors. Then the children are placed one after
@@ -28,7 +28,7 @@
 ;;; largest flex it has served, once, and after that nothing allocates, whatever
 ;;; the number of children. It does not depend on the compiler putting anything on
 ;;; the stack, which SBCL does not do for vectors of floats on platforms with a
-;;; precise stack (decision record 0010). It is shared by every flex in a thread, so
+;;; precise stack. It is shared by every flex in a thread, so
 ;;; two threads that lay out together must each bind their own, with
 ;;; WITH-LAYOUT-SCRATCH.
 

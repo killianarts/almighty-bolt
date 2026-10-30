@@ -14,7 +14,7 @@ SBCL_APP = sbcl $(HEAP) --noinform --disable-debugger --no-sysinit --no-userinit
 deps:
 	vend get || { sed -i '' 's/ (:feature :dotcl (:require :dotcl-float))//' vendored/float-features/float-features.asd && vend get; }
 
-# Integration and end-to-end tests, the only kind for now (the charter's Testing section): the
+# Integration and end-to-end tests, the only kind for now: the
 # real operating system, text engine and GPU, and the apps driven by events and replay scripts. No
 # window is opened; make smoke does that.
 test: compile-clean
@@ -80,7 +80,7 @@ image:
 # waits and reports, with nobody at the window, and says whether a key typed would reach it (the view
 # is the first responder, the window is the key window and the application is active).
 # HOT=1 makes the app again, in the same window, when code is compiled into the process or a
-# source file is saved (see the devlog, 2026-10-28 and 2026-10-29); the state the app keeps (kept-let) stays.
+# source file is saved; the state the app keeps (kept-let) stays.
 7guis:
 	VARIANT=$(VARIANT) TASK=$(TASK) LOG=$(LOG) RECORD=$(RECORD) HOT=$(HOT) $(SBCL_APP) $(REGISTRY) --load apps/7guis/run.lisp
 

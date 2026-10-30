@@ -11,8 +11,8 @@
 
 (in-package #:almighty-bolt-7guis/t/acceptance/reload)
 
-;;; An app that is made again when its code changed is the same app to the person using it
-;;; (devlog, 2026-10-29): the CRUD is driven through the same keystrokes with and without a
+;;; An app that is made again when its code changed is the same app to the person using it:
+;;; the CRUD is driven through the same keystrokes with and without a
 ;;; reload in the middle, and ends in the same place. A reload here is the app made again by the
 ;;; same code; what an edit shows is checked by the tests below.
 

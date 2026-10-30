@@ -121,8 +121,8 @@
   :components ((:file "fake-context")))
 
 (defsystem "almighty-bolt/tests"
-  ;; Integration tests, against the real operating system, text engine and GPU (the charter's Testing
-  ;; section). flexi-streams is not used here. cl-unicode (lisp-unit2 -> cl-interpol ->
+  ;; Integration tests, against the real operating system, text engine and GPU.
+  ;; flexi-streams is not used here. cl-unicode (lisp-unit2 -> cl-interpol ->
   ;; cl-unicode) generates its source files with it on first load, and vend
   ;; only finds it if some system names it.
   :depends-on ("almighty-bolt" "almighty-bolt/test-support" "almighty-bolt-examples"

@@ -111,7 +111,7 @@ frame's list. A frame that changed state is built again, up to the limit."
     (driver-list driver)))
 
 (defun reload (driver &optional (constructor (driver-constructor driver)))
-  "Make the app again, as the host does when its code was compiled (decision record 0031): the
+  "Make the app again, as the host does when its code was compiled: the
 app is made by CONSTRUCTOR (the one that makes it, unless a test gives another, which stands
 for edited code) with the state it keeps, the new variant takes what the old one held, and a
 frame is drawn with it. The old one is then retired."

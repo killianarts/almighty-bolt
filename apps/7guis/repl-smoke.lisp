@@ -1,7 +1,7 @@
 ;;;; Check what an editor's REPL does: open a 7GUIs task in a window and get the REPL back, see
 ;;;; the app made again when code is compiled, close the window and keep the Lisp, open it again.
 ;;;; From the repository root:
-;;;;   make 7guis-repl-smoke VARIANT=retained TASK=crud
+;;;;   make 7guis-repl-smoke VARIANT=immediate TASK=crud
 ;;;; The main thread waits, as a REPL's waits for the editor, and another thread does what the
 ;;;; editor's forms do. It says "The REPL check passed" when every check holds, and the last one
 ;;;; is that the Lisp exits with a window open.
@@ -14,7 +14,7 @@
 (defun keyword-from-environment (name)
   (let ((value (uiop:getenv name)))
     (unless (and value (plusp (length value)))
-      (error "Say which with ~a=..., for example VARIANT=retained TASK=crud." name))
+      (error "Say which with ~a=..., for example VARIANT=immediate TASK=crud." name))
     (intern (string-upcase value) :keyword)))
 
 (defun symbol-in (package name)

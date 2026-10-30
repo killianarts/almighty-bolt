@@ -8,7 +8,7 @@
 
 (in-package #:almighty-bolt-7guis/layout/text)
 
-;;; What the layout spike (H6) shows, the same in every variant: three paragraphs that are
+;;; What the layout screen shows: three paragraphs that are
 ;;; broken into lines to the width of the pane they are in, so that the height of a pane
 ;;; depends on its width, which depends on the window.
 

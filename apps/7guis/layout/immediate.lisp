@@ -19,7 +19,7 @@
 
 (in-package #:almighty-bolt-7guis/layout/immediate)
 
-;;; The layout spike, immediate: the function describes the screen with the parents opened
+;;; The layout screen: the function describes the screen with the parents opened
 ;;; before their children, and layout runs afterwards over the boxes it made, so a pane's
 ;;; paragraph is told its width and answers with its height in the same frame, with no extra
 ;;; build and no lag.

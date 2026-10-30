@@ -1,4 +1,0 @@
-#+TITLE: Research Notes
-
-Annotated bibliography. For each source: a summary in my own words, the ideas
-I take from it, and the ideas I reject.

@@ -41,7 +41,7 @@
   "Record that VARIANT has an app for TASK, made by calling CONSTRUCTOR, which runs in a
 window WIDTH by HEIGHT points. CONSTRUCTOR is the name of a function, not the function: a name
 is looked up when the app is made, so an app whose function was compiled again is made from the
-new one, which is what hot reload needs (decision record 0030). #'name would keep the old."
+new one, which is what hot reload needs. #'name would keep the old."
   (check-type variant (member :immediate))
   (check-type task (member :counter :temperature :flight :timer :crud :circles :cells :layout
                            :dialog :dashboard :rows :editor))

@@ -38,12 +38,12 @@
 ;;; A ring of per-frame records, preallocated so that recording a frame does
 ;;; not allocate and so does not disturb what it measures. Each record is
 ;;; eight unsigned 64-bit words: start time, end time, bytes consed before and
-;;; after, and four more that hold the phases of the frame (decision record 0009):
+;;; after, and four more that hold the phases of the frame:
 ;;; the time spent building, the time spent waiting for the display (the previous
 ;;; frame's GPU work, then the drawable), the time spent encoding and committing,
 ;;; and the number of builds with a flag for whether the settle cap was hit (they
 ;;; share a word). A recorder that does not time phases leaves them zero. Eight more words,
-;;; filled in by RECORD-FRAME-DETAILS, hold what the instrumentation of Phase 3 adds: the time
+;;; filled in by RECORD-FRAME-DETAILS, hold what the instrumentation adds: the time
 ;;; spent in garbage collection, the time of the first build (the rest of the build time is
 ;;; the cost of settling), the time the variant spent in its update, layout and paint phases,
 ;;; the GPU's time for the frame before, the time of all the builds (the host's build time also

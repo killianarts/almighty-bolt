@@ -50,7 +50,7 @@
           (s:click-control host :grid :fx 0.2 :fy 0.2)
           (s:type-string host "=1+2")
           (s:key-press host #\Return)))
-  ;; The stress apps (decision record 0025).
+  ;; The stress apps.
   (snap variant :dashboard
         (lambda (host) (declare (ignore host)) nil))
   (snap variant :rows

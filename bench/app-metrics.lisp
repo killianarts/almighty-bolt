@@ -7,7 +7,7 @@
 
 (in-package #:almighty-bolt-bench/app-metrics)
 
-;;; What an app costs a user's machine, measured from outside the process (decision record 0023):
+;;; What an app costs a user's machine, measured from outside the process:
 ;;; the size of the saved executable, the time from starting it to its first presented frame, the
 ;;; CPU, wakeups and frames of a window that nothing happens to, and its memory. Each is of an
 ;;; executable made by make image, running TASK in a real window; the process says when its first
@@ -16,7 +16,7 @@
 ;;;
 ;;; Idle is judged by the frames: the window is left alone until the process has drawn nothing for
 ;;; three seconds (the timer animates until its time is up), and the idle window is the ten seconds
-;;; after that. The floor of the charter (no variant uses CPU when idle) is met if it draws no
+;;; after that. The floor (an app uses no CPU when idle) is met if it draws no
 ;;; frame in the window and top reports 0.0% CPU to one decimal place. A task that animates for as long
 ;;; as it is open (the dashboard) is measured in the ten seconds after its first frame instead, and
 ;;; its record says :state :animating.

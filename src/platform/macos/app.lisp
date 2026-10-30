@@ -27,7 +27,7 @@
 ;;; only the window (make 7guis) ends the process, as AppKit does by default. A Lisp
 ;;; that a person is working in (a REPL in an editor) must not die with its window, so
 ;;; there the loop stops and RUN-APPLICATION returns to the thread that was running it,
-;;; which goes back to what it was doing (decision record 0030).
+;;; which goes back to what it was doing.
 
 (defvar *ends-process* t
   "True if the application ends the process when its last window closes, or when it is told

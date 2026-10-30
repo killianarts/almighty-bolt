@@ -1,6 +1,6 @@
 ;;;; Open a 7GUIs task in a window. From the repository root:
-;;;;   make 7guis VARIANT=retained TASK=counter [LOG=1] [RECORD=path/to/session.script] [HOT=1]
-;;;;   make 7guis-smoke VARIANT=retained TASK=counter
+;;;;   make 7guis VARIANT=immediate TASK=counter [LOG=1] [RECORD=path/to/session.script] [HOT=1]
+;;;;   make 7guis-smoke VARIANT=immediate TASK=counter
 
 (defpackage #:almighty-bolt-7guis/run
   (:use #:cl))
@@ -10,7 +10,7 @@
 (defun keyword-from-environment (name)
   (let ((value (uiop:getenv name)))
     (unless (and value (plusp (length value)))
-      (error "Say which with ~a=..., for example VARIANT=retained TASK=counter." name))
+      (error "Say which with ~a=..., for example VARIANT=immediate TASK=counter." name))
     (intern (string-upcase value) :keyword)))
 
 (let ((variant (keyword-from-environment "VARIANT"))

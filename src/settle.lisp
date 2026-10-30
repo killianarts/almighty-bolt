@@ -20,7 +20,7 @@
 
 (in-package #:almighty-bolt/settle)
 
-;;; The settle step of the frame sequence in decision record 0009: build until the
+;;; The settle step of the frame sequence: build until the
 ;;; frame settles. A frame is settled when its build changed no app state. A
 ;;; variant may change state while it builds (an immediate-mode button that returns
 ;;; true when clicked does), so widgets built before the change show old state. The

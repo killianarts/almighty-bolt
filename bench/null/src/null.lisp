@@ -22,9 +22,9 @@
 
 (in-package #:almighty-bolt-bench-null/null)
 
-;;; The baseline variant of the charter: it replays a fixed, precomputed display
-;;; list and does nothing else, so that what a frame costs with it is what the core
-;;; costs. Every other variant's results are reported relative to it.
+;;; The baseline variant: it replays a fixed, precomputed display
+;;; list and does nothing else, so that what a frame costs with it is what the host and
+;;; the renderer cost. What the ui costs can be read against it.
 ;;;
 ;;; The list is built once, from the first frame's size, through the context's text
 ;;; operations (so this file needs only the umbrella package). After that a frame

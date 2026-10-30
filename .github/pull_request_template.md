@@ -8,5 +8,5 @@
 - [ ] Not user-facing: label this PR `internal`.
 
 Labels: one `area:*` label (platform, rendering, text, layout, input,
-variants, machine-interface), plus `breaking`, `performance` or `docs` where
+ui, machine-interface), plus `breaking`, `performance` or `docs` where
 they apply.

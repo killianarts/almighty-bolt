@@ -7,10 +7,9 @@
 
 (in-package #:almighty-bolt-7guis/t/acceptance/dialog)
 
-;;; The dialog screen (record 0022): a header with a label at its right edge, a card as wide
-;;; and as tall as what is in it in the middle of the window, and a line at the bottom, in
-;;; the variants that lay out after the description. The context's text is 8 points a
-;;; character, so the numbers are exact.
+;;; The dialog screen: a header with a label at its right edge, a card as wide and as tall as
+;;; what is in it in the middle of the window, and a line at the bottom. The context's text is
+;;; 8 points a character, so the numbers are exact.
 
 (defparameter +widths+ (loop :for width :from 280 :to 900 :by 40 :collect (float width 1f0)))
 

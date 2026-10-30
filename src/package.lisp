@@ -2,7 +2,7 @@
 ;;;; package. It re-exports the portable modules (clock, frame ring, events, display
 ;;;; list, the variant contract and layout) and is never imported by them. A variant imports
 ;;;; only this package; the platform, text and renderer modules stay under their own
-;;;; packages (decision record 0009).
+;;;; packages.
 
 (defpackage #:almighty-bolt/internals
   (:use #:cl)

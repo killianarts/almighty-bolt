@@ -38,8 +38,8 @@
 ;;;
 ;;; The frame's time is reported in parts, because the parts behave differently:
 ;;; the build (here, copying the list) and the encoding are the core's own work, and
-;;; the wait is the display and the GPU making us wait. Spike B showed the wait
-;;; ranging from 84 us to 5 ms between runs of identical code.
+;;; the wait is the display and the GPU making us wait, and it ranges
+;;; from 84 us to 5 ms between runs of identical code.
 
 (defun draws (host)
   (frame-ring-total (host-ring host)))

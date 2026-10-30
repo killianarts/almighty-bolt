@@ -1,42 +1,40 @@
 #+TITLE: Benchmark results
 
-One file per run of a script in one variant, written by =make bench-run= (the harness of
-=bench/results.lisp=; decision record 0021). A record is a single s-expression:
-=(:almighty-bolt-result 1 :date .. :commit .. :dirty .. :variant .. :app .. :script ..
+One file per run of a script in an app, written by =make bench-run= (the harness of
+=bench/results.lisp=). A record is a single s-expression:
+=(:almighty-bolt-result 2 :date .. :commit .. :dirty .. :variant .. :app .. :script ..
 :machine (..) :repetitions .. :warmups .. :runs (..) :summary (..))=. =:runs= holds the raw
 samples of every repetition (the build time of each frame in nanoseconds, the builds it took,
 the bytes consed while it was built), =:summary= what they say. The first frame of a run is
 cold and is summarized apart; the rest are what the medians and percentiles are of.
 
-A record is never edited. A later run of the same variant, app and script supersedes it, and
-=make bench-report= prints the latest of each. What is measured is the variant's build of a
+A record is never edited. A later run of the same app and script supersedes it, and
+=make bench-report= prints the latest of each. What is measured is the ui's build of a
 frame, on the real clock, with the real text engine and no window: not the host's waiting for
 the display, nor its encoding. The numbers are of the machine in =:machine=; compare records
-only from the same machine and, as the protocol says, treat differences within the spread of
-the repetitions as ties.
+only from the same machine and treat differences within the spread of the repetitions as ties.
 
-* Version 2 (Phase 3, decision record 0023)
-=(:almighty-bolt-result 2 ...)= adds =:mode=. Records of version 1 have none and are
-=:headless=. The latest record of each mode, variant, app and script is what =make
-bench-report= prints.
+* Modes
+Records of version 1 have no =:mode= and are =:headless=. The latest record of each mode, app
+and script is what =make bench-report= prints.
 
-- =:headless= (=make bench-run=, as before): the variant's build of a frame, with no renderer.
+- =:headless= (=make bench-run=): the ui's build of a frame, with no renderer.
 - =:host= (=make bench-run=): the script played through the host's frame (=run-frame=) into an
   off-screen texture with the real renderer and the instrumentation on. =:columns= names the
   fields of each frame's row in =:runs=; =:summary= is that of =summarize-ring= over the frames
-  after the first of each repetition: the frame time and its parts (build with the variant's
-  update, layout and paint; the wait for the GPU's frame before; the encoding), the GPU's time,
-  the builds in a frame and the share of the build time that was in builds after the first, the
-  garbage collected and the bytes consed. The repetitions are interleaved: one replay in each
-  variant in turn, ten rounds, because the CPU's and the GPU's speed drift. There is no window,
-  so no vsync and no wait for a drawable. Read the phases of the build (update, layout, paint) and
-  the share of extra builds across variants; the wait, the GPU's time and the encoding depend on
-  what state the machine is in and differ from one run to the next by a factor of two or three.
-- =:overhead= (=make bench-overhead=): what the instrumentation adds to a build, with it off and on,
-  in each variant and script and on the null variant through the host. The clock ticks in 41.7 ns
-  steps (24 MHz), so a difference of one or two ticks is all that can be seen at 0.7 us.
-- =:app= (=make bench-app=, after =make image=): from outside, for each variant's executable running
-  a task in a window: the time from starting it to its first presented frame (=:startup=, the
+  after the first of each repetition: the frame time and its parts (build with its update,
+  layout and paint; the wait for the GPU's frame before; the encoding), the GPU's time, the
+  builds in a frame and the share of the build time that was in builds after the first, the
+  garbage collected and the bytes consed. There is no window, so no vsync and no wait for a
+  drawable. Read the phases of the build (update, layout, paint) and the share of extra builds;
+  the wait, the GPU's time and the encoding depend on what state the machine is in and differ
+  from one run to the next by a factor of two or three.
+- =:overhead= (=make bench-overhead=): what the instrumentation adds to a build, with it off and
+  on, in each script and on the null baseline (=bench/null=) through the host. The clock ticks
+  in 41.7 ns steps (24 MHz), so a difference of one or two ticks is all that can be seen at
+  0.7 us.
+- =:app= (=make bench-app=, after =make image=): from outside, for the executable running a
+  task in a window: the time from starting it to its first presented frame (=:startup=, the
   first launch and then =:repetitions= - 1 more), the frames drawn, CPU and idle wakeups of ten
   seconds in which nothing happens (after it has drawn nothing for three seconds: =:idle=), the
   resident memory, the peak seen and the heap in use (=:memory=), and the executable's size raw
@@ -46,17 +44,13 @@ bench-report= prints.
   peak and the heap. =:state= is =:idle=, or =:animating= for a task that draws for as long as it
   is open (the dashboard): that one is measured in the ten seconds after its first frame, and
   =:idle= then holds what the animation costs (frames, CPU, wakeups), not an idle floor.
-- =:compile= (=make bench-compile=): seconds to compile the core, the shared models, the retained
-  library, the variant's own library and its seven apps from an empty cache, and to compile again
-  after touching one file of the variant's library and one of an app.
+- =:compile= (=make bench-compile=): seconds to compile the library, the 7GUIs models and the
+  seven apps from an empty cache, and to compile again after touching one file of the library
+  and one of an app.
 
-* Events counted (decision record 0025 (d), 2026-10-27)
-The records from commit =49d2d9d= on count the events delivered before each frame, because a
-variant may do the work of an event in =handle-event= (retained, reactive) or in the frame
-(immediate), and a frame's build time and bytes were of the frame only. The records before that,
-all the ones above, are of the frame only: across variants they are not like for like for an app
-that takes input. The run of =20261027T033004Z-49d2d9d-*= supersedes them, and
-=20261027-events-counted.txt= says what it shows.
+* Events
+The records from commit =49d2d9d= on count the events delivered before each frame. The records
+before that are of the frame only, so they leave out the time and bytes of delivering events.
 
 - =:headless=: each repetition in =:runs= has =:event-ns=, =:event-bytes= and =:events=, one for
   each frame (those delivered since the frame before), beside =:build-ns= and =:frame-bytes=,

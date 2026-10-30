@@ -48,8 +48,8 @@
 
 (in-package #:almighty-bolt/ui/layout)
 
-;;; Where the boxes of a frame go, worked out after the frame is described, with the same
-;;; layout functions as the other variants (decision record 0010): constraints down, sizes
+;;; Where the boxes of a frame go, worked out after the frame is described, with the layout
+;;; functions of src/layout: constraints down, sizes
 ;;; up, the parent places its children. The boxes are children of their parents in a vector,
 ;;; and the functions are given each child by its index.
 

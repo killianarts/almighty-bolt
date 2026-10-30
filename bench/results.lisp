@@ -33,16 +33,16 @@
 
 (in-package #:almighty-bolt-bench/results)
 
-;;; The harness of the benchmark protocol (the charter): every variant is driven by the same
-;;; recorded input script (replay, 0019), a script is run a number of times after warm-up runs
-;;; are thrown away, and one result record is written for each variant, app and script, in
+;;; The harness of the benchmark protocol: an app is driven by a recorded input script
+;;; (replay), a script is run a number of times after warm-up runs are thrown away, and one
+;;; result record is written for each variant, app and script, in
 ;;; =results/=, never to be edited, only superseded. Each frame's time is that of the variant's
 ;;; build (the settle loop) on the real clock, with the real text engine and no window or GPU, so
 ;;; the host's waiting and encoding are not in it. A record has the commit, the machine, the raw
 ;;; samples of every repetition and the summary.
 ;;;
 ;;; There are two kinds of run. The headless one (above) times only the variant's build. The host
-;;; one (decision record 0023) plays the script through the host's own frame, RUN-FRAME, into an
+;;; one plays the script through the host's own frame, RUN-FRAME, into an
 ;;; off-screen texture with the real renderer: the frame is the variant's build (with its update,
 ;;; layout and paint phases), the wait for the GPU's frame before, and the encoding, and the ring
 ;;; has the garbage collection, the first build against the rest, and the GPU's time besides.

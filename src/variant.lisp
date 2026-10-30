@@ -55,7 +55,7 @@
 
 (in-package #:almighty-bolt/variant)
 
-;;; The variant contract of decision record 0009: what the core asks of a variant,
+;;; The variant contract: what the core asks of a variant,
 ;;; and what it gives a variant to work with. Nothing here touches a window, the GPU
 ;;; or the operating system's text engine; the host supplies those behind the
 ;;; context.
@@ -107,18 +107,17 @@ returns NIL until the machine interface (H3) needs it.")
 
 (defgeneric inherit-state (new old)
   (:documentation "NEW is about to take the place of OLD in a window, because the app was made
-again after its code changed (decision record 0031). Carry over what OLD kept for itself that is
-not the app's own state: what the person did to the widgets (the focus, a caret, a scroll), and
-for a variant whose widgets hold the app's values, those. Called on the main thread before NEW
-draws. If it signals an error, OLD stays and NEW is retired.")
+again after its code changed. Carry over what OLD kept for itself that is not the app's own
+state: what the person did to the widgets (the focus, a caret, a scroll). Called on the main
+thread before NEW draws. If it signals an error, OLD stays and NEW is retired.")
   (:method (new old)
     (declare (ignore new old))
     nil))
 
 (defgeneric retire-variant (variant)
   (:documentation "VARIANT is not used any more: it was replaced by one that has drawn, or it was
-the replacement and its first frame failed. Let go of what it holds outside itself (a reactive
-variant's links from signals that outlive it). Called on the main thread.")
+the replacement and its first frame failed. Let go of what it holds outside itself. Called on the
+main thread.")
   (:method (variant)
     (declare (ignore variant))
     nil))
@@ -126,9 +125,8 @@ variant's links from signals that outlive it). Called on the main thread.")
 ;;; --- what the core gives a variant ---
 
 (defconstant +phase-update+ 0
-  "The phase of a build that brings the variant's structure up to date with the application:
-what a retained variant's tickers do, what a reactive one's signals and reconciler do, and
-calling the interface function of an immediate one.")
+  "The phase of a build that brings the variant up to date with the application: for the
+immediate ui, calling the interface function of the app.")
 (defconstant +phase-layout+ 1 "The phase in which sizes and places are worked out.")
 (defconstant +phase-paint+ 2 "The phase in which the display list is made.")
 (defconstant +phase-first-build+ 3
@@ -149,7 +147,7 @@ within the frame. REQUESTER is what REQUEST-FRAME calls; the host replaces it."
   (build-number 0 :type fixnum)
   (frame-requested nil :type boolean)
   (requester #'flag-frame-request :type function)
-  ;; Instrumentation (the charter's phases): when PHASES-P is true, WITH-PHASE adds the real
+  ;; Instrumentation: when PHASES-P is true, WITH-PHASE adds the real
   ;; time of what it runs to a slot of PHASE-NS, and SETTLE-FRAME times its builds. The host
   ;; clears the slots at the start of a frame and reads them at the end.
   ;; Text input (the input method of the operating system): a canvas that has something the
@@ -287,7 +285,7 @@ while the context's instrumentation is on. Does not allocate."
 ;;;
 ;;; The text engine and the glyph atlas belong to the host's platform and renderer,
 ;;; so a variant reaches them through the context. A font is an opaque value that
-;;; only CONTEXT-FONT makes. These are the measurement API of decision record 0003
+;;; only CONTEXT-FONT makes. These are the measurement operations
 ;;; and one operation to draw a line of text. A context made without a host has none
 ;;; of them.
 

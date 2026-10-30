@@ -24,7 +24,7 @@
 ;;; single floats: they are immediate values, so passing them around allocates
 ;;; nothing, and the display list uses singles too.
 ;;;
-;;; Fonts are never released in Phase 1; they live as long as the process.
+;;; Fonts are never released; they live as long as the process.
 
 (defstruct (font (:constructor %make-font))
   (name "" :type string :read-only t)

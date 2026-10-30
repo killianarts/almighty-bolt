@@ -197,7 +197,7 @@
       (line:clear-line-cache helvetica)
       (assert-false (eq line (line:get-line helvetica "Hello"))))))
 
-;;; The cache is of two generations (decision record 0025): what is used lately and what was used
+;;; The cache is of two generations: what is used lately and what was used
 ;;; before; a font holds at most twice *LINES-PER-GENERATION* lines whatever it is asked to shape.
 
 (defun cached (font)

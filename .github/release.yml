@@ -18,8 +18,8 @@ changelog:
       labels: [area:layout]
     - title: Input and replay
       labels: [area:input]
-    - title: Variants (retained, immediate, reactive)
-      labels: [area:variants]
+    - title: Interface (widgets, containers, state)
+      labels: [area:ui]
     - title: Machine interface
       labels: [area:machine-interface]
     - title: Performance and memory

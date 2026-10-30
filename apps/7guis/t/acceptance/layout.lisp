@@ -7,7 +7,7 @@
 
 (in-package #:almighty-bolt-7guis/t/acceptance/layout)
 
-;;; The layout spike (H6, the charter): a nested split panel with paragraphs that are broken
+;;; The layout screen: a nested split panel with paragraphs that are broken
 ;;; into lines to the width of their pane, in a window that is resized. A split is a row or a
 ;;; column with flex factors: the sidebar 1 and the right side 2 across, and on the right the
 ;;; top 1 and the bottom 1 down, the bottom split again 1 and 1. The window is 640 by 420 with a
@@ -59,10 +59,10 @@
   (d:resize driver 640 420)
   (assert-true (close-to (width-of driver :sidebar) (/ 608 3f0))))
 
-;;; Across the variants: the same frame at every width, built once.
+;;; The same frame at every width, built once.
 
 (defun frame-at (variant width)
-  "Build a frame of a new VARIANT of the spike at WIDTH. Returns its builds and display list
+  "Build a frame of a new VARIANT of the layout screen at WIDTH. Returns its builds and display list
 hash."
   (let* ((app (registry:find-app variant :layout))
          (object (registry:make-app-object app))
@@ -71,7 +71,7 @@ hash."
     (values (core:settle-frame object context list)
             (core:display-list-hash list))))
 
-(define-test the-spike-is-built-once-at-every-width ()
+(define-test the-layout-is-built-once-at-every-width ()
   (let ((variants (d:available-variants :layout)))
     (assert-true variants)
     (loop :for width :from 280 :to 900 :by 40

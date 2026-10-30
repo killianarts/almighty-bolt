@@ -12,7 +12,7 @@ Write about what a user can see, call or measure.
   supported platform changes, deprecations and removals.
 - **In, with details:** an internal change that users will notice. Say what
   improved and by how much ("idle wakeups dropped from 60/s to 0",
-  "retained trees use 40% less memory on the million-row list"), cite the
+  "the million-row list uses 40% less memory"), cite the
   benchmark result in `results/`, and leave out how it was done.
 - **Out:** refactors, renamed internals, test and CI changes, dependency
   bumps with no user effect. These go in the [change log](../../CHANGELOG.md)

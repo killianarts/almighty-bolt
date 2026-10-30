@@ -11,12 +11,12 @@
 
 (in-package #:almighty-bolt/layout/constraints)
 
-;;; Box constraints, the arguments of Flutter-style layout (decision records 0004
-;;; and 0010): constraints go down to a child and a size comes back up. A
+;;; Box constraints, the arguments of Flutter-style layout: constraints go down to a
+;;; child and a size comes back up. A
 ;;; constraint is a minimum and a maximum for the width and the same for the height,
 ;;; four single-floats in points, always passed as four arguments and returned as
 ;;; four values. There is no constraints structure, because making one for every
-;;; child on every frame would put allocation in code that all the variants share,
+;;; child on every frame would put allocation in code that runs for every frame,
 ;;; and single-floats are immediate objects in SBCL, so these functions allocate
 ;;; nothing.
 ;;;

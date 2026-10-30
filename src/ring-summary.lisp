@@ -24,7 +24,7 @@
 
 (in-package #:almighty-bolt/ring-summary)
 
-;;; What a ring of frames says, in the shape of the charter's metrics: the frame time and its
+;;; What a ring of frames says, in the shape the benchmarks report: the frame time and its
 ;;; parts, the builds in a frame and what settling cost, the garbage collection, and the
 ;;; bytes consed. A frame's own bytes are only good summed (the counter moves a region at a
 ;;; time), so they are given as a mean over all the frames.

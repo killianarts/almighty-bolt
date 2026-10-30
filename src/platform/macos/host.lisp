@@ -112,7 +112,7 @@
 
 (in-package #:almighty-bolt/platform/macos/host)
 
-;;; The macOS host of decision record 0009: it owns the window, the view, the
+;;; The macOS host: it owns the window, the view, the
 ;;; renderer and the display list, gives a variant its context, delivers events to
 ;;; it, and builds and draws a frame whenever the view draws.
 
@@ -562,7 +562,7 @@ the host once the window is up; a driver that finishes should close the window.
 REBUILD, if given, is a function of no arguments that returns a variant. It is called again,
 on the main thread, whenever functions are defined or redefined and the definitions have
 stopped for a moment (WATCH-REDEFINITIONS), and what it returns takes the place of the
-variant that runs (RELOAD-HOST, decision record 0030). So code that is compiled in a running
+variant that runs (RELOAD-HOST). So code that is compiled in a running
 image, from an editor or from a file, changes the window with nothing else done. The new
 variant starts from nothing; if its first frame fails the old one is put back."
   (let ((host nil))

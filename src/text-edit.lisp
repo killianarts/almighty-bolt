@@ -36,11 +36,11 @@
 
 (in-package #:almighty-bolt/text-edit)
 
-;;; The editing of one line of text, as values, shared by every variant (decision record
-;;; 0012). A TEXT-STATE is a string, a caret and an anchor: the text between them is the
+;;; The editing of one line of text, as values, shared by everything that edits text. A
+;;; TEXT-STATE is a string, a caret and an anchor: the text between them is the
 ;;; selection, and when they are the same there is none. It is never changed; each
 ;;; operation returns a new one (or the same one, if nothing happened), so that a
-;;; variant can keep it in a node, in a signal or in a table, and compare it with EQ to
+;;; widget can keep it in a box or in a table, and compare it with EQ to
 ;;; see whether an edit did anything. Indexes are in characters. How wide anything is
 ;;; comes from the text engine, which a state knows nothing about.
 

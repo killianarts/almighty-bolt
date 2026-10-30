@@ -64,8 +64,8 @@
 ;;; second unless the script's header or the caller says otherwise; when it asks for none,
 ;;; time jumps to the next entry. A checkpoint is looked at in a settled frame, so a frame the
 ;;; variant has asked for is built first. Running a script twice must give the same hashes, and
-;;; the tests hold the variants to that (the charter: "if it does not, the bug is fixed before
-;;; any measurement is trusted").
+;;; the tests hold the ui to that (if it does not, the bug is fixed before any measurement is
+;;; trusted).
 
 (defconstant +default-frame-interval-ns+ 16666667)
 

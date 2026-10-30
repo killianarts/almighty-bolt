@@ -6,10 +6,10 @@
 
 (in-package #:almighty-bolt-bench/compile-time)
 
-;;; How long each variant takes to compile from nothing, and to compile again after a change to
-;;; one file (decision record 0023). Each measurement is a new sbcl process with an empty fasl
-;;; cache (scripts/compile-time.lisp), so the core, which every variant needs, is timed apart from
-;;; the variant. The files that the incremental steps touch are touched back to what they were:
+;;; How long the library takes to compile from nothing, and to compile again after a change to
+;;; one file. Each measurement is a new sbcl process with an empty fasl cache
+;;; (scripts/compile-time.lisp), so the library is timed apart from the apps. The files that the
+;;; incremental steps touch are touched back to what they were:
 ;;; only their modification times change.
 
 (defparameter +variants+ '("immediate"))
