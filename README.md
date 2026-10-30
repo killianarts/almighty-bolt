@@ -2,7 +2,7 @@
 
 A GUI library for Common Lisp. You describe the whole interface in a function that is called again for every frame; each widget says in its return value what the person did to it; the window is drawn on the GPU. It is built for working the way Lisp is worked in: you open a window from the REPL, edit the code, compile it, and the open window changes, with its state where it was.
 
-**Status:** pre-release, working towards v0.1. macOS only (Apple silicon is what it is tested on), SBCL only, one window, one fixed dark theme. Not yet there: the accessibility tree and the machine interface (planned for v0.1), VoiceOver, Windows and Linux.
+**Status:** pre-release, working towards v0.1. macOS only (Apple silicon is what it is tested on), SBCL only, one window, one fixed dark theme. There is a semantic tree of the screen and a machine interface to work an app from a program or an agent, with an opt-in MCP server (below). Not yet there: VoiceOver (the tree is what it will read), Windows and Linux.
 
 ```lisp
 (defpackage #:counter
@@ -64,20 +64,20 @@ An app is a function of no arguments, its **constructor**, that makes the functi
 
 ## Widgets
 
-Every widget takes a required `:id` keyword: a name that stays with the widget from frame to frame. It is what keeps a field's caret across frames and across a reload, and what tests and replay scripts find a widget by. Leaving it out is an error on the first frame, `missing-id`, which names the widget. Two siblings must not share an id. Containers keep an optional `:id`. In a loop over data the id is the item's own (`:id (task-id task)`), so that state follows the item when the list is re-sorted. Every widget also takes `:flex`, its share of the free space of its container.
+Every widget takes a required `:id` keyword: a name that stays with the widget from frame to frame. It is what keeps a field's caret across frames and across a reload, and what tests and replay scripts find a widget by. Leaving it out is an error on the first frame, `missing-id`, which names the widget. Two siblings must not share an id. Containers keep an optional `:id`. In a loop over data the id is the item's own (`:id (task-id task)`), so that state follows the item when the list is re-sorted. Every widget also takes `:flex`, its share of the free space of its container. A widget that holds something but has no words of its own (a text field, a slider, a choice, a list, a progress bar, a canvas) takes `:labelled-by`, the id of the label that names it, which is what a screen reader or an agent calls it by: `(text-field name :id :name :labelled-by :name-label)`.
 
 | Call | Returns |
 |---|---|
 | `(label text &key id size color flex)` | |
 | `(paragraph text &key id size color flex)` | text broken into lines to the width it is given |
-| `(progress fraction &key id width flex)` | |
+| `(progress fraction &key id labelled-by width flex)` | |
 | `(button text &key id enabled flex)` | true when clicked (the pointer, or Space or Return with the keyboard on it) |
-| `(text-field string &key id width invalid enabled flex)` | the text now, whether it was changed this frame, whether Return was pressed |
-| `(slider value minimum maximum &key id width enabled flex)` | the value now, whether it was changed |
-| `(choice options selected &key id enabled flex)` | the index now, whether it was changed |
+| `(text-field string &key id labelled-by width invalid enabled flex)` | the text now, whether it was changed this frame, whether Return was pressed |
+| `(slider value minimum maximum &key id labelled-by width enabled flex)` | the value now, whether it was changed |
+| `(choice options selected &key id labelled-by enabled flex)` | the index now, whether it was changed |
 | `(checkbox label checked &key id enabled flex)` | the state now, whether it was changed |
-| `(list-box items selected &key id rows width enabled flex)` | the index now, whether it was changed |
-| `(canvas width height painter &key id focusable autofocus flex)` | the events for the canvas, oldest first (below) |
+| `(list-box items selected &key id labelled-by rows width enabled flex)` | the index now, whether it was changed |
+| `(canvas width height painter &key id labelled-by focusable autofocus flex)` | the events for the canvas, oldest first (below) |
 | `(scrim &key id)` | true when pressed: a translucent layer over what is before it in a `stack` |
 
 A widget that shows a value is given the value the app holds, and returns the new one; if the app passes something else, that is what is shown:
@@ -95,11 +95,54 @@ Containers take their options in a list and their children after it: `(column (:
 
 A `canvas` is an area that you draw in and handle input for. `painter` is called with the display list, the context, and the width and height, and draws from the top left; what it draws is drawn once if it is the same as last frame. Draw with `push-rect`, `push-rounded-rect`, `push-clip` and `push-unclip`, colours made by `pack-color`, and text with `context-push-text` after `context-font` and `context-measure`. The events the canvas returns are `(:press x y button click-count)`, `(:move x y)`, `(:drag x y)`, `(:release x y inside-p)`, `(:key event)` (see `key-event-logical-key` and the `+key-...+` and `+modifier-...+` constants), `(:text string)`, `(:composition kind text selection-start selection-length)`, `(:wheel dx dy)` and `(:exit)`, with points in the canvas. `make-text-state` and `edit-text` are the text editing that the text field uses. The 7GUIs Cells and Circles and the stress apps' editor are canvases.
 
+## Working an app from a program or an agent
+
+The screen is also a **semantic tree**: every widget says what it is (a `button`, a `text-field`, a `list`, a `checkbox`...), what it is called, what it holds, its state (focused, disabled, the caret, the selected item) and where it is, and the containers hold what is in them. It is made when it is asked for, from the frame that was last drawn, so a frame costs nothing for it; a screen reader will read the same tree (the VoiceOver bridge is the first thing after 0.1). A node is a property list: `(:id :name :role :text-field :name "Name:" :value "Ada" :state (:focused t :hovered t :caret 3) :bounds (310.0 60.0 160.0 26.0))`.
+
+Two things use it, in different systems because they are for different people.
+
+**`almighty-bolt/machine`** is the Lisp side, in the `almighty-bolt` system: a session on the open window that does what a person's hands do. Each action goes in as the events a person would make (a click is a move, a press and a release at the middle of the thing), and returns when the app has answered, which the window says itself when it has nothing more to draw; there are no sleeps.
+
+```lisp
+(let ((session (almighty-bolt/machine/host-session:open-session)))   ; the window that open-app opened
+  ;; m is a nickname for almighty-bolt/machine
+  (m:see session)                                                    ; the tree
+  (m:set-value session "Ada" :role :text-field :name "Name:")
+  (m:click session :role :button :name "Create")
+  (m:screenshot session))                                            ; a PNG, in a vector of bytes
+```
+
+Things are named by `:id`, or by `:role` and `:name`, and a name that fits two things is an error that says so (`ambiguous-node`). The calls are `see`, `find-node`, `click`, `double-click`, `type-text`, `press-key`, `set-value`, `select-item`, `scroll`, `wait` and `screenshot`. The tests of the 7GUIs drive their apps through it.
+
+**`almighty-bolt/mcp`** is an [MCP](https://modelcontextprotocol.io) server for the open app, so that an agent can see it and use it. It is a separate system (it needs `com.inuoe.jzon`, which `make deps` fetches), it does nothing until you call it, and it listens on `127.0.0.1` only.
+
+```lisp
+(asdf:load-system "almighty-bolt/mcp")
+(almighty-bolt/mcp:start-mcp-server :port 7071)
+;; MCP server on 127.0.0.1:7071. For an MCP client that wants a pipe: command nc, arguments 127.0.0.1 7071
+```
+
+The server speaks MCP's newline-delimited JSON-RPC on that socket. A client that starts its server as a program over a pipe, as most do, can use `nc` as the pipe:
+
+```json
+{"mcpServers": {"my-app": {"command": "nc", "args": ["127.0.0.1", "7071"]}}}
+```
+
+The agent gets nine tools: `snapshot` (the screen as text, one line for each thing with its role, name, id, value, state and place), `click`, `double_click`, `type_text`, `press_key`, `set_value`, `scroll`, `wait_idle` and `screenshot` (an image). Every action answers with the screen as it is afterwards, so an agent needs one call to act and see. What cannot be done (a thing that is not there, a disabled button, two things of the same name) comes back as an error result that says why, and the agent goes on. This is what the agent reads of the counter:
+
+```
+window @0,0,222,80
+  static-text "34" id=count @24,24,36,32
+  button "Count" id=count-button @130,26,68,29
+```
+
+`(almighty-bolt/mcp:stop-mcp-server)` closes it and every connection. Anything on this machine that can connect to the port can work the app, which is why it is local and has to be started by a call: leave it off in an app whose buttons you would not let any program on your machine press.
+
 ## Examples, tests, history
 
 - [`examples/`](examples): a counter and a to-do list, written with the public package only.
 - [`apps/7guis/`](apps/7guis) and [`apps/stress/`](apps/stress): the seven 7GUIs tasks, and a dashboard, a million-row list and a text editor with input-method support. They are the acceptance suite as well as examples.
-- `make test` compiles the project into a directory that is thrown away and fails on any warning, then runs the integration and end-to-end tests (events and replay scripts in, display lists and frames out; the real operating system, text engine and GPU; no window). `make smoke` opens windows. Unit tests are not written for now; see [`CLAUDE.md`](CLAUDE.md).
+- `make test` compiles the project into a directory that is thrown away and fails on any warning, then runs the integration and end-to-end tests (events and replay scripts in, display lists and frames out; the real operating system, text engine and GPU; no window). `make smoke` opens windows, and in one of them a client of the MCP server presses the counter's button, takes a screenshot that macOS then decodes, and does the same through `nc`. Unit tests are not written for now; see [`CLAUDE.md`](CLAUDE.md).
 - [`notes/devlog.org`](notes/devlog.org) is the lab notebook, and [`gui-framework-charter.org`](gui-framework-charter.org) the plan. The library began as an experiment comparing retained, reactive and immediate-mode approaches; the other approaches are archived on the tag `archive/three-variants`, and the immediate one was chosen for now.
 - [`docs/releases/dev.md`](docs/releases/dev.md) has the release notes of the release in progress.
 

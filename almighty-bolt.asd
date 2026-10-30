@@ -101,6 +101,12 @@
                (:file "almighty-bolt" :if-feature :darwin))
   :in-order-to ((test-op (test-op "almighty-bolt/tests"))))
 
+(defsystem "almighty-bolt/mcp"
+  :description "An MCP server for an open app, on a local socket: an agent sees the screen as a tree, works the app by what things are called, and waits for it. Opt-in; nothing starts it but a call."
+  :depends-on ("almighty-bolt" "com.inuoe.jzon" "sb-bsd-sockets")
+  :pathname "src/machine"
+  :components ((:file "mcp" :if-feature :darwin)))
+
 (defsystem "almighty-bolt/test-support"
   :description "What the tests of the apps share: a context with text that is easy to count"
   :depends-on ("almighty-bolt")

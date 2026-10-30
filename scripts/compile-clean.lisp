@@ -9,7 +9,7 @@
 
 ;;; What the project's systems need, loaded with the usual compiled files, so that only our own
 ;;; files are compiled below.
-(dolist (name '("cffi" "lisp-unit2" "flexi-streams"))
+(dolist (name '("cffi" "lisp-unit2" "flexi-streams" "com.inuoe.jzon"))
   (let ((*standard-output* (make-broadcast-stream))
         (*error-output* (make-broadcast-stream)))
     (asdf:load-system name)))
@@ -35,7 +35,7 @@
                                   *complaints*)))))
   (let ((*compile-verbose* nil) (*compile-print* nil) (*load-verbose* nil)
         (*standard-output* (make-broadcast-stream)))
-    (dolist (name '("almighty-bolt" "almighty-bolt/tests" "almighty-bolt-examples"
+    (dolist (name '("almighty-bolt" "almighty-bolt/mcp" "almighty-bolt/tests" "almighty-bolt-examples"
                     "almighty-bolt-7guis/launcher" "almighty-bolt-7guis/acceptance"
                     "almighty-bolt-stress/acceptance" "almighty-bolt-bench"))
       (asdf:load-system name))))

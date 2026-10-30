@@ -94,7 +94,29 @@ It has a text field, a button, a check box for each thing and a count of what is
 
 on the main thread (`sbcl --load app.lisp`) opens the window and ends the process when it is closed. `:hot t` makes the app again when code is compiled into the image, and `:watch-systems '("my-system")` also loads those systems again when a file in them is saved, for editing in a program that does not compile into the running image.
 
-## 7. Where next
+## 7. Let an agent use it
+
+The screen can be read as a tree of things with roles, names and values, and worked by name. An [MCP](https://modelcontextprotocol.io) server for the open window puts that in an agent's hands. With the counter open (section 2):
+
+```lisp
+(asdf:load-system "almighty-bolt/mcp")      ; needs com.inuoe.jzon, which make deps fetched
+(almighty-bolt/mcp:start-mcp-server :port 7071)
+;; MCP server on 127.0.0.1:7071. For an MCP client that wants a pipe: command nc, arguments 127.0.0.1 7071
+```
+
+Tell an MCP client to start `nc 127.0.0.1 7071` as its server (in Claude Code: `claude mcp add counter -- nc 127.0.0.1 7071`), and ask it to press the button. It calls `snapshot` and reads
+
+```
+window @0,0,222,80
+  static-text "5" id=count @24,24,36,32
+  button "Count" id=count-button @130,26,68,29
+```
+
+then `click` with the role `button` and the name `Count` (or the id `count-button`), which answers with the screen afterwards: the count is 6. Edit the app and compile it, and the agent's next `snapshot` is of the new screen. `(almighty-bolt/mcp:stop-mcp-server)` closes the server and its connections. It listens on this machine only and nothing starts it but that call; anything on the machine that can connect can press your app's buttons.
+
+The same things are done from Lisp, without MCP, by the machine interface (`almighty-bolt/machine`); the [README](../README.md#working-an-app-from-a-program-or-an-agent) lists the calls.
+
+## 8. Where next
 
 - The widgets, the containers and the canvas are in the [README](../README.md).
 - A `canvas` is where you draw yourself and handle the pointer and the keyboard; [`apps/7guis/circles/immediate.lisp`](../apps/7guis/circles/immediate.lisp) and [`apps/7guis/cells/immediate.lisp`](../apps/7guis/cells/immediate.lisp) are small ones, and [`apps/stress/editor/immediate.lisp`](../apps/stress/editor/immediate.lisp) is a text editor with input-method support.

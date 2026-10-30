@@ -19,6 +19,7 @@ are not listed.
 - Widgets: eleven widgets and six containers, each widget with a required `:id` ([0.1](docs/releases/dev.md#widgets-and-ids)).
 - Canvas: an area to draw in and handle input for ([0.1](docs/releases/dev.md#a-canvas-for-drawing)).
 - `app-value` reads a kept variable of the open app from the REPL.
+- Agents and tests: a semantic tree of the screen, a machine interface to work an app by name (`almighty-bolt/machine`), and an opt-in MCP server for the open app (`almighty-bolt/mcp`) ([0.1](docs/releases/dev.md#the-screen-as-a-tree-and-a-machine-interface)).
 
 ### Changed
 

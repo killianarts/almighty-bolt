@@ -24,7 +24,7 @@
 
 (defsystem "almighty-bolt-7guis/acceptance"
   :description "Behavioural tests of every task: events in, what the app shows out"
-  :depends-on ("almighty-bolt-7guis" "almighty-bolt/test-support"
+  :depends-on ("almighty-bolt-7guis" "almighty-bolt/test-support" "almighty-bolt/mcp"
                "almighty-bolt-7guis/immediate"
                "lisp-unit2" "flexi-streams")
   :serial t
@@ -45,7 +45,8 @@
                                (:file "dialog")
                                (:file "reload")
                                (:file "semantics")
-                               (:file "machine"))))))
+                               (:file "machine")
+                               (:file "mcp"))))))
   :perform (test-op (o s)
                     (let* ((results
                              (loop :for package :in '(:almighty-bolt-7guis/t/acceptance/counter
@@ -60,7 +61,8 @@
                                                       :almighty-bolt-7guis/t/acceptance/dialog
                                                       :almighty-bolt-7guis/t/acceptance/reload
                                                       :almighty-bolt-7guis/t/acceptance/semantics
-                                                      :almighty-bolt-7guis/t/acceptance/machine)
+                                                      :almighty-bolt-7guis/t/acceptance/machine
+                                                      :almighty-bolt-7guis/t/acceptance/mcp)
                                    :collect (uiop:symbol-call :lisp-unit2 :run-tests
                                                               :package package)))
                            (bad (loop :for db :in results

@@ -114,7 +114,9 @@ replay:
 	grep -q "The hot reload check passed" $$out && ! grep -q "FAIL" $$out; status=$$?; rm -f $$out; exit $$status
 
 # The same for a program that uses only the public package: run-app on the main thread, the example
-# used, redefined while it runs, and closed (examples/smoke.lisp). Judged by what it says.
+# used, redefined while it runs, worked as an agent works it (the machine interface; the MCP server over
+# a socket and over nc; a screenshot that macOS decodes), and closed (examples/smoke.lisp). Judged by
+# what it says.
 examples-smoke:
 	@out=$$(mktemp); \
 	$(SBCL_APP) $(REGISTRY) --load examples/smoke.lisp > $$out 2>&1; \

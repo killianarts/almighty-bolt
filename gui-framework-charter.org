@@ -796,8 +796,8 @@ The stages; each ends in a devlog entry, and a stage is done when the suite pass
 - [X] Stage 2: one variant (the others, McCLIM and the spikes archived)
 - [X] Stage 3: integration and end-to-end tests only
 - [X] Stage 4: the ui folded into the core: one system, one tree
-- [ ] Stage 5: the library's surface: a public package, entry points, README, an example
-- [ ] Stage 6: the semantic tree and the machine interface, with an opt-in MCP server
+- [X] Stage 5: the library's surface: a public package, entry points, README, an example
+- [X] Stage 6: the semantic tree and the machine interface, with an opt-in MCP server
 - [ ] Stage 7: release v0.1.0 (macOS only); the VoiceOver bridge comes next
 
 Phases 0 to 6 below are the roadmap of the experiment. Phases 0 to 3 are history

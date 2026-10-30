@@ -12,6 +12,7 @@ Welcome to almighty-bolt 0.1, the first release: a GUI library for Common Lisp t
 - Widgets: label, paragraph, button, text field, slider, choice, check box, list box, progress, canvas, scrim; row, column, stack, padding, panel, center.
 - Efficiency: a still window draws nothing and wakes nothing (0 frames and 0 wakeups a second at rest); in the shipped replay scripts a frame allocates nothing after the first (counter, cells, dashboard) or between about 0.8 and 3 KB (timer, editor, rows). The numbers are in `results/`.
 - Text: shaped and rendered by Core Text, with input methods (Japanese input is used in the editor stress app).
+- Agents and tests: the screen is a semantic tree (roles, names, values, state, places), a machine interface works an app by name and waits for it without sleeping, and an opt-in MCP server lets an agent see and use the open app.
 <!-- highlights:end -->
 
 ## Platform and compatibility
@@ -19,7 +20,7 @@ Welcome to almighty-bolt 0.1, the first release: a GUI library for Common Lisp t
 - macOS on Apple silicon (the only platform tested), with Metal.
 - SBCL 2.6 (developed on 2.6.3). Other Lisps are not supported.
 - One window. One fixed dark theme.
-- Not in this release: the accessibility tree and the machine interface (planned for 0.1 before it ships), VoiceOver, Windows and Linux, a Coalton library.
+- Not in this release: VoiceOver (the semantic tree is what it will read), Windows and Linux, a Coalton library.
 
 ## What's new
 
@@ -55,11 +56,22 @@ Eleven widgets and six containers. Every widget takes a required `:id`, a name t
 
 `canvas` is an area that an app draws in and handles the pointer and keyboard for; the 7GUIs Circles and Cells, a dashboard of animated tiles, a list of a million rows and a text editor with input-method support are all written with it. See [Canvas](../../README.md#canvas).
 
+### The screen as a tree, and a machine interface
+
+The screen can be read as a tree: for each thing its role (`button`, `text-field`, `slider`, `list`, `checkbox`...), name, value, state (focused, disabled, the caret and selection, the selected item, the first row showing), where it is, and what is in it. A field is named by the label that its `:labelled-by` gives. It is built when asked, from the last frame, and a frame costs nothing for it (the allocation and idle checks hold).
+
+`almighty-bolt/machine` works an app through it, with the events that a person's hands would make: `click`, `double-click`, `type-text`, `press-key`, `set-value`, `select-item`, `scroll`, `wait`, `screenshot`, naming things by id or by role and name. It returns when the app has answered, which the window says itself when it has nothing more to draw; nothing sleeps or polls. A screenshot is a PNG of what the window last drew, compressed by the system's zlib. See [Working an app from a program or an agent](../../README.md#working-an-app-from-a-program-or-an-agent).
+
+### An MCP server for the open app
+
+`almighty-bolt/mcp` is an opt-in system that serves [MCP](https://modelcontextprotocol.io) for the open window on `127.0.0.1`, started only by `(almighty-bolt/mcp:start-mcp-server)`. An agent gets `snapshot`, `click`, `double_click`, `type_text`, `press_key`, `set_value`, `scroll`, `wait_idle` and `screenshot`; every action answers with the screen as it is afterwards, and what cannot be done comes back as an error result that says why. A client that wants a pipe uses `nc 127.0.0.1 PORT`. It needs `com.inuoe.jzon`. The 7GUIs CRUD task, "add a person named Ada Lovelace", is done over a socket in an end-to-end test, and in a real window a client presses the counter's button and takes a screenshot. See [Let an agent use it](../getting-started.md#7-let-an-agent-use-it).
+
 ### Minor features
 
 #### Windowing
 
 - `app-value` reads a kept variable of the open app from the REPL.
+- `:labelled-by` on a text field, slider, choice, list, progress bar or canvas names it by a label.
 - A window that is still draws nothing: zero frames and zero wakeups a second at rest, measured with `make bench-app`.
 
 #### Developing

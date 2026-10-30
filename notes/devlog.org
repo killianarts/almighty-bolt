@@ -2177,3 +2177,56 @@ variable, which is an unused symbol macro and warns of nothing; it proved nothin
   pressed whether or not it is as wanted, Return that is Tab), the host's idle (always idle; no wake for
   the waiter; a draw on the main thread not marked; the frame that asks for another not marked) and the
   window session (no wait; a screenshot at the wrong scale).
+*** Step 3: an MCP server for the open app
+- =almighty-bolt/mcp= (=src/machine/mcp.lisp=, its own system in =almighty-bolt.asd=: it needs jzon, vendored,
+  and a program that does not want agents does not load it). Newline-delimited JSON-RPC 2.0, which is MCP's
+  framing over a pipe, on a socket bound to 127.0.0.1; started by =start-mcp-server= and by nothing else.
+  Stdin cannot carry it: under Sly stdin is Sly's pipe, and =open-app= relies on the main thread waiting
+  on it. A client that wants a pipe runs =nc 127.0.0.1 PORT=; the smoke does that.
+- Tools: snapshot, click, double_click, type_text, press_key, set_value, scroll, wait_idle, screenshot.
+  Each is the machine interface's call with the things named by id or by role and name. Every action
+  answers with the screen afterwards, so an agent needs one call to act and see. The snapshot is text,
+  not JSON: a line a thing, =role "name" id=... value=... state... @x,y,w,h=, indented by the groups that
+  have an id or a name, and the groups that only lay things out left out. An agent pays by the word, and
+  the CRUD form is eleven short lines. Failures (nothing with that name, a disabled button, two things of
+  the same name, no such tool, a missing argument, and what nobody foresaw) are error results with the
+  reason, not protocol errors, because the agent can read them and go on; only what is not JSON-RPC is
+  answered with its codes (-32700, -32600, -32601, -32602).
+- A bug I met in the real window and not in the tests: the screenshot was a PNG in stored deflate blocks,
+  922 KB for the 720 x 320 counter, 1.2 MB as base64, and the smoke's own JSON parser refused the line
+  (its string limit is 1 MiB). A Retina window would be tens of megabytes for an agent. The PNG writer
+  now deflates with the system's zlib (=compress2= through CFFI; zlib is part of macOS) and the counter is
+  7 KB. The check that found it also showed that the smoke printed "passed" after an error in its own
+  body (the verdict was in the cleanup form), and the Makefile looked for "FAIL" only; an error now counts
+  as a failed check.
+- Checks: =apps/7guis/t/acceptance/mcp.lisp= (over a real socket, against a CRUD that a test session
+  drives): the handshake and the tool list; the version it does not know; a notification gets no answer;
+  Ada Lovelace added through set_value and click; an id read out of the snapshot and given back; every
+  error above; not JSON, not an object, an unknown method, a blank line; several clients at once; every
+  tool makes the events of what a person would do (a recording session: two presses with counts 1 and 2,
+  the wheel's dx and dy, the key with its modifiers, a key for each character typed, a wait that settles);
+  a screenshot is an image block whose base64 ends right in all three ways; the server is on 127.0.0.1 and
+  stopping it closes its connections and its port. In a real window (=make examples-smoke=): a client over
+  a socket presses the counter's button by name and the answer shows the new count; a screenshot is an
+  image block that macOS's own =base64 -D= and =sips= read as 720 x 320; and =nc= is a client.
+- Mutations, each caught: an unknown tool that is not an error; a notification answered; an id that is not
+  there passing silently; the outline without names, or without ids (found missing: nothing read an id
+  out of the snapshot; now one is); base64 wrong in each of its three endings and in a sextet; the wrong
+  media type; double_click that clicks once; scroll that drops dx; press_key that drops the modifiers; a
+  wait_idle that does not wait; an error nobody foresaw that is not caught; stopping that leaves
+  connections open or the port listening; binding every address; echoing an unknown protocol version; a
+  blank line parsed; a missing argument passed; an action that answers without the screen. In the
+  smoke: the PNG's data uncompressed, its width and height swapped, the snapshot empty, a sextet of base64
+  wrong, no server info. Two things I got wrong in the harness: a client's read that timed out was
+  indistinguishable from one that saw the connection closed (so the stop mutant passed until the test
+  asked for the end of the input itself), and =hear= signalled the timeout instead of returning NIL as it
+  says.
+*** Read with care
+- The tests drive a session on a driver, not a window; what is real-window is the smoke, once, on the
+  counter. The CRUD has not been worked over MCP in a real window.
+- No authentication: anything on the machine that can connect can press the app's buttons. It is local
+  and opt-in and the docs say so; a token is the obvious next step if that is not enough.
+- An agent has not yet used it: the checks are a client that I wrote. The first real use is the next
+  thing worth doing.
+- =vend get= finds jzon from the .asd (jzon is in =vendored/= since the system was added; running it again
+  added nothing else).

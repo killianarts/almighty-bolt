@@ -5,9 +5,15 @@
 
 (in-package #:almighty-bolt/machine/png)
 
-;;; A PNG writer with no compression: the pixels go into stored deflate blocks, which
-;;; every PNG reader accepts, so that no library is needed. For looking at what was
-;;; drawn, not for keeping.
+;;; A PNG writer, for looking at what was drawn: a screenshot goes to a person or to an agent, over a
+;;; socket, and a window's pixels uncompressed are megabytes. The deflating is the system's zlib, which
+;;; is part of macOS, so that no Lisp library is needed.
+
+(cffi:define-foreign-library libz
+  (:darwin "libz.dylib")
+  (:unix (:or "libz.so.1" "libz.so")))
+
+(cffi:use-foreign-library libz)
 
 (defvar *crc-table*
   (let ((table (make-array 256 :element-type '(unsigned-byte 32))))
@@ -28,15 +34,6 @@
                               (ash crc -8))))
   crc)
 
-(defun adler32 (bytes)
-  (declare (type (simple-array (unsigned-byte 8) (*)) bytes))
-  (let ((a 1) (b 0))
-    (declare (type (unsigned-byte 32) a b))
-    (loop :for byte :across bytes
-          :do (setf a (mod (+ a byte) 65521)
-                    b (mod (+ b a) 65521)))
-    (logior (ash b 16) a)))
-
 (defun u32-bytes (value)
   (let ((bytes (make-array 4 :element-type '(unsigned-byte 8))))
     (dotimes (i 4 bytes)
@@ -51,27 +48,22 @@
                  data
                  (u32-bytes (logxor #xFFFFFFFF (crc32 data (crc32 type-bytes)))))))
 
-(defun zlib-stored (raw)
-  "RAW wrapped as a zlib stream of stored blocks."
+(defun zlib-compress (raw)
+  "RAW as a zlib stream, deflated by the system's zlib."
   (declare (type (simple-array (unsigned-byte 8) (*)) raw))
-  (let* ((blocks (max 1 (ceiling (length raw) 65535)))
-         (out (make-array (+ 2 (length raw) (* 5 blocks) 4) :element-type '(unsigned-byte 8)))
-         (position 0))
-    (flet ((put (byte) (setf (aref out position) byte) (incf position)))
-      (put #x78) (put #x01)
-      (dotimes (block blocks)
-        (let* ((start (* block 65535))
-               (end (min (length raw) (+ start 65535)))
-               (size (- end start)))
-          (put (if (= block (1- blocks)) 1 0))
-          (put (ldb (byte 8 0) size)) (put (ldb (byte 8 8) size))
-          (put (ldb (byte 8 0) (logxor size #xFFFF))) (put (ldb (byte 8 8) (logxor size #xFFFF)))
-          (replace out raw :start1 position :start2 start :end2 end)
-          (incf position size)))
-      (let ((adler (adler32 raw)))
-        (dotimes (i 4)
-          (put (ldb (byte 8 (* 8 (- 3 i))) adler)))))
-    out))
+  (let* ((bound (cffi:foreign-funcall "compressBound" :unsigned-long (length raw) :unsigned-long))
+         (out (make-array bound :element-type '(unsigned-byte 8))))
+    (cffi:with-foreign-object (size :unsigned-long)
+      (setf (cffi:mem-ref size :unsigned-long) bound)
+      (cffi:with-pointer-to-vector-data (destination out)
+        (cffi:with-pointer-to-vector-data (source raw)
+          (let ((status (cffi:foreign-funcall "compress2"
+                                              :pointer destination :pointer size
+                                              :pointer source :unsigned-long (length raw)
+                                              :int 6 :int)))
+            (unless (zerop status)
+              (error "zlib could not compress the image (status ~d)." status))))
+        (subseq out 0 (cffi:mem-ref size :unsigned-long))))))
 
 (defun png-octets (width height bgra)
   "A PNG of WIDTH by HEIGHT pixels, as a vector of bytes, from BGRA, a vector of four bytes a
@@ -95,7 +87,7 @@ pixel (blue, green, red, alpha), row by row from the top."
                  (chunk-octets "IHDR" (concatenate '(simple-array (unsigned-byte 8) (*))
                                                    (u32-bytes width) (u32-bytes height)
                                                    (vector 8 6 0 0 0)))
-                 (chunk-octets "IDAT" (zlib-stored raw))
+                 (chunk-octets "IDAT" (zlib-compress raw))
                  (chunk-octets "IEND" (make-array 0 :element-type '(unsigned-byte 8))))))
 
 (defun write-png (path width height bgra)
