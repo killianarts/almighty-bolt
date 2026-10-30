@@ -1,5 +1,5 @@
 ;;;; Run some test packages without the whole suite, for quick checks.
-;;;;   SYSTEM=almighty-bolt-core/tests PACKAGES="almighty-bolt-core/t/text-edit ..." \
+;;;;   SYSTEM=almighty-bolt-core/tests PACKAGES="almighty-bolt-core/t/text/line ..." \
 ;;;;     sbcl --noinform --non-interactive --no-sysinit --no-userinit --load scripts/test-packages.lisp
 ;;;; Prints the failures and a summary line for each package.
 (require :asdf)

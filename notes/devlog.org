@@ -1806,3 +1806,80 @@ summaries (core 399, 7GUIs 322, stress 164, retained 135, reactive 61, immediate
   the project's directories there (not =vendored/=); a glob for =sbcl-*= picks the =-s= one first.
 - The charter's "Repository layout" block describes the tree after this stage; it changes again in
   Stage 4.
+
+** Stage 3: integration and end-to-end tests only (2026-10-30)
+Micah: "For now, remove unit testing and focus on integration and end-to-end testing." The rule is in
+the charter's Testing section: a test stays if it starts from outside the thing it checks or runs
+against the real OS, GPU or window.
+- Taken before anything was removed, with the unit tests still running (=results/20261030-stage3-baseline/=
+  and the records next to it): the frame hashes of every app (56 lines, two runs equal), the bytes
+  a frame, a =make bench-run= and a =make bench-app= record. After the removal the same hash command
+  gives the same 56 lines.
+- Removed (all on =archive/three-variants=): the core's unit tests (clock, ring, event, stats, trace,
+  ring summary, wheel lock, text edit, display list, variant contract, settle, redefinition watcher,
+  kept, the umbrella's exports, layout, replay, and the host's 43 tests), the immediate variant's 40
+  tests, the null variant's 7, the 7GUIs models' and the source watcher's tests (55) and the stress
+  apps' models' (53): 455 tests. Kept: the acceptance tests of both app sets, and the tests that run
+  against the real system (Objective-C, images, text input, key events, Core Text lines and glyphs,
+  the Metal renderer and the drawing of text). =make test= is now these: 236 tests, 1,463 assertions,
+  15 s (before Stage 3: 691 and 54,645, 34 s).
+- Added, because the unit tests that went were the only guard of these: four tests in the stress
+  acceptance system, which has both app sets, played with the real text engine and no window:
+  - every shipped replay script settles (no frame hits the settle cap);
+  - every script replays to the same frames when played twice, into a new app each time (the charter's
+    determinism rule; the checkpoints in the shipped scripts name a moment and carry no hash, because
+    a hash is of one machine's text engine, so they check nothing);
+  - after the first frame, the counter, the cells and the dashboard allocate nothing in a frame, and
+    the timer, the editor and the rows no more than about twice what they did (802, 1102 and 2922
+    bytes a frame on 2026-10-30);
+  - an app that is not animating (eight of the tasks) asks for no frame, at the start and after time
+    passes.
+  And a new window check in the repository, =make 7guis-hot-smoke=, from my scratch script of the hot
+  reload work: the CRUD is used in a real window, its real file is saved with a change, and the
+  app must be made again with its entries, the keyboard and the caret where they were, typing must
+  go on at the caret; then a file that does not read changes nothing, an edit that compiles and fails
+  when the app runs leaves the old app, and the file put back is made into the app again. =make smoke=
+  runs it with the window smoke and the REPL smoke.
+- Two Stage 2 tests (the screen is built once at every width, for the layout spike and the dialog) were
+  checked now.
+** Mutation checks
+Each is a defect put in the code in a scratch worktree, the compiled file deleted before and after.
+- Allocation: 16 words kept in every frame: caught, by the dashboard (435 bytes a frame; the scripts
+  of a dozen frames cannot show a few hundred bytes, because bytes consed are counted in steps of
+  an allocation region, 65 KB, so it takes a long script to see a small allocation); 200 words:
+  caught by five scripts.
+- Settle: the cap set to one build: caught. Determinism: a rectangle in every frame whose colour
+  counts the frames drawn: caught. Idle: every frame asks for another: caught (by the idle test and
+  by the allocation test). One build per width: a frame that took input always built again: caught in
+  both the layout and the dialog test.
+- The hot reload check: kept-let never takes the cell of the store (the entries, the caret and the next
+  key fail), the new variant does not take the old one's ui (the keyboard and the caret fail), the
+  source watcher looking once in a thousand seconds (the saved file never changes the app), the host not
+  putting the old app back when the new one fails its first frame (that check fails): each caught by
+  the check meant for it.
+- Two of my first versions were wrong, and the mutations found it. The determinism test passed under a
+  mutation that changed a colour, because the shipped scripts carry no hash (the test I wrote first
+  said they did); and the allocation test failed once in twelve runs, always the first after a compile
+  in the same process, when a stray allocation counted as a whole region over a dozen frames in a
+  script allowed none. It now collects garbage first and takes the least of three plays (the real
+  allocation is in all three); ten fresh compiles in a row pass.
+** What no longer has a test of its own
+Fine detail that the unit tests held and nothing from outside holds now: the rules of =kept-let= (the
+key is the symbol, an edited initial form makes the cell again, a pass that fails commits nothing,
+no store means =let=), the order in which the host retires and inherits, the instrumentation's phases
+and the ring, the debounce of the redefinition watcher and of the source watcher, the layout
+functions' arithmetic, the text-edit functions, the wheel lock, the replay script format, the
+display list's functions, the statistics, the null variant. Their behaviour is under the acceptance
+tests, the replay scripts and the window checks; a defect that those do not show is not caught.
+** Read with care
+- =make smoke= needs a window server and prints a warning about the keyboard when it is started from
+  an agent's shell (the app is not active). The REPL and hot reload checks do not depend on it.
+- =make 7guis-hot-smoke= writes =apps/7guis/crud/immediate.lisp= and puts it back (and a watchdog does,
+  and a run that was killed is repaired by the next); if a run is killed in the middle, =git checkout=
+  puts the file back.
+- The tests of the properties need a GPU (the replay plays with the real text engine through a host,
+  as the benchmark does). The acceptance tests of the apps do not.
+- Frame hashes of the replay scripts are not in =make test=: a hash of a frame changes with every
+  intended change of how something looks, and a golden file of them would have to be written again
+  each time. They are a check for a change that is meant to change nothing (Stage 4), by
+  =scripts/frame-hashes.lisp= against the baseline.

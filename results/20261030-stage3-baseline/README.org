@@ -14,3 +14,6 @@ folding of the ui into the core (Stage 4) can be checked against it.
   to this directory, named =20261030T0255*= and =20261030T0256*=: 0 bytes a frame after the first
   for the counter, the cells and the dashboard, 802, 1102 and 2922 for the timer, the editor and
   the rows; idle: 0 frames, 0.0% cpu, 0 wakeups a second; startup about 190 to 200 ms.
+
+After Stage 3 (unit tests removed) the same =scripts/frame-hashes.lisp= command gave the same 56
+lines. Stage 4 (the ui folded into the core) is checked against this file again.

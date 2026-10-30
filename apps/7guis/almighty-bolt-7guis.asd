@@ -14,41 +14,7 @@
                (:module "circles" :components ((:file "model") (:file "paint")))
                (:module "cells" :components ((:file "model") (:file "geometry") (:file "paint")))
                (:module "layout" :components ((:file "text")))
-               (:module "dialog" :components ((:file "text"))))
-  :in-order-to ((test-op (test-op "almighty-bolt-7guis/tests"))))
-
-(defsystem "almighty-bolt-7guis/tests"
-  :depends-on ("almighty-bolt-7guis" "lisp-unit2" "flexi-streams")
-  :components ((:module "t"
-                :serial t
-                :components
-                ((:file "numbers")
-                 (:file "temperature")
-                 (:file "flight")
-                 (:file "timer")
-                 (:file "crud")
-                 (:file "circles")
-                 (:file "cells")
-                 (:file "sources"))))
-  :perform (test-op (o s)
-                    (let* ((results
-                             (loop :for package :in '(:almighty-bolt-7guis/t/numbers
-                                                      :almighty-bolt-7guis/t/temperature
-                                                      :almighty-bolt-7guis/t/flight
-                                                      :almighty-bolt-7guis/t/timer
-                                                      :almighty-bolt-7guis/t/crud
-                                                      :almighty-bolt-7guis/t/circles
-                                                      :almighty-bolt-7guis/t/cells
-                                                      :almighty-bolt-7guis/t/sources)
-                                   :collect (uiop:symbol-call :lisp-unit2 :run-tests
-                                                              :package package)))
-                           (bad (loop :for db :in results
-                                      :append (uiop:symbol-call :lisp-unit2 :failed db)
-                                      :append (uiop:symbol-call :lisp-unit2 :errors db))))
-                      (dolist (db results)
-                        (uiop:symbol-call :lisp-unit2 :print-summary db))
-                      (when bad
-                        (error "~d 7GUIs test~:p failed." (length bad))))))
+               (:module "dialog" :components ((:file "text")))))
 
 (defsystem "almighty-bolt-7guis/launcher"
   :description "Open a task of a variant in a window"

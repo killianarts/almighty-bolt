@@ -77,42 +77,15 @@
   :in-order-to ((test-op (test-op "almighty-bolt-core/tests"))))
 
 (defsystem "almighty-bolt-core/tests"
-  ;; flexi-streams is not used here. cl-unicode (lisp-unit2 -> cl-interpol ->
+  ;; Integration tests, against the real operating system, text engine and GPU (the charter's Testing
+  ;; section). flexi-streams is not used here. cl-unicode (lisp-unit2 -> cl-interpol ->
   ;; cl-unicode) generates its source files with it on first load, and vend
   ;; only finds it if some system names it.
   :depends-on ("almighty-bolt-core" "lisp-unit2" "flexi-streams")
   :components ((:module "t"
                 :serial t
                 :components
-                ((:file "clock")
-                 (:file "ring")
-                 (:file "event")
-                 (:file "stats")
-                 (:file "trace")
-                 (:file "ring-summary")
-                 (:file "wheel-lock")
-                 (:file "text-edit")
-                 (:file "display-list")
-                 (:file "variant")
-                 (:file "settle")
-                 (:file "redefinition")
-                 (:file "kept")
-                 (:module "replay"
-                  :serial t
-                  :components
-                  ((:file "support")
-                   (:file "script")
-                   (:file "player")
-                   (:file "recorder")))
-                 (:module "layout"
-                  :serial t
-                  :components
-                  ((:file "constraints")
-                   (:file "box")
-                   (:file "flex")
-                   (:file "tree")))
-                 (:file "package")
-                 (:module "platform"
+                ((:module "platform"
                   :serial t
                   :if-feature :darwin
                   :components
@@ -122,8 +95,7 @@
                     ((:file "objc")
                      (:file "image")
                      (:file "text-input")
-                     (:file "ns-event")
-                     (:file "host")))))
+                     (:file "ns-event")))))
                  (:module "text"
                   :serial t
                   :if-feature :darwin
@@ -143,32 +115,10 @@
                     ;; Run every test package, then fail the build (and so
                     ;; `make test`) if any test failed or signalled an error.
                     (let* ((results
-                             (loop :for package :in '(:almighty-bolt-core/t/clock
-                                                      :almighty-bolt-core/t/ring
-                                                      :almighty-bolt-core/t/event
-                                                      :almighty-bolt-core/t/stats
-                                                      :almighty-bolt-core/t/trace
-                                                      :almighty-bolt-core/t/ring-summary
-                                                      :almighty-bolt-core/t/wheel-lock
-                                                      :almighty-bolt-core/t/text-edit
-                                                      :almighty-bolt-core/t/display-list
-                                                      :almighty-bolt-core/t/variant
-                                                      :almighty-bolt-core/t/settle
-                                                      :almighty-bolt-core/t/redefinition
-                                                      :almighty-bolt-core/t/kept
-                                                      :almighty-bolt-core/t/replay/script
-                                                      :almighty-bolt-core/t/replay/player
-                                                      :almighty-bolt-core/t/replay/recorder
-                                                      :almighty-bolt-core/t/layout/constraints
-                                                      :almighty-bolt-core/t/layout/box
-                                                      :almighty-bolt-core/t/layout/flex
-                                                      :almighty-bolt-core/t/layout/tree
-                                                      :almighty-bolt-core/t/package
-                                                      #+darwin :almighty-bolt-core/t/platform/macos/objc
+                             (loop :for package :in '(#+darwin :almighty-bolt-core/t/platform/macos/objc
                                                       #+darwin :almighty-bolt-core/t/platform/macos/image
                                                       #+darwin :almighty-bolt-core/t/platform/macos/text-input
                                                       #+darwin :almighty-bolt-core/t/platform/macos/ns-event
-                                                      #+darwin :almighty-bolt-core/t/platform/macos/host
                                                       #+darwin :almighty-bolt-core/t/text/line
                                                       #+darwin :almighty-bolt-core/t/text/glyph-raster
                                                       #+darwin :almighty-bolt-core/t/render/metal/renderer

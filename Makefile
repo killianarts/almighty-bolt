@@ -1,4 +1,4 @@
-.PHONY: deps test bench-null image bench-run bench-overhead bench-app bench-compile bench-report snapshots replay 7guis 7guis-smoke 7guis-repl-smoke clean
+.PHONY: deps test bench-null image bench-run bench-overhead bench-app bench-compile bench-report snapshots replay 7guis 7guis-smoke 7guis-repl-smoke 7guis-hot-smoke smoke clean
 
 # ASDF looks only in this tree (project and vendored/), never in ~/common-lisp/.
 SBCL = sbcl --noinform --non-interactive --no-sysinit --no-userinit
@@ -14,14 +14,20 @@ SBCL_APP = sbcl $(HEAP) --noinform --disable-debugger --no-sysinit --no-userinit
 deps:
 	vend get || { sed -i '' 's/ (:feature :dotcl (:require :dotcl-float))//' vendored/float-features/float-features.asd && vend get; }
 
+# Integration and end-to-end tests, the only kind for now (the charter's Testing section): the
+# real operating system, text engine and GPU, and the apps driven by events and replay scripts. No
+# window is opened; make smoke does that.
 test:
 	$(SBCL) $(REGISTRY) --eval '(asdf:test-system "almighty-bolt-core")'
-	$(SBCL) $(REGISTRY) --eval '(asdf:test-system "almighty-bolt-variant-null")'
-	$(SBCL) $(REGISTRY) --eval '(asdf:test-system "almighty-bolt-variant-immediate")'
-	$(SBCL) $(REGISTRY) --eval '(asdf:test-system "almighty-bolt-7guis")'
 	$(SBCL) $(REGISTRY) --eval '(asdf:test-system "almighty-bolt-7guis/acceptance")'
-	$(SBCL) $(REGISTRY) --eval '(asdf:test-system "almighty-bolt-stress")'
 	$(SBCL) $(REGISTRY) --eval '(asdf:test-system "almighty-bolt-stress/acceptance")'
+
+# The window checks, which need a window server (a logged-in Mac) and nobody at the keyboard: the
+# app opens, draws and rests; the REPL entry; a saved file made into the app again with its state.
+smoke:
+	$(MAKE) 7guis-smoke VARIANT=immediate TASK=counter
+	$(MAKE) 7guis-repl-smoke VARIANT=immediate TASK=crud
+	$(MAKE) 7guis-hot-smoke
 
 # The null variant in a window: the core's own cost. Run it from a terminal of your
 # own and leave the window alone while it runs.
@@ -90,6 +96,16 @@ replay:
 	VARIANT=$(VARIANT) TASK=$(TASK) $(SBCL_APP) $(REGISTRY) --load apps/7guis/repl-smoke.lisp > $$out 2>&1; \
 	grep -v -e '^;' -e '^$$' $$out; \
 	grep -q "The REPL check passed" $$out && ! grep -q "FAIL" $$out; status=$$?; rm -f $$out; exit $$status
+
+# What saving a file does, in a real window: the CRUD app is used, its file is saved with a change,
+# and the app must be made again with its entries, the keyboard and the caret where they were
+# (apps/7guis/hot-smoke.lisp). Judged by what it says, as 7guis-repl-smoke is. It writes
+# apps/7guis/crud/immediate.lisp and puts it back.
+7guis-hot-smoke:
+	@out=$$(mktemp); \
+	$(SBCL_APP) $(REGISTRY) --load apps/7guis/hot-smoke.lisp > $$out 2>&1; \
+	grep -v -e '^;' -e '^$$' $$out; \
+	grep -q "The hot reload check passed" $$out && ! grep -q "FAIL" $$out; status=$$?; rm -f $$out; exit $$status
 
 clean:
 	find . -name '*.fasl' -not -path './vendored/*' -delete

@@ -736,13 +736,16 @@ For now the tests are integration and end-to-end tests, and no unit tests are
 written. A test starts from outside the thing it checks (events, frames or
 replay scripts in; a display list, pixels, a window or the REPL out), or runs
 against the real operating system, GPU or window. A test of one function,
-struct or module with fakes is a unit test and is not added; the unit tests
-that exist are removed in Stage 3 of the roadmap, and stay on the tag
-=archive/three-variants=. A property that matters (no allocation per frame
-after warm-up, an idle app asking for no frames, a reload that keeps state) is
-checked from outside, over a replay script or in a window. Each new or changed
-test is mutation-checked: a deliberate defect in the code it covers must make it
-fail.
+struct or module with fakes is a unit test and is not added. The unit tests
+that existed were removed in Stage 3 of the roadmap (2026-10-30) and stay on
+the tag =archive/three-variants=.
+
+=make test= runs the integration and end-to-end tests without opening a window;
+=make smoke= opens the windows. A property that matters (no allocation per
+frame after warm-up, an idle app asking for no frames, a reload that keeps
+state) is checked from outside, over a replay script or in a window. Each new
+or changed test is mutation-checked: a deliberate defect in the code it covers
+must make it fail.
 
 * Recording system
 
@@ -792,7 +795,7 @@ The stages; each ends in a devlog entry, and a stage is done when the suite pass
 - [X] Stage 0: archive tags, =master= brought up to the line and pushed
 - [X] Stage 1: the process (this charter, no decision records, =CLAUDE.md=)
 - [X] Stage 2: one variant (the others, McCLIM and the spikes archived)
-- [ ] Stage 3: integration and end-to-end tests only
+- [X] Stage 3: integration and end-to-end tests only
 - [ ] Stage 4: the ui folded into the core: one system, one tree
 - [ ] Stage 5: the library's surface: a public package, entry points, README, an example
 - [ ] Stage 6: the semantic tree and the machine interface, with an opt-in MCP server
