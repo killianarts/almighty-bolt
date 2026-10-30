@@ -37,7 +37,7 @@
 (in-package #:almighty-bolt-7guis/hot-smoke)
 
 (defparameter *file* (merge-pathnames "apps/7guis/crud/immediate.lisp" (uiop:getcwd)))
-(defparameter *label* "(label \"Filter prefix:\")")
+(defparameter *label* "(label \"Filter prefix:\" :id :filter-label)")
 (defparameter *labelled* "(label \"Filter prefix:\" :id :probe)")
 (defparameter *original* (uiop:read-file-string *file*))
 
@@ -160,13 +160,13 @@ and the text of its field, as a list, or (NIL) if no field has the keyboard."
   (let ((variant (host-variant host))
         (entries (entries host)))
     ;; A file that does not read: the parenthesis is not closed.
-    (save-with "(label \"Filter prefix:\"")
+    (save-with "(label \"Filter prefix:\" :id :filter-label")
     (sleep 3)
     (check "a file that does not read changes nothing"
            (and (eq variant (host-variant host)) (present-p host :name)))
     ;; Code that compiles and fails when the app runs: the new app is made, fails in its first
     ;; frame, and the old one is put back.
-    (save-with "(label (error \"broken on purpose\"))")
+    (save-with "(label (error \"broken on purpose\") :id :filter-label)")
     (sleep 4)
     (check "an edit that fails when the app runs leaves the old app"
            (and (eq variant (host-variant host)) (present-p host :name)))

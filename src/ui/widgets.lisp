@@ -90,7 +90,9 @@
   (:import-from #:almighty-bolt/ui/theme
                 #:+font-name+
                 #:+font-size+)
-  (:export #:label
+  (:export #:missing-id
+           #:missing-id-widget
+           #:label
            #:paragraph
            #:paragraph-state
            #:paragraph-state-text
@@ -147,6 +149,21 @@
 
 (defun ui-font (context)
   (context-font context +font-name+ +font-size+))
+
+;;; Every widget takes an :id, and the call is an error without one. The id is what keeps a
+;;; widget's caret, selection, scroll and the keyboard with it from frame to frame and across a
+;;; reload, and what a test or a replay script finds it by.
+
+(define-condition missing-id (error)
+  ((widget :initarg :widget :reader missing-id-widget))
+  (:report (lambda (condition stream)
+             (format stream "A ~(~a~) needs an :id, a name that stays with it from frame to frame, ~
+                             as in (~(~a~) ... :id :a-name)."
+                     (missing-id-widget condition) (missing-id-widget condition)))))
+
+(defun required-id (widget)
+  "The default of the :id of WIDGET (a symbol), which is to say that there is none."
+  (error 'missing-id :widget widget))
 
 (defmacro hash-numbers (hash &rest numbers)
   "HASH with each of NUMBERS folded into it, in order. A macro, so that it makes no list."
@@ -234,7 +251,7 @@ the box a press began on), 3 disabled, and 4 more if it has the keyboard."
 
 ;;; --- text ---
 
-(defun label (text &key id (size 15) color (flex 0))
+(defun label (text &key (id (required-id 'label)) (size 15) color (flex 0))
   "A line of TEXT."
   (let ((box (open-box *ui* :label :id id)))
     (setf (box-text box) text
@@ -263,7 +280,7 @@ are not the ones that were drawn before."
   (incf (paragraph-state-generation state))
   state)
 
-(defun paragraph (text &key id (size 15) color (flex 0))
+(defun paragraph (text &key (id (required-id 'paragraph)) (size 15) color (flex 0))
   "TEXT broken into lines to the width it is given, SIZE points high."
   (let* ((ui *ui*)
          (box (open-box ui :paragraph :id id)))
@@ -275,7 +292,7 @@ are not the ones that were drawn before."
     (close-box ui)
     nil))
 
-(defun progress (fraction &key id (width 200) (flex 0))
+(defun progress (fraction &key (id (required-id 'progress)) (width 200) (flex 0))
   "A bar that is FRACTION (0 to 1) full."
   (let ((box (open-box *ui* :progress :id id)))
     (setf (box-n1 box) (float (max 0 (min 1 fraction)) 1f0)
@@ -286,7 +303,7 @@ are not the ones that were drawn before."
 
 ;;; --- a button ---
 
-(defun button (text &key id (enabled t) (flex 0))
+(defun button (text &key (id (required-id 'button)) (enabled t) (flex 0))
   "A button. Returns true when it is clicked: the primary button went down and up over it,
 or the space bar or Return was pressed with the keyboard on it."
   (let* ((ui *ui*)
@@ -347,7 +364,7 @@ or the space bar or Return was pressed with the keyboard on it."
               :do (incf start))
         (setf (field-state-view-start state) start)))))
 
-(defun text-field (id string &key (width 180) invalid (enabled t) (flex 0))
+(defun text-field (string &key (id (required-id 'text-field)) (width 180) invalid (enabled t) (flex 0))
   "An editable line showing STRING. Returns the text now, whether the person changed it this
 frame, and whether Return was pressed. Pass what it returned back in the next frame; if the
 application passes something else, that is what is shown."
@@ -406,7 +423,7 @@ application passes something else, that is what is shown."
 
 ;;; --- a slider ---
 
-(defun slider (id value minimum maximum &key (width 200) (enabled t) (flex 0))
+(defun slider (value minimum maximum &key (id (required-id 'slider)) (width 200) (enabled t) (flex 0))
   "A slider showing VALUE between MINIMUM and MAXIMUM. Returns the value now and whether the
 person changed it this frame."
   (let* ((ui *ui*)
@@ -466,7 +483,7 @@ person changed it this frame."
   (lefts #() :type simple-vector)
   (widths #() :type simple-vector))
 
-(defun choice (id options selected &key (enabled t) (flex 0))
+(defun choice (options selected &key (id (required-id 'choice)) (enabled t) (flex 0))
   "A choice among OPTIONS (strings) side by side, with the SELECTED one (an index) marked.
 Returns the index now and whether the person changed it this frame."
   (let* ((ui *ui*)
@@ -511,7 +528,7 @@ Returns the index now and whether the person changed it this frame."
 
 ;;; --- a box that is checked or not, with a label ---
 
-(defun checkbox (id label checked &key (enabled t) (flex 0))
+(defun checkbox (label checked &key (id (required-id 'checkbox)) (enabled t) (flex 0))
   "A box with LABEL beside it, CHECKED or not (what the application holds). Returns the state now
 and whether the person changed it this frame: the primary button went down and up over the box or
 the label, or the space bar was pressed with the keyboard on it."
@@ -549,7 +566,7 @@ the label, or the space bar was pressed with the keyboard on it."
   (top 0 :type fixnum)
   (remainder 0f0 :type single-float))
 
-(defun list-box (id items selected &key (rows 8) (width 200) (enabled t) (flex 0))
+(defun list-box (items selected &key (id (required-id 'list-box)) (rows 8) (width 200) (enabled t) (flex 0))
   "A list of ITEMS (strings), showing ROWS at a time, with the SELECTED one (an index, or
 NIL) marked. Returns the index now and whether the person changed it this frame."
   (let* ((ui *ui*)
@@ -615,7 +632,7 @@ NIL) marked. Returns the index now and whether the person changed it this frame.
   (fragment (make-display-list :capacity 256))
   (was-hot nil))
 
-(defun canvas (id width height painter &key focusable autofocus (flex 0))
+(defun canvas (width height painter &key (id (required-id 'canvas)) focusable autofocus (flex 0))
   "An area of WIDTH by HEIGHT. PAINTER is called every frame with the list to append to, the
 context, and the width and height, and draws from the top left of the area, which it clips
 to; if what it draws is what it drew last frame, nothing more is done for it. Returns the
@@ -704,7 +721,7 @@ also AUTOFOCUS has the keyboard when the window opens, if nothing has it by then
 
 ;;; --- a veil that takes the pointer ---
 
-(defun scrim (id)
+(defun scrim (&key (id (required-id 'scrim)))
   "A translucent layer over everything before it in a stack, as large as it is allowed to be,
 that takes the pointer from what is under it. Returns true when it is pressed."
   (let* ((ui *ui*)

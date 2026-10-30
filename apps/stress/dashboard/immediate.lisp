@@ -8,6 +8,7 @@
                 #:+tiles+
                 #:step-at
                 #:tile-name
+                #:tile-name-id
                 #:tile-value-id
                 #:tile-bar-id
                 #:make-dashboard
@@ -52,12 +53,12 @@
                    (let ((tile (+ (* r +columns+) c)))
                      (panel (:all 8 :flex 1)
                        (column (:gap 4)
-                         (label (tile-name tile))
+                         (label (tile-name tile) :id (tile-name-id tile))
                          (label (value-text model tile) :id (tile-value-id tile))
                          (progress (tile-fraction model tile) :id (tile-bar-id tile)
                                                               :width 120))))))))
-           (canvas :chart 936 90 (lambda (list context width height)
+           (canvas 936 90 (lambda (list context width height)
                                    (declare (ignore context))
-                                   (paint-chart list 0f0 0f0 width height model)))))))))
+                                   (paint-chart list 0f0 0f0 width height model)) :id :chart)))))))
 
 (register-app :immediate :dashboard 'make-dashboard-app :width 960 :height 680)

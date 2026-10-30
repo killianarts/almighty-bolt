@@ -71,7 +71,7 @@
          (padding (:all 20)
            (column (:gap 12)
              (label (status-text selected) :id :status)
-             (dolist (event (canvas :list +list-width+ +list-height+ #'draw :focusable t))
+             (dolist (event (canvas +list-width+ +list-height+ #'draw :id :list :focusable t))
                (handle event)))))))))
 
 (register-app :immediate :rows 'make-rows-app :width 640 :height 470)

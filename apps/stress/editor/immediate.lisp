@@ -54,7 +54,7 @@
          (padding (:all 20)
            (column (:gap 12)
              (label (status-text document) :id :status)
-             (dolist (event (canvas :editor +editor-width+ +editor-height+ #'draw
+             (dolist (event (canvas +editor-width+ +editor-height+ #'draw :id :editor
                                     :focusable t :autofocus t))
                (handle event)))))))))
 

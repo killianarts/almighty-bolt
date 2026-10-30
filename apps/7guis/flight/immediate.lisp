@@ -38,17 +38,17 @@
          (padding (:all 24)
            (column (:gap 12)
              (multiple-value-bind (index changed)
-                 (choice :kind '("one-way flight" "return flight") kind)
+                 (choice '("one-way flight" "return flight") kind :id :kind)
                (when changed
                  (setf kind index
                        message "")))
              (multiple-value-bind (text changed)
-                 (text-field :start start :width 160 :invalid (not (date-text-valid-p start)))
+                 (text-field start :id :start :width 160 :invalid (not (date-text-valid-p start)))
                (when changed
                  (setf start text
                        message "")))
              (multiple-value-bind (text changed)
-                 (text-field :return return :width 160 :enabled return-enabled
+                 (text-field return :id :return :width 160 :enabled return-enabled
                                             :invalid (and return-enabled
                                                           (not (date-text-valid-p return))))
                (when changed

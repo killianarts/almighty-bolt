@@ -27,19 +27,19 @@
      (lambda ()
        (padding (:all 20)
          (row (:gap 10 :cross-align :center)
-           (multiple-value-bind (text changed) (text-field :celsius celsius :width 100)
+           (multiple-value-bind (text changed) (text-field celsius :id :celsius :width 100)
              (when changed
                (setf celsius text)
                (let ((other (celsius-text->fahrenheit-text text)))
                  (when other
                    (setf fahrenheit other)))))
-           (label "Celsius =")
-           (multiple-value-bind (text changed) (text-field :fahrenheit fahrenheit :width 100)
+           (label "Celsius =" :id :celsius-label)
+           (multiple-value-bind (text changed) (text-field fahrenheit :id :fahrenheit :width 100)
              (when changed
                (setf fahrenheit text)
                (let ((other (fahrenheit-text->celsius-text text)))
                  (when other
                    (setf celsius other)))))
-           (label "Fahrenheit")))))))
+           (label "Fahrenheit" :id :fahrenheit-label)))))))
 
 (register-app :immediate :temperature 'make-temperature :width 520 :height 90)

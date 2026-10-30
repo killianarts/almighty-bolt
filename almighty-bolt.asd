@@ -100,11 +100,15 @@
   ;; section). flexi-streams is not used here. cl-unicode (lisp-unit2 -> cl-interpol ->
   ;; cl-unicode) generates its source files with it on first load, and vend
   ;; only finds it if some system names it.
-  :depends-on ("almighty-bolt" "lisp-unit2" "flexi-streams")
+  :depends-on ("almighty-bolt" "almighty-bolt/test-support" "lisp-unit2" "flexi-streams")
   :components ((:module "t"
                 :serial t
                 :components
-                ((:module "platform"
+                ((:module "ui"
+                  :serial t
+                  :components
+                  ((:file "widgets")))
+                 (:module "platform"
                   :serial t
                   :if-feature :darwin
                   :components
@@ -134,7 +138,8 @@
                     ;; Run every test package, then fail the build (and so
                     ;; `make test`) if any test failed or signalled an error.
                     (let* ((results
-                             (loop :for package :in '(#+darwin :almighty-bolt/t/platform/macos/objc
+                             (loop :for package :in '(:almighty-bolt/t/ui/widgets
+                                                      #+darwin :almighty-bolt/t/platform/macos/objc
                                                       #+darwin :almighty-bolt/t/platform/macos/image
                                                       #+darwin :almighty-bolt/t/platform/macos/text-input
                                                       #+darwin :almighty-bolt/t/platform/macos/ns-event

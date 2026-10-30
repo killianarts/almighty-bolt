@@ -10,6 +10,7 @@
            #:value-index
            #:index-text
            #:tile-name
+           #:tile-name-id
            #:tile-value-id
            #:tile-bar-id
            #:dashboard
@@ -73,6 +74,13 @@
 
 (defun tile-name (tile)
   (svref +names+ tile))
+
+(defparameter +name-ids+
+  (let ((table (make-array +tiles+)))
+    (dotimes (i +tiles+ table)
+      (setf (svref table i) (intern (format nil "TILE-~d-NAME" i) :keyword)))))
+
+(defun tile-name-id (tile) (svref +name-ids+ tile))
 
 (defparameter +value-ids+
   (let ((table (make-array +tiles+)))

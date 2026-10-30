@@ -1961,3 +1961,25 @@ The check to write with it: add a field above another during a reload and see th
   surface; the rest can follow.
 - The guide pages and the charter's layout block name the new paths. The notes (the devlog, the frozen
   records) and the result records keep the old names, as history.
+
+** Stage 5: the library's surface (2026-10-30)
+*** Step 1: a required =:id= on every widget
+Micah: "a required :id for everything", and the generation of ids another time. Every widget now takes
+=:id= as a keyword and the call is an error without one: =missing-id=, whose message names the widget
+and shows the call. The seven stateful widgets had the id as their first positional argument; the value
+is first now, as in =label= and =button= (=(text-field name :id :name :width 160)=, =(slider volume 0 11
+:id :volume)=, =(canvas 300 300 #'paint :id :board)=, =(scrim :id :scrim)=). Containers keep an optional
+=:id=. The 17 calls of the stateful widgets in the apps were moved by a script that keeps each call's
+layout; the 17 labels without an id were given one by hand (=:name-label=, =:elapsed-label=, ...; in
+loops over data the text or a precomputed id: the dashboard has =tile-name-id= with the other tile
+ids, because a name made in the frame would allocate).
+- The frame hashes of the 56 lines of the baseline are identical (an id changes a widget's key, not
+  what is drawn), =make test= and =make smoke= pass (the hot reload check looks for the CRUD's label
+  by its text, which now has an id).
+- Three tests in =t/ui/widgets.lisp=, the first of the library's own: each of the eleven widgets
+  without an id is the error that says which; the same eleven with ids build a frame; the message
+  names the widget and shows =:id=. Mutations, each caught by the test meant for it: the default of
+  an id returning nil (all of them), the button forgetting that it needs one (the button, and only
+  the button), the message not naming the widget. My first mutation run was worthless: the new test
+  directory had not been copied to the scratch worktree, so every run "failed" for want of the
+  package; I now run the test unmutated in the worktree before trusting a mutation.
