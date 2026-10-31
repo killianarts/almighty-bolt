@@ -23,6 +23,40 @@ A GUI library for Common Lisp. You describe the whole interface in a function th
 
 `open-app` opens the window and gives you the REPL back. Change a label, press C-c C-c on `make-counter`, and the window changes in about half a second with the count where it was.
 
+## Features
+
+- **Edit, compile, see.** Compile a definition (or save its file) and the open
+  window changes in about half a second. State declared with `kept-let`, the
+  caret and selection of text fields, the scroll of lists and the keyboard
+  focus stay where they were.
+- **A REPL that stays yours.** `open-app` opens the window and returns at once;
+  `run-app` is for a program that is only a window.
+- **Immediate mode.** The interface is a function of your data that is called
+  again every frame, so you do not create widget objects or keep them up to
+  date.
+- **Eleven widgets and six containers.** Label, paragraph, button, text field,
+  slider, choice, check box, list box, progress bar, canvas and scrim; row,
+  column, stack, padding, panel and center.
+- **A canvas** for what the widgets are not: draw rectangles, rounded
+  rectangles, clips and text, and handle the pointer and the keyboard. The 7GUIs
+  Circles and Cells and a text editor are written with it.
+- **Names that stay.** Every widget takes an `:id`, which keeps its state from
+  frame to frame and across a reload. Leaving it out, or giving two things in
+  one container the same one, is an error that names them.
+- **Nothing drawn at rest.** A window that is still draws no frames and wakes
+  nothing. In the shipped replay scripts a frame allocates nothing after the
+  first, or between about 0.8 and 3 KB.
+- **Native drawing and text.** Metal draws it, and Core Text shapes and renders
+  the text, with input methods (Japanese input is used in the editor of the
+  stress apps).
+- **The screen as a tree.** Every widget has a role, name, value, state and
+  place. `almighty-bolt/machine` works an app through that tree by name, with
+  the events a person's hands would make, and waits for the app to answer
+  without sleeping.
+- **An MCP server, if you want one.** `almighty-bolt/mcp` lets an agent see and
+  use the open app. It is opt-in, listens on `127.0.0.1` only, and does nothing
+  until you start it.
+
 ## Getting it
 
 You need a Mac with a GPU that runs Metal, SBCL (2.6 is what this is developed on) and `vend`, the tool that fetches the Lisp dependencies into `vendored/`.
