@@ -5,9 +5,9 @@ What is planned after [0.1](releases/0.1.md). These are plans, not promises, and
 ## Next
 
 - **Everyday text and scrolling.** Copy and paste in text fields (the clipboard), a scroll container for anything, and a multi-line text field.
-- **Theming.** Light and dark (following the system setting) and custom themes, for the widgets that exist, and for a part of a screen as well as the whole.
 - **Overlays.** Dropdowns, menus and context menus, tooltips and popovers, modal dialogs, and the system's file open and save dialogs.
 - **Images and icons.**
+- **Theming.** Light and dark (following the system setting) and custom themes, for the widgets that exist, and for a part of a screen as well as the whole.
 
 ## Later
 
