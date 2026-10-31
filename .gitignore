@@ -9,3 +9,4 @@ tmp/
 vendored/
 *.dylib
 build/
+.mcp.json
