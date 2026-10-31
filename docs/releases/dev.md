@@ -2,7 +2,7 @@
 
 *Under development*
 
-Welcome to almighty-bolt 0.2, in development. It starts with VoiceOver: a window of almighty-bolt can be read by the macOS screen reader. A scroll container, a list that builds only the rows that show, and copy and paste in text fields came next. See [what's new](#whats-new-in-02).
+Welcome to almighty-bolt 0.2, in development. It starts with VoiceOver: a window of almighty-bolt can be read by the macOS screen reader. A scroll container, a list that builds only the rows that show, a text area, and copy and paste came next. See [what's new](#whats-new-in-02).
 
 <!-- highlights:start -->
 ## Highlights
@@ -26,6 +26,7 @@ A window of almighty-bolt draws all of itself in one view, so to the system it w
 | label, paragraph | static text, saying its words |
 | button | button |
 | text field | text field, holding its text |
+| text area | text area, holding its text |
 | check box | check box, checked or not |
 | slider | slider, with its value and its ends |
 | progress bar | progress indicator, from 0 to 1 |
@@ -81,6 +82,21 @@ VoiceOver reads what is inside a `scroll` as it reads what is inside a column, t
 - `:key` gives each item's id. What the ui keeps for a row (the caret of a field in it, the keyboard) stays with its item when the items are sorted again or one is put in above it. Without `:key`, a row is known by its index.
 - The items are best a vector: a row is found by its index.
 - The wheel, the bar at the edge, and what cannot be pressed out of the window are as for `scroll`. Tab reaches only the rows that are described.
+
+### A text area
+
+`text-area` is a text field of several lines. It is called as `text-field` is, and returns the text and whether the person changed it:
+
+```lisp
+(multiple-value-bind (text changed) (bolt:text-area notes :id :notes :width 320 :rows 6)
+  (when changed (setf notes text)))
+```
+
+- Return puts in a line feed. A line too long for the width goes on in the next.
+- Up and Down move a line, keeping to where across the first of them started. Command-Up and Command-Down go to the start and the end of the text, Command-Left and Command-Right to the start and the end of the line. The arrows with Shift select.
+- Copy, cut and paste work as in a text field, and a pasted line break stays a line break.
+- It scrolls itself to keep the caret in sight, and the wheel scrolls it.
+- VoiceOver reads it as a text area holding its text. The machine interface types a line feed as Return.
 
 ### Minor features
 

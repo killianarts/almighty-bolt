@@ -50,8 +50,8 @@ below lists them bare.
   own state doesn't mean you lose Lisp's typical hot-reloading. Compiling your
   app's UI function updates live, open apps.
 
-- **Eleven widgets and eight containers.** Label, paragraph, button, text field,
-  slider, choice, check box, list box, progress bar, canvas and scrim; row,
+- **Twelve widgets and eight containers.** Label, paragraph, button, text field,
+  text area, slider, choice, check box, list box, progress bar, canvas and scrim; row,
   column, stack, padding, panel, center, scroll and lazy list. More coming soon.
 
 - **Canvas.** For drawing non-widget elements.
@@ -129,6 +129,7 @@ holds, and it gives you the new one:
 | `(progress fraction &key id labelled-by width flex)`                         |                                                                             |
 | `(button text &key id enabled flex)`                                         | true when clicked (the pointer, or Space or Return with the keyboard on it) |
 | `(text-field string &key id labelled-by width invalid enabled flex)`         | the text now, whether it was changed this frame, whether Return was pressed |
+| `(text-area string &key id labelled-by width rows enabled flex)`             | the text now (lines end in a line feed), whether it was changed this frame  |
 | `(slider value minimum maximum &key id labelled-by width enabled flex)`      | the value now, whether it was changed                                       |
 | `(choice options selected &key id labelled-by enabled flex)`                 | the index now, whether it was changed                                       |
 | `(checkbox label checked &key id enabled flex)`                              | the state now, whether it was changed                                       |
@@ -191,10 +192,10 @@ tools and how to point an MCP client at the server
 
 ## Roadmap
 
-Planned: theming (light, dark and custom), clipboard and scrolling,
-menus, dropdowns and dialogs, images and icons, multiple windows, a widget
-designer and a GUI designer, and Windows and Linux. The full list, and what
-comes first, is in [docs/roadmap.md](docs/roadmap.md).
+Planned: theming (light, dark and custom), small widgets (a switch, radio
+buttons, a spinner), menus, dropdowns and dialogs, images and icons, multiple
+windows, a widget designer and a GUI designer, and Windows and Linux. The full
+list, and what comes first, is in [docs/roadmap.md](docs/roadmap.md).
 
 ## Examples
 

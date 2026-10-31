@@ -32,6 +32,8 @@
                 #:ui-hot)
   (:import-from #:almighty-bolt/ui/widgets
                 #:field-state-state
+                #:area-state-state
+                #:area-state-offset
                 #:choice-state-lefts
                 #:choice-state-widths
                 #:list-state-top
@@ -82,6 +84,7 @@
     (:progress :progress-bar)
     (:button :button)
     (:text-field :text-field)
+    (:text-area :text-area)
     (:slider :slider)
     (:choice :radio-group)
     (:checkbox :checkbox)
@@ -107,7 +110,7 @@
 
 (defun value-of (box)
   (case (box-kind box)
-    (:text-field (box-text box))
+    ((:text-field :text-area) (box-text box))
     (:slider (let ((aux (box-aux box)))
                (and aux (aref aux 0))))
     (:progress (float (box-n1 box) 1d0))
@@ -128,9 +131,13 @@
       (case (box-kind box)
         ((:label :paragraph)
          (when (= (box-n3 box) 1) (note :live t)))
-        (:text-field
-         (let ((text (field-state-state (box-data box))))
-           (when (= (box-n3 box) 1) (note :invalid t))
+        ((:text-field :text-area)
+         (let ((text (if (eq (box-kind box) :text-field)
+                         (field-state-state (box-data box))
+                         (area-state-state (box-data box)))))
+           (when (and (eq (box-kind box) :text-field) (= (box-n3 box) 1)) (note :invalid t))
+           (when (eq (box-kind box) :text-area)
+             (note :offset (area-state-offset (box-data box))))
            (note :caret (text-state-caret text))
            (when (text-state-selection-p text)
              (note :selection (list (text-state-selection-start text)

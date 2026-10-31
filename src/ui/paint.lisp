@@ -47,6 +47,12 @@
                 #:paragraph-state-text
                 #:paragraph-state-lines
                 #:paragraph-state-generation
+                #:area-state-state
+                #:area-state-offset
+                #:area-state-generation
+                #:area-state-lines
+                #:area-line-of
+                #:+area-padding+
                 #:field-state-state
                 #:field-state-view-start
                 #:choice-state-lefts
@@ -198,6 +204,55 @@
             (push-rect list (x-at (text-state-caret state)) (+ y 5) 1.5f0 (- h 10)
                        +caret-color+)))))))
 
+(defun draw-text-area (box context list x y)
+  (let* ((w (box-w box)) (h (box-h box))
+         (area (box-data box))
+         (state (area-state-state area))
+         (string (text-state-string state))
+         (lines (area-state-lines area))
+         (offset (area-state-offset area))
+         (font (ui-font context))
+         (focused (nth-value 1 (look-state box)))
+         (enabled (box-enabled box))
+         (selecting (and focused (text-state-selection-p state)))
+         (from (text-state-selection-start state))
+         (to (text-state-selection-end state))
+         (left (+ x +field-padding+)))
+    (multiple-value-bind (height ascent) (line-metrics context)
+      (draw-outlined-box list x y w h
+                         (if enabled +field-fill-color+ +field-disabled-color+)
+                         focused)
+      (push-clip list (+ x 1) (+ y 1) (- w 2) (- h 2))
+      (loop :for line :across lines
+            :for row :from 0
+            :for top = (- (+ y +area-padding+ (* row height)) offset)
+            :when (and (< top (+ y h)) (> (+ top height) y))
+              :do (let* ((start (car line))
+                         (end (cdr line))
+                         (text (subseq string start end)))
+                    (flet ((x-at (index)
+                             (+ left (context-caret-x context font text (- index start)))))
+                      (when (and selecting (< from (1+ end)) (> to start))
+                        (let* ((a (max from start))
+                               (b (min to end))
+                               ;; A selection that goes on past the end of the line takes a little
+                               ;; more, for the line feed.
+                               (more (if (> to end) 4f0 0f0)))
+                          (when (or (< a b) (plusp more))
+                            (push-rect list (x-at a) top (+ (- (x-at (max a b)) (x-at a)) more)
+                                       height +selection-color+))))
+                      (context-push-text context list font text left (+ top ascent)
+                                         (if enabled +text-color+ +dim-text-color+)))))
+      (when (and focused (not (text-state-selection-p state)) (plusp (length lines)))
+        (let* ((caret (text-state-caret state))
+               (row (area-line-of lines caret))
+               (line (svref lines row))
+               (top (- (+ y +area-padding+ (* row height)) offset)))
+          (push-rect list (+ left (context-caret-x context font (subseq string (car line) (cdr line))
+                                                   (- caret (car line))))
+                     (+ top 1) 1.5f0 (- height 2) +caret-color+)))
+      (push-unclip list))))
+
 (defun draw-slider (box list x y)
   (let* ((w (box-w box)) (h (box-h box))
          (thumb-x (+ x (/ +thumb-size+ 2) (* (max 1f0 (- w +thumb-size+)) (box-n1 box))))
@@ -294,6 +349,7 @@
     (:paragraph (draw-paragraph box context list x y))
     (:button (draw-button box context list x y))
     (:text-field (draw-text-field box context list x y))
+    (:text-area (draw-text-area box context list x y))
     (:slider (draw-slider box list x y))
     (:progress (draw-progress box list x y))
     (:choice (draw-choice box context list x y))
@@ -322,9 +378,10 @@ kept, and otherwise afresh, which is then kept."
          (hash (box-paint-hash box))
          (entry (or (gethash key (ui-paint-cache ui))
                     (setf (gethash key (ui-paint-cache ui)) (make-entry))))
-         (salt (if (eq (box-kind box) :paragraph)
-                   (paragraph-state-generation (box-data box))
-                   0))
+         (salt (case (box-kind box)
+                 (:paragraph (paragraph-state-generation (box-data box)))
+                 (:text-area (area-state-generation (box-data box)))
+                 (t 0)))
          (fragment (entry-fragment entry)))
     (unless (and (= (entry-hash entry) hash)
                  (= (entry-salt entry) salt)
@@ -349,7 +406,7 @@ kept, and otherwise afresh, which is then kept."
   (let ((x (+ x (box-x box)))
         (y (+ y (box-y box))))
     (ecase (box-kind box)
-      ((:label :paragraph :button :text-field :slider :progress :choice :checkbox :list-box)
+      ((:label :paragraph :button :text-field :text-area :slider :progress :choice :checkbox :list-box)
        (paint-cached ui box context list x y))
       (:canvas
        (let ((scale (context-scale context))

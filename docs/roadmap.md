@@ -4,7 +4,6 @@ What is planned after [0.1](releases/0.1.md). These are plans, not promises, and
 
 ## Next
 
-- **Everyday text and scrolling.** A multi-line text field.
 - **Small widgets.** A switch, radio buttons, and a spinner for progress whose end is not known.
 - **Overlays.** Dropdowns, menus and context menus, tooltips and popovers, modal dialogs, toasts, a combo box (a text field with suggestions), and the system's file open and save dialogs.
 - **Images and icons.**

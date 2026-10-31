@@ -44,6 +44,13 @@
                 #:scroll-state-content-height
                 #:scroll-state-viewport-height
                 #:+lazy-list-height+
+                #:area-lines
+                #:area-line-height
+                #:area-state-offset
+                #:area-state-inner-width
+                #:area-state-inner-height
+                #:+area-padding+
+                #:+field-padding+
                 #:choice-state-lefts
                 #:choice-state-widths
                 #:+row-height+
@@ -114,6 +121,20 @@ them in the boxes, and return the width and height."
     (:text-field
      (set-box box (constrain (box-pref-w box) min-w max-w)
               (constrain (+ (float (line-height context) 1f0) 12f0) min-h max-h)))
+    (:text-area
+     ;; ROWS (N3) lines tall; the lines the text is shown in are made for the width it is given.
+     (let* ((area (box-data box))
+            (height (area-line-height context))
+            (w (constrain (box-pref-w box) min-w max-w))
+            (h (constrain (+ (* (box-n3 box) height) (* 2 +area-padding+)) min-h max-h))
+            (inner-w (max 1f0 (- w (* 2 +field-padding+))))
+            (inner-h (max 0f0 (- h (* 2 +area-padding+))))
+            (lines (area-lines context area (box-text box) inner-w)))
+       (setf (area-state-inner-width area) inner-w
+             (area-state-inner-height area) inner-h
+             (area-state-offset area) (max 0f0 (min (area-state-offset area)
+                                                     (max 0f0 (- (* (length lines) height) inner-h)))))
+       (set-box box w h)))
     (:slider
      (set-box box (constrain (box-pref-w box) min-w max-w) (constrain 24f0 min-h max-h)))
     (:progress

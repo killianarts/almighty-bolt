@@ -400,6 +400,109 @@ and says its entry's number, and a field for a note; Return in a note puts a new
 (defun built-rows-of (screen id)
   (mapcar #'s:node-id (s:node-children (node-of screen id))))
 
+;;; --- several lines of text ---
+
+(defun make-notes (&optional (text ""))
+  "A text area 200 points wide (23 characters of the test context's 8 points, inside its padding)
+and three lines of 14 tall, and a count of its lines."
+  (state-let ((notes text))
+    (lambda ()
+      (column (:gap 4)
+        (multiple-value-bind (new changed) (text-area notes :id :notes :width 200 :rows 3)
+          (when changed (setf notes new)))
+        (label (format nil "~d lines" (1+ (count #\Linefeed notes))) :id :count)))))
+
+(defun notes (screen) (node-of screen :notes))
+
+(defun caret-of (screen) (s:node-property (notes screen) :caret))
+
+(define-test return-in-a-text-area-starts-a-new-line-and-the-app-has-the-text ()
+  (let* ((screen (show 'make-notes))
+         (session (screen-session screen)))
+    (assert-eq :text-area (s:node-role (notes screen)))
+    (m:type-text session (format nil "one~%two") :id :notes)
+    (assert-equal (format nil "one~%two") (s:node-value (notes screen)))
+    (assert-equal "2 lines" (text-in screen :count))
+    (m:set-value session (format nil "a~%b~%c") :id :notes)
+    (assert-equal "3 lines" (text-in screen :count))))
+
+(define-test up-and-down-move-a-line-and-keep-to-where-they-started ()
+  (let* ((screen (show 'make-notes))
+         (session (screen-session screen)))
+    (m:type-text session (format nil "abcdef~%ab~%abcdef") :id :notes)
+    (assert-eql 16 (caret-of screen))
+    ;; Up to the short line, at its end; up again to the first, where the caret was across.
+    (m:press-key session :up)
+    (assert-eql 9 (caret-of screen))
+    (m:press-key session :up)
+    (assert-eql 6 (caret-of screen))
+    (m:press-key session :down)
+    (m:press-key session :down)
+    (assert-eql 16 (caret-of screen))
+    ;; Up from the first line goes to the start, and Command with Left and Right to the ends of a line.
+    (m:press-key session :up :modifiers '(:super))
+    (assert-eql 0 (caret-of screen))
+    (m:press-key session :down)
+    (m:press-key session :right :modifiers '(:super))
+    (assert-eql 9 (caret-of screen))
+    (m:press-key session :left :modifiers '(:super))
+    (assert-eql 7 (caret-of screen))
+    (m:press-key session :up :modifiers '(:shift))
+    (assert-equal '(0 7) (s:node-property (notes screen) :selection))))
+
+(define-test a-long-line-goes-on-in-the-next ()
+  (let* ((screen (show 'make-notes))
+         (session (screen-session screen)))
+    (m:type-text session (make-string 30 :initial-element #\a) :id :notes)
+    (m:press-key session :up :modifiers '(:super))
+    (m:press-key session :down)
+    ;; 23 characters to a line: down from the first is the 24th, which starts the second line; down
+    ;; from there is the end.
+    (assert-eql 23 (caret-of screen))
+    (m:press-key session :down)
+    (assert-eql 30 (caret-of screen))
+    (assert-equal "1 lines" (text-in screen :count))
+    ;; And it is drawn so: all thirty inside the area, on two lines; from the first frame, too.
+    (assert-equal (make-string 30 :initial-element #\a) (text-in screen :notes))
+    (let ((screen (show (lambda () (make-notes (make-string 30 :initial-element #\b))))))
+      (assert-equal (make-string 30 :initial-element #\b) (text-in screen :notes)))))
+
+(define-test a-press-puts-the-caret-on-the-line-it-is-on ()
+  (let ((screen (show (lambda () (make-notes (format nil "abcdef~%ab~%abcdef"))))))
+    (multiple-value-bind (x y) (core:lookup-target (screen-variant screen) :notes)
+      ;; The second line is 6 + 14 points down; a character in from the padding of 8.
+      (let ((px (+ x 8 8)) (py (+ y 6 14 7)))
+        (pointer screen :move px py)
+        (pointer screen :down px py :button 0 :buttons 1)
+        (pointer screen :up px py :button 0)))
+    (assert-true (s:node-property (notes screen) :focused))
+    (assert-eql 8 (caret-of screen))))
+
+(define-test a-text-area-scrolls-to-keep-the-caret-in-sight-and-the-wheel-scrolls-it ()
+  (let* ((screen (show 'make-notes))
+         (session (screen-session screen)))
+    (m:type-text session (format nil "1~%2~%3~%4~%5") :id :notes)
+    ;; Five lines of 14 in a window of three: the last at the bottom.
+    (assert-eql 28f0 (s:node-property (notes screen) :offset))
+    (m:scroll session :id :notes :dy 1)
+    (assert-eql 4f0 (s:node-property (notes screen) :offset))
+    (assert-eql 9 (caret-of screen))
+    (m:press-key session :up :modifiers '(:super))
+    (assert-eql 0f0 (s:node-property (notes screen) :offset))))
+
+(define-test pasting-into-a-text-area-keeps-the-line-breaks ()
+  (let* ((screen (show 'make-notes))
+         (session (screen-session screen)))
+    (core:context-set-clipboard-text (screen-context screen)
+                                     (format nil "a~c~cb~cc" #\Return #\Linefeed #\Return))
+    (m:focus session :id :notes)
+    (m:press-key session :v :modifiers '(:super))
+    (assert-equal (format nil "a~%b~%c") (s:node-value (notes screen)))
+    (m:press-key session :a :modifiers '(:super))
+    (m:press-key session :x :modifiers '(:super))
+    (assert-equal (format nil "a~%b~%c") (clipboard screen))
+    (assert-equal "" (s:node-value (notes screen)))))
+
 ;;; --- what a screen reader reads ---
 ;;;
 ;;; The app is drawn as above, and a real NSView in a real NSWindow (not shown) is given its tree and

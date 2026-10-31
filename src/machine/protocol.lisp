@@ -181,14 +181,19 @@ lists what there is if there is none or more than one."
   (settle session)
   nil)
 
+(defun typed-key (character)
+  "The key that types CHARACTER: Return for a line feed."
+  (if (char= character #\Linefeed) #\Return character))
+
 (defun type-text (session text &key id role name)
-  "Type TEXT, a key for each character, into the thing that has the keyboard, or, if ID, ROLE or
-NAME says which, into that thing, after pressing it to give it the keyboard."
+  "Type TEXT, a key for each character (Return for a line feed), into the thing that has the
+keyboard, or, if ID, ROLE or NAME says which, into that thing, after pressing it to give it the
+keyboard."
   (when (or id role name)
     (focus session :id id :role role :name name))
   (loop :for character :across text
         :do (deliver session (make-key-event :timestamp (now-ns) :kind :down
-                                             :logical-key character :modifiers 0)))
+                                             :logical-key (typed-key character) :modifiers 0)))
   (settle session)
   nil)
 
@@ -278,7 +283,7 @@ value is, press the option of a choice, pick the item of a list."
     (when (node-property node :disabled)
       (refuse 'cannot "The ~a is disabled." (describe-node node)))
     (ecase (node-role node)
-      (:text-field
+      ((:text-field :text-area)
        (unless (stringp value)
          (refuse 'cannot "A text field takes a string, not ~s." value))
        (multiple-value-bind (x y) (middle node)
@@ -290,7 +295,8 @@ value is, press the option of a choice, pick the item of a list."
                                             :logical-key #\Backspace :modifiers 0))
            (loop :for character :across value
                  :do (deliver session (make-key-event :timestamp (now-ns) :kind :down
-                                                      :logical-key character :modifiers 0)))))
+                                                      :logical-key (typed-key character)
+                                                      :modifiers 0)))))
       (:checkbox
        (unless (eq (and value t) (and (node-value node) t))
          (multiple-value-bind (x y) (middle node)

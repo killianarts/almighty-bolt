@@ -134,6 +134,7 @@ element (that a client still holds) answers."
     (:static-text (foreign-constant "NSAccessibilityStaticTextRole"))
     (:button (foreign-constant "NSAccessibilityButtonRole"))
     (:text-field (foreign-constant "NSAccessibilityTextFieldRole"))
+    (:text-area (foreign-constant "NSAccessibilityTextAreaRole"))
     (:checkbox (foreign-constant "NSAccessibilityCheckBoxRole"))
     (:progress-bar (foreign-constant "NSAccessibilityProgressIndicatorRole"))
     (:slider (foreign-constant "NSAccessibilitySliderRole"))
@@ -283,7 +284,8 @@ by pressing where the value then is, as a hand would. True if that is a change."
   ;; A screen reader that is asked to follow the keyboard, or to type into a field, asks for the focus
   ;; of a field. A press on it is what gives a field the keyboard here. Other things do not need it.
   (let ((item (item-of self)))
-    (when (and item (/= flag 0) (not (item-focused item)) (eq (item-role item) :text-field))
+    (when (and item (/= flag 0) (not (item-focused item))
+               (member (item-role item) '(:text-field :text-area)))
       (press-item item))))
 
 (define-runtime-class *element-class* "AlmightyBoltAccessibilityElement" "NSAccessibilityElement"
@@ -345,6 +347,7 @@ thing that is not told yet."
     ((:static-text :paragraph) :static-text)
     (:button :button)
     (:text-field :text-field)
+    (:text-area :text-area)
     (:checkbox :checkbox)
     (:progress-bar :progress-bar)
     (:slider :slider)
@@ -388,7 +391,7 @@ thing that is not told yet."
                           (item-value item) name))
       (:button (setf (item-label item) name
                      (item-value item) nil))
-      (:text-field (setf (item-label item) name
+      ((:text-field :text-area) (setf (item-label item) name
                          (item-value item) (or (getf node :value) "")))
       (:checkbox (setf (item-label item) name
                        (item-value item) (if (getf node :value) 1 0)))

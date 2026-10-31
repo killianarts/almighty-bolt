@@ -21,7 +21,7 @@
 ;;; painting can be checked exactly and without a Mac: every character is 8 points
 ;;; wide whatever the font, with an ascent of 10 and a descent of 4, and drawing a
 ;;; string appends one glyph command for each character, whose atlas index is the
-;;; character's code. A paragraph breaks only at the width, between characters.
+;;; character's code. A paragraph breaks at a line feed and at the width, between characters.
 
 (defconstant +char-width+ 8f0)
 (defconstant +ascent+ 10f0)
@@ -47,10 +47,21 @@
   (max 0 (min (length string) (round x +char-width+))))
 
 (defmethod context-break-lines ((context fake-context) font string width)
+  ;; As Core Text's does, a line feed ends a line, and is the last character of it.
   (declare (ignore font))
-  (let ((per-line (max 1 (floor width +char-width+))))
-    (loop :for start :from 0 :below (max 1 (length string)) :by per-line
-          :collect (list start (min (length string) (+ start per-line))))))
+  (let ((per-line (max 1 (floor width +char-width+)))
+        (length (length string))
+        (lines '()))
+    (if (zerop length)
+        (list (list 0 0))
+        (let ((start 0))
+          (loop :while (< start length)
+                :do (let* ((feed (position #\Linefeed string :start start))
+                           (stop (if feed (1+ feed) length)))
+                      (loop :for from :from start :below stop :by per-line
+                            :do (push (list from (min stop (+ from per-line))) lines))
+                      (setf start stop)))
+          (nreverse lines)))))
 
 (defmethod context-push-text ((context fake-context) list font string x baseline color)
   (declare (ignore font))

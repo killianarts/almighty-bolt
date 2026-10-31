@@ -75,11 +75,13 @@
                 #:context-measure
                 #:context-caret-x
                 #:context-index-at-x
+                #:context-break-lines
                 #:make-text-state
                 #:text-state-string
                 #:text-state-caret
                 #:text-state-anchor
                 #:text-place-caret
+                #:text-move
                 #:text-insert
                 #:text-state-selection-p
                 #:text-state-selected-string
@@ -91,6 +93,7 @@
                 #:modifier-down-p
                 #:+modifier-super+
                 #:+modifier-control+
+                #:+modifier-shift+
                 #:key-event-logical-key
                 #:make-display-list
                 #:clear-display-list
@@ -142,6 +145,17 @@
            #:lazy-list-rows
            #:+lazy-list-height+
            #:own-hashes
+           #:text-area
+           #:area-state
+           #:area-state-state
+           #:area-state-offset
+           #:area-lines
+           #:area-line-of
+           #:area-line-height
+           #:area-state-generation
+           #:area-state-inner-width
+           #:area-state-inner-height
+           #:+area-padding+
            #:field-state
            #:field-state-state
            #:field-state-view-start
@@ -528,11 +542,22 @@ or the space bar or Return was pressed with the keyboard on it."
                        (setf after-return nil))
                       (t (write-char character out) (setf after-return nil)))))))
 
+(defun newlines (text)
+  "TEXT with each line break in it (a return, a line feed, or the two together) made a line feed."
+  (if (not (find #\Return text))
+      text
+      (with-output-to-string (out)
+        (loop :for i :from 0 :below (length text)
+              :for character = (char text i)
+              :do (cond ((char/= character #\Return) (write-char character out))
+                        ((and (< (1+ i) (length text)) (char= (char text (1+ i)) #\Linefeed)))
+                        (t (write-char #\Linefeed out)))))))
+
 (defun clipboard-edit (state event context &key single-line)
   "What the key EVENT does to the text STATE if it is Command-C, Command-X or Command-V, as two
 values: the new state, and true if it was one of them. Copy and cut take the selection, and do
 nothing without one; paste puts the clipboard's text in place of the selection, with its line breaks
-made spaces if SINGLE-LINE."
+made spaces if SINGLE-LINE and line feeds if not."
   (let ((key (key-event-logical-key event))
         (modifiers (key-event-modifiers event)))
     (if (not (and (eq (key-event-kind event) :down)
@@ -544,7 +569,7 @@ made spaces if SINGLE-LINE."
         (values (cond ((char-equal key #\v)
                        (let ((text (context-clipboard-text context)))
                          (if text
-                             (text-insert state (if single-line (one-line text) text))
+                             (text-insert state (if single-line (one-line text) (newlines text)))
                              state)))
                       ((not (text-state-selection-p state)) state)
                       (t (context-set-clipboard-text context (text-state-selected-string state))
@@ -646,6 +671,253 @@ application passes something else, that is what is shown."
           (box-text box) (text-state-string (field-state-state state)))
     (close-box ui)
     (values (text-state-string (field-state-state state)) changed submitted)))
+
+;;; --- several lines of editable text ---
+;;;
+;;; The text is one string with line feeds in it, edited as a text field's is (EDIT-TEXT), and broken
+;;; into the lines that are shown at the width of the area: a line that is too long goes on in the next.
+;;; Those lines are kept with the text and the width they were made for, and made again when either
+;;; changes; the keys that go up and down and the pointer find their place by them. The area shows
+;;; ROWS lines and scrolls itself to keep the caret in sight.
+
+(defconstant +area-padding+ 6f0 "Above and below the lines of a text area.")
+
+(defstruct (area-state (:constructor make-area-state ()))
+  (state (make-text-state "") :type almighty-bolt/internals:text-state)
+  ;; How far down the lines are scrolled, in points.
+  (offset 0f0 :type single-float)
+  ;; The lines that are shown, each (START . END), END before the line feed that ends it if one does;
+  ;; with the text and the width they were made for. A new generation says they are not the ones
+  ;; drawn before.
+  (lines #() :type simple-vector)
+  (lines-text "" :type string)
+  (wrapped-at -1f0 :type single-float)
+  (generation 0 :type fixnum)
+  ;; The room inside the box for lines, from the last layout (0 before there is one).
+  (inner-width 0f0 :type single-float)
+  (inner-height 0f0 :type single-float)
+  ;; The x that Up and Down keep to, from the first of them in a row.
+  (goal-x nil))
+
+(defun area-line-height (context)
+  (multiple-value-bind (width ascent descent) (context-measure context (ui-font context) "Hg")
+    (declare (ignore width))
+    (float (+ ascent descent) 1f0)))
+
+(defun area-lines (context state string width)
+  "The lines that STRING is shown in at WIDTH, as a vector of (START . END), from STATE if they were
+made for this string and width. There is always one: an empty text, and a text that ends in a line
+feed, end in an empty line, where the caret can be."
+  (unless (and (= (area-state-wrapped-at state) width)
+               (string= (area-state-lines-text state) string))
+    (let* ((length (length string))
+           (lines (loop :for (start end) :in (if (zerop length)
+                                                  '()
+                                                  (context-break-lines context (ui-font context)
+                                                                       string width))
+                        :collect (cons start (if (and (> end start)
+                                                      (char= (char string (1- end)) #\Linefeed))
+                                                 (1- end)
+                                                 end)))))
+      (when (or (zerop length) (char= (char string (1- length)) #\Linefeed))
+        (setf lines (append lines (list (cons length length)))))
+      (setf (area-state-lines state) (coerce lines 'simple-vector)
+            (area-state-lines-text state) (copy-seq string)
+            (area-state-wrapped-at state) width)
+      (incf (area-state-generation state))))
+  (area-state-lines state))
+
+(defun area-line-of (lines index)
+  "The number of the line that the caret at INDEX is on: the last that starts at or before it (so
+that a caret where a long line goes on is at the start of the next)."
+  (let ((found 0))
+    (loop :for line :across lines
+          :for i :from 0
+          :while (<= (car line) index)
+          :do (setf found i))
+    found))
+
+(defun area-inner-width (state width)
+  (if (plusp (area-state-inner-width state))
+      (area-state-inner-width state)
+      (- width (* 2 +field-padding+))))
+
+(defun area-index-at (ui key area x y)
+  "The index in the text of the area KEY that the pointer at X, Y is nearest."
+  (let* ((rect (rect-of ui key))
+         (context (ui-context ui))
+         (state (area-state-state area))
+         (string (text-state-string state)))
+    (if (not (and rect context))
+        (text-state-caret state)
+        (let* ((lines (area-lines context area string (area-inner-width area (rect-w rect))))
+               (height (area-line-height context))
+               (row (max 0 (min (1- (length lines))
+                                (floor (+ (- y (rect-y rect) +area-padding+) (area-state-offset area))
+                                       height))))
+               (line (svref lines row)))
+          (+ (car line)
+             (context-index-at-x context (ui-font context) (subseq string (car line) (cdr line))
+                                 (- x (rect-x rect) +field-padding+)))))))
+
+(defun area-move-vertically (context area lines down extend)
+  "The text state of AREA with the caret a line up (or DOWN), at the x it was at when Up or Down
+was first pressed; at the first or last line, to the start or the end."
+  (let* ((state (area-state-state area))
+         (string (text-state-string state))
+         (caret (text-state-caret state))
+         (font (ui-font context))
+         (row (area-line-of lines caret))
+         (line (svref lines row))
+         (x (or (area-state-goal-x area)
+                (setf (area-state-goal-x area)
+                      (float (context-caret-x context font (subseq string (car line) (cdr line))
+                                              (- caret (car line)))
+                             1f0))))
+         (target (+ row (if down 1 -1))))
+    (cond ((< target 0) (text-place-caret state 0 :extend extend))
+          ((>= target (length lines)) (text-place-caret state (length string) :extend extend))
+          (t (let ((line (svref lines target)))
+               (text-place-caret state
+                                 (+ (car line)
+                                    (context-index-at-x context font
+                                                        (subseq string (car line) (cdr line)) x))
+                                 :extend extend))))))
+
+(defun area-key (ui area event width)
+  "What the key EVENT does to the text of AREA, as two values: the new text state and true if the
+key was one for the area."
+  (let* ((context (ui-context ui))
+         (state (area-state-state area))
+         (key (key-event-logical-key event))
+         (modifiers (key-event-modifiers event))
+         (shift (modifier-down-p modifiers +modifier-shift+))
+         (command (modifier-down-p modifiers +modifier-super+))
+         (down (eq (key-event-kind event) :down)))
+    (flet ((lines ()
+             (area-lines context area (text-state-string state) (area-inner-width area width))))
+      (cond
+        ((not down) (values state nil))
+        ((eql key #\Return) (values (text-insert state (string #\Linefeed)) t))
+        ((and (or (eql key +key-up+) (eql key +key-down+)) command)
+         (values (text-move state (if (eql key +key-up+) :start :end) :extend shift) t))
+        ;; The x it keeps to is kept for the next Up or Down; any other key forgets it (TEXT-AREA).
+        ((or (eql key +key-up+) (eql key +key-down+))
+         (values (area-move-vertically context area (lines) (eql key +key-down+) shift) t))
+        ((and (or (eql key +key-left+) (eql key +key-right+)) command)
+         ;; The start or the end of the line the caret is on.
+         (let* ((lines (lines))
+                (line (svref lines (area-line-of lines (text-state-caret state)))))
+           (values (text-place-caret state (if (eql key +key-left+) (car line) (cdr line))
+                                     :extend shift)
+                   t)))
+        (t
+         (multiple-value-bind (pasted command)
+             (clipboard-edit state event context)
+           (if command
+               (values pasted t)
+               (edit-text state event))))))))
+
+(defun keep-area-caret-visible (ui area width rows)
+  (let ((context (ui-context ui)))
+    (when context
+      (let* ((state (area-state-state area))
+             (lines (area-lines context area (text-state-string state) (area-inner-width area width)))
+             (height (area-line-height context))
+             (inner (if (plusp (area-state-inner-height area))
+                        (area-state-inner-height area)
+                        (* rows height)))
+             (top (* height (area-line-of lines (text-state-caret state))))
+             (offset (area-state-offset area)))
+        (cond ((< top offset) (setf offset top))
+              ((> (+ top height) (+ offset inner)) (setf offset (- (+ top height) inner))))
+        (setf (area-state-offset area)
+              (max 0f0 (min offset (max 0f0 (- (* (length lines) height) inner)))))))))
+
+(defun text-area (string
+                  &key (id (required-id 'text-area)) labelled-by
+                    (width 320) (rows 6) (enabled t) (flex 0))
+  "An editable text of several lines showing STRING, WIDTH points wide and ROWS lines tall, whose long
+lines go on in the next. Returns the text now and whether the person changed it this frame. Return
+puts in a line feed; Up and Down move a line (Command with them, to the start and the end), Command
+with Left and Right to the start and the end of the line; the other keys, and copy, cut and paste,
+are a text field's. Pass what it returned back in the next frame; if the application passes something
+else, that is what is shown."
+  (let* ((ui *ui*)
+         (box (open-box ui :text-area :id id :labelled-by labelled-by))
+         (key (box-key box))
+         (area (state-of ui key #'make-area-state))
+         (width (float width 1f0))
+         (changed nil)
+         (moved nil))
+    (unless (string= (text-state-string (area-state-state area)) string)
+      (setf (area-state-state area) (make-text-state string)
+            (area-state-offset area) 0f0
+            (area-state-goal-x area) nil))
+    (setf (box-enabled box) enabled
+          (box-interactive box) enabled
+          (box-focusable box) enabled
+          (box-pref-w box) width
+          (box-n3 box) rows
+          (box-data box) area
+          (box-flex box) (float flex 1f0))
+    (when enabled
+      (let ((x (ui-pointer-x ui))
+            (y (ui-pointer-y ui)))
+        (when (and (= (ui-hot ui) key) (ui-pressed ui))
+          (consume-press ui)
+          (focus-by-click ui key)
+          (setf (ui-active ui) key
+                (area-state-goal-x area) nil
+                (area-state-state area)
+                (text-place-caret (area-state-state area) (area-index-at ui key area x y))
+                moved t))
+        (when (and (= (ui-active ui) key) (ui-down ui))
+          (let ((new (text-place-caret (area-state-state area) (area-index-at ui key area x y)
+                                       :extend t)))
+            (unless (eq new (area-state-state area))
+              (setf (area-state-state area) new
+                    moved t))))
+        (when (and (= (ui-active ui) key) (ui-released ui))
+          (consume-release ui)
+          (setf (ui-active ui) 0))
+        (when (= (ui-hot ui) key)
+          (multiple-value-bind (dx dy) (consume-wheel ui)
+            (declare (ignore dx))
+            (when (/= dy 0f0)
+              (decf (area-state-offset area) (* dy (float +points-per-line+ 1f0)))))))
+      (when (= (ui-focus ui) key)
+        (dolist (event (copy-list (ui-keys ui)))
+          (let ((vertical (member (key-event-logical-key event) (list +key-up+ +key-down+))))
+            (multiple-value-bind (new edited) (area-key ui area event width)
+              (when edited
+                (consume-key ui event)
+                (unless vertical
+                  (setf (area-state-goal-x area) nil))
+                (unless (string= (text-state-string new)
+                                 (text-state-string (area-state-state area)))
+                  (setf changed t))
+                (setf (area-state-state area) new
+                      moved t)))))))
+    (if moved
+        (keep-area-caret-visible ui area width rows)
+        ;; Only kept inside the lines; the wheel may leave the caret out of sight.
+        (let ((context (ui-context ui)))
+          (when context
+            (let* ((lines (area-lines context area (text-state-string (area-state-state area))
+                                      (area-inner-width area width)))
+                   (height (area-line-height context))
+                   (inner (if (plusp (area-state-inner-height area))
+                              (area-state-inner-height area)
+                              (* rows height))))
+              (setf (area-state-offset area)
+                    (max 0f0 (min (area-state-offset area)
+                                  (max 0f0 (- (* (length lines) height) inner)))))))))
+    (setf (box-look box) (look-of ui key enabled)
+          (box-text box) (text-state-string (area-state-state area))
+          (box-n1 box) (area-state-offset area))
+    (close-box ui)
+    (values (text-state-string (area-state-state area)) changed)))
 
 ;;; --- a slider ---
 
@@ -985,7 +1257,7 @@ counting its children."
                                (hash-of (box-pref-w box)) (hash-of (box-pref-h box))))
          (layout (case (box-kind box)
                    (:choice (mix layout (hash-options (car (box-data box)))))
-                   (:list-box (mix layout (box-n3 box)))
+                   ((:list-box :text-area) (mix layout (box-n3 box)))
                    (:scroll (mix layout (hash-of (box-n1 box))))
                    (:lazy-list (hash-numbers layout (hash-of (box-n1 box)) (hash-of (box-n2 box))
                                              (box-n3 box)))
@@ -1002,6 +1274,8 @@ counting its children."
                                          (text-state-caret (field-state-state state))
                                          (text-state-anchor (field-state-state state))
                                          (field-state-view-start state))))
+            (:text-area (let ((state (area-state-state (box-data box))))
+                          (hash-numbers paint (text-state-caret state) (text-state-anchor state))))
             (:list-box (destructuring-bind (items . state) (box-data box)
                          (hash-numbers paint (length items) (list-state-top state)
                                        (visible-items-hash items (list-state-top state)
