@@ -124,8 +124,8 @@ holds, and it gives you the new one:
 
 | Call                                                                         | Returns                                                                     |
 |------------------------------------------------------------------------------|-----------------------------------------------------------------------------|
-| `(label text &key id size color flex)`                                       |                                                                             |
-| `(paragraph text &key id size color flex)`                                   | text broken into lines to the width it is given                             |
+| `(label text &key id size color flex live)`                                  |                                                                             |
+| `(paragraph text &key id size color flex live)`                              | text broken into lines to the width it is given                             |
 | `(progress fraction &key id labelled-by width flex)`                         |                                                                             |
 | `(button text &key id enabled flex)`                                         | true when clicked (the pointer, or Space or Return with the keyboard on it) |
 | `(text-field string &key id labelled-by width invalid enabled flex)`         | the text now, whether it was changed this frame, whether Return was pressed |

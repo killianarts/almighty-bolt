@@ -7,7 +7,7 @@ Welcome to almighty-bolt 0.2, in development. It starts with VoiceOver: a window
 <!-- highlights:start -->
 ## Highlights
 
-- Accessibility: VoiceOver reads every widget by what it is, what it is called and what it holds, can press buttons, check boxes, options and rows, move a slider and give a field the keyboard, and is told when things change.
+- Accessibility: VoiceOver reads every widget by what it is, what it is called and what it holds, can press buttons, check boxes, options and rows, move a slider and give a field the keyboard, is told when things change, and reads out a `:live` label or paragraph whenever its text changes.
 <!-- highlights:end -->
 
 ## Platform and compatibility
@@ -40,9 +40,12 @@ What VoiceOver can do with them:
 - Move a slider up or down a step, the step of an arrow key (a twentieth of its range), by pressing where the value then is.
 - Ask for the keyboard in a text field. Typing then goes to it.
 - Find what is under the pointer, and know which thing has the keyboard.
-- Be told, as they happen, when a value changes, when things come or go (a list that scrolls shows other rows), when the picked row of a list changes, and when the keyboard moves.
+- Be told, as they happen, when a value changes, when things come or go (a list that scrolls shows other rows), when the picked row of a list changes, and when the keyboard moves. VoiceOver says a changed value only for the thing its cursor is on.
+- Hear a `:live` label or paragraph whenever its text changes, wherever the cursor is.
 
 Nothing is worked out for this until something asks what the window shows (VoiceOver, the Accessibility Inspector) or the system says that VoiceOver or Switch Control is running; from the first question on, what changes is told as it happens. A window that nothing has asked about costs what it did, and one at rest does no work.
+
+A count that changes when a button elsewhere is pressed is not said by VoiceOver, since its cursor is on the button. Say that the text matters with `:live`: `(bolt:label (princ-to-string count) :id :count :live t)` is read out as the new count after each press. It is for a result, a count or a status that a person should hear without going to look for it, not for text that changes every frame. A live text that has just appeared is not read out, only one that changes, so a status that comes and goes is better as a label that is always there and sometimes empty.
 
 A list is read as the rows that are showing, so that scrolling it changes which ones there are; a screen reader is not told of the rows out of sight. What a canvas draws is not read: it is a group, called by its label if it has one.
 

@@ -253,13 +253,15 @@ the box a press began on), 3 disabled, and 4 more if it has the keyboard."
 
 ;;; --- text ---
 
-(defun label (text &key (id (required-id 'label)) (size 15) color (flex 0))
-  "A line of TEXT."
+(defun label (text &key (id (required-id 'label)) (size 15) color (flex 0) live)
+  "A line of TEXT. A LIVE label is read out by a screen reader whenever its text changes, wherever the
+reader is: for a result, a count or a status that a person should hear without going to look for it."
   (let ((box (open-box *ui* :label :id id)))
     (setf (box-text box) text
           (box-size box) size
           (box-color box) (or color 0)
-          (box-flex box) (float flex 1f0))
+          (box-flex box) (float flex 1f0)
+          (box-n3 box) (if live 1 0))
     (close-box *ui*)
     nil))
 
@@ -282,14 +284,15 @@ are not the ones that were drawn before."
   (incf (paragraph-state-generation state))
   state)
 
-(defun paragraph (text &key (id (required-id 'paragraph)) (size 15) color (flex 0))
-  "TEXT broken into lines to the width it is given, SIZE points high."
+(defun paragraph (text &key (id (required-id 'paragraph)) (size 15) color (flex 0) live)
+  "TEXT broken into lines to the width it is given, SIZE points high. LIVE is as for a label."
   (let* ((ui *ui*)
          (box (open-box ui :paragraph :id id)))
     (setf (box-text box) text
           (box-size box) size
           (box-color box) (or color 0)
           (box-flex box) (float flex 1f0)
+          (box-n3 box) (if live 1 0)
           (box-data box) (state-of ui (box-key box) #'make-paragraph-state))
     (close-box ui)
     nil))

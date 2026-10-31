@@ -18,6 +18,7 @@
            #:bridge-watched
            #:bridge-assistive
            #:bridge-poster
+           #:bridge-announcer
            #:release-bridge
            #:frame-presented
            #:bridge-children
@@ -70,7 +71,10 @@
   ;; notification is told to the system (POST), which is given an element and :LAYOUT-CHANGED, :VALUE-CHANGED,
   ;; :SELECTION-CHANGED or :FOCUSED-CHANGED. A test puts others here.
   (assistive #'assistive-client-p :type function)
-  (poster #'post :type function))
+  (poster #'post :type function)
+  ;; How a text is read out by a screen reader wherever its cursor is (SPEAK), given the view and the
+  ;; text. A test puts another here.
+  (announcer #'speak :type function))
 
 (defstruct (item (:constructor make-item (bridge path role)))
   bridge
@@ -88,6 +92,8 @@
   (selected nil)
   (enabled t)
   (focused nil)
+  ;; True for a text that is read out whenever it changes.
+  (live nil)
   (identifier nil)
   ;; Where it is, in points from the top left of the view.
   (x 0d0 :type double-float)
@@ -363,6 +369,7 @@ thing that is not told yet."
     (place-item item (getf node :bounds))
     (setf (item-enabled item) (not (getf state :disabled))
           (item-focused item) (and (getf state :focused) t)
+          (item-live item) (and (getf state :live) t)
           (item-identifier item) (and id (string-downcase (princ-to-string id))))
     (ecase (item-role item)
       (:static-text (setf (item-label item) nil
@@ -557,6 +564,29 @@ deepest and drawn last, or zero if there is none."
        (:focused-changed
         (foreign-constant "NSAccessibilityFocusedUIElementChangedNotification"))))))
 
+(defun speak (view text)
+  "Have a screen reader read TEXT out now, though its cursor is on something else: an announcement,
+told through the window of VIEW."
+  (let* ((window (if (zerop view) 0 (msg-send :id view "window")))
+         (target (if (zerop window) view window)))
+    (unless (or (zerop target) (zerop (length text)))
+      ;; Not DICTIONARYWITHOBJECTSANDKEYS:, which takes any number of arguments and so cannot be sent
+      ;; as a fixed number of them.
+      (let ((information (msg-send :id (objc-class "NSMutableDictionary") "dictionary")))
+        (msg-send :void information "setObject:forKey:"
+                  (:id (autoreleased-string text))
+                  (:id (foreign-constant "NSAccessibilityAnnouncementKey")))
+        (msg-send :void information "setObject:forKey:"
+                  (:id (msg-send :id (objc-class "NSNumber") "numberWithInteger:" (:long 50)))
+                  (:id (foreign-constant "NSAccessibilityPriorityKey")))
+        (sb-alien:alien-funcall
+         (sb-alien:extern-alien "NSAccessibilityPostNotificationWithUserInfo"
+                                (function sb-alien:void sb-alien:unsigned-long
+                                          sb-alien:unsigned-long sb-alien:unsigned-long))
+         target
+         (foreign-constant "NSAccessibilityAnnouncementRequestedNotification")
+         information)))))
+
 (defun assistive-client-p ()
   "True if VoiceOver or Switch Control is running: the ones that follow changes as they happen and
 need to be told."
@@ -566,8 +596,9 @@ need to be told."
 
 (defun announce (bridge)
   "Make the items again and tell the system what is new: a layout change if things came or went, a
-change of value for the ones whose value changed, a change of the chosen row for a list, and the
-new focus."
+change of value for the ones whose value changed, a change of the chosen row for a list, the new
+focus, and the new words of a live text that changed. A screen reader says what changed on the thing
+that its cursor is on, so only the last is read out wherever the cursor is."
   (multiple-value-bind (changed structure chosen) (refresh bridge)
     (let ((focus (focused-item bridge))
           (post (bridge-poster bridge)))
@@ -579,7 +610,11 @@ new focus."
         (funcall post (item-element item) :selection-changed))
       (when (and focus (not (eq focus (bridge-announced-focus bridge))))
         (funcall post (item-element focus) :focused-changed))
-      (setf (bridge-announced-focus bridge) focus))))
+      (setf (bridge-announced-focus bridge) focus)
+      (dolist (item changed)
+        (when (item-live item)
+          (funcall (bridge-announcer bridge) (bridge-view bridge)
+                   (text-of (item-value item))))))))
 
 (defun frame-presented (bridge)
   "A frame was presented, so what the items say may be out of date. Nothing is worked out for it

@@ -122,6 +122,8 @@
       (when (and (plusp (ui-focus ui)) (= (box-key box) (ui-focus ui))) (note :focused t))
       (when (and (plusp (ui-hot ui)) (= (box-key box) (ui-hot ui))) (note :hovered t))
       (case (box-kind box)
+        ((:label :paragraph)
+         (when (= (box-n3 box) 1) (note :live t)))
         (:text-field
          (let ((text (field-state-state (box-data box))))
            (when (= (box-n3 box) 1) (note :invalid t))

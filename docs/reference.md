@@ -44,6 +44,8 @@ Containers that only lay things out are not elements, and what is in them is tak
 
 A button, a check box, an option or a row can be pressed from VoiceOver; the press is a move, a press and a release in the middle of the thing, delivered to the window as a hand's would be, and a disabled one is not pressed. A slider can be moved up or down by a twentieth of its range, by pressing where the value then is. A text field can be given the keyboard, which a press on it does. The view says which element has the keyboard and which is under a point. Once something has asked what the window shows (VoiceOver, the Accessibility Inspector), or while the system says that VoiceOver or Switch Control is running, the system is told after each frame when a value changed, when elements came or went, when the picked row of a list changed, and when the keyboard moved; before that nothing is worked out until the system asks, and a window at rest does no work. (The system's own flag for VoiceOver was found to say no inside an app while VoiceOver was running, so it is not what this goes by alone.) A list is read as the rows that are showing.
 
+VoiceOver says a changed value only for the thing its cursor is on. A `label` or `paragraph` given `:live t` is read out, by announcement, whenever its text changes, wherever the cursor is: `(bolt:label (princ-to-string count) :id :count :live t)`. One that has just appeared is not read out, only one that changes; use it for a result, a count or a status, not for text that changes every frame.
+
 Two other things use the tree, in different systems because they are for different people.
 
 ## The machine interface

@@ -18,6 +18,6 @@
     (lambda ()
       (bolt:padding (:all 24)
         (bolt:row (:gap 16 :cross-align :center)
-          (bolt:label (princ-to-string count) :id :count :size 32)
+          (bolt:label (princ-to-string count) :id :count :size 32 :live t)
           (when (bolt:button "Count" :id :count-button)
             (incf count)))))))

@@ -176,7 +176,9 @@ frame."
 (defstruct (reader (:constructor make-reader (view window bridge screen)))
   view window bridge screen
   ;; The notifications that the bridge was asked to post, newest first: (element kind).
-  (told '()))
+  (told '())
+  ;; The texts that it was asked to have read out, newest first.
+  (spoken '()))
 
 (defun call-with-reader (screen function)
   "Call FUNCTION with a reader of SCREEN, whose bridge says that a screen reader is running and
@@ -205,6 +207,9 @@ notes what it is asked to post. After each frame the reader's bridge is told, as
               (a11y:bridge-assistive bridge) (constantly t)
               (a11y:bridge-poster bridge) (lambda (element kind)
                                             (push (list element kind) (reader-told reader)))
+              (a11y:bridge-announcer bridge) (lambda (view text)
+                                               (declare (ignore view))
+                                               (push text (reader-spoken reader)))
               (screen-after-draw screen) (lambda () (a11y:frame-presented bridge)))
         (window:set-content-view window (reader-view reader))
         (unwind-protect (funcall function reader)
@@ -256,6 +261,10 @@ notes what it is asked to post. After each frame the reader's bridge is told, as
 (defun told (reader)
   "What was posted since this was last asked, oldest first."
   (reverse (prog1 (reader-told reader) (setf (reader-told reader) '()))))
+
+(defun spoken (reader)
+  "What was asked to be read out since this was last asked, oldest first."
+  (reverse (prog1 (reader-spoken reader) (setf (reader-spoken reader) '()))))
 
 (define-test a-screen-reader-reads-the-counter-as-a-number-and-a-button ()
   (let ((screen (show 'counter:make-counter)))
@@ -729,3 +738,60 @@ screen reader was given are taken away and their places are used again."
           (click screen :count-button)
           (assert-true (member (list count :value-changed) (told reader) :test #'equal))
           (assert-equal "2" (says count :value)))))))
+
+(defun make-notices ()
+  "A live label and a live paragraph beside a label that is not live, all three changed by one button,
+and another live label that comes with the first press."
+  (state-let ((presses 0))
+    (lambda ()
+      (column (:gap 4)
+        (label (format nil "Saved ~d" presses) :id :saved :live t)
+        (paragraph (format nil "Message ~d" presses) :id :message :live t)
+        (label (format nil "Quiet ~d" presses) :id :quiet)
+        (when (plusp presses)
+          (label "Late" :id :late :live t))
+        (when (button "Press" :id :press)
+          (incf presses))))))
+
+(define-test a-live-text-is-read-out-when-it-changes-and-nothing-else-is ()
+  (let ((screen (show 'make-notices)))
+    (with-reader (reader screen)
+      ;; Something asks what the window shows, and the texts it shows are not read out for that.
+      (element-named reader :saved)
+      (draw screen)
+      (assert-equal '() (spoken reader))
+      (assert-true (s:node-property (node-of screen :saved) :live))
+      (assert-true (s:node-property (node-of screen :message) :live))
+      (assert-false (s:node-property (node-of screen :quiet) :live))
+      ;; The live ones are read out when they change, the other is not, and one that does not change
+      ;; is not read again.
+      (click screen :press)
+      (assert-equal '("Saved 1" "Message 1") (spoken reader))
+      ;; A live text that has come is there to be read, and is not read out for coming.
+      (assert-true (element-named reader :late))
+      (draw screen)
+      (assert-equal '() (spoken reader))
+      (click screen :press)
+      (assert-equal '("Saved 2" "Message 2") (spoken reader)))))
+
+(define-test the-count-is-read-out-when-a-screen-reader-presses-the-button ()
+  (let ((screen (show 'counter:make-counter)))
+    (with-reader (reader screen)
+      (let ((button (element-named reader :count-button)))
+        (assert-equal '() (spoken reader))
+        (press button)
+        (press button)
+        (assert-equal '("1" "2") (spoken reader))))))
+
+(define-test the-system-takes-an-announcement-through-the-window ()
+  (let ((screen (show 'counter:make-counter)))
+    (with-reader (reader screen)
+      ;; The way the bridge has text read out when no test stands in for it. The system has no
+      ;; screen reader here to hear it, so what is checked is that asking goes through, for a view
+      ;; in a window, for words that are none, and for no view at all, and that the app goes on.
+      (let ((speak (a11y:bridge-announcer (a11y:make-bridge))))
+        (funcall speak (reader-view reader) "Counted")
+        (funcall speak (reader-view reader) "")
+        (funcall speak 0 "Nowhere")
+        (press (element-named reader :count-button))
+        (assert-equal "1" (says (element-named reader :count) :value))))))
