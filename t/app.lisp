@@ -821,6 +821,17 @@ screen reader was given are taken away and their places are used again."
         (type-text screen "Hello")
         (assert-equal "Hello" (says field :value))))))
 
+(define-test a-screen-reader-reads-a-text-area-and-can-give-it-the-keyboard ()
+  (let ((screen (show (lambda () (make-notes (format nil "one~%two"))))))
+    (with-reader (reader screen)
+      (let ((notes (element-named reader :notes)))
+        (assert-equal "AXTextArea" (says notes :role))
+        (assert-equal (format nil "one~%two") (says notes :value))
+        (objc:msg-send :void notes "setAccessibilityFocused:" (:bool t))
+        (assert-eql notes (objc:msg-send :id (reader-view reader) "accessibilityFocusedUIElement"))
+        (type-text screen "!")
+        (assert-equal (format nil "one~%two!") (says notes :value))))))
+
 (define-test a-window-that-was-closed-has-nothing-to-read ()
   (let ((screen (show 'counter:make-counter)))
     (with-reader (reader screen)

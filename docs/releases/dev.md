@@ -67,7 +67,7 @@ A list is read as the rows that are showing, so that scrolling it changes which 
 
 Moving the window lays the screen out again: a wheel tick costs about 0.06 ms with 50 rows of a label and a button, and 2.8 ms with 2000. For long lists there is `lazy-list`, below.
 
-VoiceOver reads what is inside a `scroll` as it reads what is inside a column, the rows out of the window included, and it does not yet scroll the window to the one it is on.
+VoiceOver does not yet scroll a `scroll` to the thing its cursor is on. (What it makes of the things out of the window has not been tried.)
 
 ### A list that builds only the rows that show
 
@@ -105,5 +105,8 @@ VoiceOver reads what is inside a `scroll` as it reads what is inside a column, t
 - Command-C, Command-X and Command-V copy, cut and paste in a text field, through the system's clipboard. A line break that is pasted becomes a space, since the field holds one line. Copy and cut do nothing when nothing is selected.
 
 #### Machine interface
+
+- `type-text` and `set-value` type a line feed in the text as Return, the key a person presses for it. In a text area that starts a new line; in a text field it submits the field (before, a line feed was dropped).
+- `click` and `double-click` refuse a thing that is scrolled out of the window of a `scroll` or a `lazy-list` (it is `:hidden` in the tree), with a message that says to scroll first. A thing partly out of the window is pressed in the middle of the part that shows.
 
 - A widget's `:id` is its element's accessibility identifier, so the id that an agent or a test finds a widget by is what the Accessibility Inspector shows for it.

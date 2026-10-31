@@ -23,6 +23,8 @@ are not listed.
 
 ### Changed
 
+- The machine interface's `type-text` and `set-value` type a line feed as Return (in a text field, that submits it); `click` and `double-click` refuse a thing scrolled out of sight ([0.2](docs/releases/dev.md#machine-interface)).
+
 ### Deprecated
 
 ### Removed
