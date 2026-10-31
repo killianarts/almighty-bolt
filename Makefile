@@ -1,4 +1,4 @@
-.PHONY: deps test compile-clean bench-null image bench-run bench-overhead bench-app bench-compile bench-report snapshots replay 7guis 7guis-smoke 7guis-repl-smoke 7guis-hot-smoke examples-smoke smoke clean
+.PHONY: deps test compile-clean bench-null image bench-run bench-overhead bench-app bench-compile bench-report snapshots replay 7guis 7guis-smoke 7guis-repl-smoke 7guis-hot-smoke examples-smoke accessibility-smoke smoke clean
 
 # ASDF looks only in this tree (project and vendored/), never in ~/common-lisp/.
 SBCL = sbcl --noinform --non-interactive --no-sysinit --no-userinit
@@ -34,6 +34,7 @@ smoke:
 	$(MAKE) 7guis-repl-smoke VARIANT=immediate TASK=crud
 	$(MAKE) 7guis-hot-smoke
 	$(MAKE) examples-smoke
+	$(MAKE) accessibility-smoke
 
 # The null variant in a window: the core's own cost. Run it from a terminal of your
 # own and leave the window alone while it runs.
@@ -122,6 +123,16 @@ examples-smoke:
 	$(SBCL_APP) $(REGISTRY) --load examples/smoke.lisp > $$out 2>&1; \
 	grep -v -e '^;' -e '^$$' $$out; \
 	grep -q "The run-app check passed" $$out && ! grep -q "FAIL" $$out; status=$$?; rm -f $$out; exit $$status
+
+# What a screen reader gets, in a real window: the to-do example read, and pressed and focused, through
+# the system's accessibility API (AXUIElement), as VoiceOver does it (examples/accessibility-smoke.lisp). The
+# process must be allowed to use that API; if it is not, the check says so and is skipped. Judged by
+# what it says.
+accessibility-smoke:
+	@out=$$(mktemp); \
+	$(SBCL_APP) $(REGISTRY) --load examples/accessibility-smoke.lisp > $$out 2>&1; \
+	grep -v -e '^;' -e '^$$' $$out; \
+	grep -q -e "The accessibility check passed" -e "The accessibility check was skipped" $$out && ! grep -q "FAIL" $$out; status=$$?; rm -f $$out; exit $$status
 
 clean:
 	find . -name '*.fasl' -not -path './vendored/*' -delete
