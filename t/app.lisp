@@ -467,6 +467,12 @@ screen reader was given are taken away and their places are used again."
                                                  (equal (says element :role) "AXCheckBox"))
                                                (elements reader))))))))
 
+(define-test with-nothing-holding-the-keyboard-the-view-names-nothing-as-focused ()
+  (let ((screen (show 'counter:make-counter)))
+    (with-reader (reader screen)
+      ;; Not the view itself, which is no element: VoiceOver, put there, said "unknown" and was stuck.
+      (assert-eql 0 (objc:msg-send :id (reader-view reader) "accessibilityFocusedUIElement")))))
+
 (define-test a-screen-reader-that-asks-for-the-focus-of-a-field-gives-it-the-keyboard ()
   (let ((screen (show 'todo:make-todo)))
     (with-reader (reader screen)

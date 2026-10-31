@@ -329,11 +329,13 @@ out when it is asked, so that a window that was moved is where it is."
          (hit (if bridge (bridge-hit-test bridge x y) 0)))
     (if (zerop hit) self hit)))
 
+;;; With no widget holding the keyboard it answers nothing, not the view: the view is not an element,
+;;; and VoiceOver, put on it when the window came to the front, called it "unknown" and could not go
+;;; from it to the widgets. Answered nothing, VoiceOver goes to the first widget of the window.
 (define-callback view-ax-focused sb-alien:unsigned-long
     ((self sb-alien:unsigned-long) (cmd sb-alien:unsigned-long))
-  (let* ((bridge (metal-view-bridge (view-of self)))
-         (focused (if bridge (bridge-focused-element bridge) 0)))
-    (if (zerop focused) self focused)))
+  (let ((bridge (metal-view-bridge (view-of self))))
+    (if bridge (bridge-focused-element bridge) 0)))
 
 ;;; The class. Dragging and the right and other buttons are reported as the
 ;;; same pointer events (a drag is a move with buttons down), so their methods
