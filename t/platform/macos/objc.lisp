@@ -262,3 +262,31 @@ everything that enters AppKit is: if a window has been made, it does arithmetic 
       (main-queue:run-on-main (lambda () (setf ran t)))
       (assert-true ran)
       (assert-equal '(7) (multiple-value-list (main-queue:call-on-main (lambda () 7)))))))
+
+;;; --- the compiled file ---
+
+(define-test the-file-compiled-where-it-is-loaded-defines-its-structures-in-a-new-lisp ()
+  ;; SBCL leaves an alien structure's definition out of a compiled file when the Lisp that compiles it
+  ;; already knows the structure, as this one does. Such a file, loaded into a new Lisp, has to define
+  ;; them all the same, or every file compiled after it that uses one fails.
+  (let* ((directory (uiop:ensure-directory-pathname
+                     (merge-pathnames (format nil "almighty-bolt-objc-test-~d/" (get-universal-time))
+                                      (uiop:temporary-directory))))
+         (fasl (merge-pathnames "objc.fasl" directory)))
+    (ensure-directories-exist directory)
+    (unwind-protect
+         (progn
+           (let ((*compile-verbose* nil) (*compile-print* nil) (*error-output* (make-broadcast-stream))
+                 (*standard-output* (make-broadcast-stream)))
+             ;; Compiling it again here redefines what is already defined, which warns.
+             (handler-bind ((warning #'muffle-warning))
+               (compile-file (asdf:system-relative-pathname "almighty-bolt"
+                                                            "src/platform/macos/objc.lisp")
+                             :output-file fasl)))
+           (let ((output (uiop:run-program
+                          (list "sbcl" "--noinform" "--non-interactive" "--no-sysinit" "--no-userinit"
+                                "--load" (namestring fasl)
+                                "--eval" "(handler-case (progn (sb-alien:make-alien (sb-alien:struct almighty-bolt/platform/macos/objc::cg-rect)) (sb-alien:make-alien (sb-alien:struct almighty-bolt/platform/macos/objc::ns-range)) (format t \"structures-ok\")) (error (c) (format t \"structures-missing ~a\" c)))")
+                          :output :string :error-output :string :ignore-error-status t)))
+             (assert-true (search "structures-ok" output) output)))
+      (uiop:delete-directory-tree directory :validate t :if-does-not-exist :ignore))))

@@ -55,23 +55,33 @@
 ;;; Geometry. These are only used as the result types of messages such as
 ;;; -[NSView bounds]. Struct results come back through sb-alien. Struct
 ;;; arguments are passed flattened (see MSG-SEND).
+;;;
+;;; SBCL leaves a structure's definition out of the compiled file when the Lisp
+;;; that compiles the file already knows the structure (it was loaded, and the
+;;; file is compiled again in the same Lisp). Such a file, loaded into a new
+;;; Lisp, defined nothing, and every file compiled after it that used one failed
+;;; ("the size of (STRUCT CG-RECT) is unknown"). So the definitions are made
+;;; again, by EVAL, when the file is loaded, which nothing can leave out.
 
-(sb-alien:define-alien-type nil
+(defmacro define-alien-structures (&rest types)
+  "Define the alien structure TYPES, for the compiler and, always, when the file is loaded."
+  `(progn
+     ,@(loop :for type :in types
+             :collect `(sb-alien:define-alien-type nil ,type))
+     (eval-when (:load-toplevel :execute)
+       (dolist (type ',types)
+         (eval (list 'sb-alien:define-alien-type nil type))))))
+
+(define-alien-structures
   (sb-alien:struct cg-point
     (x sb-alien:double)
-    (y sb-alien:double)))
-
-(sb-alien:define-alien-type nil
+    (y sb-alien:double))
   (sb-alien:struct cg-size
     (width sb-alien:double)
-    (height sb-alien:double)))
-
-(sb-alien:define-alien-type nil
+    (height sb-alien:double))
   (sb-alien:struct cg-rect
     (origin (sb-alien:struct cg-point))
-    (size (sb-alien:struct cg-size))))
-
-(sb-alien:define-alien-type nil
+    (size (sb-alien:struct cg-size)))
   (sb-alien:struct ns-range
     (location sb-alien:unsigned-long)
     (length sb-alien:unsigned-long)))
