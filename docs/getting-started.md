@@ -123,10 +123,10 @@ window @0,0,222,80
 
 then `click` with the role `button` and the name `Count` (or the id `count-button`), which answers with the screen afterwards: the count is 6. Edit the app and compile it, and the agent's next `snapshot` is of the new screen. `(almighty-bolt/mcp:stop-mcp-server)` closes the server and its connections. It listens on this machine only and nothing starts it but that call; anything on the machine that can connect can press your app's buttons.
 
-The same things are done from Lisp, without MCP, by the machine interface (`almighty-bolt/machine`); the [README](../README.md#working-an-app-from-a-program-or-an-agent) lists the calls.
+The same things are done from Lisp, without MCP, by the machine interface (`almighty-bolt/machine`); the [reference](reference.md#the-machine-interface) lists the calls.
 
 ## 8. Where next
 
-- The widgets, the containers and the canvas are in the [README](../README.md).
+- The widgets, the containers and the canvas are in the [README](../README.md) and, with their options, in the [reference](reference.md).
 - A `canvas` is where you draw yourself and handle the pointer and the keyboard; [`examples/7guis/circles/immediate.lisp`](../examples/7guis/circles/immediate.lisp) and [`examples/7guis/cells/immediate.lisp`](../examples/7guis/cells/immediate.lisp) are small ones, and [`bench/stress/editor/immediate.lisp`](../bench/stress/editor/immediate.lisp) is a text editor with input-method support.
 - `make test` and `make smoke` are what has to pass before a change is committed, and [`CLAUDE.md`](../CLAUDE.md) says how the project is worked on.

@@ -2,13 +2,8 @@
 
 An Immediate Mode GUI library for Common Lisp. The library aims to make building
 cross-platform GUIs as simple as possible without sacrificing performance or
-memory efficiency. almighty-bolt caches the UI and only rerenders it when there
-is some event on an element in the UI, such as a mouse hover, keyboard caret
-ticking animation, etc. That means that almighty-bolt also doesn't sap your
-CPU/battery dry.
-
-It supports hot-reloading via function compilation and also has a "watch mode" so
-you can update GUIs by just saving the file you're working on.
+memory efficiency. Building and understanding interfaces is far easier than in
+other frameworks like McClim, Flutter, GPUI, React, etc.
 
 **Status:** 0.1, the first release. macOS only (Apple silicon is what
 it is tested on), SBCL only, one window, one fixed dark theme. Has an MCP
@@ -42,16 +37,16 @@ below lists them bare.
 
 ## Features
 
-- **Cached Immediate mode.** Unlike retained mode (McClim, many non-Lisp UI frameworks)
-  or reactive-hybrid mode (Flutter, GPUI, React) UIs, interfaces are simply
-  rerendered wholesale. You don't need complex mechanisms for managing state and
-  complex UI changes--you just rerender on some event.
-  
-  Unlike a normal immediate mode UI, the element tree is cached and morphed,
-  meaning the changes that are rendered to the screen are only done on some
-  event and only on elements effected by the event--saving CPU and battery power.
+- **Immediate mode.** Unlike retained mode (McClim, many non-Lisp UI frameworks)
+  or reactive-hybrid mode (Flutter, GPUI, React) UIs, interfaces are simple
+  function calls that rerender the UI wholesale. No complex state/signal
+  management necessary.
 
-- **Hot-reloading.** Just because UI elements are individual objects with their
+  Unlike a normal immediate mode UI, layout and drawing are skipped when nothing
+  affects sizes. Nothing happening in the window? No drawing. We love your CPU
+  and respect your battery.
+  
+- **Hot-reloading.** Just because UI elements aren't individual objects with their
   own state doesn't mean you lose Lisp's typical hot-reloading. Compiling your
   app's UI function updates live, open apps.
 
@@ -95,116 +90,37 @@ An app is a function of no arguments, its **constructor**, that makes the
 function that describes the screen. Give it by name, so that compiling it again
 is what the window runs.
 
-|                                                             |                                                                                                                                                                                                                                                             |
-|-------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `(bolt:open-app 'make-x :title "X" :width 360 :height 160)` | Opens a window and returns at once, with the REPL free. Closing the window (its button, Command-W, Command-Q) or `(close-app)` leaves Lisp running, and `open-app` can be called again.                                                                     |
-| `(bolt:run-app 'make-x ...)`                                | For a program that is only a window (`sbcl --load app.lisp`): it runs on the main thread and closing the window ends the process. `:hot t` remakes the app when code is compiled, `:watch-systems '("my-system")` also reloads when a source file is saved. |
-| `(bolt:close-app)`                                          | Closes the window that `open-app` opened.                                                                                                                                                                                                                   |
+|                                                             |                                                                                                                                                                                                                                                      |
+|-------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `(bolt:open-app 'make-x :title "X" :width 360 :height 160)` | Opens a window and gives the REPL back. Closing the window leaves Lisp running, and `open-app` can be called again.                                                                                                                                  |
+| `(bolt:run-app 'make-x ...)`                                | For a program that is only a window (`sbcl --load app.lisp`): it runs on the main thread, and closing the window ends the process. `:hot t` remakes the app when code is compiled, `:watch-systems '("my-system")` also when a source file is saved. |
+| `(bolt:close-app)`                                          | Closes the window that `open-app` opened.                                                                                                                                                                                                            |
 
 ## State
 
-`state-let` is `let` for the state of an app. The window keeps its cells by the
-name of the variable, and when the app is made again (because code was compiled)
-a name that is in the store gets the cell it had, with its value. Only state
-goes in it: what is worked out from the state is made again from the new code.
-Edit the initial form of a variable and it starts over; to start the whole app
-over, close the window and open it again. The caret and selection of text
-fields, the scroll of lists and which widget has the keyboard are kept too, by
-widget id.
+In almighty-bolt, widgets don't hold state--apps do. `bolt:state-let` is `let`
+for the state of an app. Application state bound with `bolt:state-let` will
+remain between frames. The caret and selection of text fields, the scroll of
+lists and which widget has the keyboard are kept too, by widget id. 
+Edit a variable's initial form and it starts over; close the window and open it
+again to start the whole app over.
 
 `(bolt:state 'name)` reads a kept variable of the open app from the REPL:
 `(bolt:state 'counter::count)`.
 
-## Working an app from a program or an agent
-
-The screen is also a **semantic tree**: every widget says what it is (a
-`button`, a `text-field`, a `list`, a `checkbox`...), what it is called, what it
-holds, its state (focused, disabled, the caret, the selected item) and where it
-is, and the containers hold what is in them. It is made when it is asked for,
-from the frame that was last drawn, so a frame costs nothing for it; a screen
-reader will read the same tree (the VoiceOver bridge is the first thing after
-0.1). A node is a property list: `(:id :name :role :text-field :name "Name:"
-:value "Ada" :state (:focused t :hovered t :caret 3) :bounds (310.0 60.0 160.0
-26.0))`.
-
-Two things use it, in different systems because they are for different people.
-
-**`almighty-bolt/machine`** is the Lisp side, in the `almighty-bolt` system: a
-session on the open window that does what a person's hands do. Each action goes
-in as the events a person would make (a click is a move, a press and a release
-at the middle of the thing), and returns when the app has answered, which the
-window says itself when it has nothing more to draw; there are no sleeps.
-
-```lisp
-(let ((session (almighty-bolt/machine/host-session:open-session)))   ; the window that open-app opened
-  ;; m is a nickname for almighty-bolt/machine
-  (m:see session)                                                    ; the tree
-  (m:set-value session "Ada" :role :text-field :name "Name:")
-  (m:click session :role :button :name "Create")
-  (m:screenshot session))                                            ; a PNG, in a vector of bytes
-```
-
-Things are named by `:id`, or by `:role` and `:name`, and a name that fits two
-things is an error that says so (`ambiguous-node`). The calls are `see`,
-`find-node`, `click`, `double-click`, `type-text`, `press-key`, `set-value`,
-`select-item`, `scroll`, `wait` and `screenshot`. The tests of the 7GUIs drive
-their apps through it.
-
-**`almighty-bolt/mcp`** is an [MCP](https://modelcontextprotocol.io) server for
-the open app, so that an agent can see it and use it. It is a separate system
-(it needs `com.inuoe.jzon`, which `make deps` fetches), it does nothing until
-you call it, and it listens on `127.0.0.1` only.
-
-```lisp
-(asdf:load-system "almighty-bolt/mcp")
-(almighty-bolt/mcp:start-mcp-server :port 7071)
-;; MCP server on 127.0.0.1:7071. For an MCP client that wants a pipe: command nc, arguments 127.0.0.1 7071
-```
-
-The server speaks MCP's newline-delimited JSON-RPC on that socket. A client that
-starts its server as a program over a pipe, as most do, can use `nc` as the
-pipe:
-
-```json
-{"mcpServers": {"my-app": {"command": "nc", "args": ["127.0.0.1", "7071"]}}}
-```
-
-The agent gets nine tools: `snapshot` (the screen as text, one line for each
-thing with its role, name, id, value, state and place), `click`, `double_click`,
-`type_text`, `press_key`, `set_value`, `scroll`, `wait_idle` and `screenshot`
-(an image). Every action answers with the screen as it is afterwards, so an
-agent needs one call to act and see. What cannot be done (a thing that is not
-there, a disabled button, two things of the same name) comes back as an error
-result that says why, and the agent goes on. This is what the agent reads of the
-counter:
-
-```
-window @0,0,222,80
-  static-text "34" id=count @24,24,36,32
-  button "Count" id=count-button @130,26,68,29
-```
-
-`(almighty-bolt/mcp:stop-mcp-server)` closes it and every connection. Anything
-on this machine that can connect to the port can work the app, which is why it
-is local and has to be started by a call: leave it off in an app whose buttons
-you would not let any program on your machine press.
-
 ## Widgets
 
-Every widget takes a required `:id` keyword: a name that stays with the widget
-from frame to frame. It is what keeps a field's caret across frames and across a
-reload, and what tests and replay scripts find a widget by. Leaving it out is an
-error on the first frame, `missing-id`, which names the widget. Two things
-inside one container with the same id are an error as well, `duplicate-id`,
-which names both and the container: the ui could not tell them apart (they would
-share the caret, the keyboard and what was drawn). Only widgets are required to
-have an id; containers keep an optional `:id`. In a loop over data the id is the
-item's own (`:id (task-id task)`), so that state follows the item when the list
-is re-sorted. Every widget also takes `:flex`, its share of the free space of
-its container. A widget that holds something but has no words of its own (a text
-field, a slider, a choice, a list, a progress bar, a canvas) takes
-`:labelled-by`, the id of the label that names it, which is what a screen reader
-or an agent calls it by: `(bolt:text-field name :id :name :labelled-by :name-label)`.
+Widgets are simple functions that can be composed into a GUI. Each takes a
+required `:id`, a name that stays with the widget from frame to frame: it keeps
+a text field's caret across frames and across a hot-reload/function compile, and
+it is what tests and agents find the widget by. Leave it out, or use one twice
+in a container, and the error names the widget. Pass a widget the value your app
+holds, and it gives you the new one:
+
+```lisp
+(multiple-value-bind (text changed) (bolt:text-field name :id :name :width 160)
+  (when changed (setf name text)))
+```
 
 | Call                                                                         | Returns                                                                     |
 |------------------------------------------------------------------------------|-----------------------------------------------------------------------------|
@@ -217,61 +133,69 @@ or an agent calls it by: `(bolt:text-field name :id :name :labelled-by :name-lab
 | `(choice options selected &key id labelled-by enabled flex)`                 | the index now, whether it was changed                                       |
 | `(checkbox label checked &key id enabled flex)`                              | the state now, whether it was changed                                       |
 | `(list-box items selected &key id labelled-by rows width enabled flex)`      | the index now, whether it was changed                                       |
-| `(canvas width height painter &key id labelled-by focusable autofocus flex)` | the events for the canvas, oldest first (below)                             |
+| `(canvas width height painter &key id labelled-by focusable autofocus flex)` | the events for the canvas, oldest first                                     |
 | `(scrim &key id)`                                                            | true when pressed: a translucent layer over what is before it in a `stack`  |
 
-A widget that shows a value is given the value the app holds, and returns the
-new one; if the app passes something else, that is what is shown:
+Containers take their options in a list and their children after it:
+`(bolt:column (:gap 10 :cross-align :center) ...)`. They are `column`, `row`,
+`stack`, `padding`, `panel` and `center`. A still app draws nothing and costs no
+CPU; an animation asks for its next frame with `(bolt:ask-for-frame)`. The
+options of each, `:flex` and `:labelled-by` are in
+[docs/reference.md](docs/reference.md#widgets).
+
+## Canvas
+
+`bolt:canvas` is an area that you draw in and handle the pointer and keyboard
+for. Give it a painter, which is called with the display list, the context and
+the size, and it returns the events for the area; what the painter draws is
+drawn once if it is the same as last frame. The 7GUIs Cells and Circles and the
+editor in [`bench/stress/`](bench/stress) are canvases.
+[The reference](docs/reference.md#canvas) has the drawing calls and the events.
+
+## Working an app from a program or an agent
+
+The screen is also a **semantic tree**: every widget says what it is, what it is
+called, what it holds, its state and where it is. Two systems use the semantic tree.
+
+**`almighty-bolt/machine`** is the Lisp side: a session on the open window that
+does what a person's hands do, and returns when the app has answered. There are
+no sleeps.
 
 ```lisp
-(multiple-value-bind (text changed) (bolt:text-field name :id :name :width 160)
-  (when changed (setf name text)))
+(let ((session (almighty-bolt/machine/host-session:open-session)))   ; the window that open-app opened
+  ;; m is a nickname for almighty-bolt/machine
+  (m:see session)                                                    ; the tree
+  (m:set-value session "Ada" :role :text-field :name "Name:")
+  (m:click session :role :button :name "Create")
+  (m:screenshot session))                                            ; a PNG, in a vector of bytes
 ```
 
-Containers take their options in a list and their children after it: `(column
-(:gap 10 :cross-align :center) ...)`. They are `column`, `row` (`:gap
-:main-align :cross-align :fill :flex`), `stack` (children on top of each other),
-`padding` (`:all :left :top :right :bottom`), `panel` (padding with a
-background: `:color :radius`) and `center`.
+**`almighty-bolt/mcp`** is an [MCP](https://modelcontextprotocol.io) server for
+the open app, so that an agent can see it and use it. It does nothing until you
+start it, and it listens on `127.0.0.1` only.
 
-`(bolt:now)` is the time of the frame in nanoseconds, and `(bolt:ask-for-frame)` asks for
-another one: a still app draws nothing and costs no CPU, and an animation asks
-for the next frame itself.
+```lisp
+(asdf:load-system "almighty-bolt/mcp")
+(almighty-bolt/mcp:start-mcp-server :port 7071)
+```
 
-### Canvas
+Anything on your machine that can connect to the port can work the app, so leave
+it off in an app whose buttons you would not let any program press. The
+[reference](docs/reference.md#the-machine-interface) has the calls, and the nine
+tools and how to point an MCP client at the server
+([MCP server](docs/reference.md#the-mcp-server)).
 
-A `canvas` is an area that you draw in and handle input for. `painter` is called
-with the display list, the context, and the width and height, and draws from the
-top left; what it draws is drawn once if it is the same as last frame. Draw with
-`push-rect`, `push-rounded-rect`, `push-clip` and `push-unclip`, colours made by
-`pack-color`, and text with `context-push-text` after `context-font` and
-`context-measure`. The events the canvas returns are `(:press x y button
-click-count)`, `(:move x y)`, `(:drag x y)`, `(:release x y inside-p)`, `(:key
-event)` (see `key-event-logical-key` and the `+key-...+` and `+modifier-...+`
-constants), `(:text string)`, `(:composition kind text selection-start
-selection-length)`, `(:wheel dx dy)` and `(:exit)`, with points in the canvas.
-`make-text-state` and `edit-text` are the text editing that the text field uses.
-The 7GUIs Cells and Circles and the stress apps' editor are canvases.
-
-## Examples, tests, history
+## Examples
 
 - [`examples/`](examples): a counter and a to-do list, written with the public
   package only.
-- [`examples/7guis/`](examples/7guis): the seven 7GUIs tasks. They are the
-  acceptance suite as well as examples. [`bench/stress/`](bench/stress) has a
-  dashboard, a million-row list and a text editor with input-method support, for
-  the benchmarks and the tests.
-- `make test` compiles the project into a directory that is thrown away and
-  fails on any warning, then runs the integration and end-to-end tests (events
-  and replay scripts in, display lists and frames out; the real operating
-  system, text engine and GPU; no window). `make smoke` opens windows, and in
-  one of them a client of the MCP server presses the counter's button, takes a
-  screenshot that macOS then decodes, and does the same through `nc`. Unit tests
-  are not written for now; see [`CLAUDE.md`](CLAUDE.md).
-- The library began as an experiment comparing retained, reactive and
-  immediate-mode approaches. The immediate one was chosen for now; the others are
-  archived on the tag `archive/three-variants`.
-- [`docs/releases/`](docs/releases) has the release notes; [0.1](docs/releases/0.1.md)
-  is the first.
+- [`examples/7guis/`](examples/7guis): the seven 7GUIs tasks.
+  [`bench/stress/`](bench/stress) has a dashboard, a million-row list and a text
+  editor with input-method support.
+
+`make test` compiles the project and runs the integration and end-to-end tests,
+with no window; `make smoke` opens windows. [`CLAUDE.md`](CLAUDE.md) says how
+the project is worked on, and [`docs/releases/`](docs/releases) has the release
+notes.
 
 almighty-bolt is released under the [MIT license](LICENSE).
