@@ -69,7 +69,8 @@
   (announced-focus nil)
   ;; Whether the system says that a screen reader is running (ASSISTIVE-CLIENT-P), and how a
   ;; notification is told to the system (POST), which is given an element and :LAYOUT-CHANGED, :VALUE-CHANGED,
-  ;; :SELECTION-CHANGED, :FOCUSED-CHANGED, :MOVED or :RESIZED. A test puts others here.
+  ;; :SELECTION-CHANGED, :FOCUSED-CHANGED, :MOVED or :RESIZED, and for a layout change the elements that
+  ;; moved, if it is about them. A test puts others here.
   (assistive #'assistive-client-p :type function)
   (poster #'post :type function)
   ;; How a text is read out by a screen reader wherever its cursor is (SPEAK), given the view and the
@@ -573,14 +574,36 @@ deepest and drawn last, or zero if there is none."
 
 ;;; --- telling the system what changed ---
 
-(defun post (element notification)
-  "Tell the system that NOTIFICATION happened to ELEMENT (zero is no element, and is not told)."
+(defun post (element notification &optional elements)
+  "Tell the system that NOTIFICATION happened to ELEMENT (zero is no element, and is not told). With
+ELEMENTS, a list of elements, a layout change is told of the window of ELEMENT, a view, and names them:
+it is what makes VoiceOver draw its cursor again where the thing it is on has gone."
   (unless (zerop element)
+    (if elements
+        (relayout element elements)
+        (sb-alien:alien-funcall
+         (sb-alien:extern-alien "NSAccessibilityPostNotification"
+                                (function sb-alien:void sb-alien:unsigned-long sb-alien:unsigned-long))
+         element
+         (notification-constant notification)))))
+
+(defun relayout (view elements)
+  (let* ((window (msg-send :id view "window"))
+         (target (if (zerop window) view window))
+         (array (msg-send :id (objc-class "NSMutableArray") "array"))
+         (information (msg-send :id (objc-class "NSMutableDictionary") "dictionary")))
+    (dolist (element elements)
+      (msg-send :void array "addObject:" (:id element)))
+    (msg-send :void information "setObject:forKey:"
+              (:id array) (:id (foreign-constant "NSAccessibilityUIElementsKey")))
     (sb-alien:alien-funcall
-     (sb-alien:extern-alien "NSAccessibilityPostNotification"
-                            (function sb-alien:void sb-alien:unsigned-long sb-alien:unsigned-long))
-     element
-     (ecase notification
+     (sb-alien:extern-alien "NSAccessibilityPostNotificationWithUserInfo"
+                            (function sb-alien:void sb-alien:unsigned-long
+                                      sb-alien:unsigned-long sb-alien:unsigned-long))
+     target (notification-constant :layout-changed) information)))
+
+(defun notification-constant (notification)
+  (ecase notification
        (:layout-changed (foreign-constant "NSAccessibilityLayoutChangedNotification"))
        (:value-changed (foreign-constant "NSAccessibilityValueChangedNotification"))
        (:moved (foreign-constant "NSAccessibilityMovedNotification"))
@@ -588,7 +611,7 @@ deepest and drawn last, or zero if there is none."
        (:selection-changed
         (foreign-constant "NSAccessibilitySelectedChildrenChangedNotification"))
        (:focused-changed
-        (foreign-constant "NSAccessibilityFocusedUIElementChangedNotification"))))))
+        (foreign-constant "NSAccessibilityFocusedUIElementChangedNotification"))))
 
 (defun speak (view text)
   "Have a screen reader read TEXT out now, though its cursor is on something else: an announcement,
@@ -622,8 +645,8 @@ need to be told."
 
 (defun announce (bridge)
   "Make the items again and tell the system what is new: a layout change if things came or went, a
-move or a new size for the things that have one (a screen reader draws its cursor where it last
-was told a thing is), a change of value for the ones whose value changed, a change of the chosen row
+move or a new size for the things that have one, and a layout change that names them (a screen
+reader draws its cursor where it last drew it until told so), a change of value for the ones whose value changed, a change of the chosen row
 for a list, the new focus, and the new words of a live text that changed. A screen reader says what
 changed on the thing that its cursor is on, so only the last is read out wherever the cursor is."
   (multiple-value-bind (changed structure chosen moved resized) (refresh bridge)
@@ -635,6 +658,11 @@ changed on the thing that its cursor is on, so only the last is read out whereve
         (funcall post (item-element item) :moved))
       (dolist (item resized)
         (funcall post (item-element item) :resized))
+      ;; VoiceOver keeps where a thing is when told it moved, but draws its cursor again only for a
+      ;; layout change that names the things (seen on the screen: the box stayed behind the button).
+      (when (or moved resized)
+        (funcall post (bridge-view bridge) :layout-changed
+                 (mapcar #'item-element (union moved resized))))
       (dolist (item changed)
         (funcall post (item-element item) :value-changed))
       (dolist (item chosen)

@@ -175,7 +175,8 @@ frame."
 
 (defstruct (reader (:constructor make-reader (view window bridge screen)))
   view window bridge screen
-  ;; The notifications that the bridge was asked to post, newest first: (element kind).
+  ;; The notifications that the bridge was asked to post, newest first: (element kind), or (element kind
+  ;; elements) for a layout change that names the elements that moved.
   (told '())
   ;; The texts that it was asked to have read out, newest first.
   (spoken '()))
@@ -205,8 +206,11 @@ notes what it is asked to post. After each frame the reader's bridge is told, as
         (setf bridge (view:metal-view-bridge view)
               (reader-bridge reader) bridge
               (a11y:bridge-assistive bridge) (constantly t)
-              (a11y:bridge-poster bridge) (lambda (element kind)
-                                            (push (list element kind) (reader-told reader)))
+              (a11y:bridge-poster bridge) (lambda (element kind &optional elements)
+                                            (push (if elements
+                                                      (list element kind elements)
+                                                      (list element kind))
+                                                  (reader-told reader)))
               (a11y:bridge-announcer bridge) (lambda (view text)
                                                (declare (ignore view))
                                                (push text (reader-spoken reader)))
@@ -797,6 +801,7 @@ and another live label that comes with the first press."
         (dolist (kind '(:layout-changed :value-changed :selection-changed :focused-changed
                         :moved :resized))
           (funcall post count kind))
+        (funcall post (reader-view reader) :layout-changed (list count))
         (funcall post 0 :moved)
         (press (element-named reader :count-button))
         (assert-equal "1" (says count :value))))))
@@ -825,7 +830,8 @@ and another live label that comes with the first press."
           (press button))
         (let ((told (told reader)))
           (assert-false (member :moved told :key #'second))
-          (assert-false (member :resized told :key #'second)))
+          (assert-false (member :resized told :key #'second))
+          (assert-false (find-if #'third told)))
         ;; With the tenth press the count is wider and the button is pushed along: the cursor of a
         ;; screen reader that is on the button would stay where the button was.
         (press button)
@@ -834,7 +840,16 @@ and another live label that comes with the first press."
           (assert-true (member (list count :resized) told :test #'equal))
           (assert-true (member (list button :moved) told :test #'equal))
           (assert-false (member (list button :resized) told :test #'equal))
-          (assert-false (member (list count :moved) told :test #'equal)))))))
+          (assert-false (member (list count :moved) told :test #'equal))
+          ;; And a layout change of the view that names both, which is what VoiceOver draws its cursor
+          ;; again for.
+          (let ((layout (find-if #'third told)))
+            (assert-true layout)
+            (assert-eql (reader-view reader) (first layout))
+            (assert-eq :layout-changed (second layout))
+            (assert-equal 2 (length (third layout)))
+            (assert-true (member button (third layout)))
+            (assert-true (member count (third layout)))))))))
 
 (define-test a-thing-that-comes-is-not-told-to-have-moved-and-the-ones-it-pushes-are ()
   (let ((screen (show 'make-notices)))
