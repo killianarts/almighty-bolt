@@ -1,5 +1,5 @@
 (defsystem "almighty-bolt-bench-null"
-  :version "0.0.1"
+  :version "0.1.0"
   :description "The null baseline variant: replays a fixed display list, to measure the core's own cost"
   :author "Micah Killian"
   :maintainer "Micah Killian <micah@almightylisp.com>"

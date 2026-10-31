@@ -1,5 +1,5 @@
 (defsystem "almighty-bolt-stress"
-  :version "0.0.1"
+  :version "0.1.0"
   :description "The stress apps' data and painters, which every variant's version of them shares"
   :author "Micah Killian"
   :maintainer "Micah Killian <micah@almightylisp.com>"

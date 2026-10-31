@@ -1,5 +1,5 @@
 (defsystem "almighty-bolt-bench"
-  :version "0.0.1"
+  :version "0.1.0"
   :description "The immediate variant's apps, timed: what a frame costs, startup, idle, memory, compile time"
   :author "Micah Killian"
   :maintainer "Micah Killian <micah@almightylisp.com>"

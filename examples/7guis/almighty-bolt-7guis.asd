@@ -1,5 +1,5 @@
 (defsystem "almighty-bolt-7guis"
-  :version "0.0.1"
+  :version "0.1.0"
   :description "The logic of the seven 7GUIs tasks, shared by every variant's version of them"
   :author "Micah Killian"
   :maintainer "Micah Killian <micah@almightylisp.com>"

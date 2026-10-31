@@ -1,5 +1,5 @@
 (defsystem "almighty-bolt-examples"
-  :version "0.0.1"
+  :version "0.1.0"
   :description "Small apps that use almighty-bolt through its public package and nothing else"
   :author "Micah Killian"
   :maintainer "Micah Killian <micah@almightylisp.com>"
