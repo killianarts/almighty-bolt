@@ -8,6 +8,7 @@
                 #:layout-flex
                 #:layout-align
                 #:constrain
+                #:request-frame
                 #:+unbounded+)
   (:import-from #:almighty-bolt/ui/box
                 #:box-kind
@@ -25,6 +26,7 @@
                 #:box-pref-w
                 #:box-pref-h
                 #:box-n1
+                #:box-n2
                 #:box-n3
                 #:box-data
                 #:box-children
@@ -41,6 +43,7 @@
                 #:scroll-state-offset
                 #:scroll-state-content-height
                 #:scroll-state-viewport-height
+                #:+lazy-list-height+
                 #:choice-state-lefts
                 #:choice-state-widths
                 #:+row-height+
@@ -194,6 +197,48 @@ them in the boxes, and return the width and height."
              (loop :for child :across children
                    :do (decf (box-y child) offset))
              (set-box box w h))))))
+    (:lazy-list
+     ;; The rows that were described are each ROW-HEIGHT (N2) tall and placed by their index (N3);
+     ;; the whole is COUNT (N3) of them.
+     (let* ((children (box-children box))
+            (state (box-data box))
+            (row-height (box-n2 box))
+            (content-h (* (box-n3 box) row-height))
+            (w (if (plusp (box-pref-w box))
+                   (constrain (box-pref-w box) min-w max-w)
+                   (if (< max-w +unbounded+)
+                       max-w
+                       (let ((widest min-w))
+                         (loop :for child :across children
+                               :do (setf widest (max widest (layout-box child context 0f0 max-w
+                                                                        row-height row-height))))
+                         widest))))
+            (h (constrain (if (plusp (box-pref-h box))
+                              (box-pref-h box)
+                              (min content-h +lazy-list-height+))
+                          min-h max-h))
+            (offset (max 0f0 (min (box-n1 box) (max 0f0 (- content-h h))))))
+       (setf (scroll-state-offset state) offset
+             (scroll-state-content-height state) content-h
+             (scroll-state-viewport-height state) h)
+       ;; In doubles: a million rows are tens of millions of points, where a single float's step is
+       ;; more than a point, and rows next to each other would overlap.
+       (loop :for child :across children
+             :do (layout-box child context w w row-height row-height)
+                 (setf (box-x child) 0f0
+                       (box-y child) (float (- (* (box-n3 child) (float row-height 1d0))
+                                                (float offset 1d0))
+                                             1f0)))
+       ;; The rows were chosen for the window the build thought there would be; if the window is
+       ;; taller, or somewhere else, the next frame describes the rows it shows.
+       (let ((first (if (plusp (length children)) (box-n3 (aref children 0)) 0))
+             (end (if (plusp (length children))
+                      (1+ (box-n3 (aref children (1- (length children)))))
+                      0)))
+         (when (or (> (* first row-height) offset)
+                   (< (* end row-height) (min content-h (+ offset h))))
+           (request-frame context)))
+       (set-box box w h)))
     ((:padding :panel)
      (let ((children (box-children box)))
        (flet ((measure (a b c d)

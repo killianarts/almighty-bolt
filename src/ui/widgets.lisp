@@ -137,6 +137,10 @@
            #:scroll-state-offset
            #:scroll-state-content-height
            #:scroll-state-viewport-height
+           #:lazy-list
+           #:begin-lazy-list
+           #:lazy-list-rows
+           #:+lazy-list-height+
            #:own-hashes
            #:field-state
            #:field-state-state
@@ -331,8 +335,8 @@ the box a press began on), 3 disabled, and 4 more if it has the keyboard."
               (cond ((< top offset) (setf offset top))
                     ((> bottom (+ offset viewport)) (setf offset (- bottom viewport))))))))
       (setf (scroll-state-last-focus state) focus))
-    (setf offset (max 0f0 (min offset (max 0f0 (- (scroll-state-content-height state) viewport))))
-          (scroll-state-offset state) offset
+    (setf offset (max 0f0 (min offset (max 0f0 (- (scroll-state-content-height state) viewport)))))
+    (setf (scroll-state-offset state) offset
           (box-n1 box) offset)
     (close-box ui)
     nil))
@@ -345,6 +349,83 @@ room it has), or as tall as what is inside; FLEX gives it a share of a column's 
   (let ((box (gensym "BOX")))
     `(let ((,box (begin-scroll ,id ,height ,flex)))
        ,@body
+       (end-scroll ,box))))
+
+;;; --- a list that builds only the rows that show ---
+;;;
+;;; A scroll container whose rows are all ROW-HEIGHT tall, so that which of them show is known before
+;;; any is built: only those are described, each in a column of its own placed where its index puts
+;;; it, and a list of a million rows costs what the rows in the window do. Its offset, wheel, clipping
+;;; and keyboard are the scroll container's (END-SCROLL). The window's height is known from the last
+;;; layout; before there is one, HEIGHT (or +LAZY-LIST-HEIGHT+) is taken for it, and if the window
+;;; turns out taller, layout asks for another frame.
+
+(defconstant +lazy-list-height+ 400f0
+  "How tall a lazy list is when it is given no height and nothing gives it one.")
+
+(defun begin-lazy-list (id count row-height height width flex)
+  (let* ((ui *ui*)
+         (box (open-box ui :lazy-list :id (or id (required-id 'lazy-list))))
+         (state (state-of ui (box-key box) #'make-scroll-state))
+         (row-height (float row-height 1f0)))
+    (setf (box-interactive box) t
+          (box-pref-h box) (if height (float height 1f0) 0f0)
+          (box-pref-w box) (if width (float width 1f0) 0f0)
+          (box-flex box) (float flex 1f0)
+          (box-n2 box) row-height
+          (box-n3 box) count
+          (box-data box) state
+          (scroll-state-content-height state) (* count row-height)
+          (scroll-state-first-inside state) (ui-count ui))
+    ;; Where the window is, kept inside what there is now (the list may have become shorter).
+    (let ((viewport (lazy-list-viewport box state)))
+      (setf (box-n1 box) (max 0f0 (min (scroll-state-offset state)
+                                       (- (* count row-height) viewport)))))
+    box))
+
+(defun lazy-list-viewport (box state)
+  "How tall the window of the lazy list BOX is: from the last layout, or before there is one, what it
+will be given if nothing gives it a height."
+  (if (plusp (scroll-state-viewport-height state))
+      (scroll-state-viewport-height state)
+      (if (plusp (box-pref-h box)) (box-pref-h box) +lazy-list-height+)))
+
+(defun lazy-list-rows (box items key function)
+  "Describe the rows of the lazy list BOX that show: FUNCTION is called with each of those ITEMS, in a
+column of its own whose id is what KEY returns for the item (or, with no KEY, its index)."
+  (let* ((ui *ui*)
+         (state (box-data box))
+         (row-height (box-n2 box))
+         (count (box-n3 box))
+         (offset (box-n1 box))
+         (first (min count (floor offset row-height)))
+         (end (min count (ceiling (+ offset (lazy-list-viewport box state)) row-height))))
+    (flet ((row (item index)
+             (let ((row (open-box ui :column :id (if key (funcall key item) index))))
+               (setf (box-n3 row) index)
+               (funcall function item)
+               (close-box ui))))
+      (etypecase items
+        (vector (loop :for index :from first :below end
+                      :do (row (aref items index) index)))
+        (list (loop :for item :in (nthcdr first items)
+                    :for index :from first :below end
+                    :do (row item index)))))
+    nil))
+
+(defmacro lazy-list ((var items &key id key (row-height 24) height width (flex 0)) &body body)
+  "A list of ITEMS (a vector, or a list) in a window that the wheel moves up and down, of which only
+the rows that show are described: BODY is run for each of them with VAR bound to its item, and what it
+describes is the row, ROW-HEIGHT points tall. KEY is a function that gives an item's id, so that what
+is kept for a row (a caret, the keyboard) stays with its item when the items are reordered; with no
+KEY, a row is known by its index. The window is HEIGHT points tall where nothing gives it a height
+(400 if there is no HEIGHT), and FLEX gives it a share of a column's free space; it is WIDTH points
+wide, or as wide as it is allowed to be. The :id is required."
+  (let ((box (gensym "BOX"))
+        (list (gensym "ITEMS")))
+    `(let* ((,list ,items)
+            (,box (begin-lazy-list ,id (length ,list) ,row-height ,height ,width ,flex)))
+       (lazy-list-rows ,box ,list ,key (lambda (,var) (declare (ignorable ,var)) ,@body))
        (end-scroll ,box))))
 
 ;;; --- text ---
@@ -906,6 +987,10 @@ counting its children."
                    (:choice (mix layout (hash-options (car (box-data box)))))
                    (:list-box (mix layout (box-n3 box)))
                    (:scroll (mix layout (hash-of (box-n1 box))))
+                   (:lazy-list (hash-numbers layout (hash-of (box-n1 box)) (hash-of (box-n2 box))
+                                             (box-n3 box)))
+                   ;; A row of a lazy list is placed by its index.
+                   (:column (mix layout (box-n3 box)))
                    (t layout)))
          (paint (hash-numbers layout (box-color box) (box-look box) (hash-of (box-n1 box))
                               (hash-of (box-n2 box)) (box-n3 box)

@@ -12,7 +12,7 @@ Every widget also takes `:flex`, its share of the free space of its container. A
 
 ## Containers
 
-Containers take their options in a list and their children after it: `(bolt:column (:gap 10 :cross-align :center) ...)`. They are `column` and `row` (`:gap :main-align :cross-align :fill :flex`), `stack` (children on top of each other), `padding` (`:all :left :top :right :bottom`), `panel` (padding with a background: `:color :radius`), `center`, and `scroll`.
+Containers take their options in a list and their children after it: `(bolt:column (:gap 10 :cross-align :center) ...)`. They are `column` and `row` (`:gap :main-align :cross-align :fill :flex`), `stack` (children on top of each other), `padding` (`:all :left :top :right :bottom`), `panel` (padding with a background: `:color :radius`), `center`, `scroll` and `lazy-list`.
 
 `scroll` (`:id :height :flex`) shows what is inside it, one under another, in a window that the wheel or a trackpad moves up and down, with a bar at the right edge when not all of it shows. Its `:id` is required, since the place the window is at is kept by it. The window is `:height` points tall where nothing gives it a height (the window is as tall as what is inside if there is no `:height`), and `:flex` gives it a share of a column's free space instead. The wheel goes first to what is inside it (a `list-box` scrolls its own rows), and what is left moves the window while the pointer is over the container or anything in it. When Tab brings the keyboard to something out of the window, the window moves as little as shows all of it. What is out of the window cannot be pressed, and is `:hidden` in the semantic tree.
 
@@ -23,6 +23,16 @@ Containers take their options in a list and their children after it: `(bolt:colu
 ```
 
 Moving the window lays the screen out again, so a wheel tick costs what a change of layout does: about 0.06 ms with 50 rows of a label and a button, and 2.8 ms with 2000 rows.
+
+`lazy-list` (`:id :key :row-height :height :width :flex`) is a `scroll` for a long list, in which only the rows that show are described. It is written like `dolist`, and its body is one row, `:row-height` points tall (24 if not given):
+
+```lisp
+(bolt:lazy-list (task tasks :id :tasks :key #'task-id :row-height 28 :height 300)
+  (bolt:row (:gap 8)
+    (bolt:checkbox (task-text task) (task-done task) :id :done)))
+```
+
+The items are a vector (a list works, but it is walked from the start to the first row that shows). `:key` gives an item's id, which is the id of its row: what the ui keeps for a row (a caret, the keyboard) stays with its item when the items are reordered or one is put in above it. Without `:key` a row is known by its index. The window is `:height` points tall where nothing gives it a height (400 if there is no `:height`), and `:width` wide, or as wide as it is allowed to be. A wheel tick costs the same with a million rows as with a hundred, about 0.04 ms with rows of a label and a button. Tab reaches only the rows that are described. In the semantic tree it is a `:scroll-area` whose state also has `:row-count` and `:first-row`, and whose children are the rows that were described.
 
 ## Time
 

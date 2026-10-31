@@ -209,7 +209,7 @@ key (RECT-OF, which a widget measures from) is the whole of it, wherever it is."
                              (hit-h hit) shown-h (hit-focusable hit) (box-focusable box)
                              (hit-moves hit) (box-moves box)))
                      (incf (ui-hit-count ui))))
-                 (if (eq (box-kind box) :scroll)
+                 (if (member (box-kind box) '(:scroll :lazy-list))
                      (loop :for child :across (box-children box)
                            :do (walk child x y shown-left shown-top (+ shown-left shown-w)
                                      (+ shown-top shown-h)))

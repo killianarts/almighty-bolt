@@ -69,7 +69,8 @@
                 #:padding
                 #:panel
                 #:center
-                #:scroll)
+                #:scroll
+                #:lazy-list)
   (:import-from #:almighty-bolt/ui/immediate
                 #:now
                 #:ask-for-frame
@@ -79,7 +80,7 @@
            #:missing-id #:duplicate-id #:duplicate-id-id
            #:label #:paragraph #:button #:text-field #:slider #:choice #:checkbox #:list-box
            #:progress #:canvas #:scrim
-           #:column #:row #:stack #:padding #:panel #:center #:scroll
+           #:column #:row #:stack #:padding #:panel #:center #:scroll #:lazy-list
            #:now #:ask-for-frame #:current-context
            #:pack-color #:push-rect #:push-rounded-rect #:push-clip #:push-unclip
            #:context-font #:context-measure #:context-push-text #:context-caret-x

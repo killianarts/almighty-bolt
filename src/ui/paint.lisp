@@ -360,7 +360,7 @@ kept, and otherwise afresh, which is then kept."
            (push-unclip list))))
       (:scrim
        (push-rect list x y (box-w box) (box-h box) +scrim-color+))
-      (:scroll
+      ((:scroll :lazy-list)
        (push-clip list x y (box-w box) (box-h box))
        (paint-children ui box context list x y)
        (push-unclip list)

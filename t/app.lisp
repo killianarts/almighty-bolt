@@ -310,6 +310,96 @@ that leaves two of them. Each button counts its presses."
     (assert-eql 24f0 (offset-of screen :outer))
     (assert-eql 2 (s:node-property (node-of screen :inner) :first-visible))))
 
+;;; --- a list that builds only the rows that show ---
+
+(defstruct (entry (:constructor make-entry (id text))) id text (presses 0) (note ""))
+
+(defun make-long-list ()
+  "A hundred thousand rows of 28 points, five of which show, each a button that counts its presses
+and says its entry's number, and a field for a note; Return in a note puts a new entry at the top."
+  (state-let ((entries (let ((vector (make-array 100000)))
+                         (dotimes (i 100000 vector)
+                           (setf (aref vector i) (make-entry i (format nil "E~d" i))))))
+              (next 100000))
+    (lambda ()
+      (lazy-list (entry entries :id :entries :key #'entry-id :row-height 28 :height 140)
+        (row (:gap 4)
+          (when (button (format nil "~a ~d" (entry-text entry) (entry-presses entry)) :id :press)
+            (incf (entry-presses entry)))
+          (multiple-value-bind (text changed submitted)
+              (text-field (entry-note entry) :id :note :width 60)
+            (when changed (setf (entry-note entry) text))
+            (when submitted
+              (setf entries (concatenate 'vector (vector (make-entry next "New")) entries))
+              (incf next))))))))
+
+(defun built-rows (screen)
+  "The ids of the rows of the long list that were described, in order."
+  (mapcar #'s:node-id (s:node-children (node-of screen :entries))))
+
+(defun row-node (screen row id)
+  (first (s:find-nodes (first (s:find-nodes (node-of screen :entries) :id row)) :id id)))
+
+(define-test a-lazy-list-describes-only-the-rows-that-show ()
+  (let* ((screen (show 'make-long-list))
+         (session (screen-session screen)))
+    (assert-equal '(0 1 2 3 4) (built-rows screen))
+    (assert-eql 100000 (s:node-property (node-of screen :entries) :row-count))
+    (assert-eql 2800000f0 (s:node-property (node-of screen :entries) :content-height))
+    ;; A thousand lines of 24 points: 24000 points, the row at 24000 / 28 = 857 and a bit at the top.
+    (m:scroll session :id :entries :dy -1000)
+    (assert-eql 24000f0 (offset-of screen :entries))
+    (assert-equal '(857 858 859 860 861 862) (built-rows screen))
+    (assert-eql 857 (s:node-property (node-of screen :entries) :first-row))
+    (m:click session :id :press :name "E859 0")
+    (assert-true (s:find-nodes (node-of screen :entries) :name "E859 1"))
+    ;; The end: the last five rows fill the window.
+    (m:scroll session :id :entries :dy -1000000)
+    (assert-eql (- 2800000f0 140f0) (offset-of screen :entries))
+    (assert-equal '(99995 99996 99997 99998 99999) (built-rows screen))))
+
+(define-test what-is-kept-for-a-row-stays-with-its-item-when-the-items-move ()
+  (let* ((screen (show 'make-long-list))
+         (session (screen-session screen)))
+    ;; (Every row has a field called :note, so the first row's is pressed where it is.)
+    (destructuring-bind (x y width height) (s:node-bounds (row-node screen 0 :note))
+      (let ((px (+ x (/ width 2))) (py (+ y (/ height 2))))
+        (pointer screen :move px py)
+        (pointer screen :down px py :button 0 :buttons 1)
+        (pointer screen :up px py :button 0)))
+    (assert-true (s:node-property (row-node screen 0 :note) :focused))
+    (m:type-text session "abc")
+    (m:press-key session :left)
+    (m:press-key session :return)
+    ;; A new entry is at the top; the field that has the keyboard, and its caret, are the first
+    ;; entry's still, one row down.
+    (assert-equal '(100000 0 1 2 3) (built-rows screen))
+    (assert-false (s:node-property (row-node screen 100000 :note) :focused))
+    (assert-true (s:node-property (row-node screen 0 :note) :focused))
+    (assert-equal "abc" (s:node-value (row-node screen 0 :note)))
+    (assert-eql 2 (s:node-property (row-node screen 0 :note) :caret))))
+
+(defun make-flexible-list ()
+  (lambda ()
+    (column (:fill t)
+      (label "Top" :id :top)
+      (lazy-list (n (loop :for i :below 50 :collect i) :id :numbers :row-height 20 :height 100
+                      :flex 1)
+        (label (princ-to-string n) :id :n)))))
+
+(define-test a-lazy-list-taller-than-it-guessed-asks-for-the-frame-that-fills-it ()
+  ;; Before its first layout the list takes itself to be its :height, 100, and describes five rows;
+  ;; the column gives it the rest of the screen, 320 - 14 = 306 points, room for 16 rows of 20.
+  (let ((screen (show 'make-flexible-list)))
+    (assert-eql 5 (length (built-rows-of screen :numbers)))
+    (assert-true (core:take-frame-request (screen-context screen)))
+    (draw screen)
+    (assert-eql 16 (length (built-rows-of screen :numbers)))
+    (assert-false (core:take-frame-request (screen-context screen)))))
+
+(defun built-rows-of (screen id)
+  (mapcar #'s:node-id (s:node-children (node-of screen id))))
+
 ;;; --- what a screen reader reads ---
 ;;;
 ;;; The app is drawn as above, and a real NSView in a real NSWindow (not shown) is given its tree and

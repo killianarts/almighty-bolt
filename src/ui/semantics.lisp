@@ -88,7 +88,7 @@
     (:list-box :list)
     (:canvas :canvas)
     (:scrim :overlay)
-    (:scroll :scroll-area)
+    ((:scroll :lazy-list) :scroll-area)
     ((:column :row :stack :padding :panel :center) :group)))
 
 (defun find-box (ui id)
@@ -141,9 +141,15 @@
              (note :minimum (aref aux 1))
              (note :maximum (aref aux 2)))))
         (:checkbox (note :checked (= (box-n3 box) 1)))
-        (:scroll
+        ((:scroll :lazy-list)
          (note :offset (scroll-state-offset (box-data box)))
-         (note :content-height (scroll-state-content-height (box-data box))))
+         (note :content-height (scroll-state-content-height (box-data box)))
+         (when (eq (box-kind box) :lazy-list)
+           ;; How many rows there are, and which of them were built (the ones the tree holds).
+           (note :row-count (box-n3 box))
+           (let ((rows (box-children box)))
+             (when (plusp (length rows))
+               (note :first-row (box-n3 (aref rows 0)))))))
         (:choice
          (note :selected (box-n3 box))
          (note :options (car (box-data box)))
@@ -188,7 +194,7 @@ shows; one that is all out of sight is :hidden, with no width or height."
          (name (name-of ui box))
          (value (value-of box))
          (state (state-of ui box x y hidden))
-         (children (if (eq (box-kind box) :scroll)
+         (children (if (member (box-kind box) '(:scroll :lazy-list))
                        (loop :for child :across (box-children box)
                              :collect (node-of ui child x y shown-left shown-top
                                                (+ shown-left shown-w) (+ shown-top shown-h)))

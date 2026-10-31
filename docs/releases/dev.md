@@ -2,7 +2,7 @@
 
 *Under development*
 
-Welcome to almighty-bolt 0.2, in development. It starts with VoiceOver: a window of almighty-bolt can be read by the macOS screen reader. A scroll container and copy and paste in text fields came next. See [what's new](#whats-new-in-02).
+Welcome to almighty-bolt 0.2, in development. It starts with VoiceOver: a window of almighty-bolt can be read by the macOS screen reader. A scroll container, a list that builds only the rows that show, and copy and paste in text fields came next. See [what's new](#whats-new-in-02).
 
 <!-- highlights:start -->
 ## Highlights
@@ -64,9 +64,23 @@ A list is read as the rows that are showing, so that scrolling it changes which 
 - Tab brings the keyboard to something out of the window, and the window moves to show it.
 - What is out of the window cannot be pressed. In the semantic tree it is `:hidden`, and the machine interface refuses to click it until it has been scrolled into sight.
 
-Moving the window lays the screen out again: a wheel tick costs about 0.06 ms with 50 rows of a label and a button, and 2.8 ms with 2000. For long lists, a list that builds only the rows that show is next on the [roadmap](../roadmap.md).
+Moving the window lays the screen out again: a wheel tick costs about 0.06 ms with 50 rows of a label and a button, and 2.8 ms with 2000. For long lists there is `lazy-list`, below.
 
 VoiceOver reads what is inside a `scroll` as it reads what is inside a column, the rows out of the window included, and it does not yet scroll the window to the one it is on.
+
+### A list that builds only the rows that show
+
+`lazy-list` is a scrolling list whose rows are any widgets, written like `dolist`. Its rows are all one height, so it knows which of them show before it builds any, and it describes only those: a wheel tick costs about 0.04 ms whether the list has a hundred rows or a million.
+
+```lisp
+(bolt:lazy-list (task tasks :id :tasks :key #'task-id :row-height 28 :height 300)
+  (bolt:row (:gap 8)
+    (bolt:checkbox (task-text task) (task-done task) :id :done)))
+```
+
+- `:key` gives each item's id. What the ui keeps for a row (the caret of a field in it, the keyboard) stays with its item when the items are sorted again or one is put in above it. Without `:key`, a row is known by its index.
+- The items are best a vector: a row is found by its index.
+- The wheel, the bar at the edge, and what cannot be pressed out of the window are as for `scroll`. Tab reaches only the rows that are described.
 
 ### Minor features
 

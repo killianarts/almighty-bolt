@@ -40,7 +40,8 @@
         (cons 'w:canvas (lambda () (w:canvas 20 20 (lambda (&rest arguments)
                                                      (declare (ignore arguments))))))
         (cons 'w:scrim (lambda () (w:scrim)))
-        (cons 'w:scroll (lambda () (w:scroll () (w:label "x" :id :x))))))
+        (cons 'w:scroll (lambda () (w:scroll () (w:label "x" :id :x))))
+        (cons 'w:lazy-list (lambda () (w:lazy-list (item '("a")) (w:label item :id :x))))))
 
 (define-test a-widget-without-an-id-is-an-error-that-says-which ()
   (loop :for (widget . view) :in +widgets-without-ids+
@@ -59,7 +60,8 @@
            (w:list-box '("a" "b") 0 :id :i)
            (w:canvas 20 20 (lambda (&rest arguments) (declare (ignore arguments))) :id :j)
            (w:scrim :id :k)
-           (w:scroll (:id :l :height 20) (w:label "x" :id :m))))
+           (w:scroll (:id :l :height 20) (w:label "x" :id :m))
+           (w:lazy-list (item #("a" "b") :id :n :height 20) (w:label item :id :o))))
     (let ((list (frame-of (lambda () (w:stack (:id :root) (with-ids))))))
       (assert-true (plusp (core:display-list-count list))))))
 

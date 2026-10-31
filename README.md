@@ -50,9 +50,9 @@ below lists them bare.
   own state doesn't mean you lose Lisp's typical hot-reloading. Compiling your
   app's UI function updates live, open apps.
 
-- **Eleven widgets and seven containers.** Label, paragraph, button, text field,
+- **Eleven widgets and eight containers.** Label, paragraph, button, text field,
   slider, choice, check box, list box, progress bar, canvas and scrim; row,
-  column, stack, padding, panel, center and scroll. More coming soon.
+  column, stack, padding, panel, center, scroll and lazy list. More coming soon.
 
 - **Canvas.** For drawing non-widget elements.
 
@@ -138,8 +138,10 @@ holds, and it gives you the new one:
 
 Containers take their options in a list and their children after it:
 `(bolt:column (:gap 10 :cross-align :center) ...)`. They are `column`, `row`,
-`stack`, `padding`, `panel`, `center` and `scroll` (a window onto what is inside
-it, moved by the wheel: `(bolt:scroll (:id :log :height 300) ...)`). A still app draws nothing and costs no
+`stack`, `padding`, `panel`, `center`, `scroll` (a window onto what is inside
+it, moved by the wheel: `(bolt:scroll (:id :log :height 300) ...)`) and
+`lazy-list` (a scrolling list that describes only the rows that show:
+`(bolt:lazy-list (task tasks :id :tasks :key #'task-id) ...)`). A still app draws nothing and costs no
 CPU; an animation asks for its next frame with `(bolt:ask-for-frame)`. The
 options of each, `:flex` and `:labelled-by` are in
 [docs/reference.md](docs/reference.md#widgets).
