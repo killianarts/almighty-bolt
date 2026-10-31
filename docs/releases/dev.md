@@ -13,7 +13,7 @@ Welcome to almighty-bolt 0.2, in development. It starts with VoiceOver: a window
 ## Platform and compatibility
 
 - macOS on Apple silicon, with Metal. SBCL 2.6. One window, one fixed dark theme.
-- VoiceOver and Switch Control are told what changes while they run. Other assistive tools read the window when they ask.
+- Assistive tools are told what changes once they have asked what the window shows (or the system says VoiceOver or Switch Control is running).
 
 ## What's new in 0.2
 
@@ -42,7 +42,7 @@ What VoiceOver can do with them:
 - Find what is under the pointer, and know which thing has the keyboard.
 - Be told, as they happen, when a value changes, when things come or go (a list that scrolls shows other rows), when the picked row of a list changes, and when the keyboard moves.
 
-Nothing is worked out for this unless VoiceOver or Switch Control is running, or the system asks: a window at rest costs what it did.
+Nothing is worked out for this until something asks what the window shows (VoiceOver, the Accessibility Inspector) or the system says that VoiceOver or Switch Control is running; from the first question on, what changes is told as it happens. A window that nothing has asked about costs what it did, and one at rest does no work.
 
 A list is read as the rows that are showing, so that scrolling it changes which ones there are; a screen reader is not told of the rows out of sight. What a canvas draws is not read: it is a group, called by its label if it has one.
 

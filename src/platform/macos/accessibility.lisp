@@ -15,6 +15,7 @@
                 #:unregister-object)
   (:export #:make-bridge
            #:bridge-tree
+           #:bridge-watched
            #:bridge-assistive
            #:bridge-poster
            #:release-bridge
@@ -59,10 +60,14 @@
   (stale t)
   ;; True once the window is closed: there is nothing to read then.
   (closed nil)
+  ;; True once something has asked what the window shows (VoiceOver, an inspector): from then on it is
+  ;; told what changes. NSWorkspace's flag for VoiceOver was found to say no inside an app while VoiceOver
+  ;; was running, so it is not what this goes by alone.
+  (watched nil)
   ;; The item that was last said to have the focus, so that a change is told once.
   (announced-focus nil)
-  ;; Whether a screen reader is running (ASSISTIVE-CLIENT-P), and how a notification is told to the
-  ;; system (POST), which is given an element and :LAYOUT-CHANGED, :VALUE-CHANGED,
+  ;; Whether the system says that a screen reader is running (ASSISTIVE-CLIENT-P), and how a
+  ;; notification is told to the system (POST), which is given an element and :LAYOUT-CHANGED, :VALUE-CHANGED,
   ;; :SELECTION-CHANGED or :FOCUSED-CHANGED. A test puts others here.
   (assistive #'assistive-client-p :type function)
   (poster #'post :type function))
@@ -509,12 +514,14 @@ items whose value changed, whether any came or went, and the lists whose chosen 
 
 (defun bridge-children (bridge)
   "An NSArray of the elements that are not inside another: the view's accessibility children."
+  (setf (bridge-watched bridge) t)
   (ensure-fresh bridge)
   (elements-array (bridge-roots bridge)))
 
 (defun bridge-hit-test (bridge x y)
   "The element under the point X, Y on the screen (Cocoa's, from the bottom left), the one that is
 deepest and drawn last, or zero if there is none."
+  (setf (bridge-watched bridge) t)
   (ensure-fresh bridge)
   (let ((found 0))
     (labels ((walk (items)
@@ -528,6 +535,7 @@ deepest and drawn last, or zero if there is none."
 
 (defun bridge-focused-element (bridge)
   "The element that has the keyboard, or zero if none does."
+  (setf (bridge-watched bridge) t)
   (ensure-fresh bridge)
   (let ((item (focused-item bridge)))
     (if item (item-element item) 0)))
@@ -575,9 +583,11 @@ new focus."
 
 (defun frame-presented (bridge)
   "A frame was presented, so what the items say may be out of date. Nothing is worked out for it
-unless a screen reader is running; the items are made again when someone asks."
+unless something has asked what the window shows or the system says that a screen reader is running;
+the items are made again when someone asks."
   (setf (bridge-stale bridge) t)
-  (when (and (not (bridge-closed bridge)) (funcall (bridge-assistive bridge)))
+  (when (and (not (bridge-closed bridge))
+             (or (bridge-watched bridge) (funcall (bridge-assistive bridge))))
     ;; What a screen reader is told must never stop the window from being drawn.
     (handler-case (announce bridge)
       (error (condition)

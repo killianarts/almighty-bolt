@@ -428,12 +428,13 @@ screen reader was given are taken away and their places are used again."
         (press button)
         (let ((told (told reader)))
           (assert-true (member (list count :value-changed) told :test #'equal))
-          (assert-false (member :layout-changed told :key #'second))))
-      ;; With no screen reader running nothing is asked, and nothing is told.
-      (setf (a11y:bridge-assistive (reader-bridge reader)) (constantly nil))
-      (press (element-named reader :count-button))
-      (assert-equal '() (told reader))
-      (assert-equal "2" (says (element-named reader :count) :value)))))
+          (assert-false (member :layout-changed told :key #'second)))
+        ;; With no screen reader running, and nothing having asked, nothing is told.
+        (setf (a11y:bridge-assistive (reader-bridge reader)) (constantly nil)
+              (a11y:bridge-watched (reader-bridge reader)) nil)
+        (press button)
+        (assert-equal '() (told reader))
+        (assert-equal "2" (says (element-named reader :count) :value))))))
 
 (define-test a-screen-reader-is-told-when-things-come-and-when-the-keyboard-moves ()
   (let ((screen (show 'todo:make-todo)))
@@ -710,3 +711,21 @@ screen reader was given are taken away and their places are used again."
         (assert-equal '(nil nil) (mapcar #'enabled-p options))
         (assert-false (press (second options)))
         (assert-equal '(1d0 0d0) (mapcar (lambda (e) (says e :value)) options))))))
+
+(define-test the-system-is-told-once-something-has-asked-for-the-screen-and-not-before ()
+  (let ((screen (show 'counter:make-counter)))
+    (with-reader (reader screen)
+      (let ((bridge (reader-bridge reader)))
+        ;; The system does not say that a screen reader runs (it was found to say so wrongly), and
+        ;; nothing has asked what the window shows: nothing is worked out or told.
+        (setf (a11y:bridge-assistive bridge) (constantly nil))
+        (click screen :count-button)
+        (assert-false (a11y:bridge-watched bridge))
+        (assert-equal '() (told reader))
+        ;; Something asks, and from then on what changes is told.
+        (let ((count (element-named reader :count)))
+          (assert-true (a11y:bridge-watched bridge))
+          (told reader)
+          (click screen :count-button)
+          (assert-true (member (list count :value-changed) (told reader) :test #'equal))
+          (assert-equal "2" (says count :value)))))))
