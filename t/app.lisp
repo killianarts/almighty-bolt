@@ -8,7 +8,11 @@
                     (#:m #:almighty-bolt/machine)
                     (#:fake #:almighty-bolt/test-support/fake-context)
                     (#:counter #:almighty-bolt-examples/counter)
-                    (#:todo #:almighty-bolt-examples/todo)))
+                    (#:todo #:almighty-bolt-examples/todo)
+                    (#:objc #:almighty-bolt/platform/macos/objc)
+                    (#:window #:almighty-bolt/platform/macos/window)
+                    (#:view #:almighty-bolt/platform/macos/view)
+                    (#:a11y #:almighty-bolt/platform/macos/accessibility)))
 
 (in-package #:almighty-bolt/t/app)
 
@@ -18,7 +22,9 @@
 ;;; a command whose parameter is its code).
 
 (defstruct (screen (:constructor %make-screen (variant context list state)))
-  variant context list state)
+  variant context list state
+  ;; What the host does after it has presented a frame (tell a screen reader), if anything.
+  (after-draw nil))
 
 (defun show (constructor)
   "Make the app of CONSTRUCTOR with a store for its state, as OPEN-APP does, and draw its first
@@ -31,7 +37,9 @@ frame."
     screen))
 
 (defun draw (screen)
-  (core:settle-frame (screen-variant screen) (screen-context screen) (screen-list screen)))
+  (core:settle-frame (screen-variant screen) (screen-context screen) (screen-list screen))
+  (when (screen-after-draw screen)
+    (funcall (screen-after-draw screen))))
 
 (defun pointer (screen kind x y &key button (buttons 0))
   (core:handle-event (screen-variant screen)
@@ -157,3 +165,332 @@ frame."
       (unless (or (fboundp symbol) (boundp symbol) (find-class symbol nil))
         (push symbol nothing)))
     (assert-equal '() nothing)))
+
+;;; --- what a screen reader reads ---
+;;;
+;;; The app is drawn as above, and a real NSView in a real NSWindow (not shown) is given its tree and
+;;; the means to press, as the host gives them. Everything is then asked as AppKit asks it of the
+;;; view: for its children, and of each child for its role, name, value, place and what it does when
+;;; it is pressed. What VoiceOver does with the answers is for a person to try.
+
+(defstruct (reader (:constructor make-reader (view window bridge screen)))
+  view window bridge screen
+  ;; The notifications that the bridge was asked to post, newest first: (element kind).
+  (told '()))
+
+(defun call-with-reader (screen function)
+  "Call FUNCTION with a reader of SCREEN, whose bridge says that a screen reader is running and
+notes what it is asked to post. After each frame the reader's bridge is told, as the host does."
+  (objc:with-masked-float-traps
+    (objc:with-autorelease-pool
+      (objc:msg-send :id (objc:objc-class "NSApplication") "sharedApplication")
+      (let* ((bridge nil)
+             (view (view:make-metal-view
+                    :width 360 :height 320
+                    :accessibility-tree (lambda () (core:accessibility-tree (screen-variant screen)))
+                    :accessibility-press (lambda (x y)
+                                           (dolist (spec '((:move nil 0 0) (:down 0 1 1) (:up 0 0 1)))
+                                             (destructuring-bind (kind button buttons clicks) spec
+                                               (core:handle-event
+                                                (screen-variant screen)
+                                                (core:make-pointer-event
+                                                 :timestamp 0 :kind kind :x (float x 1d0)
+                                                 :y (float y 1d0) :button button :buttons buttons
+                                                 :click-count clicks))))
+                                           (dotimes (i 4) (draw screen)))))
+             (window (window:make-window :title "reader" :width 360 :height 320))
+             (reader (make-reader (view:metal-view-object view) (window:window-object window) nil screen)))
+        (setf bridge (view:metal-view-bridge view)
+              (reader-bridge reader) bridge
+              (a11y:bridge-assistive bridge) (constantly t)
+              (a11y:bridge-poster bridge) (lambda (element kind)
+                                            (push (list element kind) (reader-told reader)))
+              (screen-after-draw screen) (lambda () (a11y:frame-presented bridge)))
+        (window:set-content-view window (reader-view reader))
+        (unwind-protect (funcall function reader)
+          (setf (screen-after-draw screen) nil)
+          (a11y:release-bridge bridge))))))
+
+(defmacro with-reader ((reader screen) &body body)
+  `(call-with-reader ,screen (lambda (,reader) ,@body)))
+
+(defun ns-list (array)
+  (if (zerop array)
+      '()
+      (loop :for index :below (objc:msg-send :ulong array "count")
+            :collect (objc:msg-send :id array "objectAtIndex:" (:ulong index)))))
+
+(defun ns-value (object)
+  "What an NSString (a Lisp string) or an NSNumber (a double) holds, or NIL for nothing."
+  (cond ((zerop object) nil)
+        ((objc:msg-send :bool object "isKindOfClass:" (:id (objc:objc-class "NSString")))
+         (objc:lisp-string object))
+        ((objc:msg-send :bool object "isKindOfClass:" (:id (objc:objc-class "NSNumber")))
+         (objc:msg-send :double object "doubleValue"))
+        (t :something-else)))
+
+(defun elements (reader)
+  "What the view says its accessibility children are."
+  (ns-list (objc:msg-send :id (reader-view reader) "accessibilityChildren")))
+
+(defun element-named (reader id)
+  "The child of the view with the accessibility identifier of ID (an id of the app)."
+  (let ((name (string-downcase (princ-to-string id))))
+    (find name (elements reader)
+          :key (lambda (element)
+                 (ns-value (objc:msg-send :id element "accessibilityIdentifier")))
+          :test #'equal)))
+
+(defun says (element what)
+  (ns-value (objc:msg-send :id element (ecase what
+                                         (:role "accessibilityRole")
+                                         (:label "accessibilityLabel")
+                                         (:value "accessibilityValue")))))
+
+(defun enabled-p (element)
+  (objc:msg-send :bool element "isAccessibilityEnabled"))
+
+(defun press (element)
+  (objc:msg-send :bool element "accessibilityPerformPress"))
+
+(defun told (reader)
+  "What was posted since this was last asked, oldest first."
+  (reverse (prog1 (reader-told reader) (setf (reader-told reader) '()))))
+
+(define-test a-screen-reader-reads-the-counter-as-a-number-and-a-button ()
+  (let ((screen (show 'counter:make-counter)))
+    (with-reader (reader screen)
+      (assert-equal 2 (length (elements reader)))
+      (let ((count (element-named reader :count))
+            (button (element-named reader :count-button)))
+        (assert-equal "AXStaticText" (says count :role))
+        (assert-equal "0" (says count :value))
+        (assert-equal "AXButton" (says button :role))
+        (assert-equal "Count" (says button :label))
+        (assert-true (enabled-p button))))))
+
+(define-test the-window-reaches-the-elements-through-appkit ()
+  (let ((screen (show 'counter:make-counter)))
+    (with-reader (reader screen)
+      (let* ((children (ns-list (objc:msg-send :id (reader-window reader)
+                                               "accessibilityAttributeValue:"
+                                               (:id (objc:ns-string "AXChildren")))))
+             (identifiers (mapcar (lambda (element)
+                                    (and (objc:msg-send :bool element "respondsToSelector:"
+                                                        (:id (objc:register-selector
+                                                              "accessibilityIdentifier")))
+                                         (ns-value (objc:msg-send :id element
+                                                                  "accessibilityIdentifier"))))
+                                  children)))
+        (assert-true (member "count" identifiers :test #'equal))
+        (assert-true (member "count-button" identifiers :test #'equal))))))
+
+(define-test pressing-the-button-as-a-screen-reader-does-counts ()
+  (let ((screen (show 'counter:make-counter)))
+    (with-reader (reader screen)
+      (let ((button (element-named reader :count-button)))
+        (assert-true (press button))
+        (assert-equal "1" (says (element-named reader :count) :value))
+        (assert-true (press button))
+        (assert-true (press button))
+        (assert-equal "3" (says (element-named reader :count) :value))
+        (assert-equal "3" (text-in screen :count))))))
+
+(define-test the-elements-are-where-the-widgets-are-on-the-screen ()
+  (let ((screen (show 'counter:make-counter)))
+    (with-reader (reader screen)
+      (let ((view (reader-view reader))
+            (window (reader-window reader)))
+        ;; Where the whole view is on the screen, from AppKit, and then where a widget in it is,
+        ;; worked out here: the view is flipped (its y runs down from the top), the screen's runs up.
+        (multiple-value-bind (bx by bw bh) (objc:msg-send :rect view "bounds")
+          (multiple-value-bind (wx wy ww wh) (objc:msg-send :rect view "convertRect:toView:"
+                                                            (:rect bx by bw bh) (:id 0))
+            (multiple-value-bind (vx vy vw vh) (objc:msg-send :rect window "convertRectToScreen:"
+                                                              (:rect wx wy ww wh))
+              (declare (ignore vw))
+              (dolist (id '(:count :count-button))
+                (destructuring-bind (x y width height)
+                    (s:node-bounds (first (s:find-nodes
+                                           (core:accessibility-tree (screen-variant screen))
+                                           :id id)))
+                  (multiple-value-bind (ex ey ew eh)
+                      (objc:msg-send :rect (element-named reader id) "accessibilityFrame")
+                    (let ((expected (list (+ vx x) (+ vy (- vh y height)) width height)))
+                      (assert-true (every (lambda (want got) (< (abs (- want got)) 1d-4))
+                                          expected (list ex ey ew eh))
+                                   id expected (list ex ey ew eh)))))))))))))
+
+(define-test a-point-on-the-screen-finds-the-element-under-it ()
+  (let ((screen (show 'counter:make-counter)))
+    (with-reader (reader screen)
+      (let ((button (element-named reader :count-button))
+            (view (reader-view reader)))
+        (multiple-value-bind (x y width height) (objc:msg-send :rect button "accessibilityFrame")
+          (assert-eql button (objc:msg-send :id view "accessibilityHitTest:"
+                                            (:point (+ x (/ width 2)) (+ y (/ height 2)))))
+          (assert-eql view (objc:msg-send :id view "accessibilityHitTest:"
+                                          (:point (- x 5) (- y 5)))))))))
+
+(define-test a-screen-reader-keeps-the-same-elements-from-frame-to-frame-and-reload-to-reload ()
+  (let ((screen (show 'counter:make-counter)))
+    (with-reader (reader screen)
+      (let ((count (element-named reader :count))
+            (button (element-named reader :count-button)))
+        (press button)
+        (assert-eql count (element-named reader :count))
+        (assert-eql button (element-named reader :count-button))
+        ;; The app is made again, as compiling it does.
+        (let ((new (core:with-kept-state ((screen-state screen))
+                     (app:make-app-instance 'counter:make-counter))))
+          (core:inherit-state new (screen-variant screen))
+          (setf (screen-variant screen) new)
+          (draw screen))
+        (assert-eql count (element-named reader :count))
+        (assert-equal "1" (says count :value))
+        (assert-eql button (element-named reader :count-button))))))
+
+(defun make-disabled ()
+  (lambda ()
+    (row (:gap 8)
+      (label "Nothing to do" :id :note)
+      (button "Nope" :id :nope :enabled nil))))
+
+(define-test a-button-that-is-not-enabled-says-so-and-refuses-to-be-pressed ()
+  (let ((screen (show 'make-disabled)))
+    (with-reader (reader screen)
+      (let ((button (element-named reader :nope)))
+        (assert-false (enabled-p button))
+        (assert-false (press button))
+        (assert-equal '() (told reader))))))
+
+(defun make-vanishing ()
+  "An app whose first button is replaced by another and then by a great many, so that the things a
+screen reader was given are taken away and their places are used again."
+  (state-let ((stage 0))
+    (lambda ()
+      (row (:gap 2)
+        (case stage
+          (0 (button "Here" :id :here))
+          (1 (button "There" :id :there))
+          (t (dotimes (index 80)
+               (button (format nil "Another ~d" index) :id (list :another index)))))
+        (when (button "Next" :id :next)
+          (incf stage))))))
+
+(define-test an-element-whose-widget-went-away-answers-with-nothing-and-cannot-be-pressed ()
+  (let ((screen (show 'make-vanishing)))
+    (with-reader (reader screen)
+      (let ((here (element-named reader :here)))
+        ;; A screen reader holds on to what it was given, and so does this.
+        (objc:retain here)
+        (unwind-protect
+             (progn
+               (assert-equal "Here" (says here :label))
+               (assert-true (press (element-named reader :next)))
+               (assert-false (element-named reader :here))
+               (assert-eq nil (says here :label))
+               (assert-eq nil (says here :role))
+               (assert-false (press here))
+               ;; Eighty things come, and take the places of the ones that went. What was taken
+               ;; away does not speak for them.
+               (assert-true (press (element-named reader :next)))
+               (assert-true (element-named reader '(:another 0)))
+               (assert-eq nil (says here :label))
+               (assert-false (press here)))
+          (objc:release here))))))
+
+(define-test the-list-is-read-as-a-field-and-check-boxes-and-what-is-typed-is-read-back ()
+  (let ((screen (show 'todo:make-todo)))
+    (with-reader (reader screen)
+      (let ((field (element-named reader :draft))
+            (read-me (element-named reader 1))
+            (open-window (element-named reader 2)))
+        (assert-equal "AXTextField" (says field :role))
+        (assert-equal "" (says field :value))
+        (assert-equal "AXCheckBox" (says read-me :role))
+        (assert-equal "Read the README" (says read-me :label))
+        (assert-equal 1d0 (says read-me :value))
+        (assert-equal 0d0 (says open-window :value))
+        (click screen :draft)
+        (type-text screen "Feed the cat")
+        (assert-equal "Feed the cat" (says field :value))
+        (assert-true (press open-window))
+        (assert-equal 1d0 (says open-window :value))
+        (assert-equal "1 left" (text-in screen :left))))))
+
+(define-test a-screen-reader-is-told-what-changed-and-nothing-else ()
+  (let ((screen (show 'counter:make-counter)))
+    (with-reader (reader screen)
+      (let ((count (element-named reader :count))
+            (button (element-named reader :count-button)))
+        (told reader)
+        (press button)
+        (let ((told (told reader)))
+          (assert-true (member (list count :value-changed) told :test #'equal))
+          (assert-false (member :layout-changed told :key #'second))))
+      ;; With no screen reader running nothing is asked, and nothing is told.
+      (setf (a11y:bridge-assistive (reader-bridge reader)) (constantly nil))
+      (press (element-named reader :count-button))
+      (assert-equal '() (told reader))
+      (assert-equal "2" (says (element-named reader :count) :value)))))
+
+(define-test a-screen-reader-is-told-when-things-come-and-when-the-keyboard-moves ()
+  (let ((screen (show 'todo:make-todo)))
+    (with-reader (reader screen)
+      (element-named reader :draft)
+      (told reader)
+      (click screen :draft)
+      (let ((field (element-named reader :draft)))
+        (assert-true (member (list field :focused-changed) (told reader) :test #'equal))
+        (assert-eql field (objc:msg-send :id (reader-view reader) "accessibilityFocusedUIElement"))
+        (type-text screen "Water the plants")
+        (assert-true (member (list field :value-changed) (told reader) :test #'equal))
+        (click screen :add)
+        (assert-true (member (list (reader-view reader) :layout-changed) (told reader)
+                             :test #'equal))
+        (assert-equal 4 (length (remove-if-not (lambda (element)
+                                                 (equal (says element :role) "AXCheckBox"))
+                                               (elements reader))))))))
+
+(define-test a-screen-reader-that-asks-for-the-focus-of-a-field-gives-it-the-keyboard ()
+  (let ((screen (show 'todo:make-todo)))
+    (with-reader (reader screen)
+      (let ((field (element-named reader :draft)))
+        (assert-false (eql field (objc:msg-send :id (reader-view reader)
+                                                "accessibilityFocusedUIElement")))
+        (objc:msg-send :void field "setAccessibilityFocused:" (:bool t))
+        (assert-eql field (objc:msg-send :id (reader-view reader) "accessibilityFocusedUIElement"))
+        (type-text screen "Hello")
+        (assert-equal "Hello" (says field :value))))))
+
+(define-test a-window-that-was-closed-has-nothing-to-read ()
+  (let ((screen (show 'counter:make-counter)))
+    (with-reader (reader screen)
+      (let ((button (element-named reader :count-button)))
+        (objc:retain button)
+        (unwind-protect
+             (progn
+               (a11y:release-bridge (reader-bridge reader))
+               (assert-equal '() (elements reader))
+               ;; A frame that is presented after that does not bring them back.
+               (draw screen)
+               (assert-equal '() (elements reader))
+               (assert-eq nil (says button :label))
+               (assert-false (press button)))
+          (objc:release button))))))
+
+(define-test what-goes-wrong-in-telling-a-screen-reader-does-not-stop-the-frame ()
+  (let ((screen (show 'counter:make-counter)))
+    (with-reader (reader screen)
+      (element-named reader :count)
+      (setf (a11y:bridge-tree (reader-bridge reader)) (lambda () (error "the tree is broken")))
+      (let ((complaint (with-output-to-string (*error-output*)
+                         (click screen :count-button))))
+        ;; The click was counted and drawn, and the complaint was made.
+        (assert-equal "1" (text-in screen :count))
+        (assert-true (search "the tree is broken" complaint)))
+      (setf (a11y:bridge-tree (reader-bridge reader))
+            (lambda () (core:accessibility-tree (screen-variant screen))))
+      (click screen :count-button)
+      (assert-equal "2" (says (element-named reader :count) :value)))))

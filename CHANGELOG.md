@@ -14,6 +14,8 @@ are not listed.
 
 ### Added
 
+- VoiceOver reads static text, buttons, text fields and check boxes, can press the buttons and check boxes and give a field the keyboard, and is told when they change ([0.2](docs/releases/dev.md#voiceover-reads-the-screen)).
+
 ### Changed
 
 ### Deprecated

@@ -12,6 +12,11 @@
                 #:registered-object
                 #:objc-class
                 #:lisp-string)
+  (:import-from #:almighty-bolt/platform/macos/accessibility
+                #:make-bridge
+                #:bridge-children
+                #:bridge-hit-test
+                #:bridge-focused-element)
   (:import-from #:almighty-bolt/clock
                 #:now-ns)
   (:import-from #:almighty-bolt/event
@@ -29,6 +34,7 @@
                 #:key-event-from-ns-event)
   (:export #:make-metal-view
            #:metal-view-object
+           #:metal-view-bridge
            #:metal-view-device
            #:request-draw))
 
@@ -54,7 +60,9 @@
   ;; key that is being interpreted, which a command is given to the app as.
   (marked nil)
   (marked-text "" :type string)
-  (pending-key nil))
+  (pending-key nil)
+  ;; What a screen reader reads (the accessibility bridge), or NIL for a view that has none.
+  (bridge nil))
 
 (defvar *view-slot-offset* 0
   "Offset of the instance variable that holds a view's index.")
@@ -269,6 +277,17 @@ this is a place for it that is not allocated again for each call.")
      (x sb-alien:double) (y sb-alien:double))
   0)
 
+(defun view-screen-rect (object x y width height)
+  "The rectangle X, Y, WIDTH by HEIGHT of the view OBJECT (points, from its top left, as the view is
+flipped) on the screen, as four values, in the screen's own coordinates (from the bottom left). Worked
+out when it is asked, so that a window that was moved is where it is."
+  (multiple-value-bind (wx wy ww wh)
+      (msg-send :rect object "convertRect:toView:" (:rect x y width height) (:id 0))
+    (let ((window (msg-send :id object "window")))
+      (if (zerop window)
+          (values wx wy ww wh)
+          (msg-send :rect window "convertRectToScreen:" (:rect wx wy ww wh))))))
+
 (sb-alien:define-alien-callable view-first-rect (sb-alien:struct almighty-bolt/platform/macos/objc::cg-rect)
     ((self sb-alien:unsigned-long) (cmd sb-alien:unsigned-long)
      (location sb-alien:unsigned-long) (length sb-alien:unsigned-long)
@@ -279,14 +298,8 @@ this is a place for it that is not allocated again for each call.")
         (declare (ignore active))
         ;; The caret is in the view's own coordinates (the view is flipped, with its origin at
         ;; the top left); the input method wants the place on the screen.
-        (multiple-value-bind (wx wy ww wh)
-            (msg-send :rect self "convertRect:toView:" (:rect x y width height) (:id 0))
-          (let ((window (msg-send :id self "window")))
-            (if (zerop window)
-                (rect-result wx wy ww wh)
-                (multiple-value-bind (sx sy sw sh)
-                    (msg-send :rect window "convertRectToScreen:" (:rect wx wy ww wh))
-                  (rect-result sx sy sw sh))))))
+        (multiple-value-bind (sx sy sw sh) (view-screen-rect self x y width height)
+          (rect-result sx sy sw sh)))
     (error (condition)
       (format *error-output* "~&Error in the callback view-first-rect: ~a~%" condition)
       (rect-result 0d0 0d0 0d0 0d0))))
@@ -299,6 +312,28 @@ this is a place for it that is not allocated again for each call.")
     (when key
       (setf (metal-view-pending-key view) nil)
       (funcall (metal-view-event-handler view) key))))
+
+;;; Accessibility. The view is not an element itself: what a screen reader reads is the elements that
+;;; the bridge makes from the semantic tree, which the view hands out as its children, finds under a
+;;; point and names as the one that has the keyboard.
+
+(define-callback view-ax-children sb-alien:unsigned-long
+    ((self sb-alien:unsigned-long) (cmd sb-alien:unsigned-long))
+  (let ((bridge (metal-view-bridge (view-of self))))
+    (if bridge (bridge-children bridge) 0)))
+
+(define-callback view-ax-hit-test sb-alien:unsigned-long
+    ((self sb-alien:unsigned-long) (cmd sb-alien:unsigned-long)
+     (x sb-alien:double) (y sb-alien:double))
+  (let* ((bridge (metal-view-bridge (view-of self)))
+         (hit (if bridge (bridge-hit-test bridge x y) 0)))
+    (if (zerop hit) self hit)))
+
+(define-callback view-ax-focused sb-alien:unsigned-long
+    ((self sb-alien:unsigned-long) (cmd sb-alien:unsigned-long))
+  (let* ((bridge (metal-view-bridge (view-of self)))
+         (focused (if bridge (bridge-focused-element bridge) 0)))
+    (if (zerop focused) self focused)))
 
 ;;; The class. Dragging and the right and other buttons are reported as the
 ;;; same pointer events (a drag is a move with buttons down), so their methods
@@ -341,7 +376,11 @@ this is a place for it that is not allocated again for each call.")
              ("characterIndexForPoint:" "Q@:{CGPoint=dd}" view-character-index)
              ("firstRectForCharacterRange:actualRange:"
               "{CGRect={CGPoint=dd}{CGSize=dd}}@:{_NSRange=QQ}^{_NSRange=QQ}" view-first-rect)
-             ("doCommandBySelector:" "v@::" view-do-command))
+             ("doCommandBySelector:" "v@::" view-do-command)
+             ;; Accessibility
+             ("accessibilityChildren" "@@:" view-ax-children)
+             ("accessibilityHitTest:" "@@:{CGPoint=dd}" view-ax-hit-test)
+             ("accessibilityFocusedUIElement" "@@:" view-ax-focused))
   :protocols '("NSTextInputClient"))
 
 (define-startup view-slot-offset
@@ -355,14 +394,16 @@ this is a place for it that is not allocated again for each call.")
   "Options for the tracking area that delivers mouse moves.")
 
 (defun make-metal-view (&key device (width 480) (height 320) on-draw on-resize event-handler
-                          text-input)
+                          text-input accessibility-tree accessibility-press)
   "A Metal view WIDTH by HEIGHT points that draws only when REQUEST-DRAW is called.
 DEVICE is the Metal device to draw with (the system default if not given). ON-DRAW
 is called with the view when it is to draw, ON-RESIZE with the view and its new
 drawable size in pixels, and EVENT-HANDLER with each pointer, wheel and key event, and the
 text and composition events of the input method. TEXT-INPUT is a function that says whether
 the app takes text and where its caret is: it returns true or false and then the x, y, width and
-height of the caret in the view. Call on the main thread."
+height of the caret in the view. ACCESSIBILITY-TREE returns the semantic tree of the window (a node,
+or NIL if there is none) and ACCESSIBILITY-PRESS is called with a point in the view to press it: with
+them a screen reader can read the view and press what is in it. Call on the main thread."
   (let* ((device (or device
                      (sb-alien:alien-funcall
                       (sb-alien:extern-alien "MTLCreateSystemDefaultDevice"
@@ -375,6 +416,12 @@ height of the caret in the view. Call on the main thread."
     (when on-resize (setf (metal-view-on-resize view) on-resize))
     (when event-handler (setf (metal-view-event-handler view) event-handler))
     (when text-input (setf (metal-view-text-input view) text-input))
+    (when accessibility-tree
+      (setf (metal-view-bridge view)
+            (make-bridge :view object :tree accessibility-tree
+                         :press (or accessibility-press (lambda (x y) (declare (ignore x y)) nil))
+                         :convert (lambda (x y width height)
+                                    (view-screen-rect object x y width height)))))
     (setf (metal-view-index view) (register-object view)
           (instance-slot object *view-slot-offset*) (metal-view-index view))
     (msg-send :void object "setDelegate:" (:id object))

@@ -221,15 +221,17 @@
 
 (defun pump-main-queue (predicate &key (timeout 2d0))
   "Run the main thread's run loop until PREDICATE is true, as AppKit would, so
-that work given to the main queue runs."
+that work given to the main queue runs. The run loop is entered with floating point traps masked, as
+everything that enters AppKit is: if a window has been made, it does arithmetic that traps."
   (let ((mode (sb-alien:extern-alien "kCFRunLoopDefaultMode" sb-alien:unsigned-long))
         (deadline (+ (get-internal-real-time) (* timeout internal-time-units-per-second))))
-    (loop :until (or (funcall predicate) (> (get-internal-real-time) deadline))
-          :do (sb-alien:alien-funcall
-               (sb-alien:extern-alien "CFRunLoopRunInMode"
-                                      (function sb-alien:int sb-alien:unsigned-long
-                                                sb-alien:double (sb-alien:unsigned 8)))
-               mode 0.01d0 0))
+    (objc:with-masked-float-traps
+      (loop :until (or (funcall predicate) (> (get-internal-real-time) deadline))
+            :do (sb-alien:alien-funcall
+                 (sb-alien:extern-alien "CFRunLoopRunInMode"
+                                        (function sb-alien:int sb-alien:unsigned-long
+                                                  sb-alien:double (sb-alien:unsigned 8)))
+                 mode 0.01d0 0)))
     (funcall predicate)))
 
 (define-test work-given-from-another-thread-runs-on-the-main-thread ()

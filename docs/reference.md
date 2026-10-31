@@ -24,7 +24,13 @@ A `canvas` is an area that you draw in and handle input for. `painter` is called
 
 Every widget says what it is (a `button`, a `text-field`, a `list`, a `checkbox`...), what it is called, what it holds, its state (focused, disabled, the caret, the selected item) and where it is, and the containers hold what is in them. The tree is made when it is asked for, from the frame that was last drawn, so a frame costs nothing for it. A node is a property list: `(:id :name :role :text-field :name "Name:" :value "Ada" :state (:focused t :hovered t :caret 3) :bounds (310.0 60.0 160.0 26.0))`.
 
-Two things use it, in different systems because they are for different people.
+### VoiceOver
+
+VoiceOver reads the tree through the system's accessibility API. Each static text (a label or a paragraph), button, text field and check box is an element of the window's view, with the role `AXStaticText`, `AXButton`, `AXTextField` or `AXCheckBox`, its name as the label (a static text says its words as its value), its value, whether it is enabled, and its place on the screen, which is worked out when it is asked for so that a window that was moved is where it says. The widget's `:id` is its accessibility identifier. Containers that only lay things out are not elements, and what is in them is taken up to their parent. An element stays the same object while its widget is on the screen (it is found by the ids from the top, and by position for a container with no id), so a screen reader's cursor stays on it. Sliders, progress bars, choices, lists, canvases and scrims are not elements yet.
+
+A button or a check box can be pressed from VoiceOver; the press is a move, a press and a release in the middle of the thing, delivered to the window as a hand's would be, and a disabled one is not pressed. A text field can be given the keyboard, which a press on it does. The view says which element has the keyboard and which is under a point. While VoiceOver or Switch Control is running, the system is told after each frame when a value changed, when elements came or went, and when the keyboard moved; otherwise nothing is worked out until the system asks, and a window at rest does no work.
+
+Two other things use the tree, in different systems because they are for different people.
 
 ## The machine interface
 

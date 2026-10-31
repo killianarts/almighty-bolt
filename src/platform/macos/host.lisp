@@ -1,7 +1,10 @@
 (defpackage #:almighty-bolt/platform/macos/host
   (:use #:cl)
   (:import-from #:almighty-bolt/clock
-                #:real-time-source)
+                #:real-time-source
+                #:now-ns)
+  (:import-from #:almighty-bolt/event
+                #:make-pointer-event)
   (:import-from #:almighty-bolt/ring
                 #:make-frame-ring
                 #:record-frame
@@ -32,6 +35,7 @@
                 #:+phase-first-build+
                 #:+phase-all-builds+
                 #:take-frame-request
+                #:accessibility-tree
                 #:deliver-event
                 #:take-events
                 #:context-font
@@ -62,9 +66,13 @@
                 #:close-window
                 #:window-object
                 #:window-scale-factor)
+  (:import-from #:almighty-bolt/platform/macos/accessibility
+                #:frame-presented
+                #:release-bridge)
   (:import-from #:almighty-bolt/platform/macos/view
                 #:make-metal-view
                 #:metal-view-object
+                #:metal-view-bridge
                 #:request-draw)
   (:import-from #:almighty-bolt/text/font
                 #:make-font)
@@ -246,6 +254,19 @@ made VARIANT had it bound. RUN-VARIANT makes one with a window; tests make one a
 the main thread, once for each event, in order."
   (when host
     (deliver-event (host-variant host) (host-context host) event)))
+
+(defun click-at (host x y)
+  "Press and release the primary button at X, Y (points from the top left of the window), the
+pointer having moved there first: the events that a person's hand makes. Called on the main thread;
+the window answers on the frames that follow."
+  (flet ((pointer (kind button buttons count)
+           (host-deliver-event host (make-pointer-event :timestamp (now-ns) :kind kind
+                                                        :x (float x 1d0) :y (float y 1d0)
+                                                        :button button :buttons buttons
+                                                        :click-count count))))
+    (pointer :move nil 0 0)
+    (pointer :down 0 1 1)
+    (pointer :up 0 0 1)))
 
 (defun start-drawing (host)
   (sb-thread:with-mutex ((host-lock host))
@@ -446,7 +467,11 @@ no drawable. Must run inside an autorelease pool."
         (let ((pixel-width (msg-send :size object "drawableSize")))
           (run-frame host
                      (float width 1f0) (float height 1f0)
-                     (if (plusp width) (float (/ pixel-width width) 1f0) 1f0)))))))
+                     (if (plusp width) (float (/ pixel-width width) 1f0) 1f0))
+          ;; What a screen reader reads is out of date now, and is made when it is asked for.
+          (let ((bridge (metal-view-bridge view)))
+            (when bridge
+              (frame-presented bridge))))))))
 
 (defun close-host-window (host)
   "Close the host's window as the user would, which ends the application. Safe from
@@ -501,6 +526,11 @@ the main thread (RUN-VARIANT and OPEN-VARIANT see to that). The arguments are th
                               :event-handler (lambda (event)
                                                (host-deliver-event host event))))
          (view (make-metal-view :device device :width width :height height
+                                ;; Read when asked, from the variant the host has then: the app
+                                ;; may have been made again.
+                                :accessibility-tree (lambda ()
+                                                      (accessibility-tree (host-variant host)))
+                                :accessibility-press (lambda (x y) (click-at host x y))
                                 :on-draw (lambda (view) (draw-view host view))
                                 :event-handler (lambda (event)
                                                  (host-deliver-event host event))
@@ -548,6 +578,10 @@ definitions, and forget the host."
       (when watcher
         (setf (host-watcher host) nil)
         (stop-watching-redefinitions watcher)))
+    (let* ((view (host-view host))
+           (bridge (and view (metal-view-bridge view))))
+      (when bridge
+        (release-bridge bridge)))
     (when (eq *running-host* host)
       (setf *running-host* nil))))
 

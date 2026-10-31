@@ -155,7 +155,9 @@ editor in [`bench/stress/`](bench/stress) are canvases.
 ## Working an app from a program or an agent
 
 The screen is also a **semantic tree**: every widget says what it is, what it is
-called, what it holds, its state and where it is. Two systems use the semantic tree.
+called, what it holds, its state and where it is. VoiceOver reads it, for static
+text, buttons, text fields and check boxes, and can press them. Two systems let a
+program use it.
 
 **`almighty-bolt/machine`** is the Lisp side: a session on the open window that
 does what a person's hands do, and returns when the app has answered. There are

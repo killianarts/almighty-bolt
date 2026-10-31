@@ -52,6 +52,7 @@
                    (:file "ns-event")
                    (:file "app")
                    (:file "window")
+                   (:file "accessibility")
                    (:file "view")))))
                (:module "text"
                 :serial t
