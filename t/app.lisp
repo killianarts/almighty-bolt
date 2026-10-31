@@ -143,6 +143,47 @@ frame."
     (assert-equal "Feed the cat" (text-in screen 4))
     (assert-equal "" (s:node-value (m:find-node session :id :draft)))))
 
+;;; --- copy, cut and paste ---
+
+(defun clipboard (screen)
+  "What the screen's context holds as the clipboard: a context made without a window keeps it, and
+never touches the person's."
+  (core:context-clipboard-text (screen-context screen)))
+
+(define-test a-field-copies-cuts-and-pastes-with-the-command-keys ()
+  (let* ((screen (show 'todo:make-todo))
+         (session (screen-session screen)))
+    (m:type-text session "Water" :id :draft)
+    ;; Nothing is selected, so there is nothing to copy.
+    (m:press-key session :c :modifiers '(:super))
+    (assert-eq nil (clipboard screen))
+    (m:press-key session :a :modifiers '(:super))
+    (m:press-key session :c :modifiers '(:super))
+    (assert-equal "Water" (clipboard screen))
+    (assert-equal "Water" (text-in screen :draft))
+    (m:press-key session :right)
+    (m:press-key session :v :modifiers '(:super))
+    (assert-equal "WaterWater" (text-in screen :draft))
+    (m:press-key session :a :modifiers '(:super))
+    (m:press-key session :x :modifiers '(:super))
+    (assert-equal "" (text-in screen :draft))
+    (assert-equal "WaterWater" (clipboard screen))
+    ;; What was cut is the app's to see, as typing is.
+    (assert-equal "" (s:node-value (m:find-node session :id :draft)))
+    (m:press-key session :v :modifiers '(:super))
+    (m:press-key session :return)
+    (assert-equal "WaterWater" (text-in screen 4))))
+
+(define-test a-line-break-pasted-into-a-field-is-a-space ()
+  (let* ((screen (show 'todo:make-todo))
+         (session (screen-session screen)))
+    (core:context-set-clipboard-text (screen-context screen)
+                                     (format nil "Feed~%the~c~ccat" #\Return #\Linefeed))
+    (m:focus session :id :draft)
+    (m:press-key session :v :modifiers '(:super))
+    (m:press-key session :return)
+    (assert-equal "Feed the cat" (text-in screen 4))))
+
 (define-test the-list-is-a-tree-of-check-boxes-named-by-what-is-to-be-done ()
   (let* ((screen (show 'todo:make-todo))
          (boxes (s:find-nodes (core:accessibility-tree (screen-variant screen)) :role :checkbox)))

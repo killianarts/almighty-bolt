@@ -16,6 +16,7 @@ are not listed.
 
 - VoiceOver reads every widget, can press buttons, check boxes, options and rows, move a slider and give a field the keyboard, and is told when they change ([0.2](docs/releases/dev.md#voiceover-reads-the-screen)).
 - `:live` on `label` and `paragraph`: a screen reader reads the text out whenever it changes, wherever its cursor is ([0.2](docs/releases/dev.md#voiceover-reads-the-screen)).
+- Copy, cut and paste in a text field with Command-C, Command-X and Command-V, through the system's clipboard ([0.2](docs/releases/dev.md#text-fields)).
 
 ### Changed
 

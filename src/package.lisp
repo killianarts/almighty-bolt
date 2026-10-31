@@ -220,7 +220,9 @@
                 #:context-caret-x
                 #:context-index-at-x
                 #:context-caret-rect
-                #:context-push-text)
+                #:context-push-text
+                #:context-clipboard-text
+                #:context-set-clipboard-text)
   (:import-from #:almighty-bolt/kept
                 #:state-let
                 #:kept-state
@@ -504,6 +506,8 @@
            #:context-index-at-x
            #:context-caret-rect
            #:context-push-text
+           #:context-clipboard-text
+           #:context-set-clipboard-text
            #:state-let
            #:kept-state
            #:make-kept-state

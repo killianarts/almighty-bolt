@@ -53,7 +53,8 @@
                    (:file "app")
                    (:file "window")
                    (:file "accessibility")
-                   (:file "view")))))
+                   (:file "view")
+                   (:file "pasteboard")))))
                (:module "text"
                 :serial t
                 :if-feature :darwin
@@ -146,7 +147,8 @@
                     ((:file "objc")
                      (:file "image")
                      (:file "text-input")
-                     (:file "ns-event")))))
+                     (:file "ns-event")
+                     (:file "pasteboard")))))
                  (:module "text"
                   :serial t
                   :if-feature :darwin
@@ -172,6 +174,7 @@
                                                       #+darwin :almighty-bolt/t/platform/macos/image
                                                       #+darwin :almighty-bolt/t/platform/macos/text-input
                                                       #+darwin :almighty-bolt/t/platform/macos/ns-event
+                                                      #+darwin :almighty-bolt/t/platform/macos/pasteboard
                                                       #+darwin :almighty-bolt/t/text/line
                                                       #+darwin :almighty-bolt/t/text/glyph-raster
                                                       #+darwin :almighty-bolt/t/render/metal/renderer

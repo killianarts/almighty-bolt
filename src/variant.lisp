@@ -51,7 +51,9 @@
            #:context-caret-x
            #:context-index-at-x
            #:context-caret-rect
-           #:context-push-text))
+           #:context-push-text
+           #:context-clipboard-text
+           #:context-set-clipboard-text))
 
 (in-package #:almighty-bolt/variant)
 
@@ -172,6 +174,9 @@ within the frame. REQUESTER is what REQUEST-FRAME calls; the host replaces it."
   (events-ns 0 :type (unsigned-byte 62))
   (events 0 :type (unsigned-byte 62))
   (phases-p nil :type boolean)
+  ;; What was copied, for a context whose host has no clipboard of the system's (a test, a replay):
+  ;; see CONTEXT-CLIPBOARD-TEXT.
+  (clipboard nil :type (or null string))
   (phase-ns (make-array +phase-slots+ :element-type '(unsigned-byte 64) :initial-element 0)
    :type (simple-array (unsigned-byte 64) (*)) :read-only t))
 
@@ -347,3 +352,19 @@ Returns the number of commands added.")
   (:method ((context context) display-list font string x baseline color)
     (declare (ignore display-list font string x baseline color))
     (no-text 'context-push-text)))
+
+;;; --- the clipboard, which the host supplies ---
+;;;
+;;; Copy and paste go through the context, so that a host with a window uses the system's clipboard
+;;; and every other context (a test, a replay, a host made without a window) keeps what was copied
+;;; to itself and never touches the person's clipboard.
+
+(defgeneric context-clipboard-text (context)
+  (:documentation "The text on the clipboard, or NIL if it holds none.")
+  (:method ((context context))
+    (context-clipboard context)))
+
+(defgeneric context-set-clipboard-text (context string)
+  (:documentation "Put STRING on the clipboard, in place of what it held. Returns STRING.")
+  (:method ((context context) string)
+    (setf (context-clipboard context) (copy-seq string))))

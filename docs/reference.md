@@ -6,6 +6,8 @@ What the [README](../README.md) leaves out: the options of widgets and container
 
 Every widget takes a required `:id` keyword: a name that stays with the widget from frame to frame. It is what keeps a field's caret across frames and across a reload, and what tests and replay scripts find a widget by. Leaving it out is an error on the first frame, `missing-id`, which names the widget. Two things inside one container with the same id are an error as well, `duplicate-id`, which names both and the container: the ui could not tell them apart (they would share the caret, the keyboard and what was drawn). Only widgets are required to have an id; containers keep an optional `:id`. In a loop over data the id is the item's own (`:id (task-id task)`), so that state follows the item when the list is re-sorted.
 
+A text field takes the keys a Mac text field does: the arrows (with Shift to select and Option to move by a word), Home, End, Backspace, forward delete, Command-A to select everything, and Command-C, Command-X and Command-V to copy, cut and paste through the system's clipboard. A line break that is pasted into it becomes a space. A host made without a window (in a test or a replay) keeps what is copied to itself, and never touches the clipboard.
+
 Every widget also takes `:flex`, its share of the free space of its container. A widget that holds something but has no words of its own (a text field, a slider, a choice, a list, a progress bar, a canvas) takes `:labelled-by`, the id of the label that names it, which is what an agent calls it by: `(bolt:text-field name :id :name :labelled-by :name-label)`.
 
 ## Containers

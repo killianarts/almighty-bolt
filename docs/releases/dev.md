@@ -51,6 +51,10 @@ A list is read as the rows that are showing, so that scrolling it changes which 
 
 ### Minor features
 
+#### Text fields
+
+- Command-C, Command-X and Command-V copy, cut and paste in a text field, through the system's clipboard. A line break that is pasted becomes a space, since the field holds one line. Copy and cut do nothing when nothing is selected.
+
 #### Machine interface
 
 - A widget's `:id` is its element's accessibility identifier, so the id that an agent or a test finds a widget by is what the Accessibility Inspector shows for it.

@@ -77,7 +77,17 @@
                 #:text-state-caret
                 #:text-state-anchor
                 #:text-place-caret
+                #:text-insert
+                #:text-state-selection-p
+                #:text-state-selected-string
                 #:edit-text
+                #:context-clipboard-text
+                #:context-set-clipboard-text
+                #:key-event-kind
+                #:key-event-modifiers
+                #:modifier-down-p
+                #:+modifier-super+
+                #:+modifier-control+
                 #:key-event-logical-key
                 #:make-display-list
                 #:clear-display-list
@@ -338,6 +348,42 @@ or the space bar or Return was pressed with the keyboard on it."
     (close-box ui)
     clicked))
 
+;;; --- copy, cut and paste ---
+
+(defun one-line (text)
+  "TEXT with each line break in it (a return, a line feed, or the two together) made a space."
+  (with-output-to-string (out)
+    (let ((after-return nil))
+      (loop :for character :across text
+            :do (cond ((char= character #\Return) (write-char #\Space out) (setf after-return t))
+                      ((char= character #\Linefeed)
+                       (unless after-return (write-char #\Space out))
+                       (setf after-return nil))
+                      (t (write-char character out) (setf after-return nil)))))))
+
+(defun clipboard-edit (state event context &key single-line)
+  "What the key EVENT does to the text STATE if it is Command-C, Command-X or Command-V, as two
+values: the new state, and true if it was one of them. Copy and cut take the selection, and do
+nothing without one; paste puts the clipboard's text in place of the selection, with its line breaks
+made spaces if SINGLE-LINE."
+  (let ((key (key-event-logical-key event))
+        (modifiers (key-event-modifiers event)))
+    (if (not (and (eq (key-event-kind event) :down)
+                  (characterp key)
+                  (modifier-down-p modifiers +modifier-super+)
+                  (not (modifier-down-p modifiers +modifier-control+))
+                  (member key '(#\c #\x #\v) :test #'char-equal)))
+        (values state nil)
+        (values (cond ((char-equal key #\v)
+                       (let ((text (context-clipboard-text context)))
+                         (if text
+                             (text-insert state (if single-line (one-line text) text))
+                             state)))
+                      ((not (text-state-selection-p state)) state)
+                      (t (context-set-clipboard-text context (text-state-selected-string state))
+                         (if (char-equal key #\x) (text-insert state "") state)))
+                t))))
+
 ;;; --- a line of editable text ---
 
 (defstruct (field-state (:constructor make-field-state ()))
@@ -373,7 +419,8 @@ or the space bar or Return was pressed with the keyboard on it."
                    &key (id (required-id 'text-field)) labelled-by
                      (width 180) invalid (enabled t) (flex 0))
   "An editable line showing STRING. Returns the text now, whether the person changed it this
-frame, and whether Return was pressed. Pass what it returned back in the next frame; if the
+frame, and whether Return was pressed. Command-C, Command-X and Command-V copy, cut and paste
+(a line break that is pasted becomes a space). Pass what it returned back in the next frame; if the
 application passes something else, that is what is shown."
   (let* ((ui *ui*)
          (box (open-box ui :text-field :id id :labelled-by labelled-by))
@@ -415,7 +462,12 @@ application passes something else, that is what is shown."
              (consume-key ui event)
              (setf submitted t))
             (t
-             (multiple-value-bind (new edited) (edit-text (field-state-state state) event)
+             (multiple-value-bind (new edited)
+                 (multiple-value-bind (pasted command)
+                     (clipboard-edit (field-state-state state) event (ui-context ui) :single-line t)
+                   (if command
+                       (values pasted t)
+                       (edit-text (field-state-state state) event)))
                (when edited
                  (consume-key ui event)
                  (unless (string= (text-state-string new)

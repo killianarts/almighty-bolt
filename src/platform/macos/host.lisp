@@ -44,7 +44,9 @@
                 #:context-caret-x
                 #:context-index-at-x
                 #:context-caret-rect
-                #:context-push-text)
+                #:context-push-text
+                #:context-clipboard-text
+                #:context-set-clipboard-text)
   (:import-from #:almighty-bolt/settle
                 #:settle-frame)
   (:import-from #:almighty-bolt/platform/macos/objc
@@ -74,6 +76,10 @@
                 #:metal-view-object
                 #:metal-view-bridge
                 #:request-draw)
+  (:import-from #:almighty-bolt/platform/macos/pasteboard
+                #:general-pasteboard
+                #:pasteboard-string
+                #:set-pasteboard-string)
   (:import-from #:almighty-bolt/text/font
                 #:make-font)
   (:import-from #:almighty-bolt/text/line
@@ -107,6 +113,7 @@
            #:host-idle-p
            #:wait-for-idle
            #:host-kept-state
+           #:mac-context-pasteboard
            #:swap-variant
            #:reload-host
            #:running-host
@@ -130,9 +137,24 @@
                         (:constructor make-mac-context
                             (&key width height scale requester renderer)))
   "A context whose text operations are answered by Core Text and the renderer's
-glyph atlas. FONTS keeps the fonts made, by name and then by size."
+glyph atlas. FONTS keeps the fonts made, by name and then by size. PASTEBOARD is the macOS
+pasteboard that copy and paste use; with none (a host made without a window, as in tests), what is
+copied is kept in the context and the person's clipboard is never touched."
   (renderer nil :read-only t)
-  (fonts (make-hash-table :test 'equal) :read-only t))
+  (fonts (make-hash-table :test 'equal) :read-only t)
+  (pasteboard nil))
+
+(defmethod context-clipboard-text ((context mac-context))
+  (let ((pasteboard (mac-context-pasteboard context)))
+    (if pasteboard
+        (pasteboard-string pasteboard)
+        (call-next-method))))
+
+(defmethod context-set-clipboard-text ((context mac-context) string)
+  (let ((pasteboard (mac-context-pasteboard context)))
+    (if pasteboard
+        (set-pasteboard-string pasteboard string)
+        (call-next-method))))
 
 (defmethod context-font ((context mac-context) name size)
   (let ((fonts (mac-context-fonts context)))
@@ -547,6 +569,7 @@ the main thread (RUN-VARIANT and OPEN-VARIANT see to that). The arguments are th
                           :capacity capacity
                           :scale (window-scale-factor window)
                           :kept-state (or kept-state (make-kept-state))))
+    (setf (mac-context-pasteboard (host-context host)) (general-pasteboard))
     (setf (host-window host) window
           (host-view host) view
           (host-acquire host) (view-acquirer object)
