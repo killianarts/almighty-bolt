@@ -4,8 +4,9 @@ What is planned after [0.1](releases/0.1.md). These are plans, not promises, and
 
 ## Next
 
-- **Everyday text and scrolling.** Copy and paste in text fields (the clipboard), a scroll container for anything, and a multi-line text field.
-- **Overlays.** Dropdowns, menus and context menus, tooltips and popovers, modal dialogs, and the system's file open and save dialogs.
+- **Everyday text and scrolling.** Copy and paste in text fields (the clipboard), a scroll container for anything, a list whose rows are any widgets and are built only as they scroll into view, and a multi-line text field.
+- **Small widgets.** A switch, radio buttons, and a spinner for progress whose end is not known.
+- **Overlays.** Dropdowns, menus and context menus, tooltips and popovers, modal dialogs, toasts, a combo box (a text field with suggestions), and the system's file open and save dialogs.
 - **Images and icons.**
 - **Theming.** Light and dark (following the system setting) and custom themes, for the widgets that exist, and for a part of a screen as well as the whole.
 
@@ -27,5 +28,6 @@ What is planned after [0.1](releases/0.1.md). These are plans, not promises, and
   - An API for writing your own widgets, which says how a widget appears in the semantic tree.
   - A widget designer, to build new widgets.
   - A GUI designer, to build a screen by placing widgets instead of writing code.
+- **Widgets made with the widget designer.** These come after the designer and are built with it, to test it: a number stepper, a divider and a spacer, a collapsible section, a link, chips, badges and cards, and a toolbar, a sidebar and a status bar.
 - **Delivery.** An application bundle (`.app`) with an icon, and signing; and a helper for work that goes on in the background while the window stays alive.
 - **Platforms.** Windows and Linux. A Coalton library.
