@@ -155,9 +155,8 @@ editor in [`bench/stress/`](bench/stress) are canvases.
 ## Working an app from a program or an agent
 
 The screen is also a **semantic tree**: every widget says what it is, what it is
-called, what it holds, its state and where it is. VoiceOver reads it, for static
-text, buttons, text fields and check boxes, and can press them. Two systems let a
-program use it.
+called, what it holds, its state and where it is. VoiceOver reads it, and can
+press and adjust what it reads. Two systems let a program use it.
 
 **`almighty-bolt/machine`** is the Lisp side: a session on the open window that
 does what a person's hands do, and returns when the app has answered. There are
@@ -189,7 +188,7 @@ tools and how to point an MCP client at the server
 
 ## Roadmap
 
-Planned: VoiceOver, theming (light, dark and custom), clipboard and scrolling,
+Planned: theming (light, dark and custom), clipboard and scrolling,
 menus, dropdowns and dialogs, images and icons, multiple windows, a widget
 designer and a GUI designer, and Windows and Linux. The full list, and what
 comes first, is in [docs/roadmap.md](docs/roadmap.md).

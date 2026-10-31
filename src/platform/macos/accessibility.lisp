@@ -62,8 +62,8 @@
   ;; The item that was last said to have the focus, so that a change is told once.
   (announced-focus nil)
   ;; Whether a screen reader is running (ASSISTIVE-CLIENT-P), and how a notification is told to the
-  ;; system (POST), which is given an element and :LAYOUT-CHANGED, :VALUE-CHANGED or
-  ;; :FOCUSED-CHANGED. A test puts others here.
+  ;; system (POST), which is given an element and :LAYOUT-CHANGED, :VALUE-CHANGED,
+  ;; :SELECTION-CHANGED or :FOCUSED-CHANGED. A test puts others here.
   (assistive #'assistive-client-p :type function)
   (poster #'post :type function))
 
@@ -76,6 +76,11 @@
   ;; What the element says: a string or a number or NIL.
   (label nil)
   (value nil)
+  ;; The ends of what a slider or a progress bar goes between, and whether a row or an option is the
+  ;; chosen one.
+  (minimum nil)
+  (maximum nil)
+  (selected nil)
   (enabled t)
   (focused nil)
   (identifier nil)
@@ -114,7 +119,14 @@ element (that a client still holds) answers."
     (:static-text (foreign-constant "NSAccessibilityStaticTextRole"))
     (:button (foreign-constant "NSAccessibilityButtonRole"))
     (:text-field (foreign-constant "NSAccessibilityTextFieldRole"))
-    (:checkbox (foreign-constant "NSAccessibilityCheckBoxRole"))))
+    (:checkbox (foreign-constant "NSAccessibilityCheckBoxRole"))
+    (:progress-bar (foreign-constant "NSAccessibilityProgressIndicatorRole"))
+    (:slider (foreign-constant "NSAccessibilitySliderRole"))
+    (:radio-group (foreign-constant "NSAccessibilityRadioGroupRole"))
+    (:radio-button (foreign-constant "NSAccessibilityRadioButtonRole"))
+    (:list (foreign-constant "NSAccessibilityListRole"))
+    (:row (foreign-constant "NSAccessibilityRowRole"))
+    (:group (foreign-constant "NSAccessibilityGroupRole"))))
 
 (defun object-for (thing)
   "An Objective-C object for THING, a string or a number, or zero for NIL."
@@ -202,6 +214,55 @@ that was taken away, is not pressed."
 (define-item-callback element-press sb-alien:unsigned-char 0
   (if (press-item item) 1 0))
 
+(defconstant +thumb-width+ 16
+  "The width of a slider's thumb, whose middle goes from half of it in to half of it from the end
+(the machine interface presses a slider by the same measure).")
+
+(defun nudge-item (item direction)
+  "Move the slider ITEM a twentieth of its range up (DIRECTION 1) or down (-1), the step of an arrow key,
+by pressing where the value then is, as a hand would. True if that is a change."
+  (let ((bridge (item-bridge item))
+        (minimum (item-minimum item))
+        (maximum (item-maximum item))
+        (value (item-value item)))
+    (ensure-fresh bridge)
+    (when (and (eq item (gethash (item-path item) (bridge-items bridge)))
+               (item-enabled item)
+               (realp value) (realp minimum) (realp maximum) (> maximum minimum))
+      (let ((target (max minimum (min maximum (+ value (* direction (/ (- maximum minimum) 20)))))))
+        (when (/= target value)
+          (let ((travel (max 1d0 (- (item-width item) +thumb-width+)))
+                (fraction (/ (- target minimum) (- maximum minimum))))
+            (funcall (bridge-press bridge)
+                     (+ (item-x item) (/ +thumb-width+ 2) (* fraction travel))
+                     (+ (item-y item) (/ (item-height item) 2)))
+            t))))))
+
+(define-item-callback element-increment sb-alien:unsigned-char 0
+  (if (nudge-item item 1) 1 0))
+
+(define-item-callback element-decrement sb-alien:unsigned-char 0
+  (if (nudge-item item -1) 1 0))
+
+(define-item-callback element-children sb-alien:unsigned-long 0
+  (if (item-children item)
+      (elements-array (item-children item))
+      0))
+
+(define-item-callback element-selected-children sb-alien:unsigned-long 0
+  (if (item-children item)
+      (elements-array (remove-if-not #'item-selected (item-children item)))
+      0))
+
+(define-item-callback element-selected sb-alien:unsigned-char 0
+  (if (item-selected item) 1 0))
+
+(define-item-callback element-minimum sb-alien:unsigned-long 0
+  (object-for (item-minimum item)))
+
+(define-item-callback element-maximum sb-alien:unsigned-long 0
+  (object-for (item-maximum item)))
+
 (define-callback element-set-focused sb-alien:void
     ((self sb-alien:unsigned-long) (cmd sb-alien:unsigned-long) (flag sb-alien:unsigned-char))
   ;; A screen reader that is asked to follow the keyboard, or to type into a field, asks for the focus
@@ -220,6 +281,11 @@ that was taken away, is not pressed."
              ("isAccessibilityFocused" "B@:" element-focused)
              ("setAccessibilityFocused:" "v@:B" element-set-focused)
              ("accessibilityParent" "@@:" element-parent)
+             ("accessibilityChildren" "@@:" element-children)
+             ("accessibilitySelectedChildren" "@@:" element-selected-children)
+             ("isAccessibilitySelected" "B@:" element-selected)
+             ("accessibilityMinValue" "@@:" element-minimum)
+             ("accessibilityMaxValue" "@@:" element-maximum)
              ("accessibilityFrame" "{CGRect={CGPoint=dd}{CGSize=dd}}@:" element-frame)))
 
 ;;; AppKit offers an action to a client when the class has the method that does it, so a thing that
@@ -228,14 +294,21 @@ that was taken away, is not pressed."
   "AlmightyBoltAccessibilityElement"
   :methods '(("accessibilityPerformPress" "B@:" element-press)))
 
+;;; A slider is adjusted, up and down, and is not pressed.
+(define-runtime-class *adjustable-class* "AlmightyBoltAccessibilityAdjustable"
+  "AlmightyBoltAccessibilityElement"
+  :methods '(("accessibilityPerformIncrement" "B@:" element-increment)
+             ("accessibilityPerformDecrement" "B@:" element-decrement)))
+
 (define-startup accessibility-slot-offset
   (setf *element-slot-offset* (ivar-offset *element-class* "lispSlot")))
 
 (defun make-element (item)
   "Make the element for ITEM, and remember the item for it."
-  (let* ((class (if (member (item-role item) '(:button :checkbox))
-                    *pressable-class*
-                    *element-class*))
+  (let* ((class (case (item-role item)
+                  ((:button :checkbox :radio-button :row) *pressable-class*)
+                  (:slider *adjustable-class*)
+                  (t *element-class*)))
          (element (msg-send :id (msg-send :id class "alloc") "init")))
     (setf (item-element item) element
           (item-index item) (register-object item)
@@ -257,7 +330,23 @@ thing that is not told yet."
     ((:static-text :paragraph) :static-text)
     (:button :button)
     (:text-field :text-field)
-    (:checkbox :checkbox)))
+    (:checkbox :checkbox)
+    (:progress-bar :progress-bar)
+    (:slider :slider)
+    (:radio-group :radio-group)
+    (:list :list)
+    ((:canvas :overlay) :group)))
+
+(defun text-of (thing)
+  "What a person is shown for THING, an item of a list or an option of a choice."
+  (if (stringp thing) thing (princ-to-string thing)))
+
+(defun place-item (item bounds)
+  (destructuring-bind (x y width height) bounds
+    (setf (item-x item) (float x 1d0)
+          (item-y item) (float y 1d0)
+          (item-width item) (float width 1d0)
+          (item-height item) (float height 1d0))))
 
 (defun fill-item (item node)
   "Make ITEM say what NODE says. True if the value changed."
@@ -266,11 +355,7 @@ thing that is not told yet."
          (id (getf node :id))
          (old-value (item-value item))
          (old-label (item-label item)))
-    (destructuring-bind (x y width height) (getf node :bounds)
-      (setf (item-x item) (float x 1d0)
-            (item-y item) (float y 1d0)
-            (item-width item) (float width 1d0)
-            (item-height item) (float height 1d0)))
+    (place-item item (getf node :bounds))
     (setf (item-enabled item) (not (getf state :disabled))
           (item-focused item) (and (getf state :focused) t)
           (item-identifier item) (and id (string-downcase (princ-to-string id))))
@@ -282,40 +367,111 @@ thing that is not told yet."
       (:text-field (setf (item-label item) name
                          (item-value item) (or (getf node :value) "")))
       (:checkbox (setf (item-label item) name
-                       (item-value item) (if (getf node :value) 1 0))))
+                       (item-value item) (if (getf node :value) 1 0)))
+      (:progress-bar (setf (item-label item) name
+                           (item-value item) (getf node :value)
+                           (item-minimum item) 0d0
+                           (item-maximum item) 1d0))
+      (:slider (setf (item-label item) name
+                     (item-value item) (getf node :value)
+                     (item-minimum item) (getf state :minimum)
+                     (item-maximum item) (getf state :maximum)))
+      ;; What a choice or a list holds is in the things inside it; the group is called by its label.
+      ((:radio-group :list :group) (setf (item-label item) name
+                                         (item-value item) nil)))
     (not (and (equal old-value (item-value item))
               (equal old-label (item-label item))))))
+
+(defun fill-part (item parent label value selected bounds)
+  "Make ITEM, an option of a choice or a row of a list inside PARENT, say what it says. Returns true if
+its value changed, and true if it became chosen or stopped being."
+  (let ((old-value (item-value item))
+        (old-selected (item-selected item)))
+    (place-item item bounds)
+    (setf (item-label item) label
+          (item-value item) value
+          (item-selected item) selected
+          (item-enabled item) (item-enabled parent)
+          (item-focused item) nil
+          (item-identifier item) (and (item-identifier parent)
+                                      (format nil "~a.~a" (item-identifier parent)
+                                              (cdr (first (last (item-path item)))))))
+    (values (not (equal old-value value))
+            (not (eq (and old-selected t) (and selected t))))))
+
+(defun option-specs (node)
+  "What each option of the choice NODE is: (path-part label value chosen bounds)."
+  (let* ((state (getf node :state))
+         (chosen (getf state :selected)))
+    (loop :for option :in (getf state :options)
+          :for bounds :in (getf state :option-bounds)
+          :for index :from 0
+          :collect (list (cons :option index) (text-of option)
+                         (if (eql index chosen) 1 0) (eql index chosen) bounds))))
+
+(defun row-specs (node)
+  "The same for each row of the list NODE that is showing."
+  (let* ((state (getf node :state))
+         (items (getf state :items))
+         (chosen (getf state :selected)))
+    (loop :for bounds :in (getf state :item-bounds)
+          :for index :from (or (getf state :first-visible) 0)
+          :while (< index (length items))
+          :collect (list (cons :row index) (text-of (elt items index))
+                         nil (eql index chosen) bounds))))
 
 (defun refresh (bridge)
   "Make the items again from the tree of the frame last built, keeping the ones that are still there
 (by their path, so that the elements are the same objects) and taking the others away. Returns the
-items whose value changed, and whether any came or went."
+items whose value changed, whether any came or went, and the lists whose chosen row changed."
   (let* ((old (bridge-items bridge))
          (new (make-hash-table :test 'equal))
          (changed '())
+         (chosen '())
          (structure nil)
          (tree (funcall (bridge-tree bridge))))
-    (labels ((visit (node path place parent)
+    (labels ((claim (path role parent)
+               ;; The item at PATH, the one there was if it has the same role and a new one if not.
+               ;; True as the second value for a new one.
+               (let ((item (gethash path old))
+                     (fresh nil))
+                 (unless (and item (eq (item-role item) role))
+                   (when item
+                     (drop-item item)
+                     (remhash path old))
+                   (setf item (make-item bridge path role)
+                         fresh t
+                         structure t)
+                   (make-element item))
+                 (setf (gethash path new) item
+                       (item-parent item) parent)
+                 (values item fresh)))
+             (parts (item path role specs)
+               (loop :for (key label value selected bounds) :in specs
+                     :collect (multiple-value-bind (part fresh)
+                                  (claim (append path (list key)) role item)
+                                (multiple-value-bind (value-changed selection-changed)
+                                    (fill-part part item label value selected bounds)
+                                  (unless fresh
+                                    (when value-changed
+                                      (push part changed))
+                                    (when (and selection-changed (eq role :row))
+                                      (pushnew item chosen))))
+                                part)))
+             (visit (node path place parent)
                (let ((path (append path (list (if (getf node :id)
                                                   (cons :id (getf node :id))
                                                   place))))
                      (role (role-of node)))
                  (if role
-                     (let ((item (gethash path old))
-                           (fresh nil))
-                       (unless (and item (eq (item-role item) role))
-                         (when item
-                           (drop-item item)
-                           (remhash path old))
-                         (setf item (make-item bridge path role)
-                               fresh t
-                               structure t)
-                         (make-element item))
+                     (multiple-value-bind (item fresh) (claim path role parent)
                        (when (and (fill-item item node) (not fresh))
                          (push item changed))
-                       (setf (gethash path new) item
-                             (item-parent item) parent
-                             (item-children item) (visit-children node path item))
+                       (setf (item-children item)
+                             (case role
+                               (:radio-group (parts item path :radio-button (option-specs node)))
+                               (:list (parts item path :row (row-specs node)))
+                               (t (visit-children node path item))))
                        (list item))
                      (visit-children node path parent))))
              (visit-children (node path parent)
@@ -332,7 +488,7 @@ items whose value changed, and whether any came or went."
         (maphash (lambda (path item) (setf (gethash path old) item)) new)
         (setf (bridge-roots bridge) roots
               (bridge-stale bridge) nil)
-        (values (nreverse changed) structure)))))
+        (values (nreverse changed) structure (nreverse chosen))))))
 
 (defun ensure-fresh (bridge)
   (when (and (bridge-stale bridge) (not (bridge-closed bridge)))
@@ -388,6 +544,8 @@ deepest and drawn last, or zero if there is none."
      (ecase notification
        (:layout-changed (foreign-constant "NSAccessibilityLayoutChangedNotification"))
        (:value-changed (foreign-constant "NSAccessibilityValueChangedNotification"))
+       (:selection-changed
+        (foreign-constant "NSAccessibilitySelectedChildrenChangedNotification"))
        (:focused-changed
         (foreign-constant "NSAccessibilityFocusedUIElementChangedNotification"))))))
 
@@ -400,14 +558,17 @@ need to be told."
 
 (defun announce (bridge)
   "Make the items again and tell the system what is new: a layout change if things came or went, a
-change of value for the ones whose value changed, and the new focus."
-  (multiple-value-bind (changed structure) (refresh bridge)
+change of value for the ones whose value changed, a change of the chosen row for a list, and the
+new focus."
+  (multiple-value-bind (changed structure chosen) (refresh bridge)
     (let ((focus (focused-item bridge))
           (post (bridge-poster bridge)))
       (when structure
         (funcall post (bridge-view bridge) :layout-changed))
       (dolist (item changed)
         (funcall post (item-element item) :value-changed))
+      (dolist (item chosen)
+        (funcall post (item-element item) :selection-changed))
       (when (and focus (not (eq focus (bridge-announced-focus bridge))))
         (funcall post (item-element focus) :focused-changed))
       (setf (bridge-announced-focus bridge) focus))))

@@ -4,7 +4,6 @@ What is planned after [0.1](releases/0.1.md). These are plans, not promises, and
 
 ## Next
 
-- **VoiceOver.** The screen is already a semantic tree of roles, names, values and states; a bridge lets the macOS screen reader read it.
 - **Everyday text and scrolling.** Copy and paste in text fields (the clipboard), a scroll container for anything, and a multi-line text field.
 - **Theming.** Light and dark (following the system setting) and custom themes, for the widgets that exist, and for a part of a screen as well as the whole.
 - **Overlays.** Dropdowns, menus and context menus, tooltips and popovers, modal dialogs, and the system's file open and save dialogs.

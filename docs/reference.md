@@ -26,9 +26,23 @@ Every widget says what it is (a `button`, a `text-field`, a `list`, a `checkbox`
 
 ### VoiceOver
 
-VoiceOver reads the tree through the system's accessibility API. Each static text (a label or a paragraph), button, text field and check box is an element of the window's view, with the role `AXStaticText`, `AXButton`, `AXTextField` or `AXCheckBox`, its name as the label (a static text says its words as its value), its value, whether it is enabled, and its place on the screen, which is worked out when it is asked for so that a window that was moved is where it says. The widget's `:id` is its accessibility identifier. Containers that only lay things out are not elements, and what is in them is taken up to their parent. An element stays the same object while its widget is on the screen (it is found by the ids from the top, and by position for a container with no id), so a screen reader's cursor stays on it. Sliders, progress bars, choices, lists, canvases and scrims are not elements yet.
+VoiceOver reads the tree through the system's accessibility API. Each widget is an element of the window's view, with its name as the label (a static text says its words as its value), its value, whether it is enabled, and its place on the screen, which is worked out when it is asked for so that a window that was moved is where it says. The widget's `:id` is its accessibility identifier. The roles are:
 
-A button or a check box can be pressed from VoiceOver; the press is a move, a press and a release in the middle of the thing, delivered to the window as a hand's would be, and a disabled one is not pressed. A text field can be given the keyboard, which a press on it does. The view says which element has the keyboard and which is under a point. While VoiceOver or Switch Control is running, the system is told after each frame when a value changed, when elements came or went, and when the keyboard moved; otherwise nothing is worked out until the system asks, and a window at rest does no work.
+| Widget | Role | Inside it |
+|---|---|---|
+| `label`, `paragraph` | `AXStaticText` | |
+| `button` | `AXButton` | |
+| `text-field` | `AXTextField` | |
+| `checkbox` | `AXCheckBox` | |
+| `slider` | `AXSlider` | its value, and its least and greatest |
+| `progress` | `AXProgressIndicator` | its value, from 0 to 1 |
+| `choice` | `AXRadioGroup` | an `AXRadioButton` for each option, valued 1 if it is the chosen one, with the identifier of the choice and the option's number after a dot |
+| `list-box` | `AXList` | an `AXRow` for each row that is showing, the picked one selected, with the identifier of the list and the row's number after a dot |
+| `canvas`, `scrim` | `AXGroup` | |
+
+Containers that only lay things out are not elements, and what is in them is taken up to their parent. An element stays the same object while its widget is on the screen (it is found by the ids from the top, and by position for a container with no id; a row by its number in the list, so that it is the same when the list scrolls), so a screen reader's cursor stays on it.
+
+A button, a check box, an option or a row can be pressed from VoiceOver; the press is a move, a press and a release in the middle of the thing, delivered to the window as a hand's would be, and a disabled one is not pressed. A slider can be moved up or down by a twentieth of its range, by pressing where the value then is. A text field can be given the keyboard, which a press on it does. The view says which element has the keyboard and which is under a point. While VoiceOver or Switch Control is running, the system is told after each frame when a value changed, when elements came or went, when the picked row of a list changed, and when the keyboard moved; otherwise nothing is worked out until the system asks, and a window at rest does no work. A list is read as the rows that are showing.
 
 Two other things use the tree, in different systems because they are for different people.
 
