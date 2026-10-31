@@ -35,6 +35,8 @@
                 #:choice-state-lefts
                 #:choice-state-widths
                 #:list-state-top
+                #:scroll-state-offset
+                #:scroll-state-content-height
                 #:+row-height+)
   (:import-from #:almighty-bolt/ui/immediate
                 #:immediate-variant
@@ -86,6 +88,7 @@
     (:list-box :list)
     (:canvas :canvas)
     (:scrim :overlay)
+    (:scroll :scroll-area)
     ((:column :row :stack :padding :panel :center) :group)))
 
 (defun find-box (ui id)
@@ -115,9 +118,10 @@
                  (and (>= selected 0) (nth (round selected) items))))
     (t nil)))
 
-(defun state-of (ui box x y)
+(defun state-of (ui box x y hidden)
   (let ((state '()))
     (flet ((note (key value) (setf state (append state (list key value)))))
+      (when hidden (note :hidden t))
       (unless (box-enabled box) (note :disabled t))
       (when (and (plusp (ui-focus ui)) (= (box-key box) (ui-focus ui))) (note :focused t))
       (when (and (plusp (ui-hot ui)) (= (box-key box) (ui-hot ui))) (note :hovered t))
@@ -137,6 +141,9 @@
              (note :minimum (aref aux 1))
              (note :maximum (aref aux 2)))))
         (:checkbox (note :checked (= (box-n3 box) 1)))
+        (:scroll
+         (note :offset (scroll-state-offset (box-data box)))
+         (note :content-height (scroll-state-content-height (box-data box))))
         (:choice
          (note :selected (box-n3 box))
          (note :options (car (box-data box)))
@@ -163,22 +170,39 @@
                                       +row-height+)))))))
     state))
 
-(defun node-of (ui box x y)
+(defun node-of (ui box x y left top right bottom)
+  "The node of BOX, whose parent is at X, Y, inside the part of the window from LEFT, TOP to RIGHT,
+BOTTOM that shows (a scroll container's window, or all of it). Its bounds are the part of it that
+shows; one that is all out of sight is :hidden, with no width or height."
   (let* ((x (+ x (box-x box)))
          (y (+ y (box-y box)))
+         (shown-left (max x left))
+         (shown-top (max y top))
+         (shown-w (max 0f0 (- (min (+ x (box-w box)) right) shown-left)))
+         (shown-h (max 0f0 (- (min (+ y (box-h box)) bottom) shown-top)))
+         ;; A box that has an area and none of it shows. (One with no area, an empty label, is where
+         ;; it is.)
+         (hidden (and (plusp (box-w box)) (plusp (box-h box))
+                      (or (zerop shown-w) (zerop shown-h))))
          (id (box-id box))
          (name (name-of ui box))
          (value (value-of box))
-         (state (state-of ui box x y))
-         (children (loop :for child :across (box-children box)
-                         :collect (node-of ui child x y))))
+         (state (state-of ui box x y hidden))
+         (children (if (eq (box-kind box) :scroll)
+                       (loop :for child :across (box-children box)
+                             :collect (node-of ui child x y shown-left shown-top
+                                               (+ shown-left shown-w) (+ shown-top shown-h)))
+                       (loop :for child :across (box-children box)
+                             :collect (node-of ui child x y left top right bottom)))))
     (append (and id (list :id id))
             (list :role (role-of box))
             (and name (list :name name))
             ;; A check box that is not checked has the value NIL, which is a value.
             (and (or value (eq (box-kind box) :checkbox)) (list :value value))
             (and state (list :state state))
-            (list :bounds (list x y (box-w box) (box-h box)))
+            (list :bounds (if hidden
+                              (list (min (max x left) right) (min (max y top) bottom) 0f0 0f0)
+                              (list shown-left shown-top shown-w shown-h)))
             (and children (list :children children)))))
 
 (defmethod accessibility-tree ((variant immediate-variant))
@@ -186,7 +210,7 @@
 no frame has been built."
   (let* ((ui (immediate-variant-ui variant))
          (root (ui-root ui)))
-    (and root (node-of ui root 0f0 0f0))))
+    (and root (node-of ui root 0f0 0f0 -1f30 -1f30 1f30 1f30))))
 
 (defun walk-nodes (function node)
   "Call FUNCTION on NODE and, depth first, on every node inside it."

@@ -194,9 +194,15 @@ NAME says which, into that thing, after pressing it to give it the keyboard."
 
 ;;; --- acting on things ---
 
+(defun refuse-hidden (node)
+  (when (node-property node :hidden)
+    (refuse 'cannot "The ~a is scrolled out of sight. Scroll the container it is in until it shows."
+            (describe-node node))))
+
 (defun click (session &key id role name)
   "Press and release the primary button in the middle of the thing."
   (let ((node (find-node session :id id :role role :name name)))
+    (refuse-hidden node)
     (when (node-property node :disabled)
       (refuse 'cannot "The ~a is disabled." (describe-node node)))
     (multiple-value-bind (x y) (middle node)
@@ -206,6 +212,7 @@ NAME says which, into that thing, after pressing it to give it the keyboard."
 
 (defun double-click (session &key id role name)
   (let ((node (find-node session :id id :role role :name name)))
+    (refuse-hidden node)
     (multiple-value-bind (x y) (middle node)
       (press-at session x y :count 1)
       (press-at session x y :count 2))

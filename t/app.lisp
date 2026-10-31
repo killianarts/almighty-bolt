@@ -207,6 +207,109 @@ never touches the person's."
         (push symbol nothing)))
     (assert-equal '() nothing)))
 
+;;; --- a scroll container ---
+
+(defun make-shelf ()
+  "A button, a scroll container 100 points tall with ten buttons of 28 inside, and a button below
+that leaves two of them. Each button counts its presses."
+  (state-let ((presses (make-list 10 :initial-element 0)) (above 0) (count 10))
+    (lambda ()
+      (column ()
+        (when (button (format nil "Above ~d" above) :id :above)
+          (incf above))
+        (scroll (:id :shelf :height 100)
+          (dotimes (i count)
+            (when (button (format nil "B~d ~d" i (nth i presses)) :id i)
+              (incf (nth i presses)))))
+        (when (button "Fewer" :id :fewer)
+          (setf count 2))))))
+
+(defun node-of (screen id)
+  (first (s:find-nodes (core:accessibility-tree (screen-variant screen)) :id id)))
+
+(defun offset-of (screen id)
+  (s:node-property (node-of screen id) :offset))
+
+(define-test the-wheel-moves-a-scroll-container-and-what-is-out-of-its-window-is-hidden ()
+  (let* ((screen (show 'make-shelf))
+         (session (screen-session screen)))
+    (assert-eq :scroll-area (s:node-role (node-of screen :shelf)))
+    (assert-eql 0f0 (offset-of screen :shelf))
+    (assert-true (s:node-property (node-of screen 5) :hidden))
+    (assert-eq nil (core:lookup-target (screen-variant screen) 5))
+    ;; Three lines down, 24 points each: the sixth button, 140 points into the shelf, now shows.
+    (m:scroll session :id :shelf :dy -3)
+    (assert-eql 72f0 (offset-of screen :shelf))
+    (assert-false (s:node-property (node-of screen 5) :hidden))
+    (click screen 5)
+    (assert-equal "B5 1" (text-in screen 5))
+    ;; No further than the end: ten buttons of 28 in a window of 100.
+    (m:scroll session :id :shelf :dy -100)
+    (assert-eql 180f0 (offset-of screen :shelf))
+    (m:scroll session :id :shelf :dy 100)
+    (assert-eql 0f0 (offset-of screen :shelf))))
+
+(define-test what-is-scrolled-out-of-the-window-takes-no-press ()
+  (let* ((screen (show 'make-shelf))
+         (session (screen-session screen)))
+    (m:scroll session :id :shelf :dy -3)
+    ;; The second button is now above the window, where the first button of the screen is; a press
+    ;; there is that button's.
+    (click screen :above)
+    ;; (By name: the glyphs of what is out of the window are in the display list, under its clip.)
+    (assert-equal "Above 1" (s:node-name (node-of screen :above)))
+    (assert-true (s:node-property (node-of screen 1) :hidden))
+    (assert-equal "B1 0" (s:node-name (node-of screen 1)))
+    (handler-case (progn (m:click session :id 1)
+                         (assert-true nil "a hidden button was clicked"))
+      (m:cannot (condition)
+        (assert-true (search "scrolled out of sight" (princ-to-string condition)))))))
+
+(define-test the-keyboard-coming-to-something-out-of-the-window-scrolls-it-into-view ()
+  (let* ((screen (show 'make-shelf))
+         (session (screen-session screen)))
+    ;; The button above, then the first six in the shelf. (A press does not give a button the keyboard.)
+    (dotimes (i 7) (m:press-key session :tab))
+    (assert-true (s:node-property (node-of screen 5) :focused))
+    ;; As little as shows all of it: its bottom, 168 points in, at the bottom of the window.
+    (assert-eql 68f0 (offset-of screen :shelf))
+    (assert-false (s:node-property (node-of screen 5) :hidden))
+    ;; Back up to the first: its top at the top of the window.
+    (dotimes (i 5) (m:press-key session :tab :modifiers '(:shift)))
+    (assert-eql 0f0 (offset-of screen :shelf))))
+
+(define-test a-scroll-container-whose-contents-shrink-goes-back-to-the-top ()
+  (let* ((screen (show 'make-shelf))
+         (session (screen-session screen)))
+    (m:scroll session :id :shelf :dy -100)
+    (assert-eql 180f0 (offset-of screen :shelf))
+    ;; In the frame of the press itself, not one after: what is left shows at once.
+    (click screen :fewer)
+    (assert-eql 0f0 (offset-of screen :shelf))
+    (assert-false (s:node-property (node-of screen 1) :hidden))
+    (assert-equal "B1 0" (text-in screen 1))))
+
+(defun make-nested-scroll ()
+  (state-let ((picked 0))
+    (lambda ()
+      (scroll (:id :outer :height 80)
+        (multiple-value-bind (index changed)
+            (list-box '("One" "Two" "Three" "Four" "Five") picked :id :inner :rows 2)
+          (when changed (setf picked index)))
+        (dotimes (i 4)
+          (button (format nil "B~d" i) :id i))))))
+
+(define-test the-wheel-goes-to-a-list-inside-a-scroll-container-first ()
+  (let* ((screen (show 'make-nested-scroll))
+         (session (screen-session screen)))
+    (m:scroll session :id :inner :dy -2)
+    (assert-eql 2 (s:node-property (node-of screen :inner) :first-visible))
+    (assert-eql 0f0 (offset-of screen :outer))
+    ;; Over a button inside, the container takes it.
+    (m:scroll session :id 0 :dy -1)
+    (assert-eql 24f0 (offset-of screen :outer))
+    (assert-eql 2 (s:node-property (node-of screen :inner) :first-visible))))
+
 ;;; --- what a screen reader reads ---
 ;;;
 ;;; The app is drawn as above, and a real NSView in a real NSWindow (not shown) is given its tree and
@@ -612,9 +715,6 @@ screen reader was given are taken away and their places are used again."
 
 (defun frame-of (element)
   (multiple-value-list (objc:msg-send :rect element "accessibilityFrame")))
-
-(defun node-of (screen id)
-  (first (s:find-nodes (core:accessibility-tree (screen-variant screen)) :id id)))
 
 (define-test a-screen-reader-reads-sliders-bars-choices-lists-and-drawings ()
   (let ((screen (show 'make-gallery)))

@@ -24,6 +24,7 @@
                 #:box-pad-bottom
                 #:box-pref-w
                 #:box-pref-h
+                #:box-n1
                 #:box-n3
                 #:box-data
                 #:box-children
@@ -37,6 +38,9 @@
                 #:paragraph-state-lines
                 #:paragraph-state-wrapped-at
                 #:set-paragraph-lines
+                #:scroll-state-offset
+                #:scroll-state-content-height
+                #:scroll-state-viewport-height
                 #:choice-state-lefts
                 #:choice-state-widths
                 #:+row-height+
@@ -162,6 +166,34 @@ them in the boxes, and return the width and height."
                           :main-align (box-main-align box) :cross-align (box-cross-align box)
                           :main-size (if (box-fill box) :max :min))
            (set-box box w h)))))
+    (:scroll
+     ;; What is inside is a column as tall as it wants; the window onto it is HEIGHT (PREF-H) tall if
+     ;; that was given, and otherwise as tall as what is inside, within the constraints.
+     (let ((children (box-children box))
+           (state (box-data box)))
+       (flet ((measure (i a b c d)
+                (layout-box (aref children i) context a b c d))
+              (place (i x y)
+                (let ((child (aref children i)))
+                  (setf (box-x child) x
+                        (box-y child) y)))
+              (flex-of (i)
+                (declare (ignore i))
+                (values 0f0 t)))
+         (declare (dynamic-extent #'measure #'place #'flex-of))
+         (multiple-value-bind (content-w content-h)
+             (layout-flex :vertical min-w max-w 0f0 +unbounded+ (length children)
+                          #'measure #'place :flex-of #'flex-of :main-size :min)
+           (let* ((w (constrain content-w min-w max-w))
+                  (h (constrain (if (plusp (box-pref-h box)) (box-pref-h box) content-h)
+                                min-h max-h))
+                  (offset (max 0f0 (min (box-n1 box) (max 0f0 (- content-h h))))))
+             (setf (scroll-state-offset state) offset
+                   (scroll-state-content-height state) content-h
+                   (scroll-state-viewport-height state) h)
+             (loop :for child :across children
+                   :do (decf (box-y child) offset))
+             (set-box box w h))))))
     ((:padding :panel)
      (let ((children (box-children box)))
        (flet ((measure (a b c d)

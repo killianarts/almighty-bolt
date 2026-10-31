@@ -29,6 +29,7 @@
   (:import-from #:almighty-bolt/ui/box
                 #:box-key
                 #:box-id
+                #:box-kind
                 #:box-children
                 #:box-interactive
                 #:box-focusable
@@ -167,22 +168,35 @@ each folded with those of its children, which come later in the order the boxes 
 
 (defun remember-geometry (ui)
   "Note where each box that has an id or takes the pointer is in the window, and which of
-them take it, in the order they are drawn, for the next frame; and save every box's place."
+them take it, in the order they are drawn, for the next frame; and save every box's place. A box
+inside a scroll container shows only where the container's window is: the pointer finds it only
+there, and a box wholly out of the window has no place by its id (LOOKUP-TARGET); its place by its
+key (RECT-OF, which a widget measures from) is the whole of it, wherever it is."
   (clrhash (ui-rects ui))
   (clrhash (ui-id-rects ui))
   (setf (ui-hit-count ui) 0
         (ui-rect-count ui) 0)
   (let ((boxes (ui-boxes ui))
         (count (ui-count ui)))
-    (labels ((walk (box x y)
-               (let ((x (+ x (box-x box)))
-                     (y (+ y (box-y box))))
+    (labels ((walk (box x y left top right bottom)
+               (declare (type single-float x y left top right bottom))
+               (let* ((x (+ x (box-x box)))
+                      (y (+ y (box-y box)))
+                      ;; The part of the box that shows.
+                      (shown-left (max x left))
+                      (shown-top (max y top))
+                      (shown-w (max 0f0 (- (min (+ x (box-w box)) right) shown-left)))
+                      (shown-h (max 0f0 (- (min (+ y (box-h box)) bottom) shown-top))))
                  (when (or (box-id box) (box-interactive box))
                    (let ((rect (next-rect ui)))
                      (setf (rect-x rect) x (rect-y rect) y
                            (rect-w rect) (box-w box) (rect-h rect) (box-h box))
                      (setf (gethash (box-key box) (ui-rects ui)) rect)
-                     (when (box-id box)
+                     ;; Out of the window is a box with an area of which none shows; one with no
+                     ;; area (an empty label) is where it is.
+                     (when (and (box-id box)
+                                (or (zerop (box-w box)) (zerop (box-h box))
+                                    (and (plusp shown-w) (plusp shown-h))))
                        (setf (gethash (box-id box) (ui-id-rects ui)) rect))))
                  (when (box-interactive box)
                    (let ((index (ui-hit-count ui))
@@ -191,14 +205,18 @@ them take it, in the order they are drawn, for the next frame; and save every bo
                        (vector-push-extend (make-hit) hits))
                      (let ((hit (aref hits index)))
                        (setf (hit-key hit) (box-key box) (hit-id hit) (box-id box)
-                             (hit-x hit) x (hit-y hit) y (hit-w hit) (box-w box)
-                             (hit-h hit) (box-h box) (hit-focusable hit) (box-focusable box)
+                             (hit-x hit) shown-left (hit-y hit) shown-top (hit-w hit) shown-w
+                             (hit-h hit) shown-h (hit-focusable hit) (box-focusable box)
                              (hit-moves hit) (box-moves box)))
                      (incf (ui-hit-count ui))))
-                 (loop :for child :across (box-children box)
-                       :do (walk child x y)))))
+                 (if (eq (box-kind box) :scroll)
+                     (loop :for child :across (box-children box)
+                           :do (walk child x y shown-left shown-top (+ shown-left shown-w)
+                                     (+ shown-top shown-h)))
+                     (loop :for child :across (box-children box)
+                           :do (walk child x y left top right bottom))))))
       (when (ui-root ui)
-        (walk (ui-root ui) 0f0 0f0)))
+        (walk (ui-root ui) 0f0 0f0 -1f30 -1f30 1f30 1f30)))
     (let ((saved (ui-saved-geometry ui)))
       (unless (= (length saved) (* 4 count))
         (setf saved (make-array (* 4 count) :element-type 'single-float)

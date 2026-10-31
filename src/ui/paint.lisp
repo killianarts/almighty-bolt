@@ -51,6 +51,8 @@
                 #:field-state-view-start
                 #:choice-state-lefts
                 #:list-state-top
+                #:scroll-state-offset
+                #:scroll-state-content-height
                 #:+field-padding+
                 #:+row-height+
                 #:+thumb-size+
@@ -298,6 +300,19 @@
     (:checkbox (draw-checkbox box context list x y))
     (:list-box (draw-list-box box context list x y))))
 
+(defun draw-scroll-bar (box list x y)
+  "The bar at the right edge of the scroll container BOX that says how much of what is inside shows,
+and where: drawn only when not all of it does."
+  (let* ((state (box-data box))
+         (h (box-h box))
+         (content (scroll-state-content-height state)))
+    (when (> content h)
+      (let* ((track (- h 8))
+             (bar (max 12f0 (* track (/ h content))))
+             (position (* (- track bar) (/ (scroll-state-offset state) (- content h)))))
+        (push-rounded-rect list (+ x (box-w box) -8) (+ y 4 position) 4 bar 2
+                           +field-border-color+)))))
+
 ;;; --- the cache ---
 
 (defun paint-cached (ui box context list x y)
@@ -345,6 +360,11 @@ kept, and otherwise afresh, which is then kept."
            (push-unclip list))))
       (:scrim
        (push-rect list x y (box-w box) (box-h box) +scrim-color+))
+      (:scroll
+       (push-clip list x y (box-w box) (box-h box))
+       (paint-children ui box context list x y)
+       (push-unclip list)
+       (draw-scroll-bar box list x y))
       (:panel
        (push-rounded-rect list x y (box-w box) (box-h box) (box-n1 box)
                           (if (zerop (box-color box)) +panel-color+ (box-color box)))

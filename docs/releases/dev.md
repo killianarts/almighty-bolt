@@ -2,7 +2,7 @@
 
 *Under development*
 
-Welcome to almighty-bolt 0.2, in development. It starts with VoiceOver: a window of almighty-bolt can be read by the macOS screen reader. See [what's new](#whats-new-in-02).
+Welcome to almighty-bolt 0.2, in development. It starts with VoiceOver: a window of almighty-bolt can be read by the macOS screen reader. A scroll container and copy and paste in text fields came next. See [what's new](#whats-new-in-02).
 
 <!-- highlights:start -->
 ## Highlights
@@ -48,6 +48,25 @@ Nothing is worked out for this until something asks what the window shows (Voice
 A count that changes when a button elsewhere is pressed is not said by VoiceOver, since its cursor is on the button. Say that the text matters with `:live`: `(bolt:label (princ-to-string count) :id :count :live t)` is read out as the new count after each press. It is for a result, a count or a status that a person should hear without going to look for it, not for text that changes every frame. A live text that has just appeared is not read out, only one that changes, so a status that comes and goes is better as a label that is always there and sometimes empty.
 
 A list is read as the rows that are showing, so that scrolling it changes which ones there are; a screen reader is not told of the rows out of sight. What a canvas draws is not read: it is a group, called by its label if it has one.
+
+### A scroll container
+
+`scroll` shows what is inside it, one under another, in a window that the wheel or a trackpad moves up and down:
+
+```lisp
+(bolt:scroll (:id :log :height 300)
+  (dolist (line lines)
+    (bolt:label (line-text line) :id (line-id line))))
+```
+
+- The window is `:height` points tall, or takes a share of a column's free space with `:flex`. The `:id` is required: the place the window is at is kept by it, across frames and across a reload.
+- The wheel goes first to what is inside (a `list-box` in a `scroll` scrolls its own rows), and what is left of it moves the window while the pointer is over the container or anything in it.
+- Tab brings the keyboard to something out of the window, and the window moves to show it.
+- What is out of the window cannot be pressed. In the semantic tree it is `:hidden`, and the machine interface refuses to click it until it has been scrolled into sight.
+
+Moving the window lays the screen out again: a wheel tick costs about 0.06 ms with 50 rows of a label and a button, and 2.8 ms with 2000. For long lists, a list that builds only the rows that show is next on the [roadmap](../roadmap.md).
+
+VoiceOver reads what is inside a `scroll` as it reads what is inside a column, the rows out of the window included, and it does not yet scroll the window to the one it is on.
 
 ### Minor features
 

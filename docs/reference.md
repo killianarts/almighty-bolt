@@ -12,7 +12,17 @@ Every widget also takes `:flex`, its share of the free space of its container. A
 
 ## Containers
 
-Containers take their options in a list and their children after it: `(bolt:column (:gap 10 :cross-align :center) ...)`. They are `column` and `row` (`:gap :main-align :cross-align :fill :flex`), `stack` (children on top of each other), `padding` (`:all :left :top :right :bottom`), `panel` (padding with a background: `:color :radius`) and `center`.
+Containers take their options in a list and their children after it: `(bolt:column (:gap 10 :cross-align :center) ...)`. They are `column` and `row` (`:gap :main-align :cross-align :fill :flex`), `stack` (children on top of each other), `padding` (`:all :left :top :right :bottom`), `panel` (padding with a background: `:color :radius`), `center`, and `scroll`.
+
+`scroll` (`:id :height :flex`) shows what is inside it, one under another, in a window that the wheel or a trackpad moves up and down, with a bar at the right edge when not all of it shows. Its `:id` is required, since the place the window is at is kept by it. The window is `:height` points tall where nothing gives it a height (the window is as tall as what is inside if there is no `:height`), and `:flex` gives it a share of a column's free space instead. The wheel goes first to what is inside it (a `list-box` scrolls its own rows), and what is left moves the window while the pointer is over the container or anything in it. When Tab brings the keyboard to something out of the window, the window moves as little as shows all of it. What is out of the window cannot be pressed, and is `:hidden` in the semantic tree.
+
+```lisp
+(bolt:scroll (:id :log :height 300)
+  (dolist (line lines)
+    (bolt:label (line-text line) :id (line-id line))))
+```
+
+Moving the window lays the screen out again, so a wheel tick costs what a change of layout does: about 0.06 ms with 50 rows of a label and a button, and 2.8 ms with 2000 rows.
 
 ## Time
 
@@ -42,7 +52,7 @@ VoiceOver reads the tree through the system's accessibility API. Each widget is 
 | `list-box` | `AXList` | an `AXRow` for each row that is showing, the picked one selected, with the identifier of the list and the row's number after a dot |
 | `canvas`, `scrim` | `AXGroup` | |
 
-Containers that only lay things out are not elements, and what is in them is taken up to their parent. An element stays the same object while its widget is on the screen (it is found by the ids from the top, and by position for a container with no id; a row by its number in the list, so that it is the same when the list scrolls), so a screen reader's cursor stays on it.
+Containers that only lay things out (and `scroll`) are not elements, and what is in them is taken up to their parent. An element stays the same object while its widget is on the screen (it is found by the ids from the top, and by position for a container with no id; a row by its number in the list, so that it is the same when the list scrolls), so a screen reader's cursor stays on it.
 
 A button, a check box, an option or a row can be pressed from VoiceOver; the press is a move, a press and a release in the middle of the thing, delivered to the window as a hand's would be, and a disabled one is not pressed. A slider can be moved up or down by a twentieth of its range, by pressing where the value then is. A text field can be given the keyboard, which a press on it does. The view says which element has the keyboard and which is under a point. Once something has asked what the window shows (VoiceOver, the Accessibility Inspector), or while the system says that VoiceOver or Switch Control is running, the system is told after each frame when a value changed, when elements came or went, when one moved or changed size (so that the cursor of a screen reader follows it), when the picked row of a list changed, and when the keyboard moved; before that nothing is worked out until the system asks, and a window at rest does no work. (The system's own flag for VoiceOver was found to say no inside an app while VoiceOver was running, so it is not what this goes by alone.) A list is read as the rows that are showing.
 
@@ -63,7 +73,7 @@ Two other things use the tree, in different systems because they are for differe
   (m:screenshot session))                                            ; a PNG, in a vector of bytes
 ```
 
-Things are named by `:id`, or by `:role` and `:name`, and a name that fits two things is an error that says so (`ambiguous-node`). The calls are `see`, `find-node`, `click`, `double-click`, `type-text`, `press-key`, `set-value`, `select-item`, `scroll`, `wait` and `screenshot`. The tests of the 7GUIs drive their apps through it.
+Things are named by `:id`, or by `:role` and `:name`, and a name that fits two things is an error that says so (`ambiguous-node`). The calls are `see`, `find-node`, `click`, `double-click`, `type-text`, `press-key`, `set-value`, `select-item`, `scroll`, `wait` and `screenshot`. The tests of the 7GUIs drive their apps through it. A thing scrolled out of the window of a `scroll` is `:hidden` in its state, with bounds of no size where it went out, and `click` and `double-click` refuse it with a message that says to scroll first; `scroll` on the container (its role is `:scroll-area`, and its state has `:offset` and `:content-height`) brings it into sight.
 
 ## The MCP server
 

@@ -50,6 +50,9 @@
                 #:ui-moved
                 #:ui-keys
                 #:ui-inputs
+                #:ui-wheel-dy
+                #:ui-boxes
+                #:ui-count
                 #:consume-input
                 #:ui-states
                 #:open-box
@@ -97,7 +100,8 @@
                 #:+key-up+
                 #:+key-down+
                 #:+key-home+
-                #:+key-end+)
+                #:+key-end+
+                #:+points-per-line+)
   (:import-from #:almighty-bolt/ui/theme
                 #:+font-name+
                 #:+font-size+)
@@ -126,6 +130,13 @@
            #:padding
            #:panel
            #:center
+           #:scroll
+           #:begin-scroll
+           #:end-scroll
+           #:scroll-state
+           #:scroll-state-offset
+           #:scroll-state-content-height
+           #:scroll-state-viewport-height
            #:own-hashes
            #:field-state
            #:field-state-state
@@ -260,6 +271,81 @@ the box a press began on), 3 disabled, and 4 more if it has the keyboard."
     `(with-container (,box :center :id ,id)
        (setf (box-flex ,box) (float ,flex 1f0))
        ,@body)))
+
+;;; --- a scroll container ---
+;;;
+;;; What is inside is laid out as a column as tall as it wants to be, and the container shows a
+;;; window onto it, moved by the wheel. How far down the window is (the offset, in points) is kept by
+;;; the container's id, and is part of what decides the layout: the children are placed above the
+;;; window by it. The wheel goes first to what is inside (a list inside scrolls its rows), and what is
+;;; left of it, while the pointer is over the container or anything in it, moves the window. When the
+;;; keyboard comes to something inside that is out of the window, the window moves to show it.
+
+(defstruct (scroll-state (:constructor make-scroll-state ()))
+  (offset 0f0 :type single-float)
+  ;; From the last layout: how tall what is inside is, and how tall the window onto it.
+  (content-height 0f0 :type single-float)
+  (viewport-height 0f0 :type single-float)
+  ;; The index of the first box inside the container, this build.
+  (first-inside 0 :type fixnum)
+  ;; The key of what had the keyboard when the container was last described.
+  (last-focus 0 :type fixnum))
+
+(defun begin-scroll (id height flex)
+  (let* ((ui *ui*)
+         (box (open-box ui :scroll :id (or id (required-id 'scroll))))
+         (state (state-of ui (box-key box) #'make-scroll-state)))
+    (setf (box-interactive box) t
+          (box-pref-h box) (if height (float height 1f0) 0f0)
+          (box-flex box) (float flex 1f0)
+          (box-data box) state
+          (scroll-state-first-inside state) (ui-count ui))
+    box))
+
+(defun inside-scroll-p (ui state key)
+  "True if the box KEY was made inside the scroll container whose state is STATE, this build."
+  (let ((boxes (ui-boxes ui)))
+    (loop :for index :from (scroll-state-first-inside state) :below (ui-count ui)
+            :thereis (= (box-key (svref boxes index)) key))))
+
+(defun end-scroll (box)
+  (let* ((ui *ui*)
+         (key (box-key box))
+         (state (box-data box))
+         (rect (rect-of ui key))
+         (offset (scroll-state-offset state))
+         (viewport (scroll-state-viewport-height state)))
+    (when (and rect (/= (ui-wheel-dy ui) 0f0)
+               (or (= (ui-hot ui) key) (inside-scroll-p ui state (ui-hot ui))))
+      (multiple-value-bind (dx dy) (consume-wheel ui)
+        (declare (ignore dx))
+        (decf offset (* dy (float +points-per-line+ 1f0)))))
+    ;; The keyboard came to something inside: show all of it, moving the window as little as can be.
+    (let ((focus (ui-focus ui)))
+      (when (and rect (/= focus (scroll-state-last-focus state)) (/= focus 0)
+                 (inside-scroll-p ui state focus))
+        (let ((target (rect-of ui focus)))
+          (when target
+            (let* ((top (+ (- (rect-y target) (rect-y rect)) offset))
+                   (bottom (+ top (rect-h target))))
+              (cond ((< top offset) (setf offset top))
+                    ((> bottom (+ offset viewport)) (setf offset (- bottom viewport))))))))
+      (setf (scroll-state-last-focus state) focus))
+    (setf offset (max 0f0 (min offset (max 0f0 (- (scroll-state-content-height state) viewport))))
+          (scroll-state-offset state) offset
+          (box-n1 box) offset)
+    (close-box ui)
+    nil))
+
+(defmacro scroll ((&key id height (flex 0)) &body body)
+  "What BODY describes, one under another, in a window that the wheel moves up and down. The window
+is HEIGHT points tall where the container is not given a height (in a column, which gives only the
+room it has), or as tall as what is inside; FLEX gives it a share of a column's free space. The
+:id is required: the place the window is at is kept by it."
+  (let ((box (gensym "BOX")))
+    `(let ((,box (begin-scroll ,id ,height ,flex)))
+       ,@body
+       (end-scroll ,box))))
 
 ;;; --- text ---
 
@@ -819,6 +905,7 @@ counting its children."
          (layout (case (box-kind box)
                    (:choice (mix layout (hash-options (car (box-data box)))))
                    (:list-box (mix layout (box-n3 box)))
+                   (:scroll (mix layout (hash-of (box-n1 box))))
                    (t layout)))
          (paint (hash-numbers layout (box-color box) (box-look box) (hash-of (box-n1 box))
                               (hash-of (box-n2 box)) (box-n3 box)
