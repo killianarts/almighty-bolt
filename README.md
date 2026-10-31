@@ -16,24 +16,29 @@ interface. Windows and Linux support are planned.
 
 ```lisp
 (defpackage #:counter
-  (:use #:cl #:almighty-bolt))
+  (:use #:cl)
+  (:local-nicknames (#:bolt #:almighty-bolt)))
 (in-package #:counter)
 
 (defun make-counter ()
-  (state-let ((count 0))                 ; state that survives a reload
+  (bolt:state-let ((count 0))            ; state that survives a reload
     (lambda ()                           ; called every frame: describes the whole screen
-      (padding (:all 24)
-        (row (:gap 16 :cross-align :center)
-          (label (princ-to-string count) :id :count :size 32)
-          (when (button "Count" :id :count-button)   ; true on the frame it is clicked
+      (bolt:padding (:all 24)
+        (bolt:row (:gap 16 :cross-align :center)
+          (bolt:label (princ-to-string count) :id :count :size 32)
+          (when (bolt:button "Count" :id :count-button)   ; true on the frame it is clicked
             (incf count)))))))
 
-(open-app 'make-counter :title "Counter" :width 360 :height 160)
+(bolt:open-app 'make-counter :title "Counter" :width 360 :height 160)
 ```
 
 `open-app` opens the window and gives you the REPL back. Change a label, press
 C-c C-c on `make-counter`, and the window changes in about half a second with
 the count where it was.
+
+`bolt` is a local nickname, so none of the library's names are imported into
+your package. In code they take the prefix (`bolt:row`); the table of widgets
+below lists them bare.
 
 ## Features
 
@@ -90,11 +95,11 @@ An app is a function of no arguments, its **constructor**, that makes the
 function that describes the screen. Give it by name, so that compiling it again
 is what the window runs.
 
-|                                                        |                                                                                                                                                                                                                                                             |
-|--------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `(open-app 'make-x :title "X" :width 360 :height 160)` | Opens a window and returns at once, with the REPL free. Closing the window (its button, Command-W, Command-Q) or `(close-app)` leaves Lisp running, and `open-app` can be called again.                                                                     |
-| `(run-app 'make-x ...)`                                | For a program that is only a window (`sbcl --load app.lisp`): it runs on the main thread and closing the window ends the process. `:hot t` remakes the app when code is compiled, `:watch-systems '("my-system")` also reloads when a source file is saved. |
-| `(close-app)`                                          | Closes the window that `open-app` opened.                                                                                                                                                                                                                   |
+|                                                             |                                                                                                                                                                                                                                                             |
+|-------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `(bolt:open-app 'make-x :title "X" :width 360 :height 160)` | Opens a window and returns at once, with the REPL free. Closing the window (its button, Command-W, Command-Q) or `(close-app)` leaves Lisp running, and `open-app` can be called again.                                                                     |
+| `(bolt:run-app 'make-x ...)`                                | For a program that is only a window (`sbcl --load app.lisp`): it runs on the main thread and closing the window ends the process. `:hot t` remakes the app when code is compiled, `:watch-systems '("my-system")` also reloads when a source file is saved. |
+| `(bolt:close-app)`                                          | Closes the window that `open-app` opened.                                                                                                                                                                                                                   |
 
 ## State
 
@@ -107,8 +112,8 @@ over, close the window and open it again. The caret and selection of text
 fields, the scroll of lists and which widget has the keyboard are kept too, by
 widget id.
 
-`(state 'name)` reads a kept variable of the open app from the REPL:
-`(state 'counter::count)`.
+`(bolt:state 'name)` reads a kept variable of the open app from the REPL:
+`(bolt:state 'counter::count)`.
 
 ## Working an app from a program or an agent
 
@@ -199,7 +204,7 @@ is re-sorted. Every widget also takes `:flex`, its share of the free space of
 its container. A widget that holds something but has no words of its own (a text
 field, a slider, a choice, a list, a progress bar, a canvas) takes
 `:labelled-by`, the id of the label that names it, which is what a screen reader
-or an agent calls it by: `(text-field name :id :name :labelled-by :name-label)`.
+or an agent calls it by: `(bolt:text-field name :id :name :labelled-by :name-label)`.
 
 | Call                                                                         | Returns                                                                     |
 |------------------------------------------------------------------------------|-----------------------------------------------------------------------------|
@@ -219,7 +224,7 @@ A widget that shows a value is given the value the app holds, and returns the
 new one; if the app passes something else, that is what is shown:
 
 ```lisp
-(multiple-value-bind (text changed) (text-field name :id :name :width 160)
+(multiple-value-bind (text changed) (bolt:text-field name :id :name :width 160)
   (when changed (setf name text)))
 ```
 
@@ -229,7 +234,7 @@ Containers take their options in a list and their children after it: `(column
 `padding` (`:all :left :top :right :bottom`), `panel` (padding with a
 background: `:color :radius`) and `center`.
 
-`(now)` is the time of the frame in nanoseconds, and `(ask-for-frame)` asks for
+`(bolt:now)` is the time of the frame in nanoseconds, and `(bolt:ask-for-frame)` asks for
 another one: a still app draws nothing and costs no CPU, and an animation asks
 for the next frame itself.
 

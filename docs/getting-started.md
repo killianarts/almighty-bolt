@@ -34,15 +34,24 @@ A window with a number and a button opens, and the REPL prompt comes back. Click
 [`examples/counter.lisp`](../examples/counter.lisp) is the whole thing:
 
 ```lisp
+(defpackage #:almighty-bolt-examples/counter
+  (:use #:cl)
+  (:local-nicknames (#:bolt #:almighty-bolt))
+  (:export #:make-counter))
+
+(in-package #:almighty-bolt-examples/counter)
+
 (defun make-counter ()
-  (state-let ((count 0))
+  (bolt:state-let ((count 0))
     (lambda ()
-      (padding (:all 24)
-        (row (:gap 16 :cross-align :center)
-          (label (princ-to-string count) :id :count :size 32)
-          (when (button "Count" :id :count-button)
+      (bolt:padding (:all 24)
+        (bolt:row (:gap 16 :cross-align :center)
+          (bolt:label (princ-to-string count) :id :count :size 32)
+          (when (bolt:button "Count" :id :count-button)
             (incf count)))))))
 ```
+
+The package gives `almighty-bolt` the local nickname `bolt`, so the library's names are written `bolt:button` and none of them is imported into yours.
 
 Three things to see.
 
@@ -55,9 +64,9 @@ Three things to see.
 Open `examples/counter.lisp` in the editor, with the window still open and the count at, say, 5. Add a label next to the button:
 
 ```lisp
-(label (princ-to-string count) :id :count :size 32)
-(label "times" :id :times)            ; <- new
-(when (button "Count" :id :count-button)
+(bolt:label (princ-to-string count) :id :count :size 32)
+(bolt:label "times" :id :times)       ; <- new
+(when (bolt:button "Count" :id :count-button)
 ```
 
 Put the cursor in `make-counter` and compile it with `C-c C-c`. The window changes within about half a second, and the count is still 5. That is `state-let`: the window kept the variable's cell, and the new `make-counter` was handed it instead of making a new one. Click the button, and it goes on from 5.

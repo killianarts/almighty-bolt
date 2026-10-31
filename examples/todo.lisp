@@ -1,5 +1,6 @@
 (defpackage #:almighty-bolt-examples/todo
-  (:use #:cl #:almighty-bolt)
+  (:use #:cl)
+  (:local-nicknames (#:bolt #:almighty-bolt))
   (:export #:make-todo))
 
 (in-package #:almighty-bolt-examples/todo)
@@ -9,7 +10,7 @@
 ;;; is given the thing's own number as its id, so that the keyboard stays with a thing when the list
 ;;; changes under it.
 ;;;
-;;;   (open-app 'make-todo :title "To do" :width 360 :height 320)
+;;;   (bolt:open-app 'make-todo :title "To do" :width 360 :height 320)
 
 (defstruct (thing (:constructor make-thing (id text done)))
   (id 0 :read-only t)
@@ -17,11 +18,11 @@
   (done nil :read-only t))
 
 (defun make-todo ()
-  (state-let ((things (list (make-thing 1 "Read the README" t)
-                            (make-thing 2 "Open a window from the REPL" nil)
-                            (make-thing 3 "Change a label and compile it" nil)))
-              (next-id 4)
-              (draft ""))
+  (bolt:state-let ((things (list (make-thing 1 "Read the README" t)
+                                 (make-thing 2 "Open a window from the REPL" nil)
+                                 (make-thing 3 "Change a label and compile it" nil)))
+                   (next-id 4)
+                   (draft ""))
     (flet ((add ()
              (when (plusp (length draft))
                (setf things (append things (list (make-thing next-id draft nil))))
@@ -34,19 +35,20 @@
                                         each))
                                   things))))
       (lambda ()
-        (padding (:all 20)
-          (column (:gap 12 :cross-align :stretch)
-            (row (:gap 10 :cross-align :center)
-              (multiple-value-bind (text changed submitted) (text-field draft :id :draft :width 240)
+        (bolt:padding (:all 20)
+          (bolt:column (:gap 12 :cross-align :stretch)
+            (bolt:row (:gap 10 :cross-align :center)
+              (multiple-value-bind (text changed submitted)
+                  (bolt:text-field draft :id :draft :width 240)
                 (when changed
                   (setf draft text))
                 (when submitted
                   (add)))
-              (when (button "Add" :id :add)
+              (when (bolt:button "Add" :id :add)
                 (add)))
             (dolist (thing things)
               (multiple-value-bind (done changed)
-                  (checkbox (thing-text thing) (thing-done thing) :id (thing-id thing))
+                  (bolt:checkbox (thing-text thing) (thing-done thing) :id (thing-id thing))
                 (when changed
                   (toggle thing done))))
-            (label (format nil "~d left" (count nil things :key #'thing-done)) :id :left)))))))
+            (bolt:label (format nil "~d left" (count nil things :key #'thing-done)) :id :left)))))))
