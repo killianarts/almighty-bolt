@@ -659,8 +659,12 @@ screen reader was given are taken away and their places are used again."
                                (mapcar (lambda (e) (ns-value (objc:msg-send :id e
                                                                             "accessibilityIdentifier")))
                                        now)))
-               (assert-true (member (list (reader-view reader) :layout-changed) (told reader)
-                                    :test #'equal))
+               (let ((told (told reader)))
+                 (assert-true (member (list (reader-view reader) :layout-changed) told
+                                      :test #'equal))
+                 ;; A row that is kept is told that it moved, as the cursor of a screen reader that
+                 ;; is on it goes where it is.
+                 (assert-true (member (list three :moved) told :test #'equal)))
                ;; What scrolled out of sight is gone, and does not speak for what came in.
                (assert-eq nil (says one :label)))
           (objc:release one))))))
@@ -783,6 +787,20 @@ and another live label that comes with the first press."
         (press button)
         (assert-equal '("1" "2") (spoken reader))))))
 
+(define-test the-system-takes-every-kind-of-notification-for-an-element ()
+  (let ((screen (show 'counter:make-counter)))
+    (with-reader (reader screen)
+      ;; The way the bridge tells the system when no test stands in for it: each kind is made into the
+      ;; system's own notification, which fails here if the system has no such thing.
+      (let ((post (a11y:bridge-poster (a11y:make-bridge)))
+            (count (element-named reader :count)))
+        (dolist (kind '(:layout-changed :value-changed :selection-changed :focused-changed
+                        :moved :resized))
+          (funcall post count kind))
+        (funcall post 0 :moved)
+        (press (element-named reader :count-button))
+        (assert-equal "1" (says count :value))))))
+
 (define-test the-system-takes-an-announcement-through-the-window ()
   (let ((screen (show 'counter:make-counter)))
     (with-reader (reader screen)
@@ -795,3 +813,38 @@ and another live label that comes with the first press."
         (funcall speak 0 "Nowhere")
         (press (element-named reader :count-button))
         (assert-equal "1" (says (element-named reader :count) :value))))))
+
+(define-test a-screen-reader-is-told-where-things-went-when-the-layout-shifts ()
+  (let ((screen (show 'counter:make-counter)))
+    (with-reader (reader screen)
+      (let ((count (element-named reader :count))
+            (button (element-named reader :count-button)))
+        (told reader)
+        ;; While the count has one digit nothing moves, and nothing is told of it.
+        (dotimes (index 9)
+          (press button))
+        (let ((told (told reader)))
+          (assert-false (member :moved told :key #'second))
+          (assert-false (member :resized told :key #'second)))
+        ;; With the tenth press the count is wider and the button is pushed along: the cursor of a
+        ;; screen reader that is on the button would stay where the button was.
+        (press button)
+        (assert-equal "10" (says count :value))
+        (let ((told (told reader)))
+          (assert-true (member (list count :resized) told :test #'equal))
+          (assert-true (member (list button :moved) told :test #'equal))
+          (assert-false (member (list button :resized) told :test #'equal))
+          (assert-false (member (list count :moved) told :test #'equal)))))))
+
+(define-test a-thing-that-comes-is-not-told-to-have-moved-and-the-ones-it-pushes-are ()
+  (let ((screen (show 'make-notices)))
+    (with-reader (reader screen)
+      (let ((button (element-named reader :press)))
+        (told reader)
+        (press button)
+        (let ((late (element-named reader :late))
+              (told (told reader)))
+          (assert-true late)
+          (assert-true (member (list button :moved) told :test #'equal))
+          (assert-false (member (list late :moved) told :test #'equal))
+          (assert-false (member (list late :resized) told :test #'equal)))))))

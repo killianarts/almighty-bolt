@@ -40,7 +40,7 @@ What VoiceOver can do with them:
 - Move a slider up or down a step, the step of an arrow key (a twentieth of its range), by pressing where the value then is.
 - Ask for the keyboard in a text field. Typing then goes to it.
 - Find what is under the pointer, and know which thing has the keyboard.
-- Be told, as they happen, when a value changes, when things come or go (a list that scrolls shows other rows), when the picked row of a list changes, and when the keyboard moves. VoiceOver says a changed value only for the thing its cursor is on.
+- Be told, as they happen, when a value changes, when things come or go (a list that scrolls shows other rows), when a thing moves or changes size (VoiceOver draws its cursor where it was last told a thing is, so a button pushed along by a count that grew a digit keeps its cursor with it), when the picked row of a list changes, and when the keyboard moves. VoiceOver says a changed value only for the thing its cursor is on.
 - Hear a `:live` label or paragraph whenever its text changes, wherever the cursor is.
 
 Nothing is worked out for this until something asks what the window shows (VoiceOver, the Accessibility Inspector) or the system says that VoiceOver or Switch Control is running; from the first question on, what changes is told as it happens. A window that nothing has asked about costs what it did, and one at rest does no work.

@@ -69,7 +69,7 @@
   (announced-focus nil)
   ;; Whether the system says that a screen reader is running (ASSISTIVE-CLIENT-P), and how a
   ;; notification is told to the system (POST), which is given an element and :LAYOUT-CHANGED, :VALUE-CHANGED,
-  ;; :SELECTION-CHANGED or :FOCUSED-CHANGED. A test puts others here.
+  ;; :SELECTION-CHANGED, :FOCUSED-CHANGED, :MOVED or :RESIZED. A test puts others here.
   (assistive #'assistive-client-p :type function)
   (poster #'post :type function)
   ;; How a text is read out by a screen reader wherever its cursor is (SPEAK), given the view and the
@@ -100,6 +100,9 @@
   (y 0d0 :type double-float)
   (width 0d0 :type double-float)
   (height 0d0 :type double-float)
+  ;; Whether the last time it was filled it had moved, and whether its size had changed.
+  (moved nil)
+  (resized nil)
   (parent nil)
   (children '()))
 
@@ -353,11 +356,17 @@ thing that is not told yet."
   (if (stringp thing) thing (princ-to-string thing)))
 
 (defun place-item (item bounds)
+  "Put ITEM where BOUNDS say. True if it moved, and true if its size changed."
   (destructuring-bind (x y width height) bounds
-    (setf (item-x item) (float x 1d0)
-          (item-y item) (float y 1d0)
-          (item-width item) (float width 1d0)
-          (item-height item) (float height 1d0))))
+    (let ((x (float x 1d0)) (y (float y 1d0))
+          (width (float width 1d0)) (height (float height 1d0)))
+      (multiple-value-prog1
+          (values (or (/= x (item-x item)) (/= y (item-y item)))
+                  (or (/= width (item-width item)) (/= height (item-height item))))
+        (setf (item-x item) x
+              (item-y item) y
+              (item-width item) width
+              (item-height item) height)))))
 
 (defun fill-item (item node)
   "Make ITEM say what NODE says. True if the value changed."
@@ -366,7 +375,9 @@ thing that is not told yet."
          (id (getf node :id))
          (old-value (item-value item))
          (old-label (item-label item)))
-    (place-item item (getf node :bounds))
+    (multiple-value-bind (moved resized) (place-item item (getf node :bounds))
+      (setf (item-moved item) moved
+            (item-resized item) resized))
     (setf (item-enabled item) (not (getf state :disabled))
           (item-focused item) (and (getf state :focused) t)
           (item-live item) (and (getf state :live) t)
@@ -399,7 +410,9 @@ thing that is not told yet."
 its value changed, and true if it became chosen or stopped being."
   (let ((old-value (item-value item))
         (old-selected (item-selected item)))
-    (place-item item bounds)
+    (multiple-value-bind (moved resized) (place-item item bounds)
+      (setf (item-moved item) moved
+            (item-resized item) resized))
     (setf (item-label item) label
           (item-value item) value
           (item-selected item) selected
@@ -435,14 +448,20 @@ its value changed, and true if it became chosen or stopped being."
 (defun refresh (bridge)
   "Make the items again from the tree of the frame last built, keeping the ones that are still there
 (by their path, so that the elements are the same objects) and taking the others away. Returns the
-items whose value changed, whether any came or went, and the lists whose chosen row changed."
+items whose value changed, whether any came or went, the lists whose chosen row changed, and the items
+that were already there and have moved and the ones that have a new size."
   (let* ((old (bridge-items bridge))
          (new (make-hash-table :test 'equal))
          (changed '())
          (chosen '())
+         (moved '())
+         (resized '())
          (structure nil)
          (tree (funcall (bridge-tree bridge))))
-    (labels ((claim (path role parent)
+    (labels ((note-frame (item)
+               (when (item-moved item) (push item moved))
+               (when (item-resized item) (push item resized)))
+             (claim (path role parent)
                ;; The item at PATH, the one there was if it has the same role and a new one if not.
                ;; True as the second value for a new one.
                (let ((item (gethash path old))
@@ -465,6 +484,7 @@ items whose value changed, whether any came or went, and the lists whose chosen 
                                 (multiple-value-bind (value-changed selection-changed)
                                     (fill-part part item label value selected bounds)
                                   (unless fresh
+                                    (note-frame part)
                                     (when value-changed
                                       (push part changed))
                                     (when (and selection-changed (eq role :row))
@@ -477,8 +497,11 @@ items whose value changed, whether any came or went, and the lists whose chosen 
                      (role (role-of node)))
                  (if role
                      (multiple-value-bind (item fresh) (claim path role parent)
-                       (when (and (fill-item item node) (not fresh))
-                         (push item changed))
+                       (let ((value-changed (fill-item item node)))
+                         (unless fresh
+                           (note-frame item)
+                           (when value-changed
+                             (push item changed))))
                        (setf (item-children item)
                              (case role
                                (:radio-group (parts item path :radio-button (option-specs node)))
@@ -500,7 +523,8 @@ items whose value changed, whether any came or went, and the lists whose chosen 
         (maphash (lambda (path item) (setf (gethash path old) item)) new)
         (setf (bridge-roots bridge) roots
               (bridge-stale bridge) nil)
-        (values (nreverse changed) structure (nreverse chosen))))))
+        (values (nreverse changed) structure (nreverse chosen)
+                (nreverse moved) (nreverse resized))))))
 
 (defun ensure-fresh (bridge)
   (when (and (bridge-stale bridge) (not (bridge-closed bridge)))
@@ -559,6 +583,8 @@ deepest and drawn last, or zero if there is none."
      (ecase notification
        (:layout-changed (foreign-constant "NSAccessibilityLayoutChangedNotification"))
        (:value-changed (foreign-constant "NSAccessibilityValueChangedNotification"))
+       (:moved (foreign-constant "NSAccessibilityMovedNotification"))
+       (:resized (foreign-constant "NSAccessibilityResizedNotification"))
        (:selection-changed
         (foreign-constant "NSAccessibilitySelectedChildrenChangedNotification"))
        (:focused-changed
@@ -596,14 +622,19 @@ need to be told."
 
 (defun announce (bridge)
   "Make the items again and tell the system what is new: a layout change if things came or went, a
-change of value for the ones whose value changed, a change of the chosen row for a list, the new
-focus, and the new words of a live text that changed. A screen reader says what changed on the thing
-that its cursor is on, so only the last is read out wherever the cursor is."
-  (multiple-value-bind (changed structure chosen) (refresh bridge)
+move or a new size for the things that have one (a screen reader draws its cursor where it last
+was told a thing is), a change of value for the ones whose value changed, a change of the chosen row
+for a list, the new focus, and the new words of a live text that changed. A screen reader says what
+changed on the thing that its cursor is on, so only the last is read out wherever the cursor is."
+  (multiple-value-bind (changed structure chosen moved resized) (refresh bridge)
     (let ((focus (focused-item bridge))
           (post (bridge-poster bridge)))
       (when structure
         (funcall post (bridge-view bridge) :layout-changed))
+      (dolist (item moved)
+        (funcall post (item-element item) :moved))
+      (dolist (item resized)
+        (funcall post (item-element item) :resized))
       (dolist (item changed)
         (funcall post (item-element item) :value-changed))
       (dolist (item chosen)
