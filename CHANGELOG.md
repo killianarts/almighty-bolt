@@ -32,7 +32,7 @@ are not listed.
 - Reload: compiling or saving changes the open window, with `state-let` state and the widgets' state kept ([0.1](docs/releases/0.1.md#changing-an-app-while-it-is-open)).
 - Widgets: eleven widgets and six containers, each widget with a required `:id` ([0.1](docs/releases/0.1.md#widgets-and-ids)).
 - Canvas: an area to draw in and handle input for ([0.1](docs/releases/0.1.md#a-canvas-for-drawing)).
-- `get-state` reads a kept variable of the open app from the REPL.
+- `state` reads a kept variable of the open app from the REPL.
 - Agents and tests: a semantic tree of the screen, a machine interface to work an app by name (`almighty-bolt/machine`), and an opt-in MCP server for the open app (`almighty-bolt/mcp`) ([0.1](docs/releases/0.1.md#the-screen-as-a-tree-and-a-machine-interface)).
 
 [Unreleased]: https://github.com/killianarts/almighty-bolt/compare/v0.1.0...HEAD

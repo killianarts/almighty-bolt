@@ -19,7 +19,7 @@
            #:run-app
            #:open-app
            #:close-app
-           #:get-state))
+           #:state))
 
 (in-package #:almighty-bolt/app)
 
@@ -78,7 +78,7 @@ error; RUN-APP does what is wanted there."
   "Close the window that OPEN-APP opened. Returns its host, or NIL if there was none."
   (close-variant))
 
-(defun get-state (name)
+(defun state (name)
   "The value of the kept variable NAME (a symbol: the one STATE-LET was given, in the package it was
 read in) of the app that is open, for looking at it from the REPL. NIL if there is no window or the
 app keeps no such variable."

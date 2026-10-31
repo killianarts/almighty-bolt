@@ -71,7 +71,7 @@ If the new code does not work, say a misspelled function that is called in the f
 Look at the app from the REPL:
 
 ```lisp
-(almighty-bolt:get-state 'almighty-bolt-examples/counter::count)   ; => 5
+(almighty-bolt:state 'almighty-bolt-examples/counter::count)   ; => 5
 ```
 
 ## 5. Ids

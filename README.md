@@ -107,8 +107,8 @@ over, close the window and open it again. The caret and selection of text
 fields, the scroll of lists and which widget has the keyboard are kept too, by
 widget id.
 
-`(get-state 'name)` reads a kept variable of the open app from the REPL:
-`(get-state 'counter::count)`.
+`(state 'name)` reads a kept variable of the open app from the REPL:
+`(state 'counter::count)`.
 
 ## Working an app from a program or an agent
 

@@ -11,7 +11,7 @@
   (:use #:cl)
   (:import-from #:almighty-bolt
                 #:run-app
-                #:get-state)
+                #:state)
   (:import-from #:almighty-bolt/machine/host-session
                 #:open-session)
   (:local-nicknames (#:m #:almighty-bolt/machine)
@@ -70,7 +70,7 @@
 
 (defun the-count (host)
   (declare (ignore host))
-  (get-state 'almighty-bolt-examples/counter::count))
+  (state 'almighty-bolt-examples/counter::count))
 
 (defun edited-counter ()
   "What compiling the example again, with a label added, does."
