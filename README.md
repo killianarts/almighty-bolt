@@ -141,7 +141,7 @@ window @0,0,222,80
 ## Examples, tests, history
 
 - [`examples/`](examples): a counter and a to-do list, written with the public package only.
-- [`examples/7guis/`](examples/7guis): the seven 7GUIs tasks. They are the acceptance suite as well as examples. [`apps/stress/`](apps/stress) has a dashboard, a million-row list and a text editor with input-method support, for the benchmarks and the tests.
+- [`examples/7guis/`](examples/7guis): the seven 7GUIs tasks. They are the acceptance suite as well as examples. [`bench/stress/`](bench/stress) has a dashboard, a million-row list and a text editor with input-method support, for the benchmarks and the tests.
 - `make test` compiles the project into a directory that is thrown away and fails on any warning, then runs the integration and end-to-end tests (events and replay scripts in, display lists and frames out; the real operating system, text engine and GPU; no window). `make smoke` opens windows, and in one of them a client of the MCP server presses the counter's button, takes a screenshot that macOS then decodes, and does the same through `nc`. Unit tests are not written for now; see [`CLAUDE.md`](CLAUDE.md).
 - The library began as an experiment comparing retained, reactive and immediate-mode approaches. The immediate one was chosen for now; the others are archived on the tag `archive/three-variants`.
 - [`docs/releases/dev.md`](docs/releases/dev.md) has the release notes of the release in progress.

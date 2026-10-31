@@ -19,7 +19,7 @@
 (let ((root (namestring (uiop:getcwd))))
   (asdf:initialize-output-translations
    `(:output-translations
-     ,@(loop :for directory :in '("src" "t" "apps" "examples" "bench")
+     ,@(loop :for directory :in '("src" "t" "examples" "bench")
              :collect `((,(format nil "~a~a/" root directory) :**/ :*.*.*)
                         (,(format nil "~a~a/" *cache* directory) :**/ :*.*.*)))
      :inherit-configuration)))

@@ -9,7 +9,7 @@
 
 (in-package #:almighty-bolt-scripts/make-stress-scripts)
 
-;;;; Writes the replay scripts of the stress apps into apps/stress/replay/, from the repository root:
+;;;; Writes the replay scripts of the stress apps into bench/stress/replay/, from the repository root:
 ;;;;   sbcl --script scripts/make-stress-scripts.lisp
 ;;;; They are made here, in the script format of src/replay/script.lisp, and not recorded from a
 ;;;; session, because a session of a person's is not the same twice and these have to be: each is a
@@ -19,7 +19,7 @@
 (defconstant +ms+ 1000000)
 
 (defun write-script (name header entries)
-  (let ((path (format nil "apps/stress/replay/~a.script" name)))
+  (let ((path (format nil "bench/stress/replay/~a.script" name)))
     (core:save-script (core:make-script :header header :entries entries) path)
     (format t "~&~a: ~d entries~%" path (length entries))))
 

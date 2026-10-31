@@ -288,7 +288,7 @@ is not set, those of the 7GUIs tasks and of the stress apps."
   (let ((directories (let ((value (uiop:getenv "SCRIPTS")))
                        (if (and value (plusp (length value)))
                            (uiop:split-string value :separator '(#\,))
-                           '("examples/7guis/replay/" "apps/stress/replay/")))))
+                           '("examples/7guis/replay/" "bench/stress/replay/")))))
     (loop :for directory :in directories
           :append (directory (merge-pathnames "*.script" (uiop:ensure-directory-pathname directory))))))
 
