@@ -229,7 +229,7 @@ widgets hold, is kept."
 (defun open-task (variant task)
   "Open the app of TASK in VARIANT (keywords) in a window and return its host at once, with the
 REPL free: the library's OPEN-APP, for an app that is registered here. Whenever code is compiled
-into the image the app is made again in the same window, with the state it keeps (KEPT-LET);
+into the image the app is made again in the same window, with the state it keeps (STATE-LET);
 closing the window leaves the Lisp running."
   (let ((app (or (find-app variant task)
                  (error "There is no ~(~a~) app for ~(~a~)." variant task))))

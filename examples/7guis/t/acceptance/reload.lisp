@@ -144,7 +144,7 @@ and return, for each variant, what the two ended showing."
       (d:reload driver #'plain-counter)
       (assert-equal "0" (d:text-in driver :count) variant))))
 
-(define-test an-app-written-with-kept-let-keeps-its-count ()
+(define-test an-app-written-with-state-let-keeps-its-count ()
   (dolist (variant (d:available-variants :counter))
     (let ((driver (d:start variant :counter)))
       (d:click driver :count-button)

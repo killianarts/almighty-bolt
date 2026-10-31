@@ -22,7 +22,7 @@
                 #:column
                 #:canvas
                 #:current-context
-                #:kept-let)
+                #:state-let)
   (:export #:make-editor-app))
 
 (in-package #:almighty-bolt-stress/editor/immediate)
@@ -32,7 +32,7 @@
 ;;; own coordinates, caret included; the variant puts the caret where the canvas is in the window.
 
 (defun make-editor-app ()
-  (kept-let ((document (make-sample-document)))
+  (state-let ((document (make-sample-document)))
     (labels ((draw (list context width height)
                (paint-editor context list 0f0 0f0 width height document))
              (handle (event)

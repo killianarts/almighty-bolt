@@ -164,7 +164,7 @@ glyph atlas. FONTS keeps the fonts made, by name and then by size."
   ;; The variant that SWAP-VARIANT replaced, until the one that replaced it has made a frame
   ;; without an error. If that frame fails, this is the one that is put back.
   (previous nil)
-  ;; What the app keeps between the times it is made (KEPT-LET), which is bound while the app is
+  ;; What the app keeps between the times it is made (STATE-LET), which is bound while the app is
   ;; made again and so outlives the variant.
   (kept-state (make-kept-state) :read-only t)
   (context nil :read-only t)
@@ -222,7 +222,7 @@ window yet. CAPACITY is the most commands a frame may hold. SCALE is the pixels 
 point that the glyph atlas is rasterized at, which is the scale text must be drawn
 at. With PHASES, the instrumentation is on: the variant's update, layout and paint
 times, the first build, garbage collection and the GPU's time go into the ring as well
-(see WITH-PHASE). KEPT-STATE is what the app keeps when it is made again (KEPT-LET); the one that
+(see WITH-PHASE). KEPT-STATE is what the app keeps when it is made again (STATE-LET); the one that
 made VARIANT had it bound. RUN-VARIANT makes one with a window; tests make one and call RUN-FRAME."
   (let* ((renderer (make-renderer device pixel-format :capacity capacity :scale scale))
          (context (let ((context (make-mac-context :width 0f0 :height 0f0 :scale 1f0

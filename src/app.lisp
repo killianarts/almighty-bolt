@@ -19,14 +19,14 @@
            #:run-app
            #:open-app
            #:close-app
-           #:app-value))
+           #:get-state))
 
 (in-package #:almighty-bolt/app)
 
 ;;; How an app is started. An app is a function of no arguments, its constructor, that makes the
-;;; function that describes the screen (and holds the app's state in KEPT-LET). The constructor is
+;;; function that describes the screen (and holds the app's state in STATE-LET). The constructor is
 ;;; given by name, so that compiling it again is what the window runs: when code is compiled the
-;;; window calls the constructor again and swaps what it makes in, with the state that KEPT-LET
+;;; window calls the constructor again and swaps what it makes in, with the state that STATE-LET
 ;;; keeps, the caret and selection of fields, the scroll of lists and the keyboard focus.
 
 (defun make-app-instance (constructor)
@@ -78,8 +78,8 @@ error; RUN-APP does what is wanted there."
   "Close the window that OPEN-APP opened. Returns its host, or NIL if there was none."
   (close-variant))
 
-(defun app-value (name)
-  "The value of the kept variable NAME (a symbol: the one KEPT-LET was given, in the package it was
+(defun get-state (name)
+  "The value of the kept variable NAME (a symbol: the one STATE-LET was given, in the package it was
 read in) of the app that is open, for looking at it from the REPL. NIL if there is no window or the
 app keeps no such variable."
   (let ((host (running-host)))

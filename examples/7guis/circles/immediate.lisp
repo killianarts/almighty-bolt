@@ -27,7 +27,7 @@
                 #:row
                 #:slider
                 #:canvas
-                #:kept-let)
+                #:state-let)
   (:export #:make-circles))
 
 (in-package #:almighty-bolt-7guis/circles/immediate)
@@ -38,10 +38,10 @@
 ;;; circle is being adjusted.
 
 (defun make-circles ()
-  (kept-let ((drawing (make-drawing))
-             (hot nil)
-             (adjusting nil)
-             (preview 40))
+  (state-let ((drawing (make-drawing))
+              (hot nil)
+              (adjusting nil)
+              (preview 40))
     (labels ((close-dialog ()
                (when adjusting
                  (setf drawing (drawing-resize drawing adjusting preview)

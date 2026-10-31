@@ -80,7 +80,7 @@ image:
 # waits and reports, with nobody at the window, and says whether a key typed would reach it (the view
 # is the first responder, the window is the key window and the application is active).
 # HOT=1 makes the app again, in the same window, when code is compiled into the process or a
-# source file is saved; the state the app keeps (kept-let) stays.
+# source file is saved; the state the app keeps (state-let) stays.
 7guis:
 	VARIANT=$(VARIANT) TASK=$(TASK) LOG=$(LOG) RECORD=$(RECORD) HOT=$(HOT) $(SBCL_APP) $(REGISTRY) --load examples/7guis/run.lisp
 

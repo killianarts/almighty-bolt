@@ -1,7 +1,7 @@
 (defpackage #:almighty-bolt-7guis/crud/immediate
   (:use #:cl)
   (:import-from #:almighty-bolt
-                #:kept-let
+                #:state-let
                 #:label
                 #:button
                 #:padding
@@ -30,11 +30,11 @@
 ;;; every frame, and the buttons say whether they were pressed where they are described.
 
 (defun make-crud ()
-  (kept-let ((entries (make-entries '("Hans" "Emil") '("Max" "Mustermann") '("Roman" "Tisch")))
-             (filter "")
-             (picked nil)
-             (name "")
-             (surname ""))
+  (state-let ((entries (make-entries '("Hans" "Emil") '("Max" "Mustermann") '("Roman" "Tisch")))
+              (filter "")
+              (picked nil)
+              (name "")
+              (surname ""))
     (lambda ()
       (let* ((shown (entries-filtered entries filter))
              (picked-entry (find picked shown :key #'entry-id)))

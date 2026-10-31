@@ -222,7 +222,7 @@
                 #:context-caret-rect
                 #:context-push-text)
   (:import-from #:almighty-bolt/kept
-                #:kept-let
+                #:state-let
                 #:kept-state
                 #:make-kept-state
                 #:call-with-kept-state
@@ -504,7 +504,7 @@
            #:context-index-at-x
            #:context-caret-rect
            #:context-push-text
-           #:kept-let
+           #:state-let
            #:kept-state
            #:make-kept-state
            #:call-with-kept-state

@@ -1,6 +1,6 @@
 (defpackage #:almighty-bolt/kept
   (:use #:cl)
-  (:export #:kept-let
+  (:export #:state-let
            #:kept-state
            #:make-kept-state
            #:call-with-kept-state
@@ -14,11 +14,11 @@
 
 ;;; State that is still there when the app is made again. An app's own
 ;;; state is in variables that its constructor closes over, and a new call of the constructor makes
-;;; new ones. KEPT-LET is LET for them: the window keeps a store of cells, by the name of the
+;;; new ones. STATE-LET is LET for them: the window keeps a store of cells, by the name of the
 ;;; variable, and when the app is made again a name that is in the store gets the cell it had.
 
 (defvar *kept-state* nil
-  "The store that KEPT-LET uses, or NIL: a KEPT-LET then makes new cells, as LET does.")
+  "The store that STATE-LET uses, or NIL: a STATE-LET then makes new cells, as LET does.")
 
 (defstruct (cell (:constructor make-cell (value form)) (:copier nil))
   value
@@ -37,7 +37,7 @@ the app had made before (an app may bind a name twice)."
   (pending '()))
 
 (defun call-with-kept-state (state function)
-  "Call FUNCTION, which makes an app, with STATE as the store of its KEPT-LETs. A STATE of NIL
+  "Call FUNCTION, which makes an app, with STATE as the store of its STATE-LETs. A STATE of NIL
 is no store. The cells that FUNCTION makes are kept if it returns, and forgotten if it does not."
   (cond ((null state) (funcall function))
         (t
@@ -50,7 +50,7 @@ is no store. The cells that FUNCTION makes are kept if it returns, and forgotten
              (setf (kept-state-pending state) '()))))))
 
 (defmacro with-kept-state ((state) &body body)
-  "Run BODY, which makes an app, with STATE as the store of its KEPT-LETs (CALL-WITH-KEPT-STATE)."
+  "Run BODY, which makes an app, with STATE as the store of its STATE-LETs (CALL-WITH-KEPT-STATE)."
   `(call-with-kept-state ,state (lambda () ,@body)))
 
 (defun reset-kept-state (state)
@@ -74,7 +74,7 @@ binds one twice), and true if there is one; for looking at what an app keeps fro
         (values nil nil))))
 
 (defun kept-in-use-p ()
-  "True if a KEPT-LET has run in the app that is being made, with a store: the app keeps state, and
+  "True if a STATE-LET has run in the app that is being made, with a store: the app keeps state, and
 what it shows can be carried to the next time it is made without showing what its variables do not
 hold. A variant asks as it is made."
   (and *kept-state* (plusp (hash-table-count (kept-state-seen *kept-state*)))))
@@ -94,7 +94,7 @@ a new one."
                 (push (cons key new) (kept-state-pending state))
                 new))))))
 
-(defmacro kept-let (bindings &body body)
+(defmacro state-let (bindings &body body)
   "LET for the state of an app that is made again when its code changes. Each of BINDINGS is
 (NAME INITIAL-FORM), as in LET. NAME is a place, so SETF and closures work as they do with LET.
 When the app is made again with the same store, a NAME that has a cell in it gets that cell, with

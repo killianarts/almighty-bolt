@@ -4,10 +4,10 @@
                 #:run-app
                 #:open-app
                 #:close-app
-                #:app-value)
+                #:get-state)
   (:import-from #:almighty-bolt/internals
                 ;; state that survives a reload
-                #:kept-let
+                #:state-let
                 ;; drawing in a canvas
                 #:pack-color
                 #:push-rect
@@ -73,8 +73,8 @@
                 #:now
                 #:ask-for-frame
                 #:current-context)
-  (:export #:run-app #:open-app #:close-app #:app-value
-           #:kept-let
+  (:export #:run-app #:open-app #:close-app #:get-state
+           #:state-let
            #:missing-id #:duplicate-id #:duplicate-id-id
            #:label #:paragraph #:button #:text-field #:slider #:choice #:checkbox #:list-box
            #:progress #:canvas #:scrim

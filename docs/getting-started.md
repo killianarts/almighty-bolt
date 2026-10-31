@@ -35,7 +35,7 @@ A window with a number and a button opens, and the REPL prompt comes back. Click
 
 ```lisp
 (defun make-counter ()
-  (kept-let ((count 0))
+  (state-let ((count 0))
     (lambda ()
       (padding (:all 24)
         (row (:gap 16 :cross-align :center)
@@ -48,7 +48,7 @@ Three things to see.
 
 - The function that `make-counter` returns **describes the whole screen** and is called again for every frame. There are no widgets to create and keep; the screen is a function of the state.
 - `(button ...)` **returns true on the frame it is clicked**. What the click does is written where the button is: `(incf count)`. A text field returns the text now and whether it was changed this frame, and you pass the text back in the next frame.
-- `kept-let` is `let` for the state. You will see why next.
+- `state-let` is `let` for the state. You will see why next.
 
 ## 4. Change it while it is open
 
@@ -60,7 +60,7 @@ Open `examples/counter.lisp` in the editor, with the window still open and the c
 (when (button "Count" :id :count-button)
 ```
 
-Put the cursor in `make-counter` and compile it with `C-c C-c`. The window changes within about half a second, and the count is still 5. That is `kept-let`: the window kept the variable's cell, and the new `make-counter` was handed it instead of making a new one. Click the button, and it goes on from 5.
+Put the cursor in `make-counter` and compile it with `C-c C-c`. The window changes within about half a second, and the count is still 5. That is `state-let`: the window kept the variable's cell, and the new `make-counter` was handed it instead of making a new one. Click the button, and it goes on from 5.
 
 What was kept is the state you declared, and also what the person did to the widgets: the caret and selection of text fields, the scroll of lists, and which widget has the keyboard. What is not kept is anything you wrote with a plain `let`: it starts again, which is exactly the difference you want to be able to choose.
 
@@ -71,7 +71,7 @@ If the new code does not work, say a misspelled function that is called in the f
 Look at the app from the REPL:
 
 ```lisp
-(almighty-bolt:app-value 'almighty-bolt-examples/counter::count)   ; => 5
+(almighty-bolt:get-state 'almighty-bolt-examples/counter::count)   ; => 5
 ```
 
 ## 5. Ids

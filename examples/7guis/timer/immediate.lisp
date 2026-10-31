@@ -19,7 +19,7 @@
                 #:slider
                 #:now
                 #:ask-for-frame
-                #:kept-let)
+                #:state-let)
   (:export #:make-timer-app))
 
 (in-package #:almighty-bolt-7guis/timer/immediate)
@@ -30,9 +30,9 @@
 ;;; coming.
 
 (defun make-timer-app ()
-  (kept-let ((elapsed 0d0)
-             (duration 10d0)
-             (last-time nil))
+  (state-let ((elapsed 0d0)
+              (duration 10d0)
+              (last-time nil))
     (flet ((timer ()
              (make-timer :duration duration :elapsed elapsed)))
       (lambda ()

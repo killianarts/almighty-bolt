@@ -11,7 +11,7 @@
   (:use #:cl)
   (:import-from #:almighty-bolt
                 #:run-app
-                #:app-value)
+                #:get-state)
   (:import-from #:almighty-bolt/machine/host-session
                 #:open-session)
   (:local-nicknames (#:m #:almighty-bolt/machine)
@@ -70,12 +70,12 @@
 
 (defun the-count (host)
   (declare (ignore host))
-  (app-value 'almighty-bolt-examples/counter::count))
+  (get-state 'almighty-bolt-examples/counter::count))
 
 (defun edited-counter ()
   "What compiling the example again, with a label added, does."
   (eval '(defun almighty-bolt-examples/counter:make-counter ()
-          (almighty-bolt:kept-let ((almighty-bolt-examples/counter::count 0))
+          (almighty-bolt:state-let ((almighty-bolt-examples/counter::count 0))
             (lambda ()
               (almighty-bolt:padding (:all 24)
                 (almighty-bolt:row (:gap 16 :cross-align :center)

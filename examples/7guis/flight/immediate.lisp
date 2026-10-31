@@ -14,7 +14,7 @@
                 #:column
                 #:text-field
                 #:choice
-                #:kept-let)
+                #:state-let)
   (:export #:make-flight))
 
 (in-package #:almighty-bolt-7guis/flight/immediate)
@@ -26,10 +26,10 @@
 (defparameter +first-date+ "27.03.2026")
 
 (defun make-flight ()
-  (kept-let ((kind 0)
-             (start +first-date+)
-             (return +first-date+)
-             (message ""))
+  (state-let ((kind 0)
+              (start +first-date+)
+              (return +first-date+)
+              (message ""))
     (lambda ()
       (let* ((flight-kind (if (zerop kind) :one-way :return))
              (return-enabled (return-date-enabled-p flight-kind)))

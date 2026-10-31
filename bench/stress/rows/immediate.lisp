@@ -7,7 +7,7 @@
                 #:padding
                 #:column
                 #:canvas
-                #:kept-let)
+                #:state-let)
   (:import-from #:almighty-bolt-7guis/common/registry
                 #:register-app)
   (:import-from #:almighty-bolt-stress/rows/model
@@ -31,7 +31,7 @@
 ;;; to it, which is handled where it is described.
 
 (defun make-rows-app ()
-  (kept-let ((top 0) (selected nil) (remainder 0f0) (dragging nil))
+  (state-let ((top 0) (selected nil) (remainder 0f0) (dragging nil))
     (labels ((draw (list context width height)
                (paint-rows context list 0f0 0f0 width height top selected))
              (handle (event)

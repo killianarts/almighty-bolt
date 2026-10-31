@@ -20,7 +20,7 @@
                 #:column
                 #:row
                 #:canvas
-                #:kept-let)
+                #:state-let)
   (:import-from #:almighty-bolt-7guis/common/registry
                 #:register-app)
   (:import-from #:almighty-bolt-7guis/cells/model
@@ -50,14 +50,14 @@
 ;;; that follows.
 
 (defun make-cells ()
-  (kept-let ((sheet (make-sheet))
-             (selected-column 0)
-             (selected-row 0)
-             (first-column 0)
-             (first-row 0)
-             (editing nil)
-             (remainder-x 0f0)
-             (remainder-y 0f0))
+  (state-let ((sheet (make-sheet))
+              (selected-column 0)
+              (selected-row 0)
+              (first-column 0)
+              (first-row 0)
+              (editing nil)
+              (remainder-x 0f0)
+              (remainder-y 0f0))
     (labels ((commit ()
                (when editing
                  (sheet-set sheet selected-column selected-row (text-state-string editing))

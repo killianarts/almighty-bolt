@@ -20,7 +20,7 @@ interface. Windows and Linux support are planned.
 (in-package #:counter)
 
 (defun make-counter ()
-  (kept-let ((count 0))                  ; state that survives a reload
+  (state-let ((count 0))                 ; state that survives a reload
     (lambda ()                           ; called every frame: describes the whole screen
       (padding (:all 24)
         (row (:gap 16 :cross-align :center)
@@ -98,7 +98,7 @@ is what the window runs.
 
 ## State
 
-`kept-let` is `let` for the state of an app. The window keeps its cells by the
+`state-let` is `let` for the state of an app. The window keeps its cells by the
 name of the variable, and when the app is made again (because code was compiled)
 a name that is in the store gets the cell it had, with its value. Only state
 goes in it: what is worked out from the state is made again from the new code.
@@ -107,8 +107,8 @@ over, close the window and open it again. The caret and selection of text
 fields, the scroll of lists and which widget has the keyboard are kept too, by
 widget id.
 
-`(app-value 'name)` reads a kept variable of the open app from the REPL:
-`(app-value 'counter::count)`.
+`(get-state 'name)` reads a kept variable of the open app from the REPL:
+`(get-state 'counter::count)`.
 
 ## Working an app from a program or an agent
 

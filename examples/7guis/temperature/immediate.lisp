@@ -10,7 +10,7 @@
                 #:text-field
                 #:padding
                 #:row
-                #:kept-let)
+                #:state-let)
   (:export #:make-temperature))
 
 (in-package #:almighty-bolt-7guis/temperature/immediate)
@@ -20,8 +20,8 @@
 ;;; both.
 
 (defun make-temperature ()
-  (kept-let ((celsius "")
-             (fahrenheit ""))
+  (state-let ((celsius "")
+              (fahrenheit ""))
     (lambda ()
       (padding (:all 20)
         (row (:gap 10 :cross-align :center)

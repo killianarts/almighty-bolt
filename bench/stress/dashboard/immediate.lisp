@@ -27,7 +27,7 @@
                 #:canvas
                 #:now
                 #:ask-for-frame
-                #:kept-let)
+                #:state-let)
   (:export #:make-dashboard-app))
 
 (in-package #:almighty-bolt-stress/dashboard/immediate)
@@ -37,7 +37,7 @@
 ;;; and describes the 36 tiles and the chart.
 
 (defun make-dashboard-app ()
-  (kept-let ((model (make-dashboard)))
+  (state-let ((model (make-dashboard)))
     (lambda ()
       (advance-dashboard model (step-at (now)))
       (ask-for-frame)

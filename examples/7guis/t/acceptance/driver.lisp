@@ -55,7 +55,7 @@
   context
   clock
   list
-  ;; What makes the app, and the store of the state it keeps (KEPT-LET), for RELOAD.
+  ;; What makes the app, and the store of the state it keeps (STATE-LET), for RELOAD.
   constructor
   (kept-state (core:make-kept-state))
   ;; How many trackpad gestures have been made, so that each starts a second after the last.
