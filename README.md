@@ -185,6 +185,13 @@ it off in an app whose buttons you would not let any program press. The
 tools and how to point an MCP client at the server
 ([MCP server](docs/reference.md#the-mcp-server)).
 
+## Roadmap
+
+Planned: VoiceOver, theming (light, dark and custom), clipboard and scrolling,
+menus, dropdowns and dialogs, images and icons, multiple windows, a widget
+designer and a GUI designer, and Windows and Linux. The full list, and what
+comes first, is in [docs/roadmap.md](docs/roadmap.md).
+
 ## Examples
 
 - [`examples/`](examples): a counter and a to-do list, written with the public
