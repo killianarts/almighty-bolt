@@ -63,6 +63,7 @@
     ("Text on a panel" :text :panel 4.5)
     ("Dim text on a panel" :dim-text :panel 3)
     ("Words on a button" :button-text :button 4.5)
+    ("Words on a chosen row" :button-text :row-selected 4.5)
     ("Text in a field" :text :field-fill 4.5)
     ("A tooltip" :tooltip-text :tooltip 4.5))
   "Pairs of a theme's colours that text is read in, and the contrast each needs: 4.5 for text, 3 for

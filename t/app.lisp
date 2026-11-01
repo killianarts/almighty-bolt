@@ -2114,6 +2114,43 @@ and another live label that comes with the first press."
     (assert-eql (parse-color "#c06030") (middle-color screen :sea))
     (assert-eql dark (middle-color screen :plain))))
 
+;;; The colours the words in the control ID are drawn in, top to bottom, each run of one colour once.
+(defun word-colors (screen id)
+  (multiple-value-bind (left top width height) (core:lookup-target (screen-variant screen) id)
+    (let* ((list (screen-list screen))
+           (glyphs (loop :for index :below (core:display-list-count list)
+                         :when (and (= (core:display-list-kind list index) core:+command-glyph+)
+                                    (< left (core:display-list-x list index) (+ left width))
+                                    (< top (core:display-list-y list index) (+ top height)))
+                           :collect (cons (core:display-list-y list index)
+                                          (core:display-list-color list index))))
+           (colors '()))
+      (dolist (glyph (stable-sort glyphs #'< :key #'car) (nreverse colors))
+        (unless (eql (cdr glyph) (first colors))
+          (push (cdr glyph) colors))))))
+
+(defun make-fruit-list ()
+  (state-let ((picked 1))
+    (lambda ()
+      (multiple-value-bind (index changed)
+          (list-box '("Apple" "Banana" "Cherry" "Damson") picked :id :fruit :rows 4)
+        (when changed (setf picked index))))))
+
+(define-test the-words-of-a-chosen-row-are-readable-on-its-highlight-in-dark-and-light ()
+  (let ((screen (show 'make-fruit-list)))
+    (dolist (appearance '(:dark :light))
+      (setf (core:context-appearance (screen-context screen)) appearance)
+      (draw screen)
+      (let ((theme (find-theme appearance))
+            (colors (word-colors screen :fruit)))
+        ;; Apple in the text's colour, Banana on the highlight in the button's words' colour, and
+        ;; Cherry and Damson in the text's again.
+        (assert-equal (list (theme-setting theme :text) (theme-setting theme :button-text)
+                            (theme-setting theme :text))
+                      colors appearance)
+        (assert-true (>= (contrast-ratio (second colors) (theme-setting theme :row-selected)) 4.5)
+                     appearance)))))
+
 (define-test a-theme-given-an-accent-works-out-what-comes-from-it-and-keeps-the-rest ()
   (let ((dark (find-theme :dark))
         (sea (make-theme :accent "#20a090")))

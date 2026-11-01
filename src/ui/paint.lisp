@@ -432,7 +432,10 @@ behind it fading."
                                        +row-height+ 4 (theme-row-selected *theme*)))
                   (context-push-text context list font (fit-text context font item (- w 24))
                                      (+ x 10) (+ row-y (/ (- +row-height+ (+ ascent 4)) 2) ascent)
-                                     (theme-text *theme*))))
+                                     ;; On the highlight, as a menu's highlighted row is.
+                                     (if (= index selected)
+                                         (theme-button-text *theme*)
+                                         (theme-text *theme*)))))
       (when (> count rows)
         (let* ((track (- h 8))
                (bar (max 12f0 (* track (/ (float rows 1f0) count))))
