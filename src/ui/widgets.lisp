@@ -5,6 +5,7 @@
                 #:hash-of
                 #:+seed+)
   (:import-from #:almighty-bolt/ui/box
+                #:box-theme
                 #:box-key
                 #:box-parent
                 #:box-tooltip
@@ -124,8 +125,11 @@
                 #:now-ns
                 #:request-frame)
   (:import-from #:almighty-bolt/ui/theme
-                #:+font-name+
-                #:+font-size+)
+                #:*theme*
+                #:find-theme
+                #:theme-id
+                #:theme-font-name
+                #:theme-font-size)
   (:export #:missing-id
            #:missing-id-widget
            #:label
@@ -133,6 +137,8 @@
            #:paragraph-state
            #:paragraph-state-text
            #:paragraph-state-lines
+           #:paragraph-state-theme-id
+           #:with-theme
            #:paragraph-state-wrapped-at
            #:paragraph-state-generation
            #:set-paragraph-lines
@@ -244,7 +250,14 @@
 (defconstant +switch-width+ 32f0 "How wide the track of a switch is; it is half as tall.")
 
 (defun ui-font (context)
-  (context-font context +font-name+ +font-size+))
+  "The font of the widgets, in the theme it is now."
+  (context-font context (theme-font-name *theme*) (theme-font-size *theme*)))
+
+(defmacro with-theme ((theme) &body body)
+  "What BODY describes, drawn in THEME (a theme, or the name of one) rather than the theme it is in.
+A menu, a popover or a dialog that BODY opens is in THEME too."
+  `(let ((*theme* (find-theme ,theme)))
+     ,@body))
 
 ;;; Every widget takes an :id, and the call is an error without one. The id is what keeps a
 ;;; widget's caret, selection, scroll and the keyboard with it from frame to frame and across a
@@ -510,12 +523,12 @@ wide, or as wide as it is allowed to be. The :id is required."
 
 ;;; --- text ---
 
-(defun label (text &key (id (required-id 'label)) tooltip (size 15) color (flex 0) live)
-  "A line of TEXT. A LIVE label is read out by a screen reader whenever its text changes, wherever the
+(defun label (text &key (id (required-id 'label)) tooltip size color (flex 0) live)
+  "A line of TEXT, SIZE points high (the theme's size if not given). A LIVE label is read out by a screen reader whenever its text changes, wherever the
 reader is: for a result, a count or a status that a person should hear without going to look for it."
   (let ((box (open-box *ui* :label :id id :tooltip tooltip)))
     (setf (box-text box) text
-          (box-size box) size
+          (box-size box) (or size (theme-font-size *theme*))
           (box-color box) (or color 0)
           (box-flex box) (float flex 1f0)
           (box-n3 box) (if live 1 0))
@@ -530,6 +543,8 @@ reader is: for a result, a count or a status that a person should hear without g
   (text "" :type string)
   (wrapped-at -1f0 :type single-float)
   (lines '() :type list)
+  ;; The theme whose font the lines were made with.
+  (theme-id 0 :type fixnum)
   (generation 0 :type fixnum))
 
 (defun set-paragraph-lines (state text wrapped-at lines)
@@ -537,16 +552,18 @@ reader is: for a result, a count or a status that a person should hear without g
 are not the ones that were drawn before."
   (setf (paragraph-state-text state) text
         (paragraph-state-wrapped-at state) wrapped-at
-        (paragraph-state-lines state) lines)
+        (paragraph-state-lines state) lines
+        (paragraph-state-theme-id state) (theme-id *theme*))
   (incf (paragraph-state-generation state))
   state)
 
-(defun paragraph (text &key (id (required-id 'paragraph)) tooltip (size 15) color (flex 0) live)
-  "TEXT broken into lines to the width it is given, SIZE points high. LIVE is as for a label."
+(defun paragraph (text &key (id (required-id 'paragraph)) tooltip size color (flex 0) live)
+  "TEXT broken into lines to the width it is given, SIZE points high (the theme's size if not
+given). LIVE is as for a label."
   (let* ((ui *ui*)
          (box (open-box ui :paragraph :id id :tooltip tooltip)))
     (setf (box-text box) text
-          (box-size box) size
+          (box-size box) (or size (theme-font-size *theme*))
           (box-color box) (or color 0)
           (box-flex box) (float flex 1f0)
           (box-n3 box) (if live 1 0)
@@ -758,6 +775,7 @@ application passes something else, that is what is shown."
   (lines #() :type simple-vector)
   (lines-text "" :type string)
   (wrapped-at -1f0 :type single-float)
+  (theme-id 0 :type fixnum)
   (generation 0 :type fixnum)
   ;; The room inside the box for lines, from the last layout (0 before there is one).
   (inner-width 0f0 :type single-float)
@@ -775,6 +793,7 @@ application passes something else, that is what is shown."
 made for this string and width. There is always one: an empty text, and a text that ends in a line
 feed, end in an empty line, where the caret can be."
   (unless (and (= (area-state-wrapped-at state) width)
+               (= (area-state-theme-id state) (theme-id *theme*))
                (string= (area-state-lines-text state) string))
     (let* ((length (length string))
            (lines (loop :for (start end) :in (if (zerop length)
@@ -789,7 +808,8 @@ feed, end in an empty line, where the caret can be."
         (setf lines (append lines (list (cons length length)))))
       (setf (area-state-lines state) (coerce lines 'simple-vector)
             (area-state-lines-text state) (copy-seq string)
-            (area-state-wrapped-at state) width)
+            (area-state-wrapped-at state) width
+            (area-state-theme-id state) (theme-id *theme*))
       (incf (area-state-generation state))))
   (area-state-lines state))
 
@@ -1891,7 +1911,8 @@ function."
 (defun own-hashes (box)
   "The hash of what decides BOX's size and of what decides how it looks, as two values, not
 counting its children."
-  (let* ((layout (hash-numbers +seed+ (hash-of (box-kind box)) (hash-of (box-text box))
+  (let* ((layout (hash-numbers +seed+ (theme-id (box-theme box))
+                               (hash-of (box-kind box)) (hash-of (box-text box))
                                (box-size box) (hash-of (box-flex box)) (hash-of (box-gap box))
                                (hash-of (box-main-align box)) (hash-of (box-cross-align box))
                                (hash-of (box-fill box)) (hash-of (box-id box))

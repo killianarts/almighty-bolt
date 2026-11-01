@@ -55,7 +55,9 @@
            #:context-clipboard-text
            #:context-set-clipboard-text
            #:context-choose-file
-           #:context-file-chooser))
+           #:context-file-chooser
+           #:context-appearance
+           #:context-fixed-appearance))
 
 (in-package #:almighty-bolt/variant)
 
@@ -182,6 +184,9 @@ within the frame. REQUESTER is what REQUEST-FRAME calls; the host replaces it."
   ;; For a context with no window (a test): a function of the kind (:open or :save), the types and
   ;; the name, that answers as a person would, with a path or NIL. See CONTEXT-CHOOSE-FILE.
   (file-chooser nil :type (or null function))
+  ;; Whether the system is in dark mode or light, :dark or :light, for a context with no window (a
+  ;; window asks the system).
+  (fixed-appearance :dark :type (member :dark :light))
   (phase-ns (make-array +phase-slots+ :element-type '(unsigned-byte 64) :initial-element 0)
    :type (simple-array (unsigned-byte 64) (*)) :read-only t))
 
@@ -385,3 +390,12 @@ or cancels.")
   (:method ((context context) kind types name callback)
     (funcall callback (let ((chooser (context-file-chooser context)))
                         (and chooser (funcall chooser kind types name))))))
+
+;;; --- dark mode or light, which the host supplies ---
+
+(defgeneric context-appearance (context)
+  (:documentation "Whether the system shows windows dark or light now: :dark or :light. A window
+follows it unless the app draws in a theme of its own. A context with no window answers with its
+FIXED-APPEARANCE.")
+  (:method ((context context))
+    (context-fixed-appearance context)))

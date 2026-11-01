@@ -1133,7 +1133,7 @@ inside every clip it is in. (A point away from the corners of a rounded one.)"
   (dolist (kind '(:lazy-list :scroll))
     (let* ((screen (show (lambda () (make-framed kind))))
            (session (screen-session screen))
-           (accent theme:+accent-color+))
+           (accent (theme:theme-ring (theme:find-theme :dark))))
       (m:press-key session :tab)
       (assert-true (s:node-property (node-of screen :press) :focused) kind)
       (destructuring-bind (fx fy fw fh) (s:node-bounds (node-of screen :frame))

@@ -90,8 +90,8 @@
                (:module "ui"
                 :serial t
                 :components
-                ((:file "theme")
-                 (:file "hash")
+                ((:file "hash")
+                 (:file "theme")
                  (:file "box")
                  (:file "ui")
                  (:file "widgets")

@@ -224,7 +224,9 @@
                 #:context-clipboard-text
                 #:context-set-clipboard-text
                 #:context-choose-file
-                #:context-file-chooser)
+                #:context-file-chooser
+                #:context-appearance
+                #:context-fixed-appearance)
   (:import-from #:almighty-bolt/kept
                 #:state-let
                 #:kept-state
@@ -512,6 +514,8 @@
            #:context-set-clipboard-text
            #:context-choose-file
            #:context-file-chooser
+           #:context-appearance
+           #:context-fixed-appearance
            #:state-let
            #:kept-state
            #:make-kept-state

@@ -1,6 +1,7 @@
 (defpackage #:almighty-bolt/ui/immediate
   (:use #:cl)
   (:import-from #:almighty-bolt/internals
+                #:context-appearance
                 #:variant
                 #:frame
                 #:handle-event
@@ -23,11 +24,14 @@
                 #:replace-display-list
                 #:+max-builds+)
   (:import-from #:almighty-bolt/ui/theme
-                #:+background+)
+                #:*theme*
+                #:find-theme
+                #:theme-background)
   (:import-from #:almighty-bolt/ui/hash
                 #:mix)
   (:import-from #:almighty-bolt/ui/box
                 #:box-key
+                #:box-theme
                 #:box-id
                 #:box-kind
                 #:box-tooltip
@@ -355,7 +359,7 @@ menu), turned to the other side or moved in where it would go out of the window.
          (scale (context-scale context)))
     (cond
       ((null root)
-       (push-rect list 0 0 width height +background+))
+       (push-rect list 0 0 width height (theme-background (window-theme context))))
       (t
        (let ((same-layout (and (= (ui-last-width ui) width)
                                (= (ui-last-height ui) height)
@@ -374,7 +378,7 @@ menu), turned to the other side or moved in where it would go out of the window.
              ((and same-layout (= (ui-last-paint-hash ui) (ui-frame-paint-hash ui)))
               (replace-display-list list (ui-last-list ui)))
              (t
-              (push-rect list 0 0 width height +background+)
+              (push-rect list 0 0 width height (theme-background (box-theme root)))
               (paint-box ui root context list 0f0 0f0)
               (loop :for float :across (ui-floats ui)
                     :do (paint-box ui float context list 0f0 0f0))
@@ -387,6 +391,10 @@ menu), turned to the other side or moved in where it would go out of the window.
                (ui-last-height ui) height
                (ui-last-scale ui) scale))))))
 
+(defun window-theme (context)
+  "The theme of a window whose app gives none: dark or light, as the system is."
+  (find-theme (context-appearance context)))
+
 (defmethod frame ((variant immediate-variant) context list)
   (let ((ui (immediate-variant-ui variant)))
     (when (<= (almighty-bolt/internals:context-build-number context) 1)
@@ -394,7 +402,8 @@ menu), turned to the other side or moved in where it would go out of the window.
       (move-focus ui))
     (with-phase (context +phase-update+)
       (begin-build ui context)
-      (let ((*ui* ui))
+      (let ((*ui* ui)
+            (*theme* (window-theme context)))
         (funcall (app variant))
         (describe-toasts ui)
         (describe-tooltip ui))

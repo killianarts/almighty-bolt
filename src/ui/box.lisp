@@ -1,5 +1,7 @@
 (defpackage #:almighty-bolt/ui/box
   (:use #:cl)
+  (:import-from #:almighty-bolt/ui/theme
+                #:*theme*)
   (:export #:box
            #:make-box
            #:box-key
@@ -29,6 +31,7 @@
            #:box-data
            #:box-labelled-by
            #:box-tooltip
+           #:box-theme
            #:box-aux
            #:box-aux-doubles
            #:box-interactive
@@ -83,6 +86,8 @@
   (labelled-by nil)
   ;; What it says when the pointer rests on it, or NIL.
   (tooltip nil)
+  ;; The theme it is drawn in: the one it was described in.
+  (theme nil)
   ;; A small array of doubles, made once and refilled, for a widget's numbers that the other slots
   ;; do not hold (the slider's value, minimum and maximum), so that describing a frame allocates
   ;; nothing for them.
@@ -109,6 +114,8 @@
   "Make BOX ready to describe a new thing of KIND: everything but its storage is as it was
 made."
   (setf (box-kind box) kind
+        ;; Drawn in the theme it is described in.
+        (box-theme box) *theme*
         (box-id box) nil
         (box-parent box) nil
         (fill-pointer (box-children box)) 0

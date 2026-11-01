@@ -22,6 +22,7 @@
                 #:text-state-selection-start
                 #:text-state-selection-end)
   (:import-from #:almighty-bolt/ui/box
+                #:box-theme
                 #:box-key
                 #:box-kind
                 #:box-text
@@ -70,26 +71,12 @@
                 #:+dot-size+
                 #:+ring-reach+)
   (:import-from #:almighty-bolt/ui/theme
-                #:+text-color+
-                #:+dim-text-color+
-                #:+button-text-color+
-                #:+accent-color+
-                #:+panel-color+
-                #:+field-border-color+
-                #:+field-fill-color+
-                #:+field-invalid-color+
-                #:+field-disabled-color+
-                #:+selection-color+
-                #:+caret-color+
-                #:+track-color+
-                #:+thumb-color+
-                #:+row-selected-color+
-                #:+scrim-color+
-                #:+tooltip-color+
-                #:+tooltip-text-color+
-                #:+font-name+
-                #:+font-size+
-                #:+control-radius+
+                #:*theme*
+                #:theme-background #:theme-panel #:theme-text #:theme-dim-text
+                #:theme-button-text #:theme-ring #:theme-field-border #:theme-field-fill
+                #:theme-field-invalid #:theme-field-disabled #:theme-selection #:theme-caret
+                #:theme-track #:theme-thumb #:theme-row-selected #:theme-scrim #:theme-tooltip
+                #:theme-tooltip-text #:theme-font-name #:theme-radius
                 #:button-color)
   (:export #:paint-box))
 
@@ -128,10 +115,10 @@
 
 (defun draw-outlined-box (list x y w h fill focused)
   (when focused
-    (push-rounded-rect list (- x 2) (- y 2) (+ w 4) (+ h 4) (+ +control-radius+ 2)
-                       +accent-color+))
-  (push-rounded-rect list x y w h +control-radius+ +field-border-color+)
-  (push-rounded-rect list (+ x 1) (+ y 1) (- w 2) (- h 2) (- +control-radius+ 1) fill))
+    (push-rounded-rect list (- x 2) (- y 2) (+ w 4) (+ h 4) (+ (theme-radius *theme*) 2)
+                       (theme-ring *theme*)))
+  (push-rounded-rect list x y w h (theme-radius *theme*) (theme-field-border *theme*))
+  (push-rounded-rect list (+ x 1) (+ y 1) (- w 2) (- h 2) (- (theme-radius *theme*) 1) fill))
 
 (defun line-metrics (context)
   (multiple-value-bind (width ascent descent) (context-measure context (ui-font context) "Hg")
@@ -145,36 +132,36 @@
     (subseq string 0 end)))
 
 (defun draw-label (box context list x y)
-  (let* ((font (context-font context +font-name+ (box-size box))))
+  (let* ((font (context-font context (theme-font-name *theme*) (box-size box))))
     (multiple-value-bind (width ascent descent) (context-measure context font (box-text box))
       (declare (ignore width descent))
       (context-push-text context list font (box-text box) x (+ y ascent)
-                         (if (zerop (box-color box)) +text-color+ (box-color box))))))
+                         (if (zerop (box-color box)) (theme-text *theme*) (box-color box))))))
 
 (defun draw-paragraph (box context list x y)
   (let* ((state (box-data box))
          (text (paragraph-state-text state))
-         (font (context-font context +font-name+ (box-size box))))
+         (font (context-font context (theme-font-name *theme*) (box-size box))))
     (multiple-value-bind (width ascent descent) (context-measure context font "Hg")
       (declare (ignore width))
       (loop :for (start end) :in (paragraph-state-lines state)
             :for line :from 0
             :do (context-push-text context list font (subseq text start end) x
                                    (+ y (* line (+ ascent descent)) ascent)
-                                   (if (zerop (box-color box)) +text-color+ (box-color box)))))))
+                                   (if (zerop (box-color box)) (theme-text *theme*) (box-color box)))))))
 
 (defun draw-button (box context list x y)
   (let ((w (box-w box)) (h (box-h box)))
     (multiple-value-bind (state focused) (look-state box)
       (when focused
-        (push-rounded-rect list (- x 2) (- y 2) (+ w 4) (+ h 4) (+ +control-radius+ 2)
-                           +accent-color+))
-      (push-rounded-rect list x y w h +control-radius+ (button-color state))
+        (push-rounded-rect list (- x 2) (- y 2) (+ w 4) (+ h 4) (+ (theme-radius *theme*) 2)
+                           (theme-ring *theme*)))
+      (push-rounded-rect list x y w h (theme-radius *theme*) (button-color *theme* state))
       (let ((font (ui-font context)))
         (multiple-value-bind (width ascent descent) (context-measure context font (box-text box))
           (declare (ignore width descent))
           (context-push-text context list font (box-text box) (+ x 14) (+ y 7 ascent)
-                             +button-text-color+))))))
+                             (theme-button-text *theme*)))))))
 
 (defun draw-text-field (box context list x y)
   (let* ((w (box-w box)) (h (box-h box))
@@ -188,9 +175,9 @@
     (multiple-value-bind (height ascent) (line-metrics context)
       (declare (ignore height))
       (draw-outlined-box list x y w h
-                         (cond ((not enabled) +field-disabled-color+)
-                               ((plusp (box-n3 box)) +field-invalid-color+)
-                               (t +field-fill-color+))
+                         (cond ((not enabled) (theme-field-disabled *theme*))
+                               ((plusp (box-n3 box)) (theme-field-invalid *theme*))
+                               (t (theme-field-fill *theme*)))
                          focused)
       (let* ((inner (- w (* 2 +field-padding+)))
              (shown (fit-text context font (subseq string start) inner))
@@ -204,13 +191,13 @@
                   (to (min end (text-state-selection-end state))))
               (when (< from to)
                 (push-rect list (x-at from) (+ y 4) (- (x-at to) (x-at from)) (- h 8)
-                           +selection-color+))))
+                           (theme-selection *theme*)))))
           (context-push-text context list font shown left (+ y 6 ascent)
-                             (if enabled +text-color+ +dim-text-color+))
+                             (if enabled (theme-text *theme*) (theme-dim-text *theme*)))
           (when (and focused (not (text-state-selection-p state))
                      (<= start (text-state-caret state) end))
             (push-rect list (x-at (text-state-caret state)) (+ y 5) 1.5f0 (- h 10)
-                       +caret-color+)))))))
+                       (theme-caret *theme*))))))))
 
 (defun draw-text-area (box context list x y)
   (let* ((w (box-w box)) (h (box-h box))
@@ -228,7 +215,7 @@
          (left (+ x +field-padding+)))
     (multiple-value-bind (height ascent) (line-metrics context)
       (draw-outlined-box list x y w h
-                         (if enabled +field-fill-color+ +field-disabled-color+)
+                         (if enabled (theme-field-fill *theme*) (theme-field-disabled *theme*))
                          focused)
       (push-clip list (+ x 1) (+ y 1) (- w 2) (- h 2))
       (loop :for line :across lines
@@ -248,9 +235,9 @@
                                (more (if (> to end) 4f0 0f0)))
                           (when (or (< a b) (plusp more))
                             (push-rect list (x-at a) top (+ (- (x-at (max a b)) (x-at a)) more)
-                                       height +selection-color+))))
+                                       height (theme-selection *theme*)))))
                       (context-push-text context list font text left (+ top ascent)
-                                         (if enabled +text-color+ +dim-text-color+)))))
+                                         (if enabled (theme-text *theme*) (theme-dim-text *theme*))))))
       (when (and focused (not (text-state-selection-p state)) (plusp (length lines)))
         (let* ((caret (text-state-caret state))
                (row (area-line-of lines caret))
@@ -258,28 +245,28 @@
                (top (- (+ y +area-padding+ (* row height)) offset)))
           (push-rect list (+ left (context-caret-x context font (subseq string (car line) (cdr line))
                                                    (- caret (car line))))
-                     (+ top 1) 1.5f0 (- height 2) +caret-color+)))
+                     (+ top 1) 1.5f0 (- height 2) (theme-caret *theme*))))
       (push-unclip list))))
 
 (defun draw-slider (box list x y)
   (let* ((w (box-w box)) (h (box-h box))
          (thumb-x (+ x (/ +thumb-size+ 2) (* (max 1f0 (- w +thumb-size+)) (box-n1 box))))
          (middle (+ y (/ h 2))))
-    (push-rounded-rect list x (- middle 3) w 6 3 +track-color+)
-    (push-rounded-rect list x (- middle 3) (- thumb-x x) 6 3 +row-selected-color+)
+    (push-rounded-rect list x (- middle 3) w 6 3 (theme-track *theme*))
+    (push-rounded-rect list x (- middle 3) (- thumb-x x) 6 3 (theme-row-selected *theme*))
     (when (nth-value 1 (look-state box))
       (push-rounded-rect list (- thumb-x (/ +thumb-size+ 2) 2) (- middle (/ +thumb-size+ 2) 2)
                          (+ +thumb-size+ 4) (+ +thumb-size+ 4) (+ (/ +thumb-size+ 2) 2)
-                         +accent-color+))
+                         (theme-ring *theme*)))
     (push-rounded-rect list (- thumb-x (/ +thumb-size+ 2)) (- middle (/ +thumb-size+ 2))
-                       +thumb-size+ +thumb-size+ (/ +thumb-size+ 2) +thumb-color+)))
+                       +thumb-size+ +thumb-size+ (/ +thumb-size+ 2) (theme-thumb *theme*))))
 
 (defun draw-progress (box list x y)
   (let* ((w (box-w box)) (h (box-h box))
          (filled (* w (box-n1 box))))
-    (push-rounded-rect list x y w h (* 0.5f0 h) +track-color+)
+    (push-rounded-rect list x y w h (* 0.5f0 h) (theme-track *theme*))
     (when (> filled 0f0)
-      (push-rounded-rect list x y (max filled h) h (* 0.5f0 h) +thumb-color+))))
+      (push-rounded-rect list x y (max filled h) h (* 0.5f0 h) (theme-thumb *theme*)))))
 
 (defun draw-choice (box context list x y)
   (let* ((font (ui-font context))
@@ -297,17 +284,17 @@
                        (top (+ row (/ (- h +dot-size+) 2))))
                   (when (and focused (= i selected))
                     (push-rounded-rect list (- left 2) (- top 2) (+ +dot-size+ 4) (+ +dot-size+ 4)
-                                       (+ (/ +dot-size+ 2) 2) +accent-color+))
+                                       (+ (/ +dot-size+ 2) 2) (theme-ring *theme*)))
                   (push-rounded-rect list left top +dot-size+ +dot-size+ (/ +dot-size+ 2)
-                                     +field-border-color+)
+                                     (theme-field-border *theme*))
                   (push-rounded-rect list (+ left 1) (+ top 1) (- +dot-size+ 2) (- +dot-size+ 2)
-                                     (/ (- +dot-size+ 2) 2) +field-fill-color+)
+                                     (/ (- +dot-size+ 2) 2) (theme-field-fill *theme*))
                   (when (= i selected)
                     (push-rounded-rect list (+ left 4) (+ top 4) (- +dot-size+ 8) (- +dot-size+ 8)
-                                       (/ (- +dot-size+ 8) 2) +row-selected-color+))
+                                       (/ (- +dot-size+ 8) 2) (theme-row-selected *theme*)))
                   (context-push-text context list font option (+ left +dot-size+ 6f0)
                                      (+ row (/ (- h (+ ascent 4f0)) 2) ascent)
-                                     (if (box-enabled box) +text-color+ +dim-text-color+)))))))
+                                     (if (box-enabled box) (theme-text *theme*) (theme-dim-text *theme*))))))))
 
 (defun draw-dropdown (box context list x y)
   "A button that shows its option, with the arrows of a pop-up button at the right."
@@ -315,20 +302,20 @@
         (font (ui-font context)))
     (multiple-value-bind (state focused) (look-state box)
       (when focused
-        (push-rounded-rect list (- x 2) (- y 2) (+ w 4) (+ h 4) (+ +control-radius+ 2)
-                           +accent-color+))
-      (push-rounded-rect list x y w h +control-radius+
-                         (button-color (if (eql (box-n3 box) 1) :pressed state)))
+        (push-rounded-rect list (- x 2) (- y 2) (+ w 4) (+ h 4) (+ (theme-radius *theme*) 2)
+                           (theme-ring *theme*)))
+      (push-rounded-rect list x y w h (theme-radius *theme*)
+                         (button-color *theme* (if (eql (box-n3 box) 1) :pressed state)))
       (multiple-value-bind (width ascent) (context-measure context font (box-text box))
         (declare (ignore width))
         (context-push-text context list font (fit-text context font (box-text box) (- w 44))
                            (+ x 14) (+ y 7 ascent)
-                           (if (box-enabled box) +button-text-color+ +dim-text-color+))
+                           (if (box-enabled box) (theme-button-text *theme*) (theme-dim-text *theme*)))
         ;; Two small arrows, one over the other.
         (let ((cx (+ x w -16)) (cy (+ y (/ h 2))))
           (loop :for i :from 0 :below 4
-                :do (push-rect list (- cx i) (- cy 2 (- 3 i)) (+ 1 (* 2 i)) 1 +button-text-color+)
-                    (push-rect list (- cx i) (+ cy 2 (- 3 i)) (+ 1 (* 2 i)) 1 +button-text-color+)))))))
+                :do (push-rect list (- cx i) (- cy 2 (- 3 i)) (+ 1 (* 2 i)) 1 (theme-button-text *theme*))
+                    (push-rect list (- cx i) (+ cy 2 (- 3 i)) (+ 1 (* 2 i)) 1 (theme-button-text *theme*))))))))
 
 (defun draw-menu-button (box context list x y)
   "A button whose words are followed by an arrow down, for the menu it opens."
@@ -336,51 +323,51 @@
         (font (ui-font context)))
     (multiple-value-bind (state focused) (look-state box)
       (when focused
-        (push-rounded-rect list (- x 2) (- y 2) (+ w 4) (+ h 4) (+ +control-radius+ 2)
-                           +accent-color+))
-      (push-rounded-rect list x y w h +control-radius+
-                         (button-color (if (eql (box-n3 box) 1) :pressed state)))
+        (push-rounded-rect list (- x 2) (- y 2) (+ w 4) (+ h 4) (+ (theme-radius *theme*) 2)
+                           (theme-ring *theme*)))
+      (push-rounded-rect list x y w h (theme-radius *theme*)
+                         (button-color *theme* (if (eql (box-n3 box) 1) :pressed state)))
       (multiple-value-bind (width ascent) (context-measure context font (box-text box))
         (declare (ignore width))
         (context-push-text context list font (box-text box) (+ x 14) (+ y 7 ascent)
-                           (if (box-enabled box) +button-text-color+ +dim-text-color+))
+                           (if (box-enabled box) (theme-button-text *theme*) (theme-dim-text *theme*)))
         (let ((cx (+ x w -16)) (cy (+ y (/ h 2) -1)))
           (loop :for i :from 0 :below 4
                 :do (push-rect list (- cx (- 3 i)) (+ cy i) (+ 1 (* 2 (- 3 i))) 1
-                               +button-text-color+)))))))
+                               (theme-button-text *theme*))))))))
 
 (defun draw-tooltip (box context list x y)
   "Small words on a light background, with a thin edge."
-  (let ((font (context-font context +font-name+ 13)))
+  (let ((font (context-font context (theme-font-name *theme*) 13)))
     (push-rounded-rect list (- x 1) (- y 1) (+ (box-w box) 2) (+ (box-h box) 2) 5
-                       +field-border-color+)
-    (push-rounded-rect list x y (box-w box) (box-h box) 4 +tooltip-color+)
+                       (theme-field-border *theme*))
+    (push-rounded-rect list x y (box-w box) (box-h box) 4 (theme-tooltip *theme*))
     (multiple-value-bind (width ascent) (context-measure context font (box-text box))
       (declare (ignore width))
       (context-push-text context list font (box-text box) (+ x 8) (+ y 4 ascent)
-                         +tooltip-text-color+))))
+                         (theme-tooltip-text *theme*)))))
 
 (defun draw-toast (box context list x y)
   "Words on a light rounded background, as a tooltip but larger."
   (let ((font (ui-font context)))
-    (push-rounded-rect list x y (box-w box) (box-h box) 10 +tooltip-color+)
+    (push-rounded-rect list x y (box-w box) (box-h box) 10 (theme-tooltip *theme*))
     (multiple-value-bind (width ascent) (context-measure context font (box-text box))
       (declare (ignore width))
       (context-push-text context list font (box-text box) (+ x 16) (+ y 10 ascent)
-                         +tooltip-text-color+))))
+                         (theme-tooltip-text *theme*)))))
 
 (defun draw-menu-item (box context list x y)
   "A row of a menu: the highlight under it if it has it, the mark of the chosen one, and its words."
   (let ((font (ui-font context))
         (highlighted (eql (box-n3 box) 1)))
     (when highlighted
-      (push-rounded-rect list x y (box-w box) (box-h box) 4 +row-selected-color+))
+      (push-rounded-rect list x y (box-w box) (box-h box) 4 (theme-row-selected *theme*)))
     (multiple-value-bind (height ascent) (line-metrics context)
       (let ((baseline (+ y (/ (- (box-h box) height) 2) ascent)))
         (when (= (box-n2 box) 1f0)
-          (context-push-text context list font "✓" (+ x 6) baseline +text-color+))
+          (context-push-text context list font "✓" (+ x 6) baseline (theme-text *theme*)))
         (context-push-text context list font (box-text box) (+ x +menu-check-width+) baseline
-                           (if highlighted +button-text-color+ +text-color+))))))
+                           (if highlighted (theme-button-text *theme*) (theme-text *theme*)))))))
 
 (defun draw-switch (box context list x y)
   "A track as wide as +SWITCH-WIDTH+ and half as tall, filled with the accent when on, and a knob at
@@ -393,16 +380,16 @@ the end it is at."
          (knob (- h 4)))
     (when focused
       (push-rounded-rect list (- x 2) (- top 2) (+ +switch-width+ 4) (+ h 4) (+ (/ h 2) 2)
-                         +accent-color+))
+                         (theme-ring *theme*)))
     (push-rounded-rect list x top +switch-width+ h (/ h 2)
-                       (if on +row-selected-color+ +track-color+))
+                       (if on (theme-row-selected *theme*) (theme-track *theme*)))
     (push-rounded-rect list (if on (+ x +switch-width+ (- knob) -2) (+ x 2)) (+ top 2) knob knob
-                       (/ knob 2) (if enabled +thumb-color+ +dim-text-color+))
+                       (/ knob 2) (if enabled (theme-thumb *theme*) (theme-dim-text *theme*)))
     (multiple-value-bind (height ascent) (line-metrics context)
       (declare (ignore height))
       (context-push-text context list (ui-font context) (box-text box) (+ x +switch-width+ 8f0)
                          (+ y (/ (- (box-h box) (+ ascent 4f0)) 2) ascent)
-                         (if enabled +text-color+ +dim-text-color+)))))
+                         (if enabled (theme-text *theme*) (theme-dim-text *theme*))))))
 
 (defun draw-spinner (box list x y)
   "+SPINNER-STEPS+ dots round a ring, the one at the step the spinner is at the brightest and those
@@ -420,7 +407,7 @@ behind it fading."
         (push-rounded-rect list (- (+ cx (* radius (float (sin angle) 1f0))) (/ dot 2))
                            (- (- cy (* radius (float (cos angle) 1f0))) (/ dot 2))
                            dot dot (/ dot 2)
-                           (logior (logand +text-color+ #xFFFFFF00) alpha))))))
+                           (logior (logand (theme-text *theme*) #xFFFFFF00) alpha))))))
 
 (defun draw-list-box (box context list x y)
   (let* ((font (ui-font context))
@@ -433,37 +420,37 @@ behind it fading."
          (selected (round (box-n2 box))))
     (multiple-value-bind (height ascent) (line-metrics context)
       (declare (ignore height))
-      (draw-outlined-box list x y w h +field-fill-color+ (nth-value 1 (look-state box)))
+      (draw-outlined-box list x y w h (theme-field-fill *theme*) (nth-value 1 (look-state box)))
       (loop :for item :in (nthcdr top items)
             :for index :from top
             :for i :from 0 :below rows
             :do (let ((row-y (+ y 1 (* i +row-height+))))
                   (when (= index selected)
                     (push-rounded-rect list (+ x 3) row-y (- w 6 (if (> count rows) 8 0))
-                                       +row-height+ 4 +row-selected-color+))
+                                       +row-height+ 4 (theme-row-selected *theme*)))
                   (context-push-text context list font (fit-text context font item (- w 24))
                                      (+ x 10) (+ row-y (/ (- +row-height+ (+ ascent 4)) 2) ascent)
-                                     +text-color+)))
+                                     (theme-text *theme*))))
       (when (> count rows)
         (let* ((track (- h 8))
                (bar (max 12f0 (* track (/ (float rows 1f0) count))))
                (travel (- track bar))
                (max-top (max 1 (- count rows)))
                (position (* travel (/ (float top 1f0) max-top))))
-          (push-rounded-rect list (+ x w -8) (+ y 4 position) 4 bar 2 +field-border-color+))))))
+          (push-rounded-rect list (+ x w -8) (+ y 4 position) 4 bar 2 (theme-field-border *theme*)))))))
 
 (defun draw-checkbox (box context list x y)
   (let ((top (+ y (/ (- (box-h box) +dot-size+) 2)))
         (focused (nth-value 1 (look-state box))))
-    (draw-outlined-box list x top +dot-size+ +dot-size+ +field-fill-color+ focused)
+    (draw-outlined-box list x top +dot-size+ +dot-size+ (theme-field-fill *theme*) focused)
     (when (eql (box-n3 box) 1)
       (push-rounded-rect list (+ x 4) (+ top 4) (- +dot-size+ 8) (- +dot-size+ 8) 2f0
-                         +row-selected-color+))
+                         (theme-row-selected *theme*)))
     (multiple-value-bind (height ascent) (line-metrics context)
       (declare (ignore height))
       (context-push-text context list (ui-font context) (box-text box) (+ x +dot-size+ 6f0)
                          (+ y (/ (- (box-h box) (+ ascent 4f0)) 2) ascent)
-                         (if (box-enabled box) +text-color+ +dim-text-color+)))))
+                         (if (box-enabled box) (theme-text *theme*) (theme-dim-text *theme*))))))
 
 (defun draw-leaf (box context list x y)
   (ecase (box-kind box)
@@ -496,7 +483,7 @@ and where: drawn only when not all of it does."
              (bar (max 12f0 (* track (/ h content))))
              (position (* (- track bar) (/ (scroll-state-offset state) (- content h)))))
         (push-rounded-rect list (+ x (box-w box) -8) (+ y 4 position) 4 bar 2
-                           +field-border-color+)))))
+                           (theme-field-border *theme*))))))
 
 ;;; --- the cache ---
 
@@ -532,46 +519,47 @@ kept, and otherwise afresh, which is then kept."
 
 (defun paint-box (ui box context list x y)
   "Draw BOX, whose parent is at X, Y in the window, and everything in it."
-  (let ((x (+ x (box-x box)))
-        (y (+ y (box-y box))))
-    (ecase (box-kind box)
-      ((:label :paragraph :button :text-field :combo-box :text-area :slider :progress :choice :checkbox :switch :spinner
-        :list-box :dropdown :menu-button :menu-item :tooltip
-        :toast)
-       (paint-cached ui box context list x y))
-      (:canvas
-       (let ((scale (context-scale context))
-             (fragment (box-data box)))
-         (let ((x (snap-to-pixel x scale)) (y (snap-to-pixel y scale)))
-           (push-clip list x y (box-w box) (box-h box))
-           (append-display-list list fragment x y)
-           (push-unclip list))))
-      (:scrim
-       (push-rect list x y (box-w box) (box-h box) +scrim-color+))
-      (:catcher)
-      (:toasts (paint-children ui box context list x y))
-      ((:popover :dialog)
-       (push-rounded-rect list (- x 1) (- y 1) (+ (box-w box) 2) (+ (box-h box) 2) 11
-                          +field-border-color+)
-       (push-rounded-rect list x y (box-w box) (box-h box) 10 +panel-color+)
-       (paint-children ui box context list x y))
-      (:menu
-       (push-rounded-rect list (- x 1) (- y 1) (+ (box-w box) 2) (+ (box-h box) 2) 7
-                          +field-border-color+)
-       (push-rounded-rect list x y (box-w box) (box-h box) 6 +panel-color+)
-       (paint-children ui box context list x y))
-      ((:scroll :lazy-list)
-       (push-clip list x y (box-w box) (box-h box))
-       (paint-children ui box context list x y)
-       (push-unclip list)
-       (paint-ring-past-edges ui box context list x y)
-       (draw-scroll-bar box list x y))
-      (:panel
-       (push-rounded-rect list x y (box-w box) (box-h box) (box-n1 box)
-                          (if (zerop (box-color box)) +panel-color+ (box-color box)))
-       (paint-children ui box context list x y))
-      ((:column :row :padding :center :stack :context-area)
-       (paint-children ui box context list x y)))))
+  (let ((*theme* (box-theme box)))
+    (let ((x (+ x (box-x box)))
+          (y (+ y (box-y box))))
+      (ecase (box-kind box)
+        ((:label :paragraph :button :text-field :combo-box :text-area :slider :progress :choice :checkbox :switch :spinner
+          :list-box :dropdown :menu-button :menu-item :tooltip
+          :toast)
+         (paint-cached ui box context list x y))
+        (:canvas
+         (let ((scale (context-scale context))
+               (fragment (box-data box)))
+           (let ((x (snap-to-pixel x scale)) (y (snap-to-pixel y scale)))
+             (push-clip list x y (box-w box) (box-h box))
+             (append-display-list list fragment x y)
+             (push-unclip list))))
+        (:scrim
+         (push-rect list x y (box-w box) (box-h box) (theme-scrim *theme*)))
+        (:catcher)
+        (:toasts (paint-children ui box context list x y))
+        ((:popover :dialog)
+         (push-rounded-rect list (- x 1) (- y 1) (+ (box-w box) 2) (+ (box-h box) 2) 11
+                            (theme-field-border *theme*))
+         (push-rounded-rect list x y (box-w box) (box-h box) 10 (theme-panel *theme*))
+         (paint-children ui box context list x y))
+        (:menu
+         (push-rounded-rect list (- x 1) (- y 1) (+ (box-w box) 2) (+ (box-h box) 2) 7
+                            (theme-field-border *theme*))
+         (push-rounded-rect list x y (box-w box) (box-h box) 6 (theme-panel *theme*))
+         (paint-children ui box context list x y))
+        ((:scroll :lazy-list)
+         (push-clip list x y (box-w box) (box-h box))
+         (paint-children ui box context list x y)
+         (push-unclip list)
+         (paint-ring-past-edges ui box context list x y)
+         (draw-scroll-bar box list x y))
+        (:panel
+         (push-rounded-rect list x y (box-w box) (box-h box) (box-n1 box)
+                            (if (zerop (box-color box)) (theme-panel *theme*) (box-color box)))
+         (paint-children ui box context list x y))
+        ((:column :row :padding :center :stack :context-area)
+         (paint-children ui box context list x y))))))
 
 ;;; A scroll container or a lazy list clips what is in it to its edges, so that what is out of its
 ;;; window does not show; but the ring round what has the keyboard is drawn +RING-REACH+ points
