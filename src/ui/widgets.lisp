@@ -182,7 +182,7 @@
            #:scroll-state-offset
            #:scroll-state-content-height
            #:scroll-state-viewport-height
-           #:+scroll-inset+
+           #:+ring-reach+
            #:lazy-list
            #:begin-lazy-list
            #:lazy-list-rows
@@ -354,9 +354,8 @@ the box a press began on), 3 disabled, and 4 more if it has the keyboard."
 ;;; left of it, while the pointer is over the container or anything in it, moves the window. When the
 ;;; keyboard comes to something inside that is out of the window, the window moves to show it.
 
-(defconstant +scroll-inset+ 3f0
-  "How far in from each edge of a scroll container or a lazy list what is inside it is laid out, so
-that the ring round what has the keyboard (2 points outside it) is not cut off by the edge.")
+(defconstant +ring-reach+ 2f0
+  "How far outside a widget the ring round it, when it has the keyboard, is drawn.")
 
 (defstruct (scroll-state (:constructor make-scroll-state ()))
   (offset 0f0 :type single-float)
@@ -411,10 +410,10 @@ container, and is not inside.)"
           (when target
             (let* ((top (+ (- (rect-y target) (rect-y rect)) offset))
                    (bottom (+ top (rect-h target))))
-              ;; With the inset round it, so that its ring shows too.
-              (cond ((< (- top +scroll-inset+) offset) (setf offset (- top +scroll-inset+)))
-                    ((> (+ bottom +scroll-inset+) (+ offset viewport))
-                     (setf offset (- (+ bottom +scroll-inset+) viewport))))))))
+              ;; With room for its ring: the edge of the window may be where nothing is drawn.
+              (cond ((< (- top +ring-reach+) offset) (setf offset (- top +ring-reach+)))
+                    ((> (+ bottom +ring-reach+) (+ offset viewport))
+                     (setf offset (- (+ bottom +ring-reach+) viewport))))))))
       (setf (scroll-state-last-focus state) focus))
     (setf offset (max 0f0 (min offset (max 0f0 (- (scroll-state-content-height state) viewport)))))
     (setf (scroll-state-offset state) offset
@@ -456,13 +455,12 @@ room it has), or as tall as what is inside; FLEX gives it a share of a column's 
           (box-n2 box) row-height
           (box-n3 box) count
           (box-data box) state
-          (scroll-state-content-height state) (+ (* count row-height) (* 2 +scroll-inset+))
+          (scroll-state-content-height state) (* count row-height)
           (scroll-state-first-inside state) (ui-count ui))
     ;; Where the window is, kept inside what there is now (the list may have become shorter).
     (let ((viewport (lazy-list-viewport box state)))
       (setf (box-n1 box) (max 0f0 (min (scroll-state-offset state)
-                                       (- (+ (* count row-height) (* 2 +scroll-inset+))
-                                          viewport)))))
+                                       (- (* count row-height) viewport)))))
     box))
 
 (defun lazy-list-viewport (box state)
@@ -480,10 +478,8 @@ column of its own whose id is what KEY returns for the item (or, with no KEY, it
          (row-height (box-n2 box))
          (count (box-n3 box))
          (offset (box-n1 box))
-         ;; The rows begin +SCROLL-INSET+ down.
-         (first (min count (floor (max 0f0 (- offset +scroll-inset+)) row-height)))
-         (end (min count (ceiling (+ (- offset +scroll-inset+) (lazy-list-viewport box state))
-                                  row-height))))
+         (first (min count (floor offset row-height)))
+         (end (min count (ceiling (+ offset (lazy-list-viewport box state)) row-height))))
     (flet ((row (item index)
              (let ((row (open-box ui :column :id (if key (funcall key item) index))))
                (setf (box-n3 row) index)

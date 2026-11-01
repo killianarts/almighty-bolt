@@ -10,6 +10,7 @@
                     (#:counter #:almighty-bolt-examples/counter)
                     (#:todo #:almighty-bolt-examples/todo)
                     (#:gallery #:almighty-bolt-examples/gallery)
+                    (#:theme #:almighty-bolt/ui/theme)
                     (#:objc #:almighty-bolt/platform/macos/objc)
                     (#:window #:almighty-bolt/platform/macos/window)
                     (#:view #:almighty-bolt/platform/macos/view)
@@ -974,9 +975,9 @@ that leaves two of them. Each button counts its presses."
     (assert-false (s:node-property (node-of screen 5) :hidden))
     (click screen 5)
     (assert-equal "B5 1" (text-in screen 5))
-    ;; No further than the end: ten buttons of 28, with 3 above and below them, in a window of 100.
+    ;; No further than the end: ten buttons of 28 in a window of 100.
     (m:scroll session :id :shelf :dy -100)
-    (assert-eql 186f0 (offset-of screen :shelf))
+    (assert-eql 180f0 (offset-of screen :shelf))
     (m:scroll session :id :shelf :dy 100)
     (assert-eql 0f0 (offset-of screen :shelf))))
 
@@ -1002,19 +1003,22 @@ that leaves two of them. Each button counts its presses."
     ;; The button above, then the first six in the shelf. (A press does not give a button the keyboard.)
     (dotimes (i 7) (m:press-key session :tab))
     (assert-true (s:node-property (node-of screen 5) :focused))
-    ;; As little as shows all of it and its ring: its bottom, 3 + 168 points in, and 3 more, at the
+    ;; As little as shows all of it and its ring: its bottom, 168 points in, 2 points above the
     ;; bottom of the window.
-    (assert-eql 74f0 (offset-of screen :shelf))
+    (assert-eql 70f0 (offset-of screen :shelf))
     (assert-false (s:node-property (node-of screen 5) :hidden))
-    ;; Back up to the first: its top at the top of the window.
-    (dotimes (i 5) (m:press-key session :tab :modifiers '(:shift)))
+    ;; Back up to the second: its top, 28 points in, 2 points below the top of the window.
+    (dotimes (i 4) (m:press-key session :tab :modifiers '(:shift)))
+    (assert-eql 26f0 (offset-of screen :shelf))
+    ;; And the first: the top of the window, as there is nothing above it.
+    (m:press-key session :tab :modifiers '(:shift))
     (assert-eql 0f0 (offset-of screen :shelf))))
 
 (define-test a-scroll-container-whose-contents-shrink-goes-back-to-the-top ()
   (let* ((screen (show 'make-shelf))
          (session (screen-session screen)))
     (m:scroll session :id :shelf :dy -100)
-    (assert-eql 186f0 (offset-of screen :shelf))
+    (assert-eql 180f0 (offset-of screen :shelf))
     ;; In the frame of the press itself, not one after: what is left shows at once.
     (click screen :fewer)
     (assert-eql 0f0 (offset-of screen :shelf))
@@ -1077,7 +1081,7 @@ and says its entry's number, and a field for a note; Return in a note puts a new
          (session (screen-session screen)))
     (assert-equal '(0 1 2 3 4) (built-rows screen))
     (assert-eql 100000 (s:node-property (node-of screen :entries) :row-count))
-    (assert-eql 2800006f0 (s:node-property (node-of screen :entries) :content-height))
+    (assert-eql 2800000f0 (s:node-property (node-of screen :entries) :content-height))
     ;; A thousand lines of 24 points: 24000 points, the row at 24000 / 28 = 857 and a bit at the top.
     (m:scroll session :id :entries :dy -1000)
     (assert-eql 24000f0 (offset-of screen :entries))
@@ -1087,24 +1091,66 @@ and says its entry's number, and a field for a note; Return in a note puts a new
     (assert-true (s:find-nodes (node-of screen :entries) :name "E859 1"))
     ;; The end: the last five rows fill the window.
     (m:scroll session :id :entries :dy -1000000)
-    (assert-eql (- 2800006f0 140f0) (offset-of screen :entries))
+    (assert-eql (- 2800000f0 140f0) (offset-of screen :entries))
     (assert-equal '(99995 99996 99997 99998 99999) (built-rows screen))))
 
-(define-test the-ring-of-what-is-at-the-edge-of-a-scroll-or-a-lazy-list-is-inside-it ()
-  ;; The ring round what has the keyboard is 2 points outside it; the scroll's edge cuts off what is
-  ;; outside it.
-  (flet ((gaps (screen container thing)
-           (destructuring-bind (cx cy cw ch) (s:node-bounds (node-of screen container))
-             (declare (ignore cw ch))
-             (destructuring-bind (x y w h) (s:node-bounds thing)
-               (declare (ignore w h))
-               (list (- x cx) (- y cy))))))
-    (let ((screen (show 'make-long-list)))
-      (assert-true (every (lambda (gap) (>= gap 2))
-                          (gaps screen :entries (row-node screen 0 :press)))))
-    (let ((screen (show 'make-shelf)))
-      (assert-true (every (lambda (gap) (>= gap 2))
-                          (gaps screen :shelf (node-of screen 0)))))))
+;;; --- the ring round what has the keyboard, at the edge of a scroll ---
+
+(defun make-framed (kind)
+  "Twenty points in from the window's edges, a lazy list (KIND :lazy-list) or a scroll container
+(:scroll) 140 points tall of fifty buttons 28 points tall, the first called :press."
+  (let ((items (loop :for i :below 50 :collect i)))
+    (lambda ()
+      (padding (:all 20)
+        (ecase kind
+          (:lazy-list
+           (lazy-list (i items :id :frame :row-height 28 :height 140)
+             (button (format nil "Task ~d" i) :id (if (zerop i) :press i))))
+          (:scroll
+           (scroll (:id :frame :height 140)
+             (dolist (i items)
+               (button (format nil "Task ~d" i) :id (if (zerop i) :press i))))))))))
+
+(defun color-at (screen x y)
+  "The colour of the last rectangle on SCREEN's display list that covers the point X, Y and is drawn
+inside every clip it is in. (A point away from the corners of a rounded one.)"
+  (let ((list (screen-list screen)) (clips '()) (color nil))
+    (flet ((over (index)
+             (let ((left (core:display-list-x list index)) (top (core:display-list-y list index)))
+               (and (<= left x) (< x (+ left (core:display-list-width list index)))
+                    (<= top y) (< y (+ top (core:display-list-height list index)))))))
+      (dotimes (index (core:display-list-count list) color)
+        (let ((kind (core:display-list-kind list index)))
+          (cond ((= kind core:+command-clip+) (push index clips))
+                ((= kind core:+command-unclip+) (pop clips))
+                ((and (or (= kind core:+command-rect+) (= kind core:+command-rounded-rect+))
+                      (over index) (every #'over clips))
+                 (setf color (core:display-list-color list index)))))))))
+
+(define-test the-ring-of-what-has-the-keyboard-shows-past-the-edge-of-a-scroll-or-a-lazy-list ()
+  ;; The ring is drawn 2 points outside what has the keyboard, and the container clips what is in
+  ;; it to its edges; the first button is at its top left, with nothing between.
+  (dolist (kind '(:lazy-list :scroll))
+    (let* ((screen (show (lambda () (make-framed kind))))
+           (session (screen-session screen))
+           (accent theme:+accent-color+))
+      (m:press-key session :tab)
+      (assert-true (s:node-property (node-of screen :press) :focused) kind)
+      (destructuring-bind (fx fy fw fh) (s:node-bounds (node-of screen :frame))
+        (declare (ignore fw fh))
+        (destructuring-bind (x y w h) (s:node-bounds (node-of screen :press))
+          (assert-equal (list fx fy) (list x y) kind)
+          ;; Its ring, 1 point to the left of the container and 1 above it.
+          (assert-eql accent (color-at screen (- fx 1) (+ y (/ h 2))) kind)
+          (assert-eql accent (color-at screen (+ x (/ w 2)) (- fy 1)) kind)
+          ;; Half a line (12 points) further down, it is partly out of the window: nothing of it is
+          ;; above the container (what is there is the window's background, as at its corner), and
+          ;; the ring is at the left of what shows.
+          (m:scroll session :id :frame :dy -0.5)
+          (assert-eql 12f0 (offset-of screen :frame) kind)
+          (assert-true (s:node-property (node-of screen :press) :focused) kind)
+          (assert-eql (color-at screen 5 5) (color-at screen (+ x (/ w 2)) (- fy 1)) kind)
+          (assert-eql accent (color-at screen (- fx 1) (+ fy 8)) kind))))))
 
 (define-test what-is-kept-for-a-row-stays-with-its-item-when-the-items-move ()
   (let* ((screen (show 'make-long-list))

@@ -67,7 +67,8 @@
                 #:+field-padding+
                 #:+row-height+
                 #:+thumb-size+
-                #:+dot-size+)
+                #:+dot-size+
+                #:+ring-reach+)
   (:import-from #:almighty-bolt/ui/theme
                 #:+text-color+
                 #:+dim-text-color+
@@ -563,6 +564,7 @@ kept, and otherwise afresh, which is then kept."
        (push-clip list x y (box-w box) (box-h box))
        (paint-children ui box context list x y)
        (push-unclip list)
+       (paint-ring-past-edges ui box context list x y)
        (draw-scroll-bar box list x y))
       (:panel
        (push-rounded-rect list x y (box-w box) (box-h box) (box-n1 box)
@@ -570,6 +572,48 @@ kept, and otherwise afresh, which is then kept."
        (paint-children ui box context list x y))
       ((:column :row :padding :center :stack :context-area)
        (paint-children ui box context list x y)))))
+
+;;; A scroll container or a lazy list clips what is in it to its edges, so that what is out of its
+;;; window does not show; but the ring round what has the keyboard is drawn +RING-REACH+ points
+;;; outside it, and at an edge that would be cut off. So after what is inside, the one that has the
+;;; keyboard is drawn again, clipped to the band +RING-REACH+ wide just outside each edge that it is
+;;; wholly inside of: nothing else of it can be there, so what shows there is its ring. An edge it
+;;; reaches past (it is scrolled half out of the window) gets nothing, as the ring is cut off with
+;;; the rest of it. The kept drawing is used, so this draws nothing new.
+
+(defun focused-inside (box x y)
+  "The box under BOX, whose parent is at X, Y, that has the keyboard, and the X and Y of its parent,
+or NIL. A scroll container or a lazy list inside is not looked in, as it draws its own band."
+  (loop :for child :across (box-children box)
+        :do (when (nth-value 1 (look-state child))
+              (return-from focused-inside (values child x y)))
+            (unless (member (box-kind child) '(:scroll :lazy-list))
+              (multiple-value-bind (found fx fy)
+                  (focused-inside child (+ x (box-x child)) (+ y (box-y child)))
+                (when found (return-from focused-inside (values found fx fy))))))
+  nil)
+
+(defun paint-ring-past-edges (ui box context list x y)
+  "Draw the ring of what has the keyboard inside BOX, a scroll container or a lazy list at X, Y in the
+window, where it reaches past BOX's edges."
+  (multiple-value-bind (focused px py) (focused-inside box x y)
+    (when focused
+      (let* ((r +ring-reach+)
+             (w (box-w box)) (h (box-h box))
+             (fx (+ px (box-x focused))) (fy (+ py (box-y focused)))
+             (left (>= fx x)) (right (<= (+ fx (box-w focused)) (+ x w)))
+             (top (>= fy y)) (bottom (<= (+ fy (box-h focused)) (+ y h)))
+             ;; The bands above and below reach round the corners on a side the ring shows at.
+             (band-left (if left (- x r) x))
+             (band-width (- (if right (+ x w r) (+ x w)) band-left)))
+        (flet ((band (bx by bw bh)
+                 (push-clip list bx by bw bh)
+                 (paint-box ui focused context list px py)
+                 (push-unclip list)))
+          (when top (band band-left (- y r) band-width r))
+          (when bottom (band band-left (+ y h) band-width r))
+          (when left (band (- x r) y r h))
+          (when right (band (+ x w) y r h)))))))
 
 (defun paint-children (ui box context list x y)
   (loop :for child :across (box-children box)
