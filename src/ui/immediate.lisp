@@ -290,7 +290,14 @@ keyboard: it goes there when the dialog comes, and Tab goes round inside it."
                   (when (and (hit-focusable hit) (or (zerop modal) (= (hit-layer hit) modal)))
                     (push (hit-key hit) keys))))
       (setf keys (nreverse keys)))
-    (when (and (/= modal 0) keys (not (member (ui-focus ui) keys)))
+    ;; Text that can be selected has the keyboard from a press only (it is not in the order); in the
+    ;; dialog, it keeps it.
+    (when (and (/= modal 0) keys (not (member (ui-focus ui) keys))
+               (not (and (ui-click-focused ui)
+                         (loop :for i :below (ui-hit-count ui)
+                               :thereis (let ((hit (aref (ui-hits ui) i)))
+                                          (and (= (hit-key hit) (ui-focus ui))
+                                               (= (hit-layer hit) modal)))))))
       (setf (ui-focus ui) (first keys)
             (ui-click-focused ui) nil))
     (when direction

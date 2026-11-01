@@ -138,6 +138,8 @@
            #:label
            #:paragraph
            #:paragraph-state
+           #:selection-state-p
+           #:selection-state-state
            #:paragraph-state-text
            #:paragraph-state-lines
            #:paragraph-state-theme-id
@@ -524,25 +526,137 @@ wide, or as wide as it is allowed to be. The :id is required."
        (lazy-list-rows ,box ,list ,key (lambda (,var) (declare (ignorable ,var)) ,@body))
        (end-scroll ,box))))
 
+;;; --- selecting text with the pointer ---
+;;;
+;;; A press puts the caret where it is; two in a row select the word under the pointer, three the line
+;;; (in a text area, the paragraph between line feeds), and a drag after them goes on by whole words or
+;;; lines. What the press chose is kept, so that the drag, which is looked at in the build of the press
+;;; as well and in the builds after it, makes the same selection each time from it.
+
+(defstruct (text-press (:constructor nil))
+  ;; :char, :word or :line: what the last press selects by, from how many presses it was.
+  (unit :char)
+  ;; The word or line the press chose.
+  (from 0 :type fixnum)
+  (to 0 :type fixnum))
+
+(defun index-at (context font string x)
+  "Two values: the place between characters of STRING nearest X, and the character X is over."
+  (let* ((index (context-index-at-x context font string x)))
+    (values index
+            (if (and (plusp index) (< x (context-caret-x context font string index)))
+                (1- index)
+                index))))
+
+(defun press-text (press state index character clicks)
+  "The text STATE after a press at INDEX (over CHARACTER), which was the press CLICKS in a row."
+  (let ((unit (case clicks (1 :char) (2 :word) (t :line))))
+    (setf (text-press-unit press) unit)
+    (if (eq unit :char)
+        (text-place-caret state index)
+        (multiple-value-bind (from to) (unit-range (text-state-string state) character unit)
+          (setf (text-press-from press) from
+                (text-press-to press) to)
+          (text-select-units state character unit from to)))))
+
+(defun drag-text (press state index character)
+  "The text STATE with the button still down after a press, and the pointer at INDEX (over
+CHARACTER): the selection goes from the press to there, by what the press selected by."
+  (if (eq (text-press-unit press) :char)
+      (text-place-caret state index :extend t)
+      (text-select-units state character (text-press-unit press)
+                         (text-press-from press) (text-press-to press))))
+
 ;;; --- text ---
 
-(defun label (text &key (id (required-id 'label)) tooltip size color (flex 0) live)
+;;; Text that is not edited can be selected and copied when the app says so (:SELECTABLE): a press
+;;; gives it the keyboard, the pointer selects in it as in a text field, and Command-A and Command-C
+;;; select all of it and copy. It is not in the order Tab goes round, and the selection shows only
+;;; while it has the keyboard.
+
+(defstruct (selection-state (:include text-press) (:constructor make-selection-state ()))
+  (state (make-text-state "") :type almighty-bolt/internals:text-state))
+
+(defun text-font (ui box)
+  "The font BOX's text is drawn in: the theme's, at the box's size."
+  (let ((context (ui-context ui)))
+    (and context (context-font context (theme-font-name *theme*) (box-size box)))))
+
+(defun select-text (ui box selection index-at)
+  "Let the pointer select in the text of BOX, whose SELECTION it is, and Command-A and Command-C
+select all of it and copy. INDEX-AT is called with the pointer's x and y and gives the place in the
+text nearest them and the character they are over."
+  (let ((key (box-key box))
+        (text (box-text box)))
+    (unless (string= (text-state-string (selection-state-state selection)) text)
+      (setf (selection-state-state selection) (make-text-state text :caret 0)))
+    (setf (box-interactive box) t
+          (box-n2 box) 1f0
+          (box-data box) selection)
+    (let ((x (ui-pointer-x ui)) (y (ui-pointer-y ui)))
+      (when (and (= (ui-hot ui) key) (ui-pressed ui))
+        (consume-press ui)
+        (focus-by-click ui key)
+        (setf (ui-active ui) key)
+        (multiple-value-bind (index character) (funcall index-at x y)
+          (setf (selection-state-state selection)
+                (press-text selection (selection-state-state selection) index character
+                            (ui-click-count ui)))))
+      (when (and (= (ui-active ui) key) (ui-down ui))
+        (multiple-value-bind (index character) (funcall index-at x y)
+          (setf (selection-state-state selection)
+                (drag-text selection (selection-state-state selection) index character))))
+      (when (and (= (ui-active ui) key) (ui-released ui))
+        (consume-release ui)
+        (setf (ui-active ui) 0)))
+    (when (= (ui-focus ui) key)
+      (dolist (event (copy-list (ui-keys ui)))
+        (let ((character (key-event-logical-key event))
+              (modifiers (key-event-modifiers event)))
+          (when (and (eq (key-event-kind event) :down)
+                     (characterp character)
+                     (modifier-down-p modifiers +modifier-super+)
+                     (not (modifier-down-p modifiers +modifier-control+)))
+            (cond ((char-equal character #\a)
+                   (consume-key ui event)
+                   (setf (selection-state-state selection)
+                         (text-select-all (selection-state-state selection))))
+                  ((char-equal character #\c)
+                   (consume-key ui event)
+                   (let ((state (selection-state-state selection)))
+                     (when (text-state-selection-p state)
+                       (context-set-clipboard-text (ui-context ui)
+                                                   (text-state-selected-string state))))))))))
+    (setf (box-look box) (look-of ui key t))))
+
+(defun label (text &key (id (required-id 'label)) tooltip size color (flex 0) live selectable)
   "A line of TEXT, SIZE points high (the theme's size if not given). A LIVE label is read out by a screen reader whenever its text changes, wherever the
-reader is: for a result, a count or a status that a person should hear without going to look for it."
-  (let ((box (open-box *ui* :label :id id :tooltip tooltip)))
+reader is: for a result, a count or a status that a person should hear without going to look for it.
+A SELECTABLE label's text can be selected with the pointer and copied."
+  (let* ((ui *ui*)
+         (box (open-box ui :label :id id :tooltip tooltip)))
     (setf (box-text box) text
           (box-size box) (or size (theme-font-size *theme*))
           (box-color box) (or color 0)
           (box-flex box) (float flex 1f0)
           (box-n3 box) (if live 1 0))
-    (close-box *ui*)
+    (when selectable
+      (select-text ui box (state-of ui (box-key box) #'make-selection-state)
+                   (lambda (x y)
+                     (declare (ignore y))
+                     (let ((rect (rect-of ui (box-key box)))
+                           (font (text-font ui box)))
+                       (if (and rect font)
+                           (index-at (ui-context ui) font text (- x (rect-x rect)))
+                           (values 0 0))))))
+    (close-box ui)
     nil))
 
 ;;; A paragraph is text broken into lines to the width it is given, so its height depends on
 ;;; its width: layout works the lines out (they go in a state kept by the box's key, which is
 ;;; there when layout is skipped for a frame that is the same) and painting draws them.
 
-(defstruct (paragraph-state (:constructor make-paragraph-state ()))
+(defstruct (paragraph-state (:include selection-state) (:constructor make-paragraph-state ()))
   (text "" :type string)
   (wrapped-at -1f0 :type single-float)
   (lines '() :type list)
@@ -560,17 +674,43 @@ are not the ones that were drawn before."
   (incf (paragraph-state-generation state))
   state)
 
-(defun paragraph (text &key (id (required-id 'paragraph)) tooltip size color (flex 0) live)
+(defun paragraph-index-at (ui box state x y)
+  "The place in the text of the paragraph BOX (with STATE) nearest X, Y, and the character there, by
+the lines it was drawn in."
+  (let ((rect (rect-of ui (box-key box)))
+        (font (text-font ui box))
+        (lines (paragraph-state-lines state))
+        (text (paragraph-state-text state)))
+    (if (not (and rect font lines))
+        (values 0 0)
+        (multiple-value-bind (width ascent descent) (context-measure (ui-context ui) font "Hg")
+          (declare (ignore width))
+          (let* ((row (max 0 (min (1- (length lines))
+                                  (floor (- y (rect-y rect)) (+ ascent descent)))))
+                 (line (nth row lines)))
+            (destructuring-bind (start end) line
+              ;; Not after the line feed that ends a line: that is the start of the next.
+              (when (and (> end start) (char= (char text (1- end)) #\Linefeed))
+                (decf end))
+              (multiple-value-bind (index character)
+                  (index-at (ui-context ui) font (subseq text start end) (- x (rect-x rect)))
+                (values (+ start index) (+ start character)))))))))
+
+(defun paragraph (text &key (id (required-id 'paragraph)) tooltip size color (flex 0) live
+                         selectable)
   "TEXT broken into lines to the width it is given, SIZE points high (the theme's size if not
-given). LIVE is as for a label."
+given). LIVE and SELECTABLE are as for a label."
   (let* ((ui *ui*)
-         (box (open-box ui :paragraph :id id :tooltip tooltip)))
+         (box (open-box ui :paragraph :id id :tooltip tooltip))
+         (state (state-of ui (box-key box) #'make-paragraph-state)))
     (setf (box-text box) text
           (box-size box) (or size (theme-font-size *theme*))
           (box-color box) (or color 0)
           (box-flex box) (float flex 1f0)
           (box-n3 box) (if live 1 0)
-          (box-data box) (state-of ui (box-key box) #'make-paragraph-state))
+          (box-data box) state)
+    (when selectable
+      (select-text ui box state (lambda (x y) (paragraph-index-at ui box state x y))))
     (close-box ui)
     nil))
 
@@ -663,47 +803,6 @@ made spaces if SINGLE-LINE and line feeds if not."
                 t))))
 
 ;;; --- a line of editable text ---
-
-;;; --- selecting text with the pointer ---
-;;;
-;;; A press puts the caret where it is; two in a row select the word under the pointer, three the line
-;;; (in a text area, the paragraph between line feeds), and a drag after them goes on by whole words or
-;;; lines. What the press chose is kept, so that the drag, which is looked at in the build of the press
-;;; as well and in the builds after it, makes the same selection each time from it.
-
-(defstruct (text-press (:constructor nil))
-  ;; :char, :word or :line: what the last press selects by, from how many presses it was.
-  (unit :char)
-  ;; The word or line the press chose.
-  (from 0 :type fixnum)
-  (to 0 :type fixnum))
-
-(defun index-at (context font string x)
-  "Two values: the place between characters of STRING nearest X, and the character X is over."
-  (let* ((index (context-index-at-x context font string x)))
-    (values index
-            (if (and (plusp index) (< x (context-caret-x context font string index)))
-                (1- index)
-                index))))
-
-(defun press-text (press state index character clicks)
-  "The text STATE after a press at INDEX (over CHARACTER), which was the press CLICKS in a row."
-  (let ((unit (case clicks (1 :char) (2 :word) (t :line))))
-    (setf (text-press-unit press) unit)
-    (if (eq unit :char)
-        (text-place-caret state index)
-        (multiple-value-bind (from to) (unit-range (text-state-string state) character unit)
-          (setf (text-press-from press) from
-                (text-press-to press) to)
-          (text-select-units state character unit from to)))))
-
-(defun drag-text (press state index character)
-  "The text STATE with the button still down after a press, and the pointer at INDEX (over
-CHARACTER): the selection goes from the press to there, by what the press selected by."
-  (if (eq (text-press-unit press) :char)
-      (text-place-caret state index :extend t)
-      (text-select-units state character (text-press-unit press)
-                         (text-press-from press) (text-press-to press))))
 
 (defstruct (field-state (:include text-press) (:constructor make-field-state ()))
   (state (make-text-state "") :type almighty-bolt/internals:text-state)
@@ -2002,6 +2101,12 @@ counting its children."
                                          (field-state-view-start state))))
             (:text-area (let ((state (area-state-state (box-data box))))
                           (hash-numbers paint (text-state-caret state) (text-state-anchor state))))
+            ((:label :paragraph)
+             (let ((selection (box-data box)))
+               (if (selection-state-p selection)
+                   (let ((state (selection-state-state selection)))
+                     (hash-numbers paint (text-state-caret state) (text-state-anchor state)))
+                   paint)))
             (:list-box (destructuring-bind (items . state) (box-data box)
                          (hash-numbers paint (length items) (list-state-top state)
                                        (visible-items-hash items (list-state-top state)

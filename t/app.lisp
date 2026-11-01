@@ -2345,3 +2345,106 @@ released unless RELEASE."
       (assert-equal "four" (copied screen))
       (presses screen x y 3)
       (assert-equal (format nil "three four~%") (copied screen)))))
+
+;;; --- text that is not edited, selected and copied ---
+
+(defun make-readable ()
+  (state-let ((typed ""))
+    (lambda ()
+      (column (:gap 10)
+        (label "Order 4417 shipped" :id :order :selectable t)
+        (label "Not for copying" :id :plain)
+        (paragraph (format nil "first line~%second line") :id :notes :selectable t)
+        (setf typed (text-field typed :id :field))))))
+
+(defun drag-over (screen id from to)
+  "Press on the left of the FROM-th character drawn in ID and drag to the right of the TO-th."
+  (multiple-value-bind (x y) (glyph-point screen id from 0.1)
+    (presses screen x y 1 :release nil))
+  (multiple-value-bind (x y) (glyph-point screen id to 0.9)
+    (pointer screen :move x y :buttons 1)
+    (pointer screen :up x y :button 0)))
+
+(defun selection-shown-p (screen id)
+  "True if the colour of a selection is drawn in the control ID."
+  (multiple-value-bind (left top width height) (core:lookup-target (screen-variant screen) id)
+    (let ((list (screen-list screen))
+          (color (theme-setting (find-theme :dark) :selection)))
+      (loop :for index :below (core:display-list-count list)
+              :thereis (and (= (core:display-list-color list index) color)
+                            (<= left (core:display-list-x list index) (+ left width))
+                            (<= top (core:display-list-y list index) (+ top height)))))))
+
+(defun selection-left (screen id)
+  "The left of the colour of a selection drawn highest in the control ID (on its first line)."
+  (multiple-value-bind (left top width height) (core:lookup-target (screen-variant screen) id)
+    (let ((list (screen-list screen))
+          (color (theme-setting (find-theme :dark) :selection))
+          (best nil))
+      (dotimes (index (core:display-list-count list) (and best (car best)))
+        (let ((x (core:display-list-x list index)) (y (core:display-list-y list index)))
+          (when (and (= (core:display-list-color list index) color)
+                     (<= left x (+ left width)) (<= top y (+ top height))
+                     (or (null best) (< y (cdr best))))
+            (setf best (cons x y))))))))
+
+(define-test a-selectable-label-is-selected-with-the-pointer-and-copied ()
+  (let ((screen (show 'make-readable)))
+    (drag-over screen :order 6 9)
+    (assert-equal "4417" (copied screen))
+    (multiple-value-bind (x y) (glyph-point screen :order 1)
+      (presses screen x y 2)
+      (assert-equal "Order" (copied screen)))
+    (assert-true (selection-shown-p screen :order))
+    ;; Somewhere else has the keyboard: the selection is not shown, and Command-C is the field's.
+    (click screen :field)
+    (assert-false (selection-shown-p screen :order))
+    (core:context-set-clipboard-text (screen-context screen) "before")
+    (assert-equal "before" (copied screen))
+    ;; A label that is not selectable is not selected by a drag.
+    (drag-over screen :plain 0 6)
+    (assert-false (selection-shown-p screen :plain))
+    (assert-equal "before" (copied screen))))
+
+(define-test a-selectable-paragraph-is-selected-across-its-lines-and-all-with-command-a ()
+  (let ((screen (show 'make-readable)))
+    ;; The glyphs drawn are "first line" with its line feed and "second line": from the "l" of the
+    ;; first to the "d".
+    (drag-over screen :notes 6 16)
+    (assert-equal (format nil "line~%second") (copied screen))
+    (assert-eql (values (glyph-point screen :notes 6 0)) (selection-left screen :notes))
+    ;; Command-A selects all, and it is shown so, from the first character.
+    (core:handle-event (screen-variant screen)
+                       (core:make-key-event :timestamp 0 :kind :down :logical-key #\a
+                                            :modifiers core:+modifier-super+))
+    (draw screen)
+    (assert-equal (format nil "first line~%second line") (copied screen))
+    (assert-eql (values (glyph-point screen :notes 0 0)) (selection-left screen :notes))
+    ;; A drag to the right of the end of the first line stops at its end, before the line feed.
+    (multiple-value-bind (x y) (glyph-point screen :notes 0 0.1)
+      (presses screen x y 1 :release nil)
+      (multiple-value-bind (left top width) (core:lookup-target (screen-variant screen) :notes)
+        (declare (ignore left top))
+        (pointer screen :move (+ x width -2) y :buttons 1)
+        (pointer screen :up (+ x width -2) y :button 0)))
+    (assert-equal "first line" (copied screen))
+    ;; Text that is selected only takes the keyboard from a press: Tab goes past it.
+    (core:handle-event (screen-variant screen)
+                       (core:make-key-event :timestamp 0 :kind :down :logical-key #\Tab
+                                            :modifiers 0))
+    (draw screen)
+    (assert-true (s:node-property (node-of screen :field) :focused))))
+
+(defun make-dialog-with-a-number ()
+  (lambda ()
+    (column ()
+      (label "Signing in" :id :behind)
+      (dialog (:id :code :open t :title "Your code")
+        (label "Use 735-921 to sign in." :id :code-text :selectable t)
+        (button "Done" :id :done)))))
+
+(define-test a-selectable-label-in-a-dialog-keeps-the-keyboard-to-be-copied ()
+  (let ((screen (show 'make-dialog-with-a-number)))
+    (drag-over screen :code-text 4 10)
+    (assert-true (selection-shown-p screen :code-text))
+    (assert-equal "735-921" (copied screen))))

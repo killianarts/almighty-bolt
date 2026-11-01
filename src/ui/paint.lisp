@@ -48,6 +48,8 @@
                 #:paragraph-state-text
                 #:paragraph-state-lines
                 #:paragraph-state-generation
+                #:selection-state-p
+                #:selection-state-state
                 #:area-state-state
                 #:area-state-offset
                 #:area-state-generation
@@ -131,23 +133,52 @@
           :do (decf end))
     (subseq string 0 end)))
 
+(defun shown-selection (box)
+  "The text state of the selectable text BOX if some of it is selected and it has the keyboard, which
+is when its selection shows."
+  (let ((selection (box-data box)))
+    (and (= (box-n2 box) 1)
+         (selection-state-p selection)
+         (nth-value 1 (look-state box))
+         (text-state-selection-p (selection-state-state selection))
+         (selection-state-state selection))))
+
+(defun draw-selection-on-line (context list font text start end state x top height)
+  "The selection of STATE where it is on the line of TEXT from START to END, drawn at X, TOP."
+  (let ((from (max start (text-state-selection-start state)))
+        (to (min end (text-state-selection-end state))))
+    (when (< from to)
+      (let ((line (subseq text start end)))
+        (flet ((x-at (index) (+ x (context-caret-x context font line (- index start)))))
+          (push-rect list (x-at from) top (- (x-at to) (x-at from)) height
+                     (theme-selection *theme*)))))))
+
 (defun draw-label (box context list x y)
-  (let* ((font (context-font context (theme-font-name *theme*) (box-size box))))
-    (multiple-value-bind (width ascent descent) (context-measure context font (box-text box))
-      (declare (ignore width descent))
-      (context-push-text context list font (box-text box) x (+ y ascent)
+  (let* ((font (context-font context (theme-font-name *theme*) (box-size box)))
+         (text (box-text box))
+         (selected (shown-selection box)))
+    (multiple-value-bind (width ascent descent) (context-measure context font text)
+      (declare (ignore width))
+      (when selected
+        (draw-selection-on-line context list font text 0 (length text) selected x y
+                                (+ ascent descent)))
+      (context-push-text context list font text x (+ y ascent)
                          (if (zerop (box-color box)) (theme-text *theme*) (box-color box))))))
 
 (defun draw-paragraph (box context list x y)
   (let* ((state (box-data box))
          (text (paragraph-state-text state))
-         (font (context-font context (theme-font-name *theme*) (box-size box))))
+         (font (context-font context (theme-font-name *theme*) (box-size box)))
+         (selected (shown-selection box)))
     (multiple-value-bind (width ascent descent) (context-measure context font "Hg")
       (declare (ignore width))
       (loop :for (start end) :in (paragraph-state-lines state)
             :for line :from 0
-            :do (context-push-text context list font (subseq text start end) x
-                                   (+ y (* line (+ ascent descent)) ascent)
+            :for top = (+ y (* line (+ ascent descent)))
+            :do (when selected
+                  (draw-selection-on-line context list font text start end selected x top
+                                          (+ ascent descent)))
+                (context-push-text context list font (subseq text start end) x (+ top ascent)
                                    (if (zerop (box-color box)) (theme-text *theme*) (box-color box)))))))
 
 (defun draw-button (box context list x y)
