@@ -9,7 +9,7 @@ What is planned after [0.1](releases/0.1.md). These are plans, not promises, and
 
 ## Later
 
-- **Windows.** More than one window, control over a window's title, size limits and full screen, and an API for the menu bar.
+- **Windows.** More than one window, control over a window's title, size limits and full screen, and an app's own menus in the menu bar.
 - **Text and layout.**
   - Bold, italic and a font for each widget; rich text.
   - Grid and wrapping layouts, minimum and maximum sizes, and splitters.
@@ -22,11 +22,9 @@ What is planned after [0.1](releases/0.1.md). These are plans, not promises, and
   - A command's area includes the reach of its effect. When a glow changes, every tile it reaches is repainted, not only the tile of its widget.
   - The cached frames are compared with frames painted without the cache, and must match exactly.
 - **Interaction.**
-  - Mouse cursor shapes.
   - Drag and drop, inside an app and from the Finder.
-  - Keyboard shortcuts.
   - Animation helpers (easing and tweens).
-  - Undo and redo.
+  - Undo and redo of the app's own changes (text fields undo their own already).
 - **Tools.**
   - An inspector: click a widget in the running window to see what it is, and change it.
   - An API for writing your own widgets, which says how a widget appears in the semantic tree.
