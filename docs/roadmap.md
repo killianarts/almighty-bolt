@@ -4,11 +4,11 @@ What is planned after [0.1](releases/0.1.md). These are plans, not promises, and
 
 ## Next
 
-- **Images and icons.**
 - **Spacing in a theme.** Paddings, gaps, and the heights of rows and controls, set by a theme as its colours, font and corners are.
 
 ## Later
 
+- **Images and icons.**
 - **Windows.** More than one window, control over a window's title, size limits and full screen, and an app's own menus in the menu bar.
 - **Text and layout.**
   - Bold, italic and a font for each widget; rich text.
