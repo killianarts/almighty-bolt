@@ -231,8 +231,9 @@ the theme is dark, which some depend on, is from the background and the text.)"
     (dolist (value values hash)
       (setf hash (mix hash (hash-of value))))))
 
-(defvar *themes* (make-hash-table :test 'eq)
-  "The themes that have names, by name.")
+(defvar *themes* (make-hash-table :test 'eq #+sbcl :synchronized #+sbcl t)
+  "The themes that have names, by name. The window's thread reads it every frame while a REPL may
+define a theme, so it is synchronized.")
 
 (defun find-theme (designator)
   "The theme DESIGNATOR: a theme, or the name of one (:dark, :light, or one made by DEFINE-THEME)."

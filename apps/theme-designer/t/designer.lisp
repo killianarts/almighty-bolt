@@ -148,3 +148,13 @@
              (assert-equal (shown-text session :accent-hex)
                            (bolt:color-hex (bolt:theme-setting (bolt:find-theme keyword) :accent))))
         (when (probe-file path) (delete-file path))))))
+
+(define-test the-definition-can-be-selected-and-copied ()
+  (multiple-value-bind (screen session) (open-designer)
+    (m:set-value session 140 :id :accent-hue)
+    (m:click session :id :source)
+    (m:press-key session :a :modifiers '(:super))
+    (m:press-key session :c :modifiers '(:super))
+    (let ((copied (core:context-clipboard-text (screen-context screen))))
+      (assert-equal (shown-text session :source) copied)
+      (assert-true (search ":accent" copied)))))
