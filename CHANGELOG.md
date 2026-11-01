@@ -30,7 +30,6 @@ are not listed.
 
 - VoiceOver reads every widget, can press buttons, check boxes, options and rows, move a slider and give a field the keyboard, and is told when they change ([0.2](docs/releases/0.2.md#voiceover-reads-the-screen)).
 - `:live` on `label` and `paragraph`: a screen reader reads the text out whenever it changes, wherever its cursor is ([0.2](docs/releases/0.2.md#voiceover-reads-the-screen)).
-- Copy, cut and paste in a text field with Command-C, Command-X and Command-V, through the system's clipboard ([0.2](docs/releases/0.2.md#text-fields)).
 - `scroll`, a container that shows what is inside it in a window moved by the wheel ([0.2](docs/releases/0.2.md#a-scroll-container)).
 - `lazy-list`, a scrolling list that describes only the rows that show, so a million rows cost what the visible ones do ([0.2](docs/releases/0.2.md#a-list-that-builds-only-the-rows-that-show)).
 - `text-area`, a text field of several lines whose long lines go on in the next ([0.2](docs/releases/0.2.md#a-text-area)).
@@ -60,6 +59,7 @@ are not listed.
 
 ### Fixed
 
+- Copy, cut and paste in a text field with Command-C, Command-X and Command-V, through the system's clipboard ([0.2](docs/releases/0.2.md#bug-fixes)).
 - Text that is not edited can be selected with the pointer and copied, with `:selectable` on `label` and `paragraph` ([0.2](docs/releases/0.2.md#bug-fixes)).
 - A double-click in a text field, a text area or a combo box selects a word, and a triple-click the field or the paragraph; a drag after them goes on by whole words or lines ([0.2](docs/releases/0.2.md#bug-fixes)).
 - Text in many fonts or sizes no longer stops the window with "The glyph atlas is full": the atlas starts again, and the frame is drawn again ([0.2](docs/releases/0.2.md#bug-fixes)).
