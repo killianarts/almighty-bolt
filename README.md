@@ -203,9 +203,9 @@ tools and how to point an MCP client at the server
 
 ## Roadmap
 
-Planned: theming (light, dark and custom), menus, dropdowns and dialogs, images and icons, multiple
-windows, a widget designer and a GUI designer, and Windows and Linux. The full
-list, and what comes first, is in [docs/roadmap.md](docs/roadmap.md).
+Planned: images and icons, theming (light, dark and custom), multiple windows,
+a widget designer and a GUI designer, and Windows and Linux. The full list, and
+what comes first, is in [docs/roadmap.md](docs/roadmap.md).
 
 ## Examples
 

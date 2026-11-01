@@ -6,6 +6,7 @@
                 #:node-name
                 #:node-value
                 #:node-state
+                #:node-help
                 #:node-bounds
                 #:node-children
                 #:walk-nodes)
@@ -110,7 +111,7 @@ lay things out, with no id and no name, are left out and what is in them is not 
                        (when (node-name node) (format out " ~s" (node-name node)))
                        (when (node-id node) (format out " id=~a" (id-text (node-id node))))
                        (let ((value (getf node :value)))
-                         (when (or value (eq (node-role node) :checkbox))
+                         (when (or value (member (node-role node) '(:checkbox :switch)))
                            (format out " value=~a" (cond ((eq value t) "true")
                                                          ((null value) "false")
                                                          ((stringp value) (format nil "~s" value))
@@ -118,13 +119,15 @@ lay things out, with no id and no name, are left out and what is in them is not 
                                                          (t value)))))
                        (loop :for (key state) :on (node-state node) :by #'cddr
                              :do (case key
-                                   ((:focused :disabled :invalid :hovered)
-                                    (format out " ~(~a~)" key))
+                                   ((:focused :disabled :invalid :hovered :hidden :expanded
+                                     :highlighted :checked)
+                                    (when state (format out " ~(~a~)" key)))
                                    ((:caret :first-visible) (format out " ~(~a~)=~a" key state))
                                    (:selected (when state (format out " selected=~a" state)))
                                    (:selection (format out " selection=~a-~a" (first state) (second state)))
                                    ((:minimum :maximum) (format out " ~(~a~)=~a" key (number-text state)))
                                    ((:options :items) (format out " ~(~a~)=~s" key state))))
+                       (when (node-help node) (format out " help=~s" (node-help node)))
                        (format out " @~{~a~^,~}" (mapcar #'round (node-bounds node)))
                        (dolist (child (node-children node))
                          (line child (1+ depth)))))))

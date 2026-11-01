@@ -2,12 +2,16 @@
 
 *Under development*
 
-Welcome to almighty-bolt 0.2, in development. It starts with VoiceOver: a window of almighty-bolt can be read by the macOS screen reader. A scroll container, a list that builds only the rows that show, a text area, and copy and paste came next. See [what's new](#whats-new-in-02).
+Welcome to almighty-bolt 0.2, in development. A window of almighty-bolt can be read by VoiceOver; it scrolls, in a container or a list that builds only the rows that show; text areas and copy and paste are there for everyday text; a switch, radio buttons and a spinner join the widgets; and dropdowns, menus, context menus, tooltips, popovers, dialogs, toasts, a combo box and the system's file panels float above the screen. See [what's new](#whats-new-in-02).
 
 <!-- highlights:start -->
 ## Highlights
 
 - Accessibility: VoiceOver reads every widget by what it is, what it is called and what it holds, can press buttons, check boxes, options and rows, move a slider and give a field the keyboard, is told when things change, and reads out a `:live` label or paragraph whenever its text changes.
+- Overlays: a layer above the screen, with dropdowns, menu buttons, context menus, tooltips on every widget, popovers, modal dialogs, toasts and a combo box on it, and the system's Open and Save panels.
+- Scrolling: `scroll` for anything, and `lazy-list`, which costs the same with a million rows as with a hundred.
+- Everyday text: `text-area`, and copy, cut and paste in text fields.
+- More widgets: `switch`, radio buttons (`choice :direction :vertical`) and `spinner`.
 <!-- highlights:end -->
 
 ## Platform and compatibility
