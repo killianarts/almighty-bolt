@@ -102,7 +102,8 @@
                 #:end-frame-input)
   (:import-from #:almighty-bolt/ui/widgets
                 #:own-hashes
-                #:describe-tooltip)
+                #:describe-tooltip
+                #:describe-toasts)
   (:import-from #:almighty-bolt/ui/layout
                 #:layout-box)
   (:import-from #:almighty-bolt/ui/paint
@@ -321,6 +322,8 @@ menu), turned to the other side or moved in where it would go out of the window.
                 (multiple-value-bind (x y)
                     (ecase (float-spec-placement spec)
                       (:fill (values 0f0 0f0))
+                      ;; In the middle, a little above the bottom.
+                      (:bottom (values (/ (- width w) 2) (- height h 24f0)))
                       (:center (values (/ (- width w) 2) (/ (- height h) 2)))
                       (:at (values (float-spec-x spec) (float-spec-y spec)))
                       ((:below :right)
@@ -391,6 +394,7 @@ menu), turned to the other side or moved in where it would go out of the window.
       (begin-build ui context)
       (let ((*ui* ui))
         (funcall (app variant))
+        (describe-toasts ui)
         (describe-tooltip ui))
       (compute-hashes ui))
     (let ((consumed (ui-consumed ui))

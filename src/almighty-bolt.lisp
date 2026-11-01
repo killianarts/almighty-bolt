@@ -67,6 +67,7 @@
                 #:context-menu
                 #:popover
                 #:dialog
+                #:toast
                 #:list-box
                 #:progress
                 #:canvas
@@ -88,7 +89,7 @@
            #:missing-id #:duplicate-id #:duplicate-id-id
            #:label #:paragraph #:button #:text-field #:text-area #:slider #:choice #:checkbox
            #:switch #:spinner #:dropdown #:menu-button #:context-menu #:popover
-           #:dialog #:list-box
+           #:dialog #:toast #:list-box
            #:progress #:canvas #:scrim
            #:column #:row #:stack #:padding #:panel #:center #:scroll #:lazy-list
            #:now #:ask-for-frame #:current-context

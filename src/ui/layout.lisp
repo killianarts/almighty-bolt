@@ -245,6 +245,23 @@ them in the boxes, and return the width and height."
                           #'measure #'place :flex-of #'flex-of :gap gap :main-size :min)
            (set-box box (constrain (+ w (* 2 pad)) min-w max-w)
                     (constrain (+ h (* 2 pad)) min-h max-h))))))
+    (:toasts
+     ;; One under another, each in the middle.
+     (let ((children (box-children box))
+           (widest 0f0)
+           (y 0f0))
+       (loop :for child :across children
+             :do (setf widest (max widest (layout-box child context 0f0 max-w 0f0 max-h))))
+       (loop :for child :across children
+             :do (setf (box-x child) (/ (- widest (box-w child)) 2)
+                       (box-y child) y)
+                 (incf y (+ (box-h child) 8f0)))
+       (set-box box (constrain widest min-w max-w) (constrain (max 0f0 (- y 8f0)) min-h max-h))))
+    (:toast
+     (multiple-value-bind (width ascent descent) (context-measure context (ui-font context)
+                                                                  (box-text box))
+       (set-box box (constrain (+ (float width 1f0) 32f0) min-w max-w)
+                (constrain (+ (float (+ ascent descent) 1f0) 20f0) min-h max-h))))
     (:tooltip
      (multiple-value-bind (width ascent descent)
          (context-measure context (context-font context +font-name+ 13) (box-text box))

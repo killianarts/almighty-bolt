@@ -630,6 +630,54 @@ at the start, and a button under where the popovers' catchers are that counts it
     (m:press-key session :escape)
     (assert-equal "escape, 0 behind" (s:node-name (node-of screen :answer)))))
 
+;;; --- toasts ---
+
+(defun make-saver ()
+  (state-let ((saves 0))
+    (lambda ()
+      (column (:gap 8)
+        (when (button "Save" :id :save)
+          (incf saves)
+          (toast (format nil "Saved ~d" saves)))))))
+
+(defun toasts-of (screen)
+  (s:find-nodes (core:accessibility-tree (screen-variant screen)) :role :toast))
+
+(define-test a-toast-shows-at-the-bottom-for-a-while-and-goes ()
+  (with-clock (clock)
+    (let ((screen (show 'make-saver)))
+      (assert-eq nil (toasts-of screen))
+      (click screen :save)
+      (let ((toast (first (toasts-of screen))))
+        (assert-equal "Saved 1" (s:node-name toast))
+        ;; In the middle, 24 points above the bottom of the 360 by 320 window.
+        (destructuring-bind (x y w h) (s:node-bounds toast)
+          (assert-true (< (abs (- (+ x (/ w 2)) 180)) 1))
+          (assert-true (< (abs (- (+ y h) 296)) 1))))
+      (assert-true (core:take-frame-request (screen-context screen)))
+      (core:advance-virtual-clock clock 2900000000)
+      (draw screen)
+      (assert-equal 1 (length (toasts-of screen)))
+      (assert-true (core:take-frame-request (screen-context screen)))
+      (core:advance-virtual-clock clock 200000000)
+      (draw screen)
+      (assert-eq nil (toasts-of screen))
+      (assert-false (core:take-frame-request (screen-context screen))))))
+
+(define-test toasts-stack-the-newer-under-and-a-press-puts-one-away ()
+  (with-clock (clock)
+    (let* ((screen (show 'make-saver))
+           (session (screen-session screen)))
+      (click screen :save)
+      (core:advance-virtual-clock clock 100000000)
+      (click screen :save)
+      (let ((toasts (toasts-of screen)))
+        (assert-equal '("Saved 1" "Saved 2") (mapcar #'s:node-name toasts))
+        (assert-true (< (second (s:node-bounds (first toasts)))
+                        (second (s:node-bounds (second toasts))))))
+      (m:click session :role :toast :name "Saved 1")
+      (assert-equal '("Saved 2") (mapcar #'s:node-name (toasts-of screen))))))
+
 ;;; --- the gallery of every widget ---
 
 (defparameter +every-widget+
@@ -639,7 +687,7 @@ at the start, and a button under where the popovers' catchers are that counts it
     (text-area . :text-area) (slider . :slider) (choice . :radio-group) (checkbox . :checkbox)
     (list-box . :list) (progress . :progress-bar) (canvas . :canvas) (scrim . :overlay)
     (switch . :switch) (spinner . :busy-indicator) (dropdown . :pop-up-button)
-    (menu-button . :menu-button) (popover . :popover) (dialog . :dialog)
+    (menu-button . :menu-button) (popover . :popover) (dialog . :dialog) (toast . :toast)
     (scroll . :scroll-area) (lazy-list . :scroll-area)))
 
 (defun roles-in (screen)
@@ -670,6 +718,8 @@ at the start, and a button under where the popovers' catchers are that counts it
         (note-roles)
         (m:click session :id :keep)
         (assert-equal "Kept." (s:node-name (node-of screen :dialog-answer)))
+        (m:click session :id :show-toast)
+        (note-roles)
         (m:click session :id :show-overlay)
         (note-roles))
       (loop :for (widget . role) :in +every-widget+
@@ -1441,6 +1491,13 @@ screen reader was given are taken away and their places are used again."
     (with-reader (reader screen)
       (assert-equal "Save the document"
                     (ns-value (objc:msg-send :id (element-named reader :save) "accessibilityHelp"))))))
+
+(define-test a-screen-reader-reads-a-toast-out-as-it-comes ()
+  (let ((screen (show 'make-saver)))
+    (with-reader (reader screen)
+      (spoken reader)
+      (press (element-named reader :save))
+      (assert-true (member "Saved 1" (spoken reader) :test #'equal)))))
 
 (define-test a-window-that-was-closed-has-nothing-to-read ()
   (let ((screen (show 'counter:make-counter)))

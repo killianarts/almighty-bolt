@@ -86,6 +86,18 @@ VoiceOver does not yet scroll a `scroll` to the thing its cursor is on. (What it
 - The items are best a vector: a row is found by its index.
 - The wheel, the bar at the edge, and what cannot be pressed out of the window are as for `scroll`. Tab reaches only the rows that are described.
 
+### Toasts
+
+```lisp
+(when (bolt:button "Save" :id :save)
+  (save-document)
+  (bolt:toast "Saved"))
+```
+
+- `toast` shows words at the bottom of the window, in the middle, for three seconds (`:seconds`). Several stack, the newer under the older, and a press puts one away.
+- It can be called anywhere in the app's function. While a toast shows, the frames ask for the next, so that it goes on time.
+- VoiceOver reads a toast out as it comes, wherever its cursor is.
+
 ### Popovers and dialogs
 
 ```lisp

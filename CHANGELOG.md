@@ -28,6 +28,7 @@ are not listed.
 - `secondary-click` in the machine interface and `secondary_click` in the MCP server ([0.2](docs/releases/dev.md#a-menu-button-and-context-menus)).
 - `:tooltip` on every widget ([0.2](docs/releases/dev.md#tooltips)).
 - `popover` and `dialog`, a modal one that keeps the pointer and the keyboard ([0.2](docs/releases/dev.md#popovers-and-dialogs)).
+- `toast`, words at the bottom of the window for a while, read out by VoiceOver as they come ([0.2](docs/releases/dev.md#toasts)).
 
 ### Changed
 

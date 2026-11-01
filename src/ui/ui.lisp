@@ -63,6 +63,7 @@
            #:ui-rect-count
            #:ui-hot
            #:ui-hot-since
+           #:ui-toasts
            #:ui-tooltip-dismissed
            #:ui-active
            #:ui-focus
@@ -203,6 +204,8 @@
   ;; When the pointer came onto what it is over (the time of the frame), and whether a press since
   ;; has put the tooltip of it away: a tooltip shows when the pointer has rested on its widget.
   (hot-since 0 :type (unsigned-byte 62))
+  ;; The toasts showing, oldest first: (words . until), UNTIL a time in nanoseconds.
+  (toasts '() :type list)
   (tooltip-dismissed nil)
   (active 0 :type fixnum)
   (focus 0 :type fixnum)

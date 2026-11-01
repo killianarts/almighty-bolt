@@ -42,6 +42,7 @@
                 #:ui-consumed
                 #:ui-hot
                 #:ui-hot-since
+                #:ui-toasts
                 #:ui-tooltip-dismissed
                 #:ui-active
                 #:ui-focus
@@ -182,6 +183,8 @@
            #:+lazy-list-height+
            #:own-hashes
            #:describe-tooltip
+           #:describe-toasts
+           #:toast
            #:+tooltip-delay-ns+
            #:text-area
            #:area-state
@@ -1745,6 +1748,47 @@ after the app's function, with the build's boxes made."
                 (setf (box-text float) (box-tooltip box))
                 (close-float ui open))))))))
 
+;;; --- toasts ---
+;;;
+;;; A toast is a few words the app shows for a while when something happens (Saved, Sent), at the
+;;; bottom of the window in the middle, the newer under the older, and that go by themselves, or when
+;;; pressed. They are the ui's, not a widget's: TOAST can be called anywhere in the app's function,
+;;; and the ui describes them after it. While one shows, the frames ask for the next, so that it goes
+;;; on time; a screen reader reads each out as it comes.
+
+(defun toast (words &key (seconds 3))
+  "Show WORDS at the bottom of the window for SECONDS. Returns WORDS."
+  (let ((ui *ui*))
+    (setf (ui-toasts ui)
+          (append (ui-toasts ui)
+                  (list (cons words (+ (now-ns) (round (* seconds 1000000000)))))))
+    words))
+
+(defun describe-toasts (ui)
+  "Describe the toasts whose time has not come, and forget the others. Called after the app's
+function."
+  (let ((now (now-ns)))
+    (setf (ui-toasts ui) (remove-if (lambda (toast) (<= (cdr toast) now)) (ui-toasts ui))))
+  (when (ui-toasts ui)
+    (request-frame (ui-context ui))
+    (multiple-value-bind (float open)
+        (open-float ui :toasts +seed+ :toasts (make-float-spec :placement :bottom))
+      (let ((pressed nil))
+        (loop :for toast :in (ui-toasts ui)
+              :for i :from 0
+              :do (let* ((box (open-box ui :toast :id i))
+                         (key (box-key box)))
+                    (setf (box-text box) (car toast)
+                          (box-interactive box) t)
+                    (when (and (= (ui-hot ui) key) (ui-pressed ui))
+                      (consume-press ui)
+                      (setf pressed toast))
+                    (close-box ui)))
+        (close-float ui open)
+        (when pressed
+          (setf (ui-toasts ui) (remove pressed (ui-toasts ui))))
+        float))))
+
 ;;; --- what decides size and look ---
 
 (defun own-hashes (box)
@@ -1768,7 +1812,7 @@ counting its children."
                    ;; A row of a lazy list is placed by its index.
                    (:column (mix layout (box-n3 box)))
                    ;; A float is put where its spec says (its anchor's place is the screen's).
-                   ((:menu :catcher :tooltip :popover :dialog)
+                   ((:menu :catcher :tooltip :popover :dialog :toasts)
                     (let ((spec (box-data box)))
                       (hash-numbers layout (hash-of (float-spec-placement spec))
                                     (hash-of (float-spec-x spec)) (hash-of (float-spec-y spec))

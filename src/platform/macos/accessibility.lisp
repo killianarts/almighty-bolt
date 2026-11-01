@@ -356,7 +356,7 @@ by pressing where the value then is, as a hand would. True if that is a change."
   "The role of the item that NODE becomes, or NIL if it has none: it is a container, or a kind of
 thing that is not told yet."
   (case (getf node :role)
-    ((:static-text :paragraph) :static-text)
+    ((:static-text :paragraph :toast) :static-text)
     (:button :button)
     (:text-field :text-field)
     (:text-area :text-area)
@@ -485,6 +485,7 @@ that were already there and have moved and the ones that have a new size."
          (chosen '())
          (moved '())
          (resized '())
+         (arrived '())
          (structure nil)
          (tree (funcall (bridge-tree bridge))))
     (labels ((note-frame (item)
@@ -527,6 +528,9 @@ that were already there and have moved and the ones that have a new size."
                  (if role
                      (multiple-value-bind (item fresh) (claim path role parent)
                        (let ((value-changed (fill-item item node)))
+                         ;; A thing that is to be read out as it comes (a toast), and has come.
+                         (when (and fresh (getf (getf node :state) :announce))
+                           (push item arrived))
                          (unless fresh
                            (note-frame item)
                            (when value-changed
@@ -553,7 +557,7 @@ that were already there and have moved and the ones that have a new size."
         (setf (bridge-roots bridge) roots
               (bridge-stale bridge) nil)
         (values (nreverse changed) structure (nreverse chosen)
-                (nreverse moved) (nreverse resized))))))
+                (nreverse moved) (nreverse resized) (nreverse arrived))))))
 
 (defun ensure-fresh (bridge)
   (when (and (bridge-stale bridge) (not (bridge-closed bridge)))
@@ -677,7 +681,7 @@ move or a new size for the things that have one, and a layout change that names 
 reader draws its cursor where it last drew it until told so), a change of value for the ones whose value changed, a change of the chosen row
 for a list, the new focus, and the new words of a live text that changed. A screen reader says what
 changed on the thing that its cursor is on, so only the last is read out wherever the cursor is."
-  (multiple-value-bind (changed structure chosen moved resized) (refresh bridge)
+  (multiple-value-bind (changed structure chosen moved resized arrived) (refresh bridge)
     (let ((focus (focused-item bridge))
           (post (bridge-poster bridge)))
       (when structure
@@ -701,7 +705,10 @@ changed on the thing that its cursor is on, so only the last is read out whereve
       (dolist (item changed)
         (when (item-live item)
           (funcall (bridge-announcer bridge) (bridge-view bridge)
-                   (text-of (item-value item))))))))
+                   (text-of (item-value item)))))
+      (dolist (item arrived)
+        (funcall (bridge-announcer bridge) (bridge-view bridge)
+                 (text-of (item-value item)))))))
 
 (defun frame-presented (bridge)
   "A frame was presented, so what the items say may be out of date. Nothing is worked out for it

@@ -359,6 +359,15 @@
       (context-push-text context list font (box-text box) (+ x 8) (+ y 4 ascent)
                          +tooltip-text-color+))))
 
+(defun draw-toast (box context list x y)
+  "Words on a light rounded background, as a tooltip but larger."
+  (let ((font (ui-font context)))
+    (push-rounded-rect list x y (box-w box) (box-h box) 10 +tooltip-color+)
+    (multiple-value-bind (width ascent) (context-measure context font (box-text box))
+      (declare (ignore width))
+      (context-push-text context list font (box-text box) (+ x 16) (+ y 10 ascent)
+                         +tooltip-text-color+))))
+
 (defun draw-menu-item (box context list x y)
   "A row of a menu: the highlight under it if it has it, the mark of the chosen one, and its words."
   (let ((font (ui-font context))
@@ -471,6 +480,7 @@ behind it fading."
     (:menu-button (draw-menu-button box context list x y))
     (:menu-item (draw-menu-item box context list x y))
     (:tooltip (draw-tooltip box context list x y))
+    (:toast (draw-toast box context list x y))
     (:spinner (draw-spinner box list x y))
     (:list-box (draw-list-box box context list x y))))
 
@@ -525,7 +535,8 @@ kept, and otherwise afresh, which is then kept."
         (y (+ y (box-y box))))
     (ecase (box-kind box)
       ((:label :paragraph :button :text-field :text-area :slider :progress :choice :checkbox :switch :spinner
-        :list-box :dropdown :menu-button :menu-item :tooltip)
+        :list-box :dropdown :menu-button :menu-item :tooltip
+        :toast)
        (paint-cached ui box context list x y))
       (:canvas
        (let ((scale (context-scale context))
@@ -537,6 +548,7 @@ kept, and otherwise afresh, which is then kept."
       (:scrim
        (push-rect list x y (box-w box) (box-h box) +scrim-color+))
       (:catcher)
+      (:toasts (paint-children ui box context list x y))
       ((:popover :dialog)
        (push-rounded-rect list (- x 1) (- y 1) (+ (box-w box) 2) (+ (box-h box) 2) 11
                           +field-border-color+)

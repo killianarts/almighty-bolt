@@ -61,6 +61,7 @@
                    (tasks (make-tasks 10000))
                    (overlay nil)
                    (popover nil)
+                   (toasts 0)
                    (asking nil)
                    (answer "Not asked yet."))
     (lambda ()
@@ -216,7 +217,7 @@
                     (bolt:padding (:id :over :left 16 :top 20)
                       (bolt:label "On top of the panel" :id :on-top))))
                 (section ("Overlays" :overlays)
-                  (bolt:paragraph "A popover floats by the widget it belongs to; a dialog keeps the pointer and the keyboard until it is answered; a scrim covers what is under it."
+                  (bolt:paragraph "A popover floats by the widget it belongs to; a dialog keeps the pointer and the keyboard until it is answered; a scrim covers what is under it; a toast says something for a while."
                                   :id :overlay-about :size 13 :color +note-color+)
                   (bolt:column (:id :overlay-buttons :gap 8)
                     (when (bolt:button "Show a popover" :id :show-popover)
@@ -229,7 +230,9 @@
                     (when (bolt:button "Ask in a dialog" :id :show-dialog)
                       (setf asking t))
                     (when (bolt:button "Show a scrim" :id :show-overlay)
-                      (setf overlay t)))
+                      (setf overlay t))
+                    (when (bolt:button "Make a toast" :id :show-toast)
+                      (bolt:toast (format nil "Toast number ~d" (incf toasts)))))
                   (note answer :dialog-answer))))))
         (when (bolt:dialog (:id :question :open asking :title "Keep the changes?")
                 (bolt:label "A dialog keeps the keyboard; Tab goes round its buttons." :id :question-text)
