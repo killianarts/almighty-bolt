@@ -23,6 +23,7 @@ are not listed.
 ### Fixed
 
 - Command-Z and Command-Shift-Z undo and redo in text fields, combo boxes and text areas ([0.3](docs/releases/dev.md#bug-fixes)).
+- An app that is only a dialog, with nothing under it, shows the dialog instead of an empty window ([0.3](docs/releases/dev.md#bug-fixes)).
 
 ### Security
 

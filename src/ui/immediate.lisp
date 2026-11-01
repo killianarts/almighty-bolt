@@ -53,6 +53,8 @@
                 #:make-ui
                 #:ui-context
                 #:ui-root
+                #:open-box
+                #:close-box
                 #:ui-floats
                 #:float-spec-anchor
                 #:float-spec-placement
@@ -413,6 +415,11 @@ menu), turned to the other side or moved in where it would go out of the window.
       (let ((*ui* ui)
             (*theme* (window-theme context)))
         (funcall (app variant))
+        ;; An app that describes only what floats (a dialog, and nothing under it) has an empty
+        ;; screen under it, so that the floats are laid out, painted and in the tree.
+        (unless (ui-root ui)
+          (open-box ui :column)
+          (close-box ui))
         (describe-toasts ui)
         (describe-tooltip ui))
       (compute-hashes ui))

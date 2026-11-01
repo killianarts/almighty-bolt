@@ -2534,3 +2534,16 @@ released unless RELEASE."
     (click screen :line)
     (key screen #\z :command)
     (assert-equal "reset" (value-of screen :line))))
+
+(defun make-only-a-dialog ()
+  (lambda ()
+    (dialog (:id :code :open t :title "Your code")
+      (label "Use 735-921 to sign in." :id :code-text :selectable t)
+      (button "Done" :id :done))))
+
+(define-test an-app-that-is-only-a-dialog-shows-it ()
+  (let ((screen (show 'make-only-a-dialog)))
+    (assert-equal "Use 735-921 to sign in." (text-in screen :code-text))
+    (assert-eq :dialog (s:node-role (node-of screen :code)))
+    (drag-over screen :code-text 4 10)
+    (assert-equal "735-921" (copied screen))))
