@@ -192,7 +192,8 @@ them in the boxes, and return the width and height."
            (set-box box w h)))))
     (:scroll
      ;; What is inside is a column as tall as it wants; the window onto it is HEIGHT (PREF-H) tall if
-     ;; that was given, and otherwise as tall as what is inside, within the constraints.
+     ;; that was given, and otherwise as tall as what is inside, within the constraints, and as wide
+     ;; as it may be.
      (let ((children (box-children box))
            (state (box-data box)))
        (flet ((measure (i a b c d)
@@ -208,7 +209,9 @@ them in the boxes, and return the width and height."
          (multiple-value-bind (content-w content-h)
              (layout-flex :vertical min-w max-w 0f0 +unbounded+ (length children)
                           #'measure #'place :flex-of #'flex-of :main-size :min)
-           (let* ((w (constrain content-w min-w max-w))
+           ;; As wide as it is allowed to be, as a lazy list is, so that the bar at its edge is
+           ;; beside what is inside and not over it; as wide as what is inside where nothing limits it.
+           (let* ((w (if (< max-w +unbounded+) max-w (constrain content-w min-w max-w)))
                   (h (constrain (if (plusp (box-pref-h box)) (box-pref-h box) content-h)
                                 min-h max-h))
                   (offset (max 0f0 (min (box-n1 box) (max 0f0 (- content-h h))))))

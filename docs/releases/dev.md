@@ -60,7 +60,7 @@ A list is read as the rows that are showing, so that scrolling it changes which 
     (bolt:label (line-text line) :id (line-id line))))
 ```
 
-- The window is `:height` points tall, or takes a share of a column's free space with `:flex`. The `:id` is required: the place the window is at is kept by it, across frames and across a reload.
+- The window is `:height` points tall, or takes a share of a column's free space with `:flex`. It is as wide as it is allowed to be, with its bar at the right edge. The `:id` is required: the place the window is at is kept by it, across frames and across a reload.
 - The wheel goes first to what is inside (a `list-box` in a `scroll` scrolls its own rows), and what is left of it moves the window while the pointer is over the container or anything in it.
 - Tab brings the keyboard to something out of the window, and the window moves to show it.
 - What is out of the window cannot be pressed. In the semantic tree it is `:hidden`, and the machine interface refuses to click it until it has been scrolled into sight.

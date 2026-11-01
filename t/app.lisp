@@ -299,6 +299,8 @@ that leaves two of them. Each button counts its presses."
   (let* ((screen (show 'make-shelf))
          (session (screen-session screen)))
     (assert-eq :scroll-area (s:node-role (node-of screen :shelf)))
+    ;; As wide as the column lets it be (the screen), not as its buttons: its bar is beside them.
+    (assert-eql 360f0 (third (s:node-bounds (node-of screen :shelf))))
     (assert-eql 0f0 (offset-of screen :shelf))
     (assert-true (s:node-property (node-of screen 5) :hidden))
     (assert-eq nil (core:lookup-target (screen-variant screen) 5))
