@@ -10,3 +10,7 @@ vendored/
 *.dylib
 build/
 .mcp.json
+
+# Benchmark records: make bench-* writes them here; only the README is kept.
+results/*
+!results/README.org
