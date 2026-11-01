@@ -67,6 +67,7 @@
                 #:close-box
                 #:consume-press
                 #:focus-by-click
+                #:want-cursor
                 #:consume-release
                 #:consume-secondary-press
                 #:consume-key
@@ -86,6 +87,7 @@
                 #:float-spec-min-width
                 #:float-spec-anchor)
   (:import-from #:almighty-bolt/internals
+                #:+cursors+
                 #:with-painting
                 #:context-font
                 #:context-measure
@@ -594,6 +596,7 @@ text nearest them and the character they are over."
     (setf (box-interactive box) t
           (box-n2 box) 1f0
           (box-data box) selection)
+    (want-cursor ui key :text)
     (let ((x (ui-pointer-x ui)) (y (ui-pointer-y ui)))
       (when (and (= (ui-hot ui) key) (ui-pressed ui))
         (consume-press ui)
@@ -943,6 +946,7 @@ application passes something else, that is what is shown."
           (box-data box) state
           (box-flex box) (float flex 1f0))
     (when enabled
+      (want-cursor ui key :text)
       (let ((x (ui-pointer-x ui)))
         ;; A press on the field gives it the keyboard and puts the caret there (two select a word,
         ;; three all of it).
@@ -1188,6 +1192,7 @@ else, that is what is shown."
           (box-data box) area
           (box-flex box) (float flex 1f0))
     (when enabled
+      (want-cursor ui key :text)
       (let ((x (ui-pointer-x ui))
             (y (ui-pointer-y ui)))
         (when (and (= (ui-hot ui) key) (ui-pressed ui))
@@ -1982,7 +1987,8 @@ NIL) marked. Returns the index now and whether the person changed it this frame.
   (was-hot nil))
 
 (defun canvas (width height painter
-               &key (id (required-id 'canvas)) tooltip labelled-by focusable autofocus (flex 0))
+               &key (id (required-id 'canvas)) tooltip labelled-by focusable autofocus cursor
+                 (flex 0))
   "An area of WIDTH by HEIGHT. PAINTER is called every frame with the list to append to, the
 context, and the width and height, and draws from the top left of the area, which it clips
 to; if what it draws is what it drew last frame, nothing more is done for it. Returns the
@@ -1990,7 +1996,9 @@ events for the canvas, oldest first: (:press x y button click-count), (:move x y
 (:release x y inside-p), (:key event), (:text string), (:composition kind text selection-start
 selection-length), (:wheel dx dy) and (:exit), with points in the canvas. The code that handles
 them can ask CURRENT-CONTEXT for the context, which measures text. A FOCUSABLE canvas that is
-also AUTOFOCUS has the keyboard when the window opens, if nothing has it by then."
+also AUTOFOCUS has the keyboard when the window opens, if nothing has it by then. CURSOR is the shape
+the pointer has over it (one of +CURSORS+; the arrow if not given), which the app can change from
+frame to frame, as what is under the pointer changes."
   (let* ((ui *ui*)
          (box (open-box ui :canvas :id id :tooltip tooltip :labelled-by labelled-by))
          (key (box-key box))
@@ -2000,6 +2008,10 @@ also AUTOFOCUS has the keyboard when the window opens, if nothing has it by then
          (hot (= (ui-hot ui) key)))
     (when (and autofocus focusable (not (ui-started ui)) (zerop (ui-focus ui)))
       (setf (ui-focus ui) key))
+    (when cursor
+      (unless (member cursor +cursors+)
+        (error "~s is not a cursor; the cursors are ~{~s~^, ~}." cursor +cursors+))
+      (want-cursor ui key cursor))
     (setf (box-interactive box) t
           (box-focusable box) focusable
           (box-moves box) t

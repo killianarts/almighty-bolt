@@ -2547,3 +2547,70 @@ released unless RELEASE."
     (assert-eq :dialog (s:node-role (node-of screen :code)))
     (drag-over screen :code-text 4 10)
     (assert-equal "735-921" (copied screen))))
+
+;;; --- the shape of the pointer ---
+
+(defun make-pointing ()
+  (state-let ((typed "") (notes ""))
+    (lambda ()
+      (column (:gap 10)
+        (setf typed (text-field typed :id :field))
+        (text-field "off" :id :off :enabled nil)
+        (setf notes (text-area notes :id :notes :rows 2))
+        (label "Copy me" :id :copyable :selectable t)
+        (label "Not me" :id :plain)
+        (button "Press" :id :press)
+        (canvas 100 40 (lambda (list context width height)
+                         (declare (ignore list context width height)))
+                :id :sketch :cursor :crosshair)))))
+
+(defun cursor-over (screen id)
+  "The shape of the pointer with it over the middle of the control ID."
+  (multiple-value-bind (x y width height) (core:lookup-target (screen-variant screen) id)
+    (pointer screen :move (+ x (/ width 2)) (+ y (/ height 2)))
+    (core:context-cursor (screen-context screen))))
+
+(define-test the-pointer-is-a-text-cursor-over-text-and-what-a-canvas-asks-for ()
+  (let ((screen (show 'make-pointing)))
+    (assert-eq :text (cursor-over screen :field))
+    (assert-eq :arrow (cursor-over screen :off))
+    (assert-eq :text (cursor-over screen :notes))
+    (assert-eq :text (cursor-over screen :copyable))
+    (assert-eq :arrow (cursor-over screen :plain))
+    (assert-eq :arrow (cursor-over screen :press))
+    (assert-eq :crosshair (cursor-over screen :sketch))
+    ;; A selection dragged out of a field keeps the text cursor until the button comes up.
+    (cursor-over screen :field)
+    (multiple-value-bind (x y) (core:lookup-target (screen-variant screen) :field)
+      (pointer screen :down (+ x 4) (+ y 4) :button 0 :buttons 1))
+    (multiple-value-bind (x y width height) (core:lookup-target (screen-variant screen) :press)
+      (pointer screen :move (+ x (/ width 2)) (+ y (/ height 2)) :buttons 1)
+      (assert-eq :text (core:context-cursor (screen-context screen)))
+      (pointer screen :up (+ x (/ width 2)) (+ y (/ height 2)) :button 0))
+    (assert-eq :arrow (core:context-cursor (screen-context screen)))))
+
+(define-test a-canvas-given-a-shape-that-is-not-a-cursor-says-so ()
+  (assert-error 'error
+                (show (lambda ()
+                        (lambda ()
+                          (canvas 10 10 (lambda (&rest arguments) (declare (ignore arguments)))
+                                  :id :bad :cursor :hourglass))))))
+
+(define-test the-view-shows-each-cursor-the-system-has ()
+  (objc:with-masked-float-traps
+    (objc:with-autorelease-pool
+      (objc:msg-send :id (objc:objc-class "NSApplication") "sharedApplication")
+      (let ((view (view:make-metal-view :width 100 :height 100)))
+        (dolist (shape core:+cursors+)
+          (assert-true (plusp (view:cursor-object shape)) shape))
+        (assert-eql (objc:msg-send :id (objc:objc-class "NSCursor") "IBeamCursor")
+                    (view:cursor-object :text))
+        ;; The pointer comes in (AppKit asks the view for its cursor), and the frame says :text.
+        (objc:msg-send :void (view:metal-view-object view) "cursorUpdate:" (:id 0))
+        (view:set-view-cursor view :text)
+        (assert-eq :text (view:metal-view-cursor view))
+        (assert-eql (objc:msg-send :id (objc:objc-class "NSCursor") "IBeamCursor")
+                    (objc:msg-send :id (objc:objc-class "NSCursor") "currentCursor"))
+        (view:set-view-cursor view :arrow)
+        (assert-eql (objc:msg-send :id (objc:objc-class "NSCursor") "arrowCursor")
+                    (objc:msg-send :id (objc:objc-class "NSCursor") "currentCursor"))))))

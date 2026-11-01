@@ -144,7 +144,7 @@ holds, and it gives you the new one:
 | `(switch label on &key id enabled flex)`                                     | the state now, whether it was changed                                       |
 | `(spinner &key id labelled-by size flex)`                                    | (it goes round while it shows, and asks for the frames it needs)           |
 | `(list-box items selected &key id labelled-by rows width enabled flex)`      | the index now, whether it was changed                                       |
-| `(canvas width height painter &key id labelled-by focusable autofocus flex)` | the events for the canvas, oldest first                                     |
+| `(canvas width height painter &key id labelled-by focusable autofocus cursor flex)` | the events for the canvas, oldest first                                     |
 | `(scrim &key id)`                                                            | true when pressed: a translucent layer over what is before it in a `stack`  |
 
 Containers take their options in a list and their children after it:

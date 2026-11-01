@@ -59,7 +59,9 @@
            #:context-set-clipboard-text
            #:context-choose-file
            #:context-file-chooser
-           #:context-appearance))
+           #:context-appearance
+           #:context-cursor
+           #:+cursors+))
 
 (in-package #:almighty-bolt/variant)
 
@@ -151,6 +153,13 @@ immediate ui, calling the interface function of the app.")
   "Not a phase of a variant: the time of all the builds of a frame, set by SETTLE-FRAME.")
 (defconstant +phase-slots+ 5)
 
+(defparameter +cursors+
+  '(:arrow :text :pointing-hand :crosshair :open-hand :closed-hand :not-allowed
+    :resize-left-right :resize-up-down)
+  "The shapes the pointer can have over a window: the arrow, the text cursor (an I-beam), a pointing
+hand, a crosshair, an open and a closed hand, a circle with a line through it, and the arrows that
+resize sideways and up and down.")
+
 (defstruct (context (:constructor make-context (&key width height scale requester)))
   "What a variant can see of the host, made once and updated in place by the host.
 WIDTH and HEIGHT are the size of the drawing area in points and SCALE the pixels
@@ -198,6 +207,9 @@ within the frame. REQUESTER is what REQUEST-FRAME calls; the host replaces it."
   ;; the app draws in a theme of its own. The host of a window keeps it as the system's; a context
   ;; with no window is :dark unless a test sets it.
   (appearance :dark :type (member :dark :light))
+  ;; The shape the pointer has over the window, one of +CURSORS+, as the last frame said; the host of
+  ;; a window shows it.
+  (cursor :arrow :type keyword)
   (phase-ns (make-array +phase-slots+ :element-type '(unsigned-byte 64) :initial-element 0)
    :type (simple-array (unsigned-byte 64) (*)) :read-only t))
 

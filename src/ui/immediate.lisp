@@ -2,6 +2,7 @@
   (:use #:cl)
   (:import-from #:almighty-bolt/internals
                 #:context-appearance
+                #:context-cursor
                 #:variant
                 #:frame
                 #:handle-event
@@ -76,6 +77,7 @@
                 #:ui-hit-count
                 #:ui-tab-pending
                 #:ui-click-focused
+                #:ui-cursor
                 #:ui-queue
                 #:ui-frame-layout-hash
                 #:ui-frame-paint-hash
@@ -421,7 +423,8 @@ menu), turned to the other side or moved in where it would go out of the window.
           (open-box ui :column)
           (close-box ui))
         (describe-toasts ui)
-        (describe-tooltip ui))
+        (describe-tooltip ui)
+        (setf (context-cursor context) (ui-cursor ui)))
       (compute-hashes ui))
     (let ((consumed (ui-consumed ui))
           (last-build (>= (almighty-bolt/internals:context-build-number context) +max-builds+)))

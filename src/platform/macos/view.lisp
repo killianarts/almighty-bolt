@@ -37,7 +37,10 @@
            #:metal-view-bridge
            #:metal-view-device
            #:request-draw
-           #:view-appearance))
+           #:view-appearance
+           #:set-view-cursor
+           #:metal-view-cursor
+           #:cursor-object))
 
 (in-package #:almighty-bolt/platform/macos/view)
 
@@ -65,7 +68,10 @@
   ;; What a screen reader reads (the accessibility bridge), or NIL for a view that has none.
   (bridge nil)
   ;; Called with the view when the system goes from dark to light or back.
-  (on-appearance #'identity :type function))
+  (on-appearance #'identity :type function)
+  ;; The shape the pointer has over the view (SET-VIEW-CURSOR), and whether the pointer is in it.
+  (cursor :arrow :type keyword)
+  (pointer-inside nil))
 
 (defvar *view-slot-offset* 0
   "Offset of the instance variable that holds a view's index.")
@@ -101,6 +107,36 @@ high-contrast dark appearance is dark too.)"
   (let ((view (view-of self)))
     (funcall (metal-view-on-appearance view) view)))
 
+;;; The shape of the pointer. The app says it each frame; the view shows it while the pointer is in it,
+;;; and AppKit asks again (cursorUpdate:) when the pointer comes in.
+
+(defun cursor-object (shape)
+  "The NSCursor for SHAPE, one of the context's cursors."
+  (msg-send :id (objc-class "NSCursor")
+            (ecase shape
+              (:arrow "arrowCursor")
+              (:text "IBeamCursor")
+              (:pointing-hand "pointingHandCursor")
+              (:crosshair "crosshairCursor")
+              (:open-hand "openHandCursor")
+              (:closed-hand "closedHandCursor")
+              (:not-allowed "operationNotAllowedCursor")
+              (:resize-left-right "resizeLeftRightCursor")
+              (:resize-up-down "resizeUpDownCursor"))))
+
+(defun set-view-cursor (view shape)
+  "Give the pointer SHAPE while it is over VIEW. Call on the main thread."
+  (unless (eq shape (metal-view-cursor view))
+    (setf (metal-view-cursor view) shape)
+    (when (metal-view-pointer-inside view)
+      (msg-send :void (cursor-object shape) "set"))))
+
+(define-callback view-cursor-update sb-alien:void
+    ((self sb-alien:unsigned-long) (cmd sb-alien:unsigned-long) (event sb-alien:unsigned-long))
+  (let ((view (view-of self)))
+    (setf (metal-view-pointer-inside view) t)
+    (msg-send :void (cursor-object (metal-view-cursor view)) "set")))
+
 ;;; Answers to AppKit's questions about the view
 
 (define-callback view-yes sb-alien:unsigned-char
@@ -117,6 +153,9 @@ high-contrast dark appearance is dark too.)"
   `(define-callback ,name sb-alien:void
        ((self sb-alien:unsigned-long) (cmd sb-alien:unsigned-long) (event sb-alien:unsigned-long))
      (let ((view (view-of self)))
+       ,@(case kind
+           ((:enter :move) '((setf (metal-view-pointer-inside view) t)))
+           (:leave '((setf (metal-view-pointer-inside view) nil))))
        (funcall (metal-view-event-handler view)
                 (pointer-event-from-ns-event event self ,kind)))))
 
@@ -378,6 +417,7 @@ out when it is asked, so that a window that was moved is where it is."
              ("mouseMoved:" "v@:@" view-mouse-moved)
              ("mouseEntered:" "v@:@" view-mouse-entered)
              ("mouseExited:" "v@:@" view-mouse-exited)
+             ("cursorUpdate:" "v@:@" view-cursor-update)
              ("scrollWheel:" "v@:@" view-scroll-wheel)
              ("keyDown:" "v@:@" view-key-down)
              ("keyUp:" "v@:@" view-key-up)
@@ -408,6 +448,7 @@ out when it is asked, so that a window that was moved is where it is."
 (defconstant +tracking-options+
   (logior 1       ; NSTrackingMouseEnteredAndExited
           2       ; NSTrackingMouseMoved
+          4       ; NSTrackingCursorUpdate, so that the view sets the cursor when the pointer comes in
           #x80    ; NSTrackingActiveAlways
           #x200)  ; NSTrackingInVisibleRect, so the area follows the view's size
   "Options for the tracking area that delivers mouse moves.")

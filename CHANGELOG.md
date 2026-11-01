@@ -14,6 +14,8 @@ are not listed.
 
 ### Added
 
+- `:cursor` on `canvas`: the shape the pointer has over it ([0.3](docs/releases/dev.md#input)).
+
 ### Changed
 
 ### Deprecated
@@ -24,6 +26,7 @@ are not listed.
 
 - Command-Z and Command-Shift-Z undo and redo in text fields, combo boxes and text areas ([0.3](docs/releases/dev.md#bug-fixes)).
 - An app that is only a dialog, with nothing under it, shows the dialog instead of an empty window ([0.3](docs/releases/dev.md#bug-fixes)).
+- The pointer is a text cursor over text that can be edited or selected ([0.3](docs/releases/dev.md#bug-fixes)).
 
 ### Security
 

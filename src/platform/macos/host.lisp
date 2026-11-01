@@ -49,7 +49,8 @@
                 #:context-appearance
                 #:context-set-clipboard-text
                 #:context-choose-file
-                #:context-forget-glyphs)
+                #:context-forget-glyphs
+                #:context-cursor)
   (:import-from #:almighty-bolt/settle
                 #:settle-frame)
   (:import-from #:almighty-bolt/platform/macos/objc
@@ -80,7 +81,8 @@
                 #:view-appearance
                 #:metal-view-object
                 #:metal-view-bridge
-                #:request-draw)
+                #:request-draw
+                #:set-view-cursor)
   (:import-from #:almighty-bolt/platform/macos/file-panel
                 #:make-file-panel
                 #:run-file-panel)
@@ -519,6 +521,8 @@ no drawable. Must run inside an autorelease pool."
           (run-frame host
                      (float width 1f0) (float height 1f0)
                      (if (plusp width) (float (/ pixel-width width) 1f0) 1f0))
+          ;; The pointer takes the shape the frame said, for what is under it.
+          (set-view-cursor view (context-cursor (host-context host)))
           ;; What a screen reader reads is out of date now, and is made when it is asked for.
           (let ((bridge (metal-view-bridge view)))
             (when bridge

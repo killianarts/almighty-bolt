@@ -48,6 +48,8 @@ Links to reference documentation: [`symbol`](../reference/page.md#symbol).
 
 #### Input
 
+- `canvas` takes `:cursor`, the shape the pointer has over it: a crosshair to draw with, a pointing hand over something that can be pressed, a hand to drag with, arrows to resize. The app can give another each frame.
+
 #### Machine interface
 
 ## Backwards incompatible changes in X.Y
@@ -82,3 +84,4 @@ These features have reached the end of their deprecation cycle. See the
 
 - Text fields, combo boxes and text areas could not undo. Now Command-Z undoes an edit and Command-Shift-Z does it again. A run of typing is undone as one, and so is a run of deleting; a paste, a cut or a Return is one of its own, and a press or a key that moves the caret ends a run. When the app gives the field text of its own, what was done before can no longer be undone into it.
 - An app whose whole interface was a dialog (or anything else that floats), with nothing described under it, showed an empty window. It now shows the dialog over an empty screen.
+- The pointer was an arrow everywhere. It is now a text cursor over text fields, text areas, combo boxes and selectable text, as in other Mac apps.

@@ -129,6 +129,8 @@
            #:compute-hot
            #:consume-press
            #:focus-by-click
+           #:ui-cursor
+           #:want-cursor
            #:consume-release
            #:consume-secondary-press
            #:consume-key
@@ -216,6 +218,8 @@
   ;; True if the keyboard is where it is because the pointer pressed there (a field), so that
   ;; a press anywhere else takes it away; a button the keyboard went to by Tab keeps it.
   (click-focused nil)
+  ;; The shape the pointer has, from the widget it is over (or that a press began on) in this build.
+  (cursor :arrow)
   ;; True if this build took something from the frame's input, which may have changed what
   ;; the application holds, so that the frame is built again.
   (consumed nil)
@@ -423,6 +427,7 @@ box that was open, which CLOSE-FLOAT is given back."
         (ui-root ui) nil
         (fill-pointer (ui-floats ui)) 0
         (ui-consumed ui) nil
+        (ui-cursor ui) :arrow
         (ui-frame-layout-hash ui) +seed+
         (ui-frame-paint-hash ui) +seed+))
 
@@ -584,6 +589,12 @@ were left."
   (and (ui-queue ui) t))
 
 ;;; --- taking what is for a widget ---
+
+(defun want-cursor (ui key shape)
+  "Give the pointer SHAPE (one of +CURSORS+) while it is over the box KEY, or while a press that began
+on it is held."
+  (when (or (= (ui-hot ui) key) (= (ui-active ui) key))
+    (setf (ui-cursor ui) shape)))
 
 (defun focus-by-click (ui key)
   "Give the keyboard to the box KEY, which the pointer pressed."
