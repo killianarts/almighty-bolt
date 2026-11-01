@@ -4,7 +4,7 @@ What is planned after [0.1](releases/0.1.md). These are plans, not promises, and
 
 ## Next
 
-- **Overlays.** Dropdowns, menus and context menus, tooltips and popovers, modal dialogs, toasts, a combo box (a text field with suggestions), and the system's file open and save dialogs.
+- **Overlays.** Menus and context menus, tooltips and popovers, modal dialogs, toasts, a combo box (a text field with suggestions), and the system's file open and save dialogs.
 - **Images and icons.**
 - **Theming.** Light and dark (following the system setting) and custom themes, for the widgets that exist, and for a part of a screen as well as the whole.
 

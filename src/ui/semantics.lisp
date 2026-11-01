@@ -27,6 +27,7 @@
                 #:box-h)
   (:import-from #:almighty-bolt/ui/ui
                 #:ui-root
+                #:ui-floats
                 #:ui-boxes
                 #:ui-count
                 #:ui-focus
@@ -93,6 +94,10 @@
     (:checkbox :checkbox)
     (:switch :switch)
     (:spinner :busy-indicator)
+    (:dropdown :pop-up-button)
+    (:menu :menu)
+    (:menu-item :menu-item)
+    (:catcher :none)
     (:list-box :list)
     (:canvas :canvas)
     (:scrim :overlay)
@@ -109,13 +114,13 @@
 (defun name-of (ui box)
   "What the thing is called: its own words, or the words of the widget that its :labelled-by names."
   (case (box-kind box)
-    ((:label :paragraph :button :checkbox :switch) (box-text box))
+    ((:label :paragraph :button :checkbox :switch :menu-item) (box-text box))
     (t (let ((label (and (box-labelled-by box) (find-box ui (box-labelled-by box)))))
          (and label (box-text label))))))
 
 (defun value-of (box)
   (case (box-kind box)
-    ((:text-field :text-area) (box-text box))
+    ((:text-field :text-area :dropdown) (box-text box))
     (:slider (let ((aux (box-aux box)))
                (and aux (aref aux 0))))
     (:progress (float (box-n1 box) 1d0))
@@ -153,6 +158,12 @@
              (note :minimum (aref aux 1))
              (note :maximum (aref aux 2)))))
         ((:checkbox :switch) (note :checked (= (box-n3 box) 1)))
+        (:dropdown
+         (note :expanded (= (box-n3 box) 1))
+         (note :options (box-data box)))
+        (:menu-item
+         (when (= (box-n3 box) 1) (note :highlighted t))
+         (when (= (box-n2 box) 1f0) (note :checked t)))
         ((:scroll :lazy-list)
          (note :offset (scroll-state-offset (box-data box)))
          (note :content-height (scroll-state-content-height (box-data box)))
@@ -231,7 +242,18 @@ shows; one that is all out of sight is :hidden, with no width or height."
 no frame has been built."
   (let* ((ui (immediate-variant-ui variant))
          (root (ui-root ui)))
-    (and root (node-of ui root 0f0 0f0 -1f30 -1f30 1f30 1f30))))
+    (and root
+         (let ((node (node-of ui root 0f0 0f0 -1f30 -1f30 1f30 1f30))
+               ;; What floats above the screen (a menu) is in the window too, after the rest; the
+               ;; catcher under a menu, which shows nothing, is not.
+               (floats (loop :for float :across (ui-floats ui)
+                             :unless (eq (box-kind float) :catcher)
+                               :collect (node-of ui float 0f0 0f0 -1f30 -1f30 1f30 1f30))))
+           (if floats
+               (append (loop :for (key value) :on node :by #'cddr
+                             :unless (eq key :children) :append (list key value))
+                       (list :children (append (getf node :children) floats)))
+               node)))))
 
 (defun walk-nodes (function node)
   "Call FUNCTION on NODE and, depth first, on every node inside it."

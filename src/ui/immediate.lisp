@@ -30,6 +30,8 @@
                 #:box-key
                 #:box-id
                 #:box-kind
+                #:box-parent
+                #:box-data
                 #:box-children
                 #:box-interactive
                 #:box-focusable
@@ -45,6 +47,12 @@
                 #:make-ui
                 #:ui-context
                 #:ui-root
+                #:ui-floats
+                #:float-spec-anchor
+                #:float-spec-placement
+                #:float-spec-x
+                #:float-spec-y
+                #:float-spec-min-width
                 #:ui-count
                 #:ui-boxes
                 #:ui-hot
@@ -152,8 +160,14 @@ each folded with those of its children, which come later in the order the boxes 
                         (box-paint-hash box) paint))))
     (let ((root (ui-root ui)))
       (when root
-        (setf (ui-frame-layout-hash ui) (box-layout-hash root)
-              (ui-frame-paint-hash ui) (box-paint-hash root))))))
+        (let ((layout (box-layout-hash root))
+              (paint (box-paint-hash root)))
+          ;; What floats above the screen is part of the frame too.
+          (loop :for float :across (ui-floats ui)
+                :do (setf layout (mix layout (box-layout-hash float))
+                          paint (mix paint (box-paint-hash float))))
+          (setf (ui-frame-layout-hash ui) layout
+                (ui-frame-paint-hash ui) paint))))))
 
 ;;; --- remembering where things are ---
 
@@ -216,7 +230,11 @@ key (RECT-OF, which a widget measures from) is the whole of it, wherever it is."
                      (loop :for child :across (box-children box)
                            :do (walk child x y left top right bottom))))))
       (when (ui-root ui)
-        (walk (ui-root ui) 0f0 0f0 -1f30 -1f30 1f30 1f30)))
+        (walk (ui-root ui) 0f0 0f0 -1f30 -1f30 1f30 1f30))
+      ;; The floats after the screen, so that the pointer finds them first; each is at its place in
+      ;; the window (its X and Y), with nothing over it.
+      (loop :for float :across (ui-floats ui)
+            :do (walk float 0f0 0f0 -1f30 -1f30 1f30 1f30)))
     (let ((saved (ui-saved-geometry ui)))
       (unless (= (length saved) (* 4 count))
         (setf saved (make-array (* 4 count) :element-type 'single-float)
@@ -261,6 +279,51 @@ frame presented, round."
                     (if position (nth (mod (1+ position) (length keys)) keys) (first keys))
                     (if position (nth (mod (1- position) (length keys)) keys) (car (last keys))))))))))
 
+;;; --- what floats above the screen ---
+
+(defun window-position (box)
+  "Where BOX is in the window, as laid out this frame: its place in its parent, and its parent's, up
+to a root (the screen, or a float, whose place is in the window)."
+  (let ((x 0f0) (y 0f0))
+    (loop :for b = box :then (box-parent b)
+          :while b
+          :do (incf x (box-x b))
+              (incf y (box-y b)))
+    (values x y)))
+
+(defun lay-out-floats (ui context width height)
+  "Lay out each float of the frame against the window, in the order they were opened, and put it
+where its spec says: against its anchor where that is in this frame (so a submenu can be put by a
+menu), turned to the other side or moved in where it would go out of the window."
+  (loop :for float :across (ui-floats ui)
+        :do (let ((spec (box-data float)))
+              (multiple-value-bind (w h)
+                  (if (eq (float-spec-placement spec) :fill)
+                      (layout-box float context width width height height)
+                      (layout-box float context (min width (float-spec-min-width spec)) width
+                                  0f0 height))
+                (multiple-value-bind (x y)
+                    (ecase (float-spec-placement spec)
+                      (:fill (values 0f0 0f0))
+                      (:center (values (/ (- width w) 2) (/ (- height h) 2)))
+                      (:at (values (float-spec-x spec) (float-spec-y spec)))
+                      ((:below :right)
+                       (let ((anchor (float-spec-anchor spec)))
+                         (multiple-value-bind (ax ay) (window-position anchor)
+                           (if (eq (float-spec-placement spec) :below)
+                               (let ((below (+ ay (box-h anchor) 2f0)))
+                                 (values ax (if (and (> (+ below h) height) (>= (- ay h 2f0) 0f0))
+                                                (- ay h 2f0)
+                                                below)))
+                               (let ((right (+ ax (box-w anchor))))
+                                 (values (if (and (> (+ right w) width) (>= (- ax w) 0f0))
+                                             (- ax w)
+                                             right)
+                                         ay)))))))
+                  ;; Inside the window, as far as it fits.
+                  (setf (box-x float) (max 0f0 (min x (- width w)))
+                        (box-y float) (max 0f0 (min y (- height h)))))))))
+
 ;;; --- a frame ---
 
 (defun lay-out-and-paint (variant context list)
@@ -283,6 +346,7 @@ frame presented, round."
                (restore-geometry ui)
                (progn (layout-box root context 0f0 width 0f0 height)
                       (setf (box-x root) 0f0 (box-y root) 0f0)
+                      (lay-out-floats ui context width height)
                       (remember-geometry ui))))
          (with-phase (context +phase-paint+)
            (cond
@@ -291,6 +355,8 @@ frame presented, round."
              (t
               (push-rect list 0 0 width height +background+)
               (paint-box ui root context list 0f0 0f0)
+              (loop :for float :across (ui-floats ui)
+                    :do (paint-box ui float context list 0f0 0f0))
               (when (< (display-list-capacity (ui-last-list ui)) (display-list-capacity list))
                 (setf (ui-last-list ui) (make-display-list :capacity (display-list-capacity list))))
               (replace-display-list (ui-last-list ui) list))))

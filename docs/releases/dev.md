@@ -29,6 +29,7 @@ A window of almighty-bolt draws all of itself in one view, so to the system it w
 | text area | text area, holding its text |
 | check box, switch | check box, checked or not |
 | spinner | busy indicator |
+| dropdown | pop-up button, saying the option it shows; while it is open, a menu item for each row |
 | slider | slider, with its value and its ends |
 | progress bar | progress indicator, from 0 to 1 |
 | choice | radio group, with a radio button for each option and the chosen one marked |
@@ -83,6 +84,20 @@ VoiceOver does not yet scroll a `scroll` to the thing its cursor is on. (What it
 - `:key` gives each item's id. What the ui keeps for a row (the caret of a field in it, the keyboard) stays with its item when the items are sorted again or one is put in above it. Without `:key`, a row is known by its index.
 - The items are best a vector: a row is found by its index.
 - The wheel, the bar at the edge, and what cannot be pressed out of the window are as for `scroll`. Tab reaches only the rows that are described.
+
+### A dropdown
+
+`dropdown` is a pop-up button: it shows the chosen option, and a press opens a menu of all of them. It returns what `choice` does.
+
+```lisp
+(multiple-value-bind (index changed) (bolt:dropdown '("Red" "Green" "Blue") colour :id :colour)
+  (when changed (setf colour index)))
+```
+
+- The menu floats above everything, under the dropdown, or over it where there is no room under it. It is as wide as the dropdown at least, and marks the chosen option.
+- A row chooses. With the keyboard, the space bar, Return or an arrow opens it, Up and Down move the highlight, Return chooses, and Escape closes.
+- A press outside the menu closes it and goes nowhere else, as on a Mac; nothing under an open menu scrolls.
+- The semantic tree has the dropdown as a `:pop-up-button` (its value the chosen option, and `:expanded` while open) and the open menu as a `:menu` of `:menu-item`s after the rest of the screen. `set-value` opens it and presses the row. VoiceOver reads it as a pop-up button and can press it and its rows.
 
 ### A switch, radio buttons and a spinner
 

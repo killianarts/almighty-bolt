@@ -11,6 +11,8 @@
                 #:box-id
                 #:box-kind
                 #:box-labelled-by
+                #:box-data
+                #:box-interactive
                 #:box-parent
                 #:box-children)
   (:import-from #:almighty-bolt/internals
@@ -39,6 +41,17 @@
            #:*ui*
            #:ui-context
            #:ui-root
+           #:ui-floats
+           #:open-float
+           #:close-float
+           #:float-spec
+           #:make-float-spec
+           #:float-spec-anchor
+           #:float-spec-placement
+           #:float-spec-x
+           #:float-spec-y
+           #:float-spec-min-width
+           #:float-spec-modal
            #:ui-parent
            #:ui-count
            #:ui-boxes
@@ -150,6 +163,9 @@
   (count 0 :type fixnum)
   (parent nil)
   (root nil)
+  ;; The boxes of this build that float above the root (a menu, a tooltip, a dialog), in the order
+  ;; they were opened, which is the order they are laid out, drawn and found by the pointer in.
+  (floats (make-array 4 :adjustable t :fill-pointer 0))
   (context nil)
   ;; The pointer and keys, for this frame.
   (pointer-x -1000f0 :type single-float)
@@ -334,6 +350,49 @@ the same key are an error (DUPLICATE-ID): the ui could not tell them apart."
 (defun close-box (ui)
   (setf (ui-parent ui) (box-parent (ui-parent ui))))
 
+;;; --- boxes that float above the screen ---
+;;;
+;;; A menu, a tooltip or a dialog is described by the widget that has it, wherever that widget is,
+;;; and shows above everything else. Its box is the root of a tree of its own (a float): it has no
+;;; parent and is in no container, it is laid out after the screen against the window and put by
+;;; the thing it belongs to (its anchor), and it is drawn and found by the pointer after the screen,
+;;; and so on top. Its key comes from its owner's (the widget's) key, so that a dropdown in every row
+;;; of a list has a menu of its own.
+
+(defstruct (float-spec (:constructor make-float-spec
+                           (&key anchor (placement :below) (x 0f0) (y 0f0) (min-width 0f0) modal)))
+  "Where a float goes. PLACEMENT is :below (or above, if there is no room below) or :right of the box
+ANCHOR, :at the point X, Y of the window, :center of the window, or :fill the window. MIN-WIDTH is the
+least it is as wide. A MODAL float is one the keyboard stays in."
+  (anchor nil)
+  (placement :below :type keyword)
+  (x 0f0 :type single-float)
+  (y 0f0 :type single-float)
+  (min-width 0f0 :type single-float)
+  (modal nil))
+
+(defun open-float (ui kind owner id spec)
+  "Start a float of KIND belonging to the box with the key OWNER, called ID among that box's floats
+and placed as SPEC says. What is described until CLOSE-FLOAT is inside it. Returns the box and the
+box that was open, which CLOSE-FLOAT is given back."
+  (let ((box (reset-box (next-box ui) kind))
+        (open (ui-parent ui)))
+    (setf (box-id box) id
+          (box-data box) spec
+          (box-key box) (let ((key (mix (mix owner (hash-of :float)) (hash-of id))))
+                          (if (zerop key) 1 key)))
+    (when (> (* 2 (ui-count ui)) (length (ui-seen-keys ui)))
+      (grow-seen-keys ui))
+    (when (claim-key ui (box-key box))
+      (refuse-duplicate ui kind id nil (box-key box)))
+    (vector-push-extend box (ui-floats ui))
+    (setf (ui-parent ui) box)
+    (values box open)))
+
+(defun close-float (ui open)
+  "End the float that OPEN-FLOAT started; OPEN is the box that was open then."
+  (setf (ui-parent ui) open))
+
 (defun begin-build (ui context)
   "Get UI ready for the interface to be described: no boxes yet."
   (setf (ui-context ui) context
@@ -341,6 +400,7 @@ the same key are an error (DUPLICATE-ID): the ui could not tell them apart."
         (ui-build-stamp ui) (1+ (ui-build-stamp ui))
         (ui-parent ui) nil
         (ui-root ui) nil
+        (fill-pointer (ui-floats ui)) 0
         (ui-consumed ui) nil
         (ui-frame-layout-hash ui) +seed+
         (ui-frame-paint-hash ui) +seed+))

@@ -23,6 +23,8 @@
 
 (defparameter +deliveries+ '("Standard" "Express" "Collect in person"))
 
+(defparameter +colours+ '("Red" "Orange" "Yellow" "Green" "Blue" "Indigo" "Violet"))
+
 (defparameter +canvas-color+ (bolt:pack-color 30 33 46))
 (defparameter +dot-color+ (bolt:pack-color 150 200 255))
 (defparameter +note-color+ (bolt:pack-color 150 156 175))
@@ -51,6 +53,7 @@
                    (subscribed t)
                    (size 1)
                    (delivery 0)
+                   (colour 0)
                    (busy nil)
                    (fruit 2)
                    (volume 40d0)
@@ -120,7 +123,12 @@
                       (bolt:choice +deliveries+ delivery :id :delivery :labelled-by :delivery-label
                                                          :direction :vertical)
                     (when changed (setf delivery index)))
-                  (note (format nil "~a delivery." (nth delivery +deliveries+)) :delivery-note))
+                  (note (format nil "~a delivery." (nth delivery +deliveries+)) :delivery-note)
+                  (bolt:label "Colour" :id :colour-label)
+                  (multiple-value-bind (index changed)
+                      (bolt:dropdown +colours+ colour :id :colour :labelled-by :colour-label)
+                    (when changed (setf colour index)))
+                  (note (format nil "~a it is." (nth colour +colours+)) :colour-note))
                 (section ("List" :list)
                   (bolt:label "Fruit" :id :fruit-label)
                   (multiple-value-bind (index changed)

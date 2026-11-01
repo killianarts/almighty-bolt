@@ -137,6 +137,8 @@ element (that a client still holds) answers."
     (:text-area (foreign-constant "NSAccessibilityTextAreaRole"))
     (:checkbox (foreign-constant "NSAccessibilityCheckBoxRole"))
     (:busy-indicator (foreign-constant "NSAccessibilityBusyIndicatorRole"))
+    (:pop-up-button (foreign-constant "NSAccessibilityPopUpButtonRole"))
+    (:menu-item (foreign-constant "NSAccessibilityMenuItemRole"))
     (:progress-bar (foreign-constant "NSAccessibilityProgressIndicatorRole"))
     (:slider (foreign-constant "NSAccessibilitySliderRole"))
     (:radio-group (foreign-constant "NSAccessibilityRadioGroupRole"))
@@ -324,7 +326,7 @@ by pressing where the value then is, as a hand would. True if that is a change."
 (defun make-element (item)
   "Make the element for ITEM, and remember the item for it."
   (let* ((class (case (item-role item)
-                  ((:button :checkbox :radio-button :row) *pressable-class*)
+                  ((:button :checkbox :radio-button :row :pop-up-button :menu-item) *pressable-class*)
                   (:slider *adjustable-class*)
                   (t *element-class*)))
          (element (msg-send :id (msg-send :id class "alloc") "init")))
@@ -352,6 +354,8 @@ thing that is not told yet."
     ;; A switch is a check box to a screen reader, as AppKit's own switch is.
     ((:checkbox :switch) :checkbox)
     (:busy-indicator :busy-indicator)
+    (:pop-up-button :pop-up-button)
+    (:menu-item :menu-item)
     (:progress-bar :progress-bar)
     (:slider :slider)
     (:radio-group :radio-group)
@@ -400,6 +404,11 @@ thing that is not told yet."
                        (item-value item) (if (getf node :value) 1 0)))
       (:busy-indicator (setf (item-label item) name
                              (item-value item) nil))
+      ;; A pop-up button says the option it shows; a row of a menu is called by its words.
+      (:pop-up-button (setf (item-label item) name
+                            (item-value item) (getf node :value)))
+      (:menu-item (setf (item-label item) name
+                        (item-value item) nil))
       (:progress-bar (setf (item-label item) name
                            (item-value item) (getf node :value)
                            (item-minimum item) 0d0

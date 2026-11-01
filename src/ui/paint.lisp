@@ -59,6 +59,7 @@
                 #:choice-state-tops
                 #:choice-state-option-height
                 #:+switch-width+
+                #:+menu-check-width+
                 #:+spinner-steps+
                 #:list-state-top
                 #:scroll-state-offset
@@ -305,6 +306,40 @@
                                      (+ row (/ (- h (+ ascent 4f0)) 2) ascent)
                                      (if (box-enabled box) +text-color+ +dim-text-color+)))))))
 
+(defun draw-dropdown (box context list x y)
+  "A button that shows its option, with the arrows of a pop-up button at the right."
+  (let ((w (box-w box)) (h (box-h box))
+        (font (ui-font context)))
+    (multiple-value-bind (state focused) (look-state box)
+      (when focused
+        (push-rounded-rect list (- x 2) (- y 2) (+ w 4) (+ h 4) (+ +control-radius+ 2)
+                           +accent-color+))
+      (push-rounded-rect list x y w h +control-radius+
+                         (button-color (if (eql (box-n3 box) 1) :pressed state)))
+      (multiple-value-bind (width ascent) (context-measure context font (box-text box))
+        (declare (ignore width))
+        (context-push-text context list font (fit-text context font (box-text box) (- w 44))
+                           (+ x 14) (+ y 7 ascent)
+                           (if (box-enabled box) +button-text-color+ +dim-text-color+))
+        ;; Two small arrows, one over the other.
+        (let ((cx (+ x w -16)) (cy (+ y (/ h 2))))
+          (loop :for i :from 0 :below 4
+                :do (push-rect list (- cx i) (- cy 2 (- 3 i)) (+ 1 (* 2 i)) 1 +button-text-color+)
+                    (push-rect list (- cx i) (+ cy 2 (- 3 i)) (+ 1 (* 2 i)) 1 +button-text-color+)))))))
+
+(defun draw-menu-item (box context list x y)
+  "A row of a menu: the highlight under it if it has it, the mark of the chosen one, and its words."
+  (let ((font (ui-font context))
+        (highlighted (eql (box-n3 box) 1)))
+    (when highlighted
+      (push-rounded-rect list x y (box-w box) (box-h box) 4 +row-selected-color+))
+    (multiple-value-bind (height ascent) (line-metrics context)
+      (let ((baseline (+ y (/ (- (box-h box) height) 2) ascent)))
+        (when (= (box-n2 box) 1f0)
+          (context-push-text context list font "✓" (+ x 6) baseline +text-color+))
+        (context-push-text context list font (box-text box) (+ x +menu-check-width+) baseline
+                           (if highlighted +button-text-color+ +text-color+))))))
+
 (defun draw-switch (box context list x y)
   "A track as wide as +SWITCH-WIDTH+ and half as tall, filled with the accent when on, and a knob at
 the end it is at."
@@ -400,6 +435,8 @@ behind it fading."
     (:choice (draw-choice box context list x y))
     (:checkbox (draw-checkbox box context list x y))
     (:switch (draw-switch box context list x y))
+    (:dropdown (draw-dropdown box context list x y))
+    (:menu-item (draw-menu-item box context list x y))
     (:spinner (draw-spinner box list x y))
     (:list-box (draw-list-box box context list x y))))
 
@@ -454,7 +491,7 @@ kept, and otherwise afresh, which is then kept."
         (y (+ y (box-y box))))
     (ecase (box-kind box)
       ((:label :paragraph :button :text-field :text-area :slider :progress :choice :checkbox :switch :spinner
-        :list-box)
+        :list-box :dropdown :menu-item)
        (paint-cached ui box context list x y))
       (:canvas
        (let ((scale (context-scale context))
@@ -465,6 +502,12 @@ kept, and otherwise afresh, which is then kept."
            (push-unclip list))))
       (:scrim
        (push-rect list x y (box-w box) (box-h box) +scrim-color+))
+      (:catcher)
+      (:menu
+       (push-rounded-rect list (- x 1) (- y 1) (+ (box-w box) 2) (+ (box-h box) 2) 7
+                          +field-border-color+)
+       (push-rounded-rect list x y (box-w box) (box-h box) 6 +panel-color+)
+       (paint-children ui box context list x y))
       ((:scroll :lazy-list)
        (push-clip list x y (box-w box) (box-h box))
        (paint-children ui box context list x y)

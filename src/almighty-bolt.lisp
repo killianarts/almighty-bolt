@@ -62,6 +62,7 @@
                 #:checkbox
                 #:switch
                 #:spinner
+                #:dropdown
                 #:list-box
                 #:progress
                 #:canvas
@@ -82,7 +83,7 @@
            #:state-let
            #:missing-id #:duplicate-id #:duplicate-id-id
            #:label #:paragraph #:button #:text-field #:text-area #:slider #:choice #:checkbox
-           #:switch #:spinner #:list-box
+           #:switch #:spinner #:dropdown #:list-box
            #:progress #:canvas #:scrim
            #:column #:row #:stack #:padding #:panel #:center #:scroll #:lazy-list
            #:now #:ask-for-frame #:current-context

@@ -57,6 +57,9 @@
                 #:choice-state-option-height
                 #:+option-row-gap+
                 #:+switch-width+
+                #:+menu-row-height+
+                #:+menu-padding+
+                #:+menu-check-width+
                 #:+row-height+
                 #:+dot-size+
                 #:+option-gap+)
@@ -182,6 +185,40 @@ them in the boxes, and return the width and height."
                     (constrain (max 0f0 (- top +option-row-gap+)) min-h max-h))
            (set-box box (constrain (max 0f0 (- left +option-gap+)) min-w max-w)
                     (constrain height min-h max-h)))))
+    (:dropdown
+     ;; A button's padding, and room at the right for the arrows; as wide as WIDTH (PREF-W) if given.
+     (let ((font (ui-font context)))
+       (multiple-value-bind (width ascent descent) (context-measure context font (box-text box))
+         (set-box box
+                  (constrain (if (plusp (box-pref-w box))
+                                 (box-pref-w box)
+                                 (+ (float width 1f0) (* 2 +button-padding-x+) 16f0))
+                             min-w max-w)
+                  (constrain (+ (float (+ ascent descent) 1f0) (* 2 +button-padding-y+))
+                             min-h max-h)))))
+    (:menu
+     ;; Rows one under another, as wide as the widest (or the least width the menu was given), inside
+     ;; the menu's padding.
+     (let* ((children (box-children box))
+            (widest (max 0f0 (- min-w (* 2 +menu-padding+)))))
+       (loop :for row :across children
+             :do (setf widest (max widest (layout-box row context 0f0 (- max-w (* 2 +menu-padding+))
+                                                      +menu-row-height+ +menu-row-height+))))
+       (loop :for row :across children
+             :for i :from 0
+             :do (layout-box row context widest widest +menu-row-height+ +menu-row-height+)
+                 (setf (box-x row) +menu-padding+
+                       (box-y row) (+ +menu-padding+ (* i +menu-row-height+))))
+       (set-box box (constrain (+ widest (* 2 +menu-padding+)) min-w max-w)
+                (constrain (+ (* (length children) +menu-row-height+) (* 2 +menu-padding+))
+                           min-h max-h))))
+    (:menu-item
+     (set-box box (constrain (+ +menu-check-width+ 16f0
+                                (float (context-measure context (ui-font context) (box-text box)) 1f0))
+                             min-w max-w)
+              (constrain +menu-row-height+ min-h max-h)))
+    (:catcher
+     (set-box box (if (< max-w +unbounded+) max-w min-w) (if (< max-h +unbounded+) max-h min-h)))
     (:switch
      (set-box box (constrain (+ +switch-width+ 8f0 (float (context-measure context (ui-font context)
                                                                             (box-text box))

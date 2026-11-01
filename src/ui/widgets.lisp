@@ -6,6 +6,7 @@
                 #:+seed+)
   (:import-from #:almighty-bolt/ui/box
                 #:box-key
+                #:box-parent
                 #:box-id
                 #:box-kind
                 #:box-text
@@ -68,7 +69,14 @@
                 #:rect-y
                 #:rect-w
                 #:rect-h
-                #:state-of)
+                #:state-of
+                #:open-float
+                #:close-float
+                #:make-float-spec
+                #:float-spec-placement
+                #:float-spec-x
+                #:float-spec-y
+                #:float-spec-min-width)
   (:import-from #:almighty-bolt/internals
                 #:with-painting
                 #:context-font
@@ -125,6 +133,12 @@
            #:slider
            #:choice
            #:checkbox
+           #:dropdown
+           #:menu-state
+           #:menu-state-open
+           #:+menu-row-height+
+           #:+menu-padding+
+           #:+menu-check-width+
            #:switch
            #:spinner
            #:+spinner-steps+
@@ -333,11 +347,17 @@ the box a press began on), 3 disabled, and 4 more if it has the keyboard."
           (scroll-state-first-inside state) (ui-count ui))
     box))
 
-(defun inside-scroll-p (ui state key)
-  "True if the box KEY was made inside the scroll container whose state is STATE, this build."
+(defun inside-scroll-p (ui scroll key)
+  "True if the box KEY was made inside the scroll container SCROLL this build: after it, and with it
+among its parents. (A float that a widget inside opens, a menu, is made after it too, but is in no
+container, and is not inside.)"
   (let ((boxes (ui-boxes ui)))
-    (loop :for index :from (scroll-state-first-inside state) :below (ui-count ui)
-            :thereis (= (box-key (svref boxes index)) key))))
+    (loop :for index :from (scroll-state-first-inside (box-data scroll)) :below (ui-count ui)
+          :for box = (svref boxes index)
+            :thereis (and (= (box-key box) key)
+                          (loop :for parent = (box-parent box) :then (box-parent parent)
+                                :while parent
+                                  :thereis (eq parent scroll))))))
 
 (defun end-scroll (box)
   (let* ((ui *ui*)
@@ -347,14 +367,14 @@ the box a press began on), 3 disabled, and 4 more if it has the keyboard."
          (offset (scroll-state-offset state))
          (viewport (scroll-state-viewport-height state)))
     (when (and rect (/= (ui-wheel-dy ui) 0f0)
-               (or (= (ui-hot ui) key) (inside-scroll-p ui state (ui-hot ui))))
+               (or (= (ui-hot ui) key) (inside-scroll-p ui box (ui-hot ui))))
       (multiple-value-bind (dx dy) (consume-wheel ui)
         (declare (ignore dx))
         (decf offset (* dy (float +points-per-line+ 1f0)))))
     ;; The keyboard came to something inside: show all of it, moving the window as little as can be.
     (let ((focus (ui-focus ui)))
       (when (and rect (/= focus (scroll-state-last-focus state)) (/= focus 0)
-                 (inside-scroll-p ui state focus))
+                 (inside-scroll-p ui box focus))
         (let ((target (rect-of ui focus)))
           (when target
             (let* ((top (+ (- (rect-y target) (rect-y rect)) offset))
@@ -1054,6 +1074,154 @@ them out). Returns the index now and whether the person changed it this frame."
     (close-box ui)
     (values new (/= new selected))))
 
+;;; --- menus ---
+;;;
+;;; An open menu is a float of rows, put by the widget it belongs to, with a float under it as large
+;;; as the window that nothing can be seen of (a catcher): a press anywhere but on the menu lands on
+;;; the catcher, which closes the menu and goes nowhere else, as a press outside a Mac menu does.
+;;; While a menu is open its keys are its own: Up and Down move the highlight, Return or the space
+;;; bar choose, Escape closes. The pointer over a row moves the highlight to it.
+
+(defconstant +menu-row-height+ 24f0)
+(defconstant +menu-padding+ 4f0 "Round the rows of a menu.")
+(defconstant +menu-check-width+ 22f0 "Before the words of a row, where the mark of the chosen one goes.")
+
+(defstruct (menu-state (:constructor make-menu-state ()))
+  (open nil)
+  ;; The row the pointer or the arrows are on, or -1.
+  (highlight -1 :type fixnum)
+  ;; The point a menu opened at, for one that opens where the pointer is.
+  (x 0f0 :type single-float)
+  (y 0f0 :type single-float))
+
+(defun open-menu (state highlight &optional (x 0f0) (y 0f0))
+  (setf (menu-state-open state) t
+        (menu-state-highlight state) highlight
+        (menu-state-x state) (float x 1f0)
+        (menu-state-y state) (float y 1f0))
+  (setf (ui-consumed *ui*) t))
+
+(defun menu (ui owner state items spec &key checked)
+  "Describe the open menu of the widget with the key OWNER, whose state is STATE: ITEMS (strings) in
+a float placed by SPEC, the one at CHECKED (an index) marked, over a catcher. Returns the index of the
+item chosen this frame, or NIL, and true if the menu closed this frame (an item was chosen, or the
+person pressed outside it or pressed Escape)."
+  (let ((chosen nil)
+        (closed nil)
+        (count (length items))
+        (rows '()))
+    (multiple-value-bind (catcher open)
+        (open-float ui :catcher owner :catcher (make-float-spec :placement :fill))
+      (setf (box-interactive catcher) t)
+      (close-float ui open)
+      (when (= (ui-hot ui) (box-key catcher))
+        (when (ui-pressed ui)
+          (consume-press ui)
+          (setf closed t))
+        ;; Nothing under an open menu scrolls.
+        (consume-wheel ui)))
+    (multiple-value-bind (float open) (open-float ui :menu owner :menu spec)
+      ;; A press between the rows is the menu's, and not a press outside it.
+      (setf (box-interactive float) t)
+      (when (and (= (ui-hot ui) (box-key float)) (ui-pressed ui))
+        (consume-press ui))
+      (loop :for item :in items
+            :for i :from 0
+            :do (let* ((row (open-box ui :menu-item :id i))
+                       (key (box-key row)))
+                  (push row rows)
+                  (setf (box-text row) item
+                        (box-interactive row) t
+                        (box-moves row) t
+                        (box-n2 row) (if (eql i checked) 1f0 0f0))
+                  (when (= (ui-hot ui) key)
+                    (unless (= (menu-state-highlight state) i)
+                      (setf (menu-state-highlight state) i
+                            (ui-consumed ui) t))
+                    (when (ui-pressed ui)
+                      (consume-press ui)
+                      (setf (ui-active ui) key)))
+                  (when (and (= (ui-active ui) key) (ui-released ui))
+                    (consume-release ui)
+                    (setf (ui-active ui) 0)
+                    (when (= (ui-hot ui) key)
+                      (setf chosen i)))
+                  (close-box ui)))
+      (when (or (= (ui-hot ui) (box-key float))
+                (find (ui-hot ui) rows :key #'box-key))
+        (consume-wheel ui))
+      (close-float ui open))
+    (dolist (event (copy-list (ui-keys ui)))
+      (let ((k (key-event-logical-key event))
+            (highlight (menu-state-highlight state)))
+        (cond ((eql k +key-down+)
+               (consume-key ui event)
+               (setf (menu-state-highlight state) (if (< highlight 0) 0 (min (1- count) (1+ highlight)))))
+              ((eql k +key-up+)
+               (consume-key ui event)
+               (setf (menu-state-highlight state) (if (< highlight 0) (1- count) (max 0 (1- highlight)))))
+              ((member k '(#\Return #\Space))
+               (consume-key ui event)
+               (when (<= 0 highlight (1- count))
+                 (setf chosen highlight)))
+              ((eql k #\Escape)
+               (consume-key ui event)
+               (setf closed t)))))
+    (dolist (row rows)
+      (setf (box-n3 row) (if (= (box-id row) (menu-state-highlight state)) 1 0)))
+    (when chosen
+      (setf closed t))
+    (when closed
+      (setf (menu-state-open state) nil
+            (ui-consumed ui) t))
+    (values chosen closed)))
+
+;;; --- a dropdown ---
+
+(defun dropdown (options selected
+                 &key (id (required-id 'dropdown)) labelled-by width (enabled t) (flex 0))
+  "A button showing the SELECTED one (an index) of OPTIONS (strings), which a press opens into a menu
+of them all: a pop-up button. WIDTH is how wide it is (by default, as wide as the option it shows).
+Returns the index now and whether the person changed it this frame. With the keyboard on it, the
+space bar, Return and the arrows open the menu."
+  (let* ((ui *ui*)
+         (box (open-box ui :dropdown :id id :labelled-by labelled-by))
+         (key (box-key box))
+         (state (state-of ui key #'make-menu-state))
+         (new selected))
+    (setf (box-text box) (or (and selected (nth selected options)) "")
+          (box-enabled box) enabled
+          (box-interactive box) enabled
+          (box-focusable box) enabled
+          (box-pref-w box) (if width (float width 1f0) 0f0)
+          (box-data box) options
+          (box-flex box) (float flex 1f0))
+    (cond
+      ((not enabled) (setf (menu-state-open state) nil))
+      ((not (menu-state-open state))
+       ;; A press opens it (as a Mac pop-up button does, at once), and gives it the keyboard.
+       (when (and (= (ui-hot ui) key) (ui-pressed ui))
+         (consume-press ui)
+         (focus-by-click ui key)
+         (open-menu state (or selected 0)))
+       (when (= (ui-focus ui) key)
+         (dolist (event (copy-list (ui-keys ui)))
+           (when (member (key-event-logical-key event) (list #\Space #\Return +key-down+ +key-up+))
+             (consume-key ui event)
+             (open-menu state (or selected 0)))))))
+    (close-box ui)
+    (when (menu-state-open state)
+      (let ((chosen (menu ui key state options
+                          (make-float-spec :anchor box :placement :below
+                                           :min-width (let ((rect (rect-of ui key)))
+                                                        (if rect (rect-w rect) 0f0)))
+                          :checked selected)))
+        (when chosen
+          (setf new chosen))))
+    (setf (box-n3 box) (if (menu-state-open state) 1 0)
+          (box-look box) (look-of ui key enabled))
+    (values new (not (eql new selected)))))
+
 ;;; --- a box that is checked or not, with a label ---
 
 (defun checkbox (label checked &key (id (required-id 'checkbox)) (enabled t) (flex 0))
@@ -1340,6 +1508,12 @@ counting its children."
                                              (box-n3 box)))
                    ;; A row of a lazy list is placed by its index.
                    (:column (mix layout (box-n3 box)))
+                   ;; A float is put where its spec says (its anchor's place is the screen's).
+                   ((:menu :catcher)
+                    (let ((spec (box-data box)))
+                      (hash-numbers layout (hash-of (float-spec-placement spec))
+                                    (hash-of (float-spec-x spec)) (hash-of (float-spec-y spec))
+                                    (hash-of (float-spec-min-width spec)))))
                    (t layout)))
          (paint (hash-numbers layout (box-color box) (box-look box) (hash-of (box-n1 box))
                               (hash-of (box-n2 box)) (box-n3 box)
