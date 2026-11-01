@@ -1,5 +1,5 @@
 (defsystem "almighty-bolt-theme-designer"
-  :version "0.1.0"
+  :version "0.2.0"
   :description "A theme designer for almighty-bolt: a theme's settings, and every kind of widget drawn in it as they change"
   :author "Micah Killian"
   :maintainer "Micah Killian <micah@almightylisp.com>"

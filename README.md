@@ -5,7 +5,7 @@ cross-platform GUIs as simple as possible without sacrificing performance or
 memory efficiency. Building and understanding interfaces is far easier than in
 other frameworks like McClim, Flutter, GPUI, React, etc.
 
-**Status:** 0.1, the first release. macOS only (Apple silicon is what
+**Status:** 0.2. macOS only (Apple silicon is what
 it is tested on), SBCL only, one window. Dark and light themes that follow the
 system, and themes of your own. Has an MCP
 interface. Windows and Linux support are planned.

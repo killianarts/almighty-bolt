@@ -6,7 +6,7 @@
        (lisp-implementation-type))
 
 (defsystem "almighty-bolt"
-  :version "0.1.0"
+  :version "0.2.0"
   :description "A GUI library for Common Lisp: the platform, the renderer, text and layout, and the immediate-mode ui"
   :author "Micah Killian"
   :maintainer "Micah Killian <micah@almightylisp.com>"
