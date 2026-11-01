@@ -22,6 +22,8 @@
                 #:pointer-event-y
                 #:pointer-event-button
                 #:pointer-event-click-count
+                #:pointer-event-modifiers
+                #:+modifier-control+
                 #:wheel-event
                 #:wheel-event-x
                 #:wheel-event-y
@@ -497,7 +499,10 @@ were left."
                (:leave
                 (setf (ui-pointer-x ui) -1000f0 (ui-pointer-y ui) -1000f0 (ui-moved ui) t))
                (:down
-                (cond ((not (eql (pointer-event-button event) 0))
+                ;; A press of the primary button with Control down is a secondary press, as a Mac
+                ;; takes it. (Its release, with no press of the primary before it, does nothing.)
+                (cond ((or (not (eql (pointer-event-button event) 0))
+                           (modifier-down-p (pointer-event-modifiers event) +modifier-control+))
                        (setf (ui-pointer-x ui) x (ui-pointer-y ui) y
                              (ui-secondary-pressed ui) t))
                       (changed-button (return))

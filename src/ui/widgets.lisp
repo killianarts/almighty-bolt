@@ -51,6 +51,7 @@
                 #:ui-moved
                 #:ui-keys
                 #:ui-inputs
+                #:ui-secondary-pressed
                 #:ui-wheel-dy
                 #:ui-boxes
                 #:ui-count
@@ -134,6 +135,10 @@
            #:choice
            #:checkbox
            #:dropdown
+           #:menu-button
+           #:context-menu
+           #:begin-context-menu
+           #:end-context-menu
            #:menu-state
            #:menu-state-open
            #:+menu-row-height+
@@ -1221,6 +1226,103 @@ space bar, Return and the arrows open the menu."
     (setf (box-n3 box) (if (menu-state-open state) 1 0)
           (box-look box) (look-of ui key enabled))
     (values new (not (eql new selected)))))
+
+;;; --- a button with a menu of commands ---
+
+(defun menu-button (text items &key (id (required-id 'menu-button)) (enabled t) (flex 0))
+  "A button with TEXT that a press opens into a menu of ITEMS (strings): commands, of which none is
+chosen beforehand. Returns the item chosen, on the frame it is chosen, and otherwise NIL. With the
+keyboard on it, the space bar, Return and the arrows open the menu."
+  (let* ((ui *ui*)
+         (box (open-box ui :menu-button :id id))
+         (key (box-key box))
+         (state (state-of ui key #'make-menu-state))
+         (chosen nil))
+    (setf (box-text box) text
+          (box-enabled box) enabled
+          (box-interactive box) enabled
+          (box-focusable box) enabled
+          (box-flex box) (float flex 1f0))
+    (cond
+      ((not enabled) (setf (menu-state-open state) nil))
+      ((not (menu-state-open state))
+       (when (and (= (ui-hot ui) key) (ui-pressed ui))
+         (consume-press ui)
+         (focus-by-click ui key)
+         (open-menu state -1))
+       (when (= (ui-focus ui) key)
+         (dolist (event (copy-list (ui-keys ui)))
+           (when (member (key-event-logical-key event) (list #\Space #\Return +key-down+ +key-up+))
+             (consume-key ui event)
+             (open-menu state 0))))))
+    (close-box ui)
+    (when (menu-state-open state)
+      (let ((index (menu ui key state items
+                         (make-float-spec :anchor box :placement :below
+                                          :min-width (let ((rect (rect-of ui key)))
+                                                       (if rect (rect-w rect) 0f0))))))
+        (when index
+          (setf chosen (nth index items)))))
+    (setf (box-n3 box) (if (menu-state-open state) 1 0)
+          (box-look box) (look-of ui key enabled))
+    chosen))
+
+;;; --- a menu on a secondary press ---
+;;;
+;;; What CONTEXT-MENU wraps is laid out as a column; a press of the secondary button (or of the
+;;; primary with Control down) on any of it, or on what is in it, opens a menu where the pointer is.
+;;; A context menu inside another's area takes the press first.
+
+(defstruct (context-state (:include menu-state) (:constructor make-context-state ()))
+  ;; The index of the first box inside the area, this build.
+  (first-inside 0 :type fixnum))
+
+(defun begin-context-menu (id)
+  (let* ((ui *ui*)
+         (box (open-box ui :context-area :id (or id (required-id 'context-menu))))
+         (state (state-of ui (box-key box) #'make-context-state)))
+    ;; It takes the pointer where nothing inside it does, so that a press there is in the area.
+    (setf (box-interactive box) t
+          (box-data box) state
+          (context-state-first-inside state) (ui-count ui))
+    box))
+
+(defun in-area-p (ui box key)
+  "True if KEY is the key of BOX or of a box made inside it this build."
+  (or (= key (box-key box))
+      (let ((boxes (ui-boxes ui)))
+        (loop :for index :from (context-state-first-inside (box-data box)) :below (ui-count ui)
+              :for inside = (svref boxes index)
+                :thereis (and (= (box-key inside) key)
+                              (loop :for parent = (box-parent inside) :then (box-parent parent)
+                                    :while parent
+                                      :thereis (eq parent box)))))))
+
+(defun end-context-menu (box items)
+  (let* ((ui *ui*)
+         (key (box-key box))
+         (state (box-data box))
+         (chosen nil))
+    (close-box ui)
+    (when (and (ui-secondary-pressed ui) (in-area-p ui box (ui-hot ui)))
+      (consume-secondary-press ui)
+      (open-menu state -1 (ui-pointer-x ui) (ui-pointer-y ui)))
+    (when (menu-state-open state)
+      (let ((index (menu ui key state items
+                         (make-float-spec :placement :at :x (menu-state-x state)
+                                          :y (menu-state-y state)))))
+        (when index
+          (setf chosen (nth index items)))))
+    chosen))
+
+(defmacro context-menu ((&key id items) &body body)
+  "What BODY describes, one under another, with a menu of ITEMS (strings) that a press of the
+secondary button on any of it (or a Control-press) opens where the pointer is. Returns the item
+chosen, on the frame it is chosen, and otherwise NIL. The :id is required."
+  (let ((box (gensym "BOX")))
+    `(let ((,box (begin-context-menu ,id)))
+       ,@body
+       (end-context-menu ,box ,items))))
 
 ;;; --- a box that is checked or not, with a label ---
 

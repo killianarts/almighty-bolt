@@ -95,6 +95,7 @@
     (:switch :switch)
     (:spinner :busy-indicator)
     (:dropdown :pop-up-button)
+    (:menu-button :menu-button)
     (:menu :menu)
     (:menu-item :menu-item)
     (:catcher :none)
@@ -102,7 +103,7 @@
     (:canvas :canvas)
     (:scrim :overlay)
     ((:scroll :lazy-list) :scroll-area)
-    ((:column :row :stack :padding :panel :center) :group)))
+    ((:column :row :stack :padding :panel :center :context-area) :group)))
 
 (defun find-box (ui id)
   "The box of the frame with the id ID, or NIL."
@@ -114,7 +115,7 @@
 (defun name-of (ui box)
   "What the thing is called: its own words, or the words of the widget that its :labelled-by names."
   (case (box-kind box)
-    ((:label :paragraph :button :checkbox :switch :menu-item) (box-text box))
+    ((:label :paragraph :button :checkbox :switch :menu-item :menu-button) (box-text box))
     (t (let ((label (and (box-labelled-by box) (find-box ui (box-labelled-by box)))))
          (and label (box-text label))))))
 
@@ -158,6 +159,7 @@
              (note :minimum (aref aux 1))
              (note :maximum (aref aux 2)))))
         ((:checkbox :switch) (note :checked (= (box-n3 box) 1)))
+        (:menu-button (note :expanded (= (box-n3 box) 1)))
         (:dropdown
          (note :expanded (= (box-n3 box) 1))
          (note :options (box-data box)))

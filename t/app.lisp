@@ -357,6 +357,68 @@ frame."
                           (s:find-nodes (core:accessibility-tree (screen-variant screen))
                                         :role :pop-up-button)))))
 
+;;; --- a menu button and a context menu ---
+
+(defun make-actions ()
+  "A menu button of commands, an area with a context menu holding a label and a button that counts
+its presses, a label outside the area, and what was chosen last."
+  (state-let ((last "Nothing") (presses 0))
+    (lambda ()
+      (column (:gap 8)
+        (let ((chosen (menu-button "Actions" '("Rename" "Duplicate" "Delete") :id :actions)))
+          (when chosen (setf last chosen)))
+        (let ((chosen (context-menu (:id :area :items '("Cut" "Copy" "Paste"))
+                        (label "Right-click here" :id :inside)
+                        (when (button (format nil "Pressed ~d" presses) :id :press)
+                          (incf presses)))))
+          (when chosen (setf last chosen)))
+        (label "Not in the area" :id :outside)
+        (label last :id :last)))))
+
+(define-test a-menu-button-opens-a-menu-of-commands-and-says-which-was-chosen ()
+  (let* ((screen (show 'make-actions))
+         (session (screen-session screen)))
+    (assert-eq :menu-button (s:node-role (node-of screen :actions)))
+    (m:click session :id :actions)
+    (assert-true (s:node-property (node-of screen :actions) :expanded))
+    (assert-equal '("Rename" "Duplicate" "Delete") (menu-rows screen))
+    ;; Commands: none is marked as chosen.
+    (assert-false (some (lambda (row) (s:node-property row :checked))
+                        (s:node-children (menu-of screen))))
+    (m:click session :role :menu-item :name "Delete")
+    (assert-equal "Delete" (s:node-name (node-of screen :last)))
+    (assert-eq nil (menu-of screen))))
+
+(define-test a-secondary-press-in-the-area-opens-its-menu-where-the-pointer-is ()
+  (let* ((screen (show 'make-actions))
+         (session (screen-session screen)))
+    (m:secondary-click session :id :outside)
+    (assert-eq nil (menu-of screen))
+    (m:secondary-click session :id :inside)
+    (assert-equal '("Cut" "Copy" "Paste") (menu-rows screen))
+    ;; Its top left is where the pointer was, the middle of the label.
+    (destructuring-bind (x y w h) (s:node-bounds (node-of screen :inside))
+      (assert-equal (list (+ x (/ w 2)) (+ y (/ h 2)))
+                    (subseq (s:node-bounds (menu-of screen)) 0 2)))
+    (m:click session :role :menu-item :name "Copy")
+    (assert-equal "Copy" (s:node-name (node-of screen :last)))))
+
+(define-test a-control-press-on-a-button-in-the-area-opens-the-menu-and-does-not-press-it ()
+  (let ((screen (show 'make-actions)))
+    (destructuring-bind (x y w h) (s:node-bounds (node-of screen :press))
+      (let ((px (+ x (/ w 2))) (py (+ y (/ h 2))))
+        (pointer screen :move px py)
+        (dolist (kind '(:down :up))
+          (core:handle-event (screen-variant screen)
+                             (core:make-pointer-event :timestamp 0 :kind kind :x (float px 1d0)
+                                                      :y (float py 1d0) :button 0
+                                                      :buttons (if (eq kind :down) 1 0)
+                                                      :modifiers core:+modifier-control+
+                                                      :click-count 1))
+          (draw screen))))
+    (assert-equal '("Cut" "Copy" "Paste") (menu-rows screen))
+    (assert-equal "Pressed 0" (s:node-name (node-of screen :press)))))
+
 ;;; --- the gallery of every widget ---
 
 (defparameter +every-widget+
@@ -366,6 +428,7 @@ frame."
     (text-area . :text-area) (slider . :slider) (choice . :radio-group) (checkbox . :checkbox)
     (list-box . :list) (progress . :progress-bar) (canvas . :canvas) (scrim . :overlay)
     (switch . :switch) (spinner . :busy-indicator) (dropdown . :pop-up-button)
+    (menu-button . :menu-button)
     (scroll . :scroll-area) (lazy-list . :scroll-area)))
 
 (defun roles-in (screen)
@@ -1140,6 +1203,18 @@ screen reader was given are taken away and their places are used again."
           (assert-equal '("Small" "Medium" "Large") (mapcar (lambda (e) (says e :label)) rows))
           (press (third rows))
           (assert-equal "Large" (says (element-named reader :size) :value)))))))
+
+(define-test a-screen-reader-reads-a-menu-button-and-presses-it-open ()
+  (let ((screen (show 'make-actions)))
+    (with-reader (reader screen)
+      (let ((actions (element-named reader :actions)))
+        (assert-equal "AXMenuButton" (says actions :role))
+        (assert-equal "Actions" (says actions :label))
+        (press actions)
+        (assert-equal '("Rename" "Duplicate" "Delete")
+                      (mapcar (lambda (e) (says e :label))
+                              (remove "AXMenuItem" (elements reader)
+                                      :key (lambda (e) (says e :role)) :test-not #'equal)))))))
 
 (define-test a-window-that-was-closed-has-nothing-to-read ()
   (let ((screen (show 'counter:make-counter)))

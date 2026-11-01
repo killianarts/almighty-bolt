@@ -327,6 +327,25 @@
                 :do (push-rect list (- cx i) (- cy 2 (- 3 i)) (+ 1 (* 2 i)) 1 +button-text-color+)
                     (push-rect list (- cx i) (+ cy 2 (- 3 i)) (+ 1 (* 2 i)) 1 +button-text-color+)))))))
 
+(defun draw-menu-button (box context list x y)
+  "A button whose words are followed by an arrow down, for the menu it opens."
+  (let ((w (box-w box)) (h (box-h box))
+        (font (ui-font context)))
+    (multiple-value-bind (state focused) (look-state box)
+      (when focused
+        (push-rounded-rect list (- x 2) (- y 2) (+ w 4) (+ h 4) (+ +control-radius+ 2)
+                           +accent-color+))
+      (push-rounded-rect list x y w h +control-radius+
+                         (button-color (if (eql (box-n3 box) 1) :pressed state)))
+      (multiple-value-bind (width ascent) (context-measure context font (box-text box))
+        (declare (ignore width))
+        (context-push-text context list font (box-text box) (+ x 14) (+ y 7 ascent)
+                           (if (box-enabled box) +button-text-color+ +dim-text-color+))
+        (let ((cx (+ x w -16)) (cy (+ y (/ h 2) -1)))
+          (loop :for i :from 0 :below 4
+                :do (push-rect list (- cx (- 3 i)) (+ cy i) (+ 1 (* 2 (- 3 i))) 1
+                               +button-text-color+)))))))
+
 (defun draw-menu-item (box context list x y)
   "A row of a menu: the highlight under it if it has it, the mark of the chosen one, and its words."
   (let ((font (ui-font context))
@@ -436,6 +455,7 @@ behind it fading."
     (:checkbox (draw-checkbox box context list x y))
     (:switch (draw-switch box context list x y))
     (:dropdown (draw-dropdown box context list x y))
+    (:menu-button (draw-menu-button box context list x y))
     (:menu-item (draw-menu-item box context list x y))
     (:spinner (draw-spinner box list x y))
     (:list-box (draw-list-box box context list x y))))
@@ -491,7 +511,7 @@ kept, and otherwise afresh, which is then kept."
         (y (+ y (box-y box))))
     (ecase (box-kind box)
       ((:label :paragraph :button :text-field :text-area :slider :progress :choice :checkbox :switch :spinner
-        :list-box :dropdown :menu-item)
+        :list-box :dropdown :menu-button :menu-item)
        (paint-cached ui box context list x y))
       (:canvas
        (let ((scale (context-scale context))
@@ -517,7 +537,7 @@ kept, and otherwise afresh, which is then kept."
        (push-rounded-rect list x y (box-w box) (box-h box) (box-n1 box)
                           (if (zerop (box-color box)) +panel-color+ (box-color box)))
        (paint-children ui box context list x y))
-      ((:column :row :padding :center :stack)
+      ((:column :row :padding :center :stack :context-area)
        (paint-children ui box context list x y)))))
 
 (defun paint-children (ui box context list x y)

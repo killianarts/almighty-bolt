@@ -211,6 +211,12 @@ lay things out, with no id and no name, are left out and what is in them is not 
          (lambda (session arguments)
            (apply #'m:double-click session (target session arguments))
            (after session "Double-clicked.")))
+   (list "secondary_click"
+         "Press and release the secondary (right) button in the middle of a thing, which opens a context menu where there is one. The menu's rows are then menu items to click."
+         (schema :properties (target-properties))
+         (lambda (session arguments)
+           (apply #'m:secondary-click session (target session arguments))
+           (after session "Secondary-clicked.")))
    (list "type_text"
          "Type text, a key for each character, into the thing that has the keyboard, or, if you name a thing, into that after pressing it to give it the keyboard. Replaces nothing: use set_value to replace what a field holds."
          (schema :properties (merge-properties

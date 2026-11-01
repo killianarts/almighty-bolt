@@ -46,6 +46,7 @@
            #:describe-node
            #:click
            #:double-click
+           #:secondary-click
            #:focus
            #:type-text
            #:press-key
@@ -221,6 +222,17 @@ keyboard."
     (multiple-value-bind (x y) (middle node)
       (press-at session x y :count 1)
       (press-at session x y :count 2))
+    (settle session)
+    nil))
+
+(defun secondary-click (session &key id role name)
+  "Press and release the secondary button in the middle of the thing: what opens a context menu."
+  (let ((node (find-node session :id id :role role :name name)))
+    (refuse-hidden node)
+    (multiple-value-bind (x y) (middle node)
+      (pointer session :move x y)
+      (pointer session :down x y :button 1 :buttons 2 :count 1)
+      (pointer session :up x y :button 1 :buttons 0 :count 1))
     (settle session)
     nil))
 

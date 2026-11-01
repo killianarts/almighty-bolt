@@ -12,13 +12,23 @@ A `choice` puts its options side by side; with `:direction :vertical` it puts th
 
 A `dropdown` (a pop-up button) shows the option that is chosen; a press, or the space bar, Return or an arrow with the keyboard on it, opens a menu of all of them, with the chosen one marked. The menu floats above the screen, under the dropdown (or over it, if there is no room under it). A row of it chooses; Up and Down move the highlight and Return chooses it; Escape, or a press anywhere outside the menu, closes it, and that press goes nowhere else. While the menu is open the wheel scrolls nothing under it. `:width` makes the dropdown as wide as that; by default it is as wide as what it shows.
 
+A `menu-button` is a button that opens a menu of commands, of which none is marked; it returns the one chosen, on the frame it is chosen. Its menu works as a dropdown's does.
+
+A `context-menu` (`:id :items`) is a container: what is in it is laid out as a column, and a press of the secondary button anywhere on it (or of the primary button with Control down, as a Mac takes it) opens a menu of `:items` where the pointer is. It returns the item chosen, on the frame it is chosen. A context menu inside another's area takes the press first.
+
+```lisp
+(let ((command (bolt:context-menu (:id :row-menu :items '("Rename" "Delete"))
+                 (bolt:label (task-text task) :id :text))))
+  (when (equal command "Delete") (remove-task task)))
+```
+
 A `text-area` is a text field of several lines: `:rows` lines tall (6 if not given) and `:width` wide (320), with the lines that are too long going on in the next. It returns the text and whether it changed; its lines end in a line feed. Return puts one in. Up and Down move a line, keeping to where across the first of them started; Command-Up and Command-Down go to the start and the end of the text, and Command-Left and Command-Right to the start and the end of the line. The other keys, and copy, cut and paste, are a text field's; a pasted line break stays one (a return, or a return and a line feed, becomes a line feed). It scrolls itself to keep the caret in sight, and the wheel scrolls it. In the semantic tree it is a `:text-area` with the text as its value and `:caret`, `:selection` and `:offset` in its state; the machine interface's `type-text` and `set-value` type a line feed as Return.
 
 Every widget also takes `:flex`, its share of the free space of its container. A widget that holds something but has no words of its own (a text field, a text area, a slider, a choice, a list, a progress bar, a canvas) takes `:labelled-by`, the id of the label that names it, which is what an agent calls it by: `(bolt:text-field name :id :name :labelled-by :name-label)`.
 
 ## Containers
 
-Containers take their options in a list and their children after it: `(bolt:column (:gap 10 :cross-align :center) ...)`. They are `column` and `row` (`:gap :main-align :cross-align :fill :flex`), `stack` (children on top of each other), `padding` (`:all :left :top :right :bottom`), `panel` (padding with a background: `:color :radius`), `center`, `scroll` and `lazy-list`.
+Containers take their options in a list and their children after it: `(bolt:column (:gap 10 :cross-align :center) ...)`. They are `column` and `row` (`:gap :main-align :cross-align :fill :flex`), `stack` (children on top of each other), `padding` (`:all :left :top :right :bottom`), `panel` (padding with a background: `:color :radius`), `center`, `scroll`, `lazy-list` and `context-menu`.
 
 `scroll` (`:id :height :flex`) shows what is inside it, one under another, in a window that the wheel or a trackpad moves up and down, with a bar at the right edge when not all of it shows. Its `:id` is required, since the place the window is at is kept by it. The window is `:height` points tall where nothing gives it a height (the window is as tall as what is inside if there is no `:height`), and `:flex` gives it a share of a column's free space instead. It is as wide as it is allowed to be (as wide as what is inside where nothing limits it), so its bar is beside what is inside. The wheel goes first to what is inside it (a `list-box` scrolls its own rows), and what is left moves the window while the pointer is over the container or anything in it. When Tab brings the keyboard to something out of the window, the window moves as little as shows all of it. What is out of the window cannot be pressed, and is `:hidden` in the semantic tree.
 
@@ -64,6 +74,7 @@ VoiceOver reads the tree through the system's accessibility API. Each widget is 
 | `text-area` | `AXTextArea` | |
 | `checkbox`, `switch` | `AXCheckBox` | |
 | `spinner` | `AXBusyIndicator` | |
+| `menu-button` | `AXMenuButton` | while its menu is open, an `AXMenuItem` for each row |
 | `dropdown` | `AXPopUpButton` | its value is the option it shows; while its menu is open, an `AXMenuItem` for each row, which can be pressed |
 | `slider` | `AXSlider` | its value, and its least and greatest |
 | `progress` | `AXProgressIndicator` | its value, from 0 to 1 |
@@ -92,7 +103,7 @@ Two other things use the tree, in different systems because they are for differe
   (m:screenshot session))                                            ; a PNG, in a vector of bytes
 ```
 
-Things are named by `:id`, or by `:role` and `:name`, and a name that fits two things is an error that says so (`ambiguous-node`). The calls are `see`, `find-node`, `click`, `double-click`, `type-text`, `press-key`, `set-value`, `select-item`, `scroll`, `wait` and `screenshot`. The tests of the 7GUIs drive their apps through it. A thing scrolled out of the window of a `scroll` is `:hidden` in its state, with bounds of no size where it went out, and `click`, `double-click` and `set-value` refuse it with a message that says to scroll first; `scroll` on the container (its role is `:scroll-area`, and its state has `:offset` and `:content-height`) brings it into sight.
+Things are named by `:id`, or by `:role` and `:name`, and a name that fits two things is an error that says so (`ambiguous-node`). The calls are `see`, `find-node`, `click`, `double-click`, `secondary-click`, `type-text`, `press-key`, `set-value`, `select-item`, `scroll`, `wait` and `screenshot`. The tests of the 7GUIs drive their apps through it. A thing scrolled out of the window of a `scroll` is `:hidden` in its state, with bounds of no size where it went out, and `click`, `double-click` and `set-value` refuse it with a message that says to scroll first; `scroll` on the container (its role is `:scroll-area`, and its state has `:offset` and `:content-height`) brings it into sight.
 
 ## The MCP server
 
@@ -110,7 +121,7 @@ The server speaks MCP's newline-delimited JSON-RPC on that socket. A client that
 {"mcpServers": {"my-app": {"command": "nc", "args": ["127.0.0.1", "7071"]}}}
 ```
 
-The agent gets nine tools: `snapshot` (the screen as text, one line for each thing with its role, name, id, value, state and place), `click`, `double_click`, `type_text`, `press_key`, `set_value`, `scroll`, `wait_idle` and `screenshot` (an image). Every action answers with the screen as it is afterwards, so an agent needs one call to act and see. What cannot be done (a thing that is not there, a disabled button, two things of the same name) comes back as an error result that says why, and the agent goes on. This is what the agent reads of the counter:
+The agent gets ten tools: `snapshot` (the screen as text, one line for each thing with its role, name, id, value, state and place), `click`, `double_click`, `secondary_click` (which opens a context menu), `type_text`, `press_key`, `set_value`, `scroll`, `wait_idle` and `screenshot` (an image). Every action answers with the screen as it is afterwards, so an agent needs one call to act and see. What cannot be done (a thing that is not there, a disabled button, two things of the same name) comes back as an error result that says why, and the agent goes on. This is what the agent reads of the counter:
 
 ```
 window @0,0,222,80

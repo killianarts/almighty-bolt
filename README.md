@@ -50,10 +50,10 @@ below lists them bare.
   own state doesn't mean you lose Lisp's typical hot-reloading. Compiling your
   app's UI function updates live, open apps.
 
-- **Fifteen widgets and eight containers.** Label, paragraph, button, text field,
-  text area, slider, choice, dropdown, check box, switch, spinner, list box,
-  progress bar, canvas and scrim; row, column, stack, padding, panel, center,
-  scroll and lazy list. More coming soon.
+- **Sixteen widgets and nine containers.** Label, paragraph, button, menu
+  button, text field, text area, slider, choice, dropdown, check box, switch,
+  spinner, list box, progress bar, canvas and scrim; row, column, stack,
+  padding, panel, center, scroll, lazy list and context menu. More coming soon.
 
 - **Canvas.** For drawing non-widget elements.
 
@@ -133,6 +133,7 @@ holds, and it gives you the new one:
 | `(text-area string &key id labelled-by width rows enabled flex)`             | the text now (lines end in a line feed), whether it was changed this frame  |
 | `(slider value minimum maximum &key id labelled-by width enabled flex)`      | the value now, whether it was changed                                       |
 | `(choice options selected &key id labelled-by direction enabled flex)`       | the index now, whether it was changed (`:direction :vertical`: radio buttons) |
+| `(menu-button text items &key id enabled flex)`                              | the item chosen from its menu, on the frame it is chosen                    |
 | `(dropdown options selected &key id labelled-by width enabled flex)`        | the index now, whether it was changed (its menu floats above the screen)    |
 | `(checkbox label checked &key id enabled flex)`                              | the state now, whether it was changed                                       |
 | `(switch label on &key id enabled flex)`                                     | the state now, whether it was changed                                       |
@@ -146,7 +147,9 @@ Containers take their options in a list and their children after it:
 `stack`, `padding`, `panel`, `center`, `scroll` (a window onto what is inside
 it, moved by the wheel: `(bolt:scroll (:id :log :height 300) ...)`) and
 `lazy-list` (a scrolling list that describes only the rows that show:
-`(bolt:lazy-list (task tasks :id :tasks :key #'task-id) ...)`). A still app draws nothing and costs no
+`(bolt:lazy-list (task tasks :id :tasks :key #'task-id) ...)`), and
+`context-menu` (a menu on a right-click anywhere in it, which returns the item
+chosen: `(bolt:context-menu (:id :menu :items '("Cut" "Copy")) ...)`). A still app draws nothing and costs no
 CPU; an animation asks for its next frame with `(bolt:ask-for-frame)`. The
 options of each, `:flex` and `:labelled-by` are in
 [docs/reference.md](docs/reference.md#widgets).

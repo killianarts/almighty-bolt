@@ -185,6 +185,13 @@ them in the boxes, and return the width and height."
                     (constrain (max 0f0 (- top +option-row-gap+)) min-h max-h))
            (set-box box (constrain (max 0f0 (- left +option-gap+)) min-w max-w)
                     (constrain height min-h max-h)))))
+    (:menu-button
+     (let ((font (ui-font context)))
+       (multiple-value-bind (width ascent descent) (context-measure context font (box-text box))
+         (set-box box
+                  (constrain (+ (float width 1f0) (* 2 +button-padding-x+) 16f0) min-w max-w)
+                  (constrain (+ (float (+ ascent descent) 1f0) (* 2 +button-padding-y+))
+                             min-h max-h)))))
     (:dropdown
      ;; A button's padding, and room at the right for the arrows; as wide as WIDTH (PREF-W) if given.
      (let ((font (ui-font context)))
@@ -235,7 +242,7 @@ them in the boxes, and return the width and height."
               (constrain 22f0 min-h max-h)))
     (:scrim
      (set-box box (if (< max-w +unbounded+) max-w min-w) (if (< max-h +unbounded+) max-h min-h)))
-    ((:column :row)
+    ((:column :row :context-area)
      (let ((children (box-children box)))
        (flet ((measure (i a b c d)
                 (layout-box (aref children i) context a b c d))

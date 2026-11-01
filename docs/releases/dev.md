@@ -29,6 +29,7 @@ A window of almighty-bolt draws all of itself in one view, so to the system it w
 | text area | text area, holding its text |
 | check box, switch | check box, checked or not |
 | spinner | busy indicator |
+| menu button | menu button; while it is open, a menu item for each row |
 | dropdown | pop-up button, saying the option it shows; while it is open, a menu item for each row |
 | slider | slider, with its value and its ends |
 | progress bar | progress indicator, from 0 to 1 |
@@ -84,6 +85,23 @@ VoiceOver does not yet scroll a `scroll` to the thing its cursor is on. (What it
 - `:key` gives each item's id. What the ui keeps for a row (the caret of a field in it, the keyboard) stays with its item when the items are sorted again or one is put in above it. Without `:key`, a row is known by its index.
 - The items are best a vector: a row is found by its index.
 - The wheel, the bar at the edge, and what cannot be pressed out of the window are as for `scroll`. Tab reaches only the rows that are described.
+
+### A menu button and context menus
+
+```lisp
+(let ((command (bolt:menu-button "Actions" '("Rename" "Delete") :id :actions)))
+  (when (equal command "Delete") (delete-it)))
+
+(let ((command (bolt:context-menu (:id :row-menu :items '("Rename" "Delete"))
+                 (bolt:label (task-text task) :id :text))))
+  (when (equal command "Delete") (remove-task task)))
+```
+
+- `menu-button` is a button that opens a menu of commands. It returns the command chosen, on the frame it is chosen.
+- `context-menu` is a container. A press of the secondary button anywhere on what it holds opens its menu where the pointer is, and it returns the item chosen. A context menu inside another's area takes the press first.
+- A press of the primary button with Control down is now a secondary press everywhere, as on a Mac: it opens a context menu, and a canvas gets it as a press of button 1.
+- The machine interface has `secondary-click`, and the MCP server `secondary_click`, to open a context menu.
+- VoiceOver reads a menu button as a menu button and can press it and the rows of its menu. A context menu is not yet offered to VoiceOver (as the action a screen reader shows a menu with).
 
 ### A dropdown
 
