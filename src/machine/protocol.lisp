@@ -296,7 +296,7 @@ value is, press the option of a choice, pick the item of a list."
     (when (node-property node :disabled)
       (refuse 'cannot "The ~a is disabled." (describe-node node)))
     (ecase (node-role node)
-      ((:text-field :text-area)
+      ((:text-field :combo-box :text-area)
        (unless (stringp value)
          (refuse 'cannot "A text field takes a string, not ~s." value))
        (multiple-value-bind (x y) (middle node)

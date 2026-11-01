@@ -36,6 +36,8 @@ A `dialog` (`:id :open :title`) is modal: while `:open`, it is in the middle of 
 
 `toast` is a function, not a widget: `(bolt:toast "Saved" :seconds 3)`, called anywhere in the app's function (where a button says it was pressed), shows the words at the bottom of the window, in the middle, for `:seconds` (3), the newer under the older; a press on one puts it away. While a toast shows, the frames ask for the next. In the semantic tree it is a `:toast`, and VoiceOver reads it out as it comes.
 
+A `combo-box` is a text field with a menu of suggestions under it: `(bolt:combo-box text suggestions :id :city)`, where SUGGESTIONS are the strings the app finds for the text, each frame. Typing opens them; Down and Up move into them, Return or a press takes one (its text becomes the field's), and Escape closes them; the space bar types. It returns the text, whether it changed, and whether it changed because a suggestion was taken. It is a `:combo-box` in the tree and to VoiceOver (`AXComboBox`), and `set-value` types into it as into a field.
+
 A `text-area` is a text field of several lines: `:rows` lines tall (6 if not given) and `:width` wide (320), with the lines that are too long going on in the next. It returns the text and whether it changed; its lines end in a line feed. Return puts one in. Up and Down move a line, keeping to where across the first of them started; Command-Up and Command-Down go to the start and the end of the text, and Command-Left and Command-Right to the start and the end of the line. The other keys, and copy, cut and paste, are a text field's; a pasted line break stays one (a return, or a return and a line feed, becomes a line feed). It scrolls itself to keep the caret in sight, and the wheel scrolls it. In the semantic tree it is a `:text-area` with the text as its value and `:caret`, `:selection` and `:offset` in its state; the machine interface's `type-text` and `set-value` type a line feed as Return.
 
 Every widget also takes `:tooltip`, words that float under it when the pointer has rested on it for half a second, until the pointer leaves or something is pressed or typed. A widget with a tooltip takes the pointer even if it takes no presses (a label, a disabled button). In the semantic tree the words are the node's `:help`, and the shown tooltip is a `:tooltip` node; VoiceOver reads them as the widget's help.
@@ -88,6 +90,7 @@ VoiceOver reads the tree through the system's accessibility API. Each widget is 
 | `button` | `AXButton` | |
 | `text-field` | `AXTextField` | |
 | `text-area` | `AXTextArea` | |
+| `combo-box` | `AXComboBox` | while its suggestions show, an `AXMenuItem` for each |
 | `checkbox`, `switch` | `AXCheckBox` | |
 | `spinner` | `AXBusyIndicator` | |
 | `menu-button` | `AXMenuButton` | while its menu is open, an `AXMenuItem` for each row |

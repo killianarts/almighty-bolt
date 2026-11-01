@@ -469,7 +469,7 @@ behind it fading."
     (:label (draw-label box context list x y))
     (:paragraph (draw-paragraph box context list x y))
     (:button (draw-button box context list x y))
-    (:text-field (draw-text-field box context list x y))
+    ((:text-field :combo-box) (draw-text-field box context list x y))
     (:text-area (draw-text-area box context list x y))
     (:slider (draw-slider box list x y))
     (:progress (draw-progress box list x y))
@@ -534,7 +534,7 @@ kept, and otherwise afresh, which is then kept."
   (let ((x (+ x (box-x box)))
         (y (+ y (box-y box))))
     (ecase (box-kind box)
-      ((:label :paragraph :button :text-field :text-area :slider :progress :choice :checkbox :switch :spinner
+      ((:label :paragraph :button :text-field :combo-box :text-area :slider :progress :choice :checkbox :switch :spinner
         :list-box :dropdown :menu-button :menu-item :tooltip
         :toast)
        (paint-cached ui box context list x y))

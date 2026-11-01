@@ -125,7 +125,7 @@ them in the boxes, and return the width and height."
                   (constrain (+ (float width 1f0) (* 2 +button-padding-x+)) min-w max-w)
                   (constrain (+ (float (+ ascent descent) 1f0) (* 2 +button-padding-y+))
                              min-h max-h)))))
-    (:text-field
+    ((:text-field :combo-box)
      (set-box box (constrain (box-pref-w box) min-w max-w)
               (constrain (+ (float (line-height context) 1f0) 12f0) min-h max-h)))
     (:text-area

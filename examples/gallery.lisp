@@ -49,6 +49,7 @@
 (defun make-gallery ()
   (bolt:state-let ((presses 0)
                    (name "Ada")
+                   (fruit-search "")
                    (notes (format nil "Several lines of text.~%Return starts another, and a long line goes on in the next."))
                    (subscribed t)
                    (size 1)
@@ -102,7 +103,17 @@
                             "An empty name is shown as invalid."
                             (format nil "Hello, ~a." name))
                         :greeting)
-                  (bolt:text-field "Not enabled" :id :locked :width 220 :enabled nil))
+                  (bolt:text-field "Not enabled" :id :locked :width 220 :enabled nil)
+                  (bolt:label "Fruit, with suggestions" :id :fruit-search-label)
+                  (multiple-value-bind (text changed)
+                      (bolt:combo-box fruit-search
+                                      (and (plusp (length fruit-search))
+                                           (remove-if-not (lambda (f) (search fruit-search f
+                                                                              :test #'char-equal))
+                                                          +fruits+))
+                                      :id :fruit-search :labelled-by :fruit-search-label
+                                      :width 220)
+                    (when changed (setf fruit-search text))))
                 (section ("Text area" :area)
                   (bolt:label "Notes" :id :notes-label)
                   (multiple-value-bind (text changed)

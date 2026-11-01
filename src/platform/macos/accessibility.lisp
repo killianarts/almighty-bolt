@@ -136,6 +136,7 @@ element (that a client still holds) answers."
     (:static-text (foreign-constant "NSAccessibilityStaticTextRole"))
     (:button (foreign-constant "NSAccessibilityButtonRole"))
     (:text-field (foreign-constant "NSAccessibilityTextFieldRole"))
+    (:combo-box (foreign-constant "NSAccessibilityComboBoxRole"))
     (:text-area (foreign-constant "NSAccessibilityTextAreaRole"))
     (:checkbox (foreign-constant "NSAccessibilityCheckBoxRole"))
     (:busy-indicator (foreign-constant "NSAccessibilityBusyIndicatorRole"))
@@ -294,7 +295,7 @@ by pressing where the value then is, as a hand would. True if that is a change."
   ;; of a field. A press on it is what gives a field the keyboard here. Other things do not need it.
   (let ((item (item-of self)))
     (when (and item (/= flag 0) (not (item-focused item))
-               (member (item-role item) '(:text-field :text-area)))
+               (member (item-role item) '(:text-field :combo-box :text-area)))
       (press-item item))))
 
 (define-runtime-class *element-class* "AlmightyBoltAccessibilityElement" "NSAccessibilityElement"
@@ -359,6 +360,7 @@ thing that is not told yet."
     ((:static-text :paragraph :toast) :static-text)
     (:button :button)
     (:text-field :text-field)
+    (:combo-box :combo-box)
     (:text-area :text-area)
     ;; A switch is a check box to a screen reader, as AppKit's own switch is.
     ((:checkbox :switch) :checkbox)
@@ -409,7 +411,7 @@ thing that is not told yet."
                           (item-value item) name))
       (:button (setf (item-label item) name
                      (item-value item) nil))
-      ((:text-field :text-area) (setf (item-label item) name
+      ((:text-field :combo-box :text-area) (setf (item-label item) name
                          (item-value item) (or (getf node :value) "")))
       (:checkbox (setf (item-label item) name
                        (item-value item) (if (getf node :value) 1 0)))

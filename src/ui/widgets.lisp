@@ -82,7 +82,8 @@
                 #:float-spec-placement
                 #:float-spec-x
                 #:float-spec-y
-                #:float-spec-min-width)
+                #:float-spec-min-width
+                #:float-spec-anchor)
   (:import-from #:almighty-bolt/internals
                 #:with-painting
                 #:context-font
@@ -143,6 +144,7 @@
            #:menu-button
            #:context-menu
            #:popover
+           #:combo-box
            #:begin-popover
            #:end-popover
            #:dialog
@@ -1123,11 +1125,12 @@ them out). Returns the index now and whether the person changed it this frame."
         (menu-state-y state) (float y 1f0))
   (setf (ui-consumed *ui*) t))
 
-(defun menu (ui owner state items spec &key checked)
+(defun menu (ui owner state items spec &key checked typing)
   "Describe the open menu of the widget with the key OWNER, whose state is STATE: ITEMS (strings) in
 a float placed by SPEC, the one at CHECKED (an index) marked, over a catcher. Returns the index of the
 item chosen this frame, or NIL, and true if the menu closed this frame (an item was chosen, or the
-person pressed outside it or pressed Escape)."
+person pressed outside it or pressed Escape). With TYPING (a combo box's), the space bar is left to
+the field that is being typed in."
   (let ((chosen nil)
         (closed nil)
         (count (length items))
@@ -1182,7 +1185,8 @@ person pressed outside it or pressed Escape)."
               ((eql k +key-up+)
                (consume-key ui event)
                (setf (menu-state-highlight state) (if (< highlight 0) (1- count) (max 0 (1- highlight)))))
-              ((member k '(#\Return #\Space))
+              ((and (member k '(#\Return #\Space))
+                    (not (and typing (eql k #\Space))))
                (consume-key ui event)
                (when (<= 0 highlight (1- count))
                  (setf chosen highlight)))
@@ -1340,6 +1344,50 @@ chosen, on the frame it is chosen, and otherwise NIL. The :id is required."
     `(let ((,box (begin-context-menu ,id)))
        ,@body
        (end-context-menu ,box ,items))))
+
+;;; --- a text field with suggestions ---
+
+(defun combo-box (string suggestions
+                  &key (id (required-id 'combo-box)) tooltip labelled-by (width 180) (enabled t)
+                    (flex 0))
+  "A text field showing STRING with a menu of SUGGESTIONS (strings) under it, which typing opens: the
+app gives the suggestions that fit what has been typed, each frame. Down and Up move into them, Return
+or a press takes one, Escape closes them. Returns the text now, whether it changed this frame, and
+whether it changed because a suggestion was taken."
+  (let* ((ui *ui*)
+         (owner (owner-key ui (or id (required-id 'combo-box))))
+         (state (state-of ui owner #'make-menu-state))
+         (spec (make-float-spec :placement :below))
+         (taken nil))
+    (when (or (not enabled) (null suggestions))
+      (setf (menu-state-open state) nil))
+    ;; The menu first, so that its keys (the arrows, Return on a row, Escape) are its own; it is put
+    ;; under the field, which is described after it, before layout.
+    (when (menu-state-open state)
+      (let ((chosen (menu ui owner state suggestions spec :typing t)))
+        (when chosen
+          (setf taken (nth chosen suggestions)))))
+    (let ((index (ui-count ui)))
+      (multiple-value-bind (text changed submitted)
+          (text-field (or taken string) :id id :tooltip tooltip :labelled-by labelled-by
+                                        :width width :enabled enabled :flex flex)
+        (declare (ignore submitted))
+        (let ((field (svref (ui-boxes ui) index)))
+          (setf (box-kind field) :combo-box
+                (float-spec-anchor spec) field
+                (float-spec-min-width spec) (box-pref-w field))
+          (when (= (ui-focus ui) (box-key field))
+            ;; Typing opens the suggestions (whatever the app gave for the text before: it gives those
+            ;; for the new text in the next build, which closes the menu if there are none); Down
+            ;; opens them too.
+            (when (and changed (not taken))
+              (open-menu state -1))
+            (unless (menu-state-open state)
+              (dolist (event (copy-list (ui-keys ui)))
+                (when (and (eql (key-event-logical-key event) +key-down+) suggestions)
+                  (consume-key ui event)
+                  (open-menu state 0))))))
+        (values text (or changed (and taken (string/= taken string))) (and taken t))))))
 
 ;;; --- a popover and a dialog ---
 ;;;
@@ -1823,7 +1871,7 @@ counting its children."
                               (hash-of (box-enabled box)))))
     (setf paint
           (case (box-kind box)
-            (:text-field (let ((state (box-data box)))
+            ((:text-field :combo-box) (let ((state (box-data box)))
                            (hash-numbers paint
                                          (text-state-caret (field-state-state state))
                                          (text-state-anchor (field-state-state state))

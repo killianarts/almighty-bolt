@@ -57,6 +57,7 @@
                 #:button
                 #:text-field
                 #:text-area
+                #:combo-box
                 #:slider
                 #:choice
                 #:checkbox
@@ -87,7 +88,7 @@
   (:export #:run-app #:open-app #:close-app #:state
            #:state-let
            #:missing-id #:duplicate-id #:duplicate-id-id
-           #:label #:paragraph #:button #:text-field #:text-area #:slider #:choice #:checkbox
+           #:label #:paragraph #:button #:text-field #:text-area #:combo-box #:slider #:choice #:checkbox
            #:switch #:spinner #:dropdown #:menu-button #:context-menu #:popover
            #:dialog #:toast #:list-box
            #:progress #:canvas #:scrim

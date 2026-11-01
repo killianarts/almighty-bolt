@@ -30,6 +30,7 @@ A window of almighty-bolt draws all of itself in one view, so to the system it w
 | check box, switch | check box, checked or not |
 | spinner | busy indicator |
 | menu button | menu button; while it is open, a menu item for each row |
+| combo box | combo box, holding its text; while its suggestions show, a menu item for each |
 | dropdown | pop-up button, saying the option it shows; while it is open, a menu item for each row |
 | slider | slider, with its value and its ends |
 | progress bar | progress indicator, from 0 to 1 |
@@ -85,6 +86,18 @@ VoiceOver does not yet scroll a `scroll` to the thing its cursor is on. (What it
 - `:key` gives each item's id. What the ui keeps for a row (the caret of a field in it, the keyboard) stays with its item when the items are sorted again or one is put in above it. Without `:key`, a row is known by its index.
 - The items are best a vector: a row is found by its index.
 - The wheel, the bar at the edge, and what cannot be pressed out of the window are as for `scroll`. Tab reaches only the rows that are described.
+
+### A combo box
+
+```lisp
+(multiple-value-bind (text changed taken)
+    (bolt:combo-box city (cities-that-fit city) :id :city)
+  (when changed (setf city text)))
+```
+
+- A text field with a menu of suggestions under it, which the app gives for the text each frame. Typing opens them.
+- Down and Up move into them, Return or a press takes one, and Escape closes them. The space bar types.
+- It returns the text, whether it changed, and whether it changed because a suggestion was taken.
 
 ### Toasts
 

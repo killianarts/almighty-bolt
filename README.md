@@ -50,8 +50,8 @@ below lists them bare.
   own state doesn't mean you lose Lisp's typical hot-reloading. Compiling your
   app's UI function updates live, open apps.
 
-- **Sixteen widgets and eleven containers.** Label, paragraph, button, menu
-  button, text field, text area, slider, choice, dropdown, check box, switch,
+- **Seventeen widgets and eleven containers.** Label, paragraph, button, menu
+  button, text field, combo box, text area, slider, choice, dropdown, check box, switch,
   spinner, list box, progress bar, canvas and scrim; row, column, stack,
   padding, panel, center, scroll, lazy list, context menu, popover and dialog.
   Menus, popovers, dialogs and tooltips float above the screen.
@@ -132,6 +132,7 @@ holds, and it gives you the new one:
 | `(progress fraction &key id labelled-by width flex)`                         |                                                                             |
 | `(button text &key id enabled flex)`                                         | true when clicked (the pointer, or Space or Return with the keyboard on it) |
 | `(text-field string &key id labelled-by width invalid enabled flex)`         | the text now, whether it was changed this frame, whether Return was pressed |
+| `(combo-box string suggestions &key id labelled-by width enabled flex)`     | as a text field, and whether a suggestion was taken                         |
 | `(text-area string &key id labelled-by width rows enabled flex)`             | the text now (lines end in a line feed), whether it was changed this frame  |
 | `(slider value minimum maximum &key id labelled-by width enabled flex)`      | the value now, whether it was changed                                       |
 | `(choice options selected &key id labelled-by direction enabled flex)`       | the index now, whether it was changed (`:direction :vertical`: radio buttons) |
