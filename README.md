@@ -155,7 +155,8 @@ it, moved by the wheel: `(bolt:scroll (:id :log :height 300) ...)`) and
 `(bolt:lazy-list (task tasks :id :tasks :key #'task-id) ...)`), and
 `context-menu` (a menu on a right-click anywhere in it, which returns the item
 chosen: `(bolt:context-menu (:id :menu :items '("Cut" "Copy")) ...)`). A still app draws nothing and costs no
-CPU; an animation asks for its next frame with `(bolt:ask-for-frame)`. The
+CPU; an animation asks for its next frame with `(bolt:ask-for-frame)`, and
+`(when (bolt:shortcut #\s :command) (save))` is a keyboard shortcut. The
 options of each, `:flex` and `:labelled-by` are in
 [docs/reference.md](docs/reference.md#widgets).
 

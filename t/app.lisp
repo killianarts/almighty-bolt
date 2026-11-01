@@ -2614,3 +2614,78 @@ released unless RELEASE."
         (view:set-view-cursor view :arrow)
         (assert-eql (objc:msg-send :id (objc:objc-class "NSCursor") "arrowCursor")
                     (objc:msg-send :id (objc:objc-class "NSCursor") "currentCursor"))))))
+
+;;; --- shortcuts and the menu bar ---
+
+(defun make-saving ()
+  (state-let ((typed "") (saves 0))
+    (lambda ()
+      (column (:gap 10)
+        (setf typed (text-field typed :id :field))
+        (when (shortcut #\s :command)
+          (incf saves))
+        ;; Taken by the one above: never true.
+        (when (shortcut #\s :command)
+          (setf saves 100))
+        (when (shortcut #\z :command)
+          (setf typed "the app's undo"))
+        (label (format nil "~d saves" saves) :id :saves)))))
+
+(define-test a-shortcut-is-true-when-its-keys-are-pressed-and-a-field-keeps-its-own ()
+  (let ((screen (show 'make-saving)))
+    (key screen #\s :command)
+    (assert-equal "1 saves" (text-in screen :saves))
+    ;; Not with another modifier, nor without Command: typed in the field, an s is a letter.
+    (key screen #\s :command :shift)
+    (assert-equal "1 saves" (text-in screen :saves))
+    (click screen :field)
+    (type-text screen "as")
+    (assert-equal "1 saves" (text-in screen :saves))
+    (assert-equal "as" (value-of screen :field))
+    (key screen #\s :command)
+    (assert-equal "2 saves" (text-in screen :saves))
+    ;; Command-Z is the field's, which has the keyboard and is described first.
+    (key screen #\z :command)
+    (assert-equal "" (value-of screen :field))))
+
+(define-test the-edit-menu-gives-the-app-the-keys-of-its-commands ()
+  (objc:with-masked-float-traps
+    (objc:with-autorelease-pool
+      (let* ((app (objc:msg-send :id (objc:objc-class "NSApplication") "sharedApplication"))
+             (keys '())
+             (view (view:make-metal-view
+                    :width 100 :height 100
+                    :event-handler (lambda (event)
+                                     (when (typep event 'core:key-event)
+                                       (push (list (core:key-event-logical-key event)
+                                                   (core:key-event-modifiers event))
+                                             keys))))))
+        (let ((almighty-bolt/platform/macos/app::*ends-process* nil))
+          (almighty-bolt/platform/macos/app::install-menu app))
+        (flet ((item (menu title)
+                 (let ((menu (objc:msg-send :id (objc:msg-send :id (objc:msg-send :id app "mainMenu")
+                                                               "itemWithTitle:"
+                                                               (:id (objc:ns-string menu)))
+                                            "submenu")))
+                   (objc:msg-send :id menu "itemWithTitle:" (:id (objc:ns-string title))))))
+          ;; Each command of the Edit menu, sent to the view as the menu sends it, is its key.
+          (loop :for (title action character modifiers)
+                  :in `(("Undo" "undo:" #\z ,core:+modifier-super+)
+                        ("Redo" "redo:" #\z ,(logior core:+modifier-super+ core:+modifier-shift+))
+                        ("Cut" "cut:" #\x ,core:+modifier-super+)
+                        ("Copy" "copy:" #\c ,core:+modifier-super+)
+                        ("Paste" "paste:" #\v ,core:+modifier-super+)
+                        ("Select All" "selectAll:" #\a ,core:+modifier-super+))
+                :do (let ((item (item "Edit" title)))
+                      (assert-true (plusp item) title)
+                      (assert-eql (objc:register-selector action) (objc:msg-send :ulong item "action")
+                                  title)
+                      (objc:msg-send :void (view:metal-view-object view) action (:id 0))
+                      (assert-equal (list character modifiers) (first keys) title)))
+          ;; Redo is Command-Shift-Z, not Undo's key again.
+          (assert-eql (logior (ash 1 20) (ash 1 17))
+                      (objc:msg-send :ulong (item "Edit" "Redo") "keyEquivalentModifierMask"))
+          ;; Quit, in a Lisp that a person works in, closes the window and no more.
+          (assert-eql (objc:register-selector "performClose:")
+                      (objc:msg-send :ulong (item "Application" "Quit") "action"))
+          (assert-true (plusp (item "Window" "Minimize"))))))))

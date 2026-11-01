@@ -116,6 +116,7 @@
                 #:+modifier-super+
                 #:+modifier-control+
                 #:+modifier-shift+
+                #:+modifier-alt+
                 #:key-event-logical-key
                 #:make-display-list
                 #:clear-display-list
@@ -205,6 +206,7 @@
            #:describe-tooltip
            #:describe-toasts
            #:toast
+           #:shortcut
            #:+tooltip-delay-ns+
            #:text-area
            #:area-state
@@ -2130,6 +2132,33 @@ after the app's function, with the build's boxes made."
 ;;; pressed. They are the ui's, not a widget's: TOAST can be called anywhere in the app's function,
 ;;; and the ui describes them after it. While one shows, the frames ask for the next, so that it goes
 ;;; on time; a screen reader reads each out as it comes.
+
+;;; --- shortcuts ---
+
+(defun shortcut (key &rest modifiers)
+  "True in the frame KEY (a character, or one of the +KEY-...+ codes) is pressed with exactly
+MODIFIERS held: :command, :shift, :option and :control. The key is taken, so nothing described after
+this sees it. A widget described before it that has the keyboard takes the keys it uses first (a text
+field takes Command-A, -C, -V, -X and -Z). The menu bar's keys (Command-H, -M, -Q and -W) never
+reach the app."
+  (let ((ui *ui*)
+        (want (loop :for modifier :in modifiers
+                    :sum (ecase modifier
+                           (:command +modifier-super+)
+                           (:shift +modifier-shift+)
+                           (:option +modifier-alt+)
+                           (:control +modifier-control+))))
+        (held (logior +modifier-super+ +modifier-shift+ +modifier-alt+ +modifier-control+)))
+    (dolist (event (copy-list (ui-keys ui)) nil)
+      (let ((pressed (key-event-logical-key event)))
+        (when (and (eq (key-event-kind event) :down)
+                   pressed
+                   (if (and (characterp key) (alpha-char-p key))
+                       (char-equal pressed key)
+                       (eql pressed key))
+                   (= (logand (key-event-modifiers event) held) want))
+          (consume-key ui event)
+          (return t))))))
 
 (defun toast (words &key (seconds 3))
   "Show WORDS at the bottom of the window for SECONDS. Returns WORDS."

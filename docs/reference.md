@@ -36,6 +36,10 @@ A `dialog` (`:id :open :title`) is modal: while `:open`, it is in the middle of 
   (setf asking nil))
 ```
 
+`shortcut` is a function too: `(bolt:shortcut #\s :command)` is true in the frame that Command-S is pressed, and takes the key, so nothing described after it sees it. The modifiers, `:command`, `:shift`, `:option` and `:control`, must be the ones held, no more; the key is a character or a `+key-...+` code. A widget described before it that has the keyboard takes the keys it uses first (a text field, Command-A, -C, -V, -X and -Z), and the menu bar's (Command-H, -M, -Q and -W) never reach the app.
+
+The window has the menu bar of a Mac app: the application's menu (Hide, Hide Others, Show All, Quit), Edit (Undo, Redo, Cut, Copy, Paste, Select All) and Window (Minimize, Zoom, Close). A command of the Edit menu, chosen with the pointer or by its shortcut, reaches the app as its shortcut's key, so it does what that key does in whatever has the keyboard. In a Lisp you work in (`open-app`), Quit closes the window and leaves the Lisp running.
+
 `toast` is a function, not a widget: `(bolt:toast "Saved" :seconds 3)`, called anywhere in the app's function (where a button says it was pressed), shows the words at the bottom of the window, in the middle, for `:seconds` (3), the newer under the older; a press on one puts it away. While a toast shows, the frames ask for the next. In the semantic tree it is a `:toast`, and VoiceOver reads it out as it comes.
 
 A `combo-box` is a text field with a menu of suggestions under it: `(bolt:combo-box text suggestions :id :city)`, where SUGGESTIONS are the strings the app finds for the text, each frame. Typing opens them; Down and Up move into them, Return or a press takes one (its text becomes the field's), and Escape closes them; the space bar types. It returns the text, whether it changed, and whether it changed because a suggestion was taken. It is a `:combo-box` in the tree and to VoiceOver (`AXComboBox`), and `set-value` types into it as into a field.

@@ -59,33 +59,75 @@ loop, as GLFW does."
   :methods '(("applicationShouldTerminateAfterLastWindowClosed:" "B@:@"
               app-should-terminate-after-last-window-closed)))
 
-(defun menu-item (title action key)
+(defconstant +command-key+ (ash 1 20) "NSEventModifierFlagCommand.")
+(defconstant +option-key+ (ash 1 19) "NSEventModifierFlagOption.")
+(defconstant +shift-key+ (ash 1 17) "NSEventModifierFlagShift.")
+
+(defun menu-item (title action key &optional (modifiers +command-key+))
   "A menu item that sends ACTION (a selector name) to whatever has the keyboard, with the
-shortcut KEY."
+shortcut KEY (\"\" for none) and MODIFIERS (an NSEventModifierFlags mask) held with it."
   (let ((title (ns-string title))
         (key (ns-string key)))
-    (prog1 (msg-send :id (msg-send :id (objc-class "NSMenuItem") "alloc")
-                     "initWithTitle:action:keyEquivalent:"
-                     (:id title)
-                     (:ulong (register-selector action))
-                     (:id key))
+    (prog1 (let ((item (msg-send :id (msg-send :id (objc-class "NSMenuItem") "alloc")
+                                 "initWithTitle:action:keyEquivalent:"
+                                 (:id title)
+                                 (:ulong (register-selector action))
+                                 (:id key))))
+             (msg-send :void item "setKeyEquivalentModifierMask:" (:ulong modifiers))
+             item)
       (release title)
       (release key))))
 
+(defun make-menu (title &rest items)
+  "A menu called TITLE holding ITEMS, in order; :separator is a line between them."
+  (let* ((name (ns-string title))
+         (menu (msg-send :id (msg-send :id (objc-class "NSMenu") "alloc") "initWithTitle:"
+                         (:id name))))
+    (release name)
+    (dolist (item items menu)
+      (msg-send :void menu "addItem:"
+                (:id (if (eq item :separator)
+                         (msg-send :id (objc-class "NSMenuItem") "separatorItem")
+                         item))))))
+
+(defun add-menu (menu-bar menu)
+  "Put MENU in MENU-BAR, under its own title."
+  (let ((item (msg-send :id (msg-send :id (objc-class "NSMenuItem") "alloc") "init")))
+    (msg-send :void item "setTitle:" (:id (msg-send :id menu "title")))
+    (msg-send :void item "setSubmenu:" (:id menu))
+    (msg-send :void menu-bar "addItem:" (:id item))
+    menu))
+
 (defun install-menu (app)
-  "A main menu with Quit, so that Command-Q works and the menu bar has the process's name. When
-the application does not end the process, Quit closes the window instead, and so does Command-W:
-neither may take the Lisp that a person is working in with them."
-  (let* ((menu-bar (msg-send :id (msg-send :id (objc-class "NSMenu") "alloc") "init"))
-         (app-item (msg-send :id (msg-send :id (objc-class "NSMenuItem") "alloc") "init"))
-         (app-menu (msg-send :id (msg-send :id (objc-class "NSMenu") "alloc") "init")))
-    (cond (*ends-process*
-           (msg-send :void app-menu "addItem:" (:id (menu-item "Quit" "terminate:" "q"))))
-          (t
-           (msg-send :void app-menu "addItem:" (:id (menu-item "Close Window" "performClose:" "w")))
-           (msg-send :void app-menu "addItem:" (:id (menu-item "Quit" "performClose:" "q")))))
-    (msg-send :void app-item "setSubmenu:" (:id app-menu))
-    (msg-send :void menu-bar "addItem:" (:id app-item))
+  "The main menu every Mac app has: the application's menu (hiding it and the others, and Quit),
+Edit (undo, redo, cut, copy, paste and select all, which reach the app as their shortcuts' keys do)
+and Window (minimize, zoom and close). When the application does not end the process, Quit closes
+the window instead: it may not take the Lisp that a person is working in with it."
+  (let ((menu-bar (msg-send :id (msg-send :id (objc-class "NSMenu") "alloc") "init")))
+    (add-menu menu-bar
+              (make-menu "Application"
+                         (menu-item "Hide" "hide:" "h")
+                         (menu-item "Hide Others" "hideOtherApplications:" "h"
+                                    (logior +command-key+ +option-key+))
+                         (menu-item "Show All" "unhideAllApplications:" "" 0)
+                         :separator
+                         (menu-item "Quit" (if *ends-process* "terminate:" "performClose:") "q")))
+    (add-menu menu-bar
+              (make-menu "Edit"
+                         (menu-item "Undo" "undo:" "z")
+                         (menu-item "Redo" "redo:" "z" (logior +command-key+ +shift-key+))
+                         :separator
+                         (menu-item "Cut" "cut:" "x")
+                         (menu-item "Copy" "copy:" "c")
+                         (menu-item "Paste" "paste:" "v")
+                         (menu-item "Select All" "selectAll:" "a")))
+    (let ((window (add-menu menu-bar
+                            (make-menu "Window"
+                                       (menu-item "Minimize" "performMiniaturize:" "m")
+                                       (menu-item "Zoom" "performZoom:" "" 0)
+                                       :separator
+                                       (menu-item "Close" "performClose:" "w")))))
+      (msg-send :void app "setWindowsMenu:" (:id window)))
     (msg-send :void app "setMainMenu:" (:id menu-bar))))
 
 (defun activate (app)

@@ -20,6 +20,8 @@
   (:import-from #:almighty-bolt/clock
                 #:now-ns)
   (:import-from #:almighty-bolt/event
+                #:make-key-event
+                #:+modifier-shift+
                 #:make-text-input-event
                 #:make-composition-event
                 #:key-event-modifiers
@@ -136,6 +138,27 @@ high-contrast dark appearance is dark too.)"
   (let ((view (view-of self)))
     (setf (metal-view-pointer-inside view) t)
     (msg-send :void (cursor-object (metal-view-cursor view)) "set")))
+
+;;; The Edit menu's commands. A menu item's shortcut is taken by the menu before the view sees the
+;;; key, and its command is sent to the view (the first responder); a command chosen with the pointer
+;;; comes the same way. Either way the app is given the key that the command's shortcut is, so that
+;;; Edit > Copy does what Command-C does in whatever has the keyboard.
+
+(defmacro define-edit-command (name character physical-key &rest modifiers)
+  `(define-callback ,name sb-alien:void
+       ((self sb-alien:unsigned-long) (cmd sb-alien:unsigned-long) (sender sb-alien:unsigned-long))
+     (let ((view (view-of self)))
+       (funcall (metal-view-event-handler view)
+                (make-key-event :timestamp (now-ns) :kind :down :logical-key ,character
+                                :physical-key ,physical-key
+                                :modifiers (logior +modifier-super+ ,@modifiers))))))
+
+(define-edit-command view-undo #\z 6)
+(define-edit-command view-redo #\z 6 +modifier-shift+)
+(define-edit-command view-cut #\x 7)
+(define-edit-command view-copy #\c 8)
+(define-edit-command view-paste #\v 9)
+(define-edit-command view-select-all #\a 0)
 
 ;;; Answers to AppKit's questions about the view
 
@@ -421,6 +444,13 @@ out when it is asked, so that a window that was moved is where it is."
              ("scrollWheel:" "v@:@" view-scroll-wheel)
              ("keyDown:" "v@:@" view-key-down)
              ("keyUp:" "v@:@" view-key-up)
+             ;; The Edit menu
+             ("undo:" "v@:@" view-undo)
+             ("redo:" "v@:@" view-redo)
+             ("cut:" "v@:@" view-cut)
+             ("copy:" "v@:@" view-copy)
+             ("paste:" "v@:@" view-paste)
+             ("selectAll:" "v@:@" view-select-all)
              ;; NSTextInputClient
              ("insertText:replacementRange:" "v@:@{_NSRange=QQ}" view-insert-text)
              ("setMarkedText:selectedRange:replacementRange:" "v@:@{_NSRange=QQ}{_NSRange=QQ}"
