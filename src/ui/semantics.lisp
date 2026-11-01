@@ -102,6 +102,8 @@
     (:menu :menu)
     (:menu-item :menu-item)
     (:tooltip :tooltip)
+    (:popover :popover)
+    (:dialog :dialog)
     (:catcher :none)
     (:list-box :list)
     (:canvas :canvas)
@@ -119,7 +121,8 @@
 (defun name-of (ui box)
   "What the thing is called: its own words, or the words of the widget that its :labelled-by names."
   (case (box-kind box)
-    ((:label :paragraph :button :checkbox :switch :menu-item :menu-button :tooltip) (box-text box))
+    ((:label :paragraph :button :checkbox :switch :menu-item :menu-button :tooltip :dialog)
+     (box-text box))
     (t (let ((label (and (box-labelled-by box) (find-box ui (box-labelled-by box)))))
          (and label (box-text label))))))
 

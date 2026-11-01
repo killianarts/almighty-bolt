@@ -537,6 +537,11 @@ kept, and otherwise afresh, which is then kept."
       (:scrim
        (push-rect list x y (box-w box) (box-h box) +scrim-color+))
       (:catcher)
+      ((:popover :dialog)
+       (push-rounded-rect list (- x 1) (- y 1) (+ (box-w box) 2) (+ (box-h box) 2) 11
+                          +field-border-color+)
+       (push-rounded-rect list x y (box-w box) (box-h box) 10 +panel-color+)
+       (paint-children ui box context list x y))
       (:menu
        (push-rounded-rect list (- x 1) (- y 1) (+ (box-w box) 2) (+ (box-h box) 2) 7
                           +field-border-color+)

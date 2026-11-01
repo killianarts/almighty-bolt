@@ -114,6 +114,8 @@
            #:hit-h
            #:hit-focusable
            #:hit-moves
+           #:hit-layer
+           #:ui-modal-layer
            #:duplicate-id
            #:duplicate-id-id
            #:duplicate-id-kinds
@@ -162,7 +164,9 @@
   (w 0f0 :type single-float)
   (h 0f0 :type single-float)
   (focusable nil)
-  (moves nil))
+  (moves nil)
+  ;; The key of the float it is in, or 0 for the screen.
+  (layer 0 :type fixnum))
 
 (defstruct (ui (:constructor make-ui ()))
   (boxes (make-array 128 :initial-element nil) :type simple-vector)
@@ -234,6 +238,9 @@
   ;; first HIT-COUNT of the HITS, which are kept and reused from frame to frame.
   (hits (make-array 32 :adjustable t :fill-pointer 0))
   (hit-count 0 :type fixnum)
+  ;; The key of the last modal float of the last presented frame (a dialog), or 0: the keyboard stays
+  ;; in it.
+  (modal-layer 0 :type fixnum)
   ;; What the frame described, and what the last presented one did, to be compared.
   (frame-layout-hash 0 :type (unsigned-byte 62))
   (frame-paint-hash 0 :type (unsigned-byte 62))

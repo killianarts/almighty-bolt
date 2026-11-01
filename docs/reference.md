@@ -22,6 +22,18 @@ A `context-menu` (`:id :items`) is a container: what is in it is laid out as a c
   (when (equal command "Delete") (remove-task task)))
 ```
 
+A `popover` (`:id :open :anchor :placement`) floats, while the app says it is `:open`, below (or, with `:placement :right`, beside) the widget whose id is `:anchor`, which must be described before it in the same container. What its body describes is inside it, one under another, and works as anywhere else. A press outside it, or Escape, dismisses it: it returns true on that frame, and the press goes nowhere else. Several can be open at once.
+
+A `dialog` (`:id :open :title`) is modal: while `:open`, it is in the middle of the window over a scrim, with `:title` over what its body describes. The pointer reaches nothing under it, and the keyboard stays in it: it goes to the first thing in it that can have it, and Tab goes round inside it. Escape dismisses it (it returns true on that frame); its buttons say what they do as buttons do.
+
+```lisp
+(when (bolt:dialog (:id :confirm :open asking :title "Delete the file?")
+        (bolt:row (:gap 8)
+          (when (bolt:button "Cancel" :id :cancel) (setf asking nil))
+          (when (bolt:button "Delete" :id :delete) (delete-file path) (setf asking nil))))
+  (setf asking nil))
+```
+
 A `text-area` is a text field of several lines: `:rows` lines tall (6 if not given) and `:width` wide (320), with the lines that are too long going on in the next. It returns the text and whether it changed; its lines end in a line feed. Return puts one in. Up and Down move a line, keeping to where across the first of them started; Command-Up and Command-Down go to the start and the end of the text, and Command-Left and Command-Right to the start and the end of the line. The other keys, and copy, cut and paste, are a text field's; a pasted line break stays one (a return, or a return and a line feed, becomes a line feed). It scrolls itself to keep the caret in sight, and the wheel scrolls it. In the semantic tree it is a `:text-area` with the text as its value and `:caret`, `:selection` and `:offset` in its state; the machine interface's `type-text` and `set-value` type a line feed as Return.
 
 Every widget also takes `:tooltip`, words that float under it when the pointer has rested on it for half a second, until the pointer leaves or something is pressed or typed. A widget with a tooltip takes the pointer even if it takes no presses (a label, a disabled button). In the semantic tree the words are the node's `:help`, and the shown tooltip is a `:tooltip` node; VoiceOver reads them as the widget's help.
@@ -30,7 +42,7 @@ Every widget also takes `:flex`, its share of the free space of its container. A
 
 ## Containers
 
-Containers take their options in a list and their children after it: `(bolt:column (:gap 10 :cross-align :center) ...)`. They are `column` and `row` (`:gap :main-align :cross-align :fill :flex`), `stack` (children on top of each other), `padding` (`:all :left :top :right :bottom`), `panel` (padding with a background: `:color :radius`), `center`, `scroll`, `lazy-list` and `context-menu`.
+Containers take their options in a list and their children after it: `(bolt:column (:gap 10 :cross-align :center) ...)`. They are `column` and `row` (`:gap :main-align :cross-align :fill :flex`), `stack` (children on top of each other), `padding` (`:all :left :top :right :bottom`), `panel` (padding with a background: `:color :radius`), `center`, `scroll`, `lazy-list`, `context-menu`, `popover` and `dialog`.
 
 `scroll` (`:id :height :flex`) shows what is inside it, one under another, in a window that the wheel or a trackpad moves up and down, with a bar at the right edge when not all of it shows. Its `:id` is required, since the place the window is at is kept by it. The window is `:height` points tall where nothing gives it a height (the window is as tall as what is inside if there is no `:height`), and `:flex` gives it a share of a column's free space instead. It is as wide as it is allowed to be (as wide as what is inside where nothing limits it), so its bar is beside what is inside. The wheel goes first to what is inside it (a `list-box` scrolls its own rows), and what is left moves the window while the pointer is over the container or anything in it. When Tab brings the keyboard to something out of the window, the window moves as little as shows all of it. What is out of the window cannot be pressed, and is `:hidden` in the semantic tree.
 

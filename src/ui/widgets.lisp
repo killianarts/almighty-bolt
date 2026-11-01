@@ -38,6 +38,7 @@
   (:import-from #:almighty-bolt/ui/ui
                 #:*ui*
                 #:ui-context
+                #:ui-parent
                 #:ui-consumed
                 #:ui-hot
                 #:ui-hot-since
@@ -140,6 +141,14 @@
            #:dropdown
            #:menu-button
            #:context-menu
+           #:popover
+           #:begin-popover
+           #:end-popover
+           #:dialog
+           #:begin-dialog
+           #:end-dialog
+           #:missing-anchor
+           #:missing-anchor-anchor
            #:begin-context-menu
            #:end-context-menu
            #:menu-state
@@ -1329,6 +1338,123 @@ chosen, on the frame it is chosen, and otherwise NIL. The :id is required."
        ,@body
        (end-context-menu ,box ,items))))
 
+;;; --- a popover and a dialog ---
+;;;
+;;; Both float above the screen while the application says they are OPEN, and hold what their body
+;;; describes, one under another. A popover is put by a widget described before it in the same
+;;; container (its anchor, named by id), over a catcher as a menu is: a press outside it, or Escape,
+;;; dismisses it. A dialog is modal: in the middle of the window over a scrim, which a press does not
+;;; go through, with the keyboard kept inside it; Escape dismisses it. Each returns true on the frame
+;;; the person dismissed it, and the application then stops saying it is open (or does not).
+
+(define-condition missing-anchor (error)
+  ((anchor :initarg :anchor :reader missing-anchor-anchor))
+  (:report (lambda (condition stream)
+             (format stream "A popover is put by a widget described before it in the same ~
+                             container, and there is none with the id ~s."
+                     (missing-anchor-anchor condition)))))
+
+(defun owner-key (ui id)
+  "The key a thing with ID would have in the open container, for a thing that has no box there."
+  (let ((parent (ui-parent ui)))
+    (let ((key (mix (if parent (box-key parent) +seed+) (mix (hash-of :floating) (hash-of id)))))
+      (if (zerop key) 1 key))))
+
+(defun escape-pressed-p (ui)
+  "Take Escape from the frame's keys, if it is there."
+  (let ((event (find #\Escape (ui-keys ui) :key #'key-event-logical-key)))
+    (when event
+      (consume-key ui event)
+      t)))
+
+(defun begin-popover (id open anchor placement)
+  "Start the float of a popover if it is OPEN: returns its box, the box that was open, and true if a
+press outside dismissed it; or NIL."
+  (when open
+    (let* ((ui *ui*)
+           (owner (owner-key ui (or id (required-id 'popover))))
+           (parent (ui-parent ui))
+           (anchor-box (and parent
+                            (find anchor (box-children parent) :key #'box-id :test #'equal
+                                                                :from-end t)))
+           (dismissed nil))
+      (unless anchor-box
+        (error 'missing-anchor :anchor anchor))
+      (multiple-value-bind (catcher open)
+          (open-float ui :catcher owner :catcher (make-float-spec :placement :fill))
+        (setf (box-interactive catcher) t)
+        (close-float ui open)
+        (when (= (ui-hot ui) (box-key catcher))
+          (when (ui-pressed ui)
+            (consume-press ui)
+            (setf dismissed t))
+          (consume-wheel ui)))
+      (multiple-value-bind (float open)
+          (open-float ui :popover owner id
+                      (make-float-spec :anchor anchor-box :placement placement))
+        (setf (box-interactive float) t)
+        (when (and (= (ui-hot ui) (box-key float)) (ui-pressed ui))
+          (consume-press ui))
+        (values float open dismissed)))))
+
+(defun end-popover (float open dismissed)
+  (let ((ui *ui*))
+    (close-float ui open)
+    (when (escape-pressed-p ui)
+      (setf dismissed t))
+    (when dismissed
+      (setf (ui-consumed ui) t))
+    (and float dismissed)))
+
+(defmacro popover ((&key id open anchor (placement :below)) &body body)
+  "While OPEN, what BODY describes, one under another, in a float put by ANCHOR (the id of a widget
+described before this in the same container) :below or :right of it. Returns true on the frame the
+person dismissed it, by a press outside it or Escape. The :id is required."
+  (let ((float (gensym "FLOAT")) (open-box (gensym "OPEN")) (dismissed (gensym "DISMISSED")))
+    `(multiple-value-bind (,float ,open-box ,dismissed) (begin-popover ,id ,open ,anchor ,placement)
+       (when ,float
+         ,@body
+         (end-popover ,float ,open-box ,dismissed)))))
+
+(defun begin-dialog (id open title)
+  "Start the float of a dialog if it is OPEN: returns its box and the box that was open; or NIL."
+  (when open
+    (let* ((ui *ui*)
+           (owner (owner-key ui (or id (required-id 'dialog)))))
+      (multiple-value-bind (scrim open)
+          (open-float ui :scrim owner :scrim (make-float-spec :placement :fill))
+        ;; It takes the pointer from all under it (being over it), and does nothing with it.
+        (setf (box-interactive scrim) t)
+        (close-float ui open))
+      (multiple-value-bind (float open)
+          (open-float ui :dialog owner id (make-float-spec :placement :center :modal t))
+        (setf (box-interactive float) t
+              (box-text float) (or title ""))
+        (when (and (= (ui-hot ui) (box-key float)) (ui-pressed ui))
+          (consume-press ui))
+        (when title
+          (label title :id :title :size 18))
+        (values float open)))))
+
+(defun end-dialog (float open)
+  (declare (ignore float))
+  (let ((ui *ui*))
+    (close-float ui open)
+    (when (escape-pressed-p ui)
+      (setf (ui-consumed ui) t)
+      t)))
+
+(defmacro dialog ((&key id open title) &body body)
+  "While OPEN, a dialog in the middle of the window, over a scrim that keeps the pointer from what is
+under it, with TITLE over what BODY describes; the keyboard stays inside it. Returns true on the
+frame the person dismissed it with Escape (its buttons say what they do as any button does). The
+:id is required."
+  (let ((float (gensym "FLOAT")) (open-box (gensym "OPEN")))
+    `(multiple-value-bind (,float ,open-box) (begin-dialog ,id ,open ,title)
+       (when ,float
+         ,@body
+         (end-dialog ,float ,open-box)))))
+
 ;;; --- a box that is checked or not, with a label ---
 
 (defun checkbox (label checked &key (id (required-id 'checkbox)) tooltip (enabled t) (flex 0))
@@ -1642,7 +1768,7 @@ counting its children."
                    ;; A row of a lazy list is placed by its index.
                    (:column (mix layout (box-n3 box)))
                    ;; A float is put where its spec says (its anchor's place is the screen's).
-                   ((:menu :catcher :tooltip)
+                   ((:menu :catcher :tooltip :popover :dialog)
                     (let ((spec (box-data box)))
                       (hash-numbers layout (hash-of (float-spec-placement spec))
                                     (hash-of (float-spec-x spec)) (hash-of (float-spec-y spec))

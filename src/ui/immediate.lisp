@@ -54,6 +54,7 @@
                 #:float-spec-x
                 #:float-spec-y
                 #:float-spec-min-width
+                #:float-spec-modal
                 #:ui-count
                 #:ui-boxes
                 #:ui-hot
@@ -93,6 +94,8 @@
                 #:hit-h
                 #:hit-focusable
                 #:hit-moves
+                #:hit-layer
+                #:ui-modal-layer
                 #:begin-build
                 #:enqueue-event
                 #:begin-frame-input
@@ -194,8 +197,10 @@ key (RECT-OF, which a widget measures from) is the whole of it, wherever it is."
         (ui-rect-count ui) 0)
   (let ((boxes (ui-boxes ui))
         (count (ui-count ui)))
-    (labels ((walk (box x y left top right bottom)
-               (declare (type single-float x y left top right bottom))
+    (setf (ui-modal-layer ui) 0)
+    (labels ((walk (box x y left top right bottom layer)
+               (declare (type single-float x y left top right bottom)
+                        (type fixnum layer))
                (let* ((x (+ x (box-x box)))
                       (y (+ y (box-y box)))
                       ;; The part of the box that shows.
@@ -224,20 +229,23 @@ key (RECT-OF, which a widget measures from) is the whole of it, wherever it is."
                        (setf (hit-key hit) (box-key box) (hit-id hit) (box-id box)
                              (hit-x hit) shown-left (hit-y hit) shown-top (hit-w hit) shown-w
                              (hit-h hit) shown-h (hit-focusable hit) (box-focusable box)
-                             (hit-moves hit) (box-moves box)))
+                             (hit-moves hit) (box-moves box)
+                             (hit-layer hit) layer))
                      (incf (ui-hit-count ui))))
                  (if (member (box-kind box) '(:scroll :lazy-list))
                      (loop :for child :across (box-children box)
                            :do (walk child x y shown-left shown-top (+ shown-left shown-w)
-                                     (+ shown-top shown-h)))
+                                     (+ shown-top shown-h) layer))
                      (loop :for child :across (box-children box)
-                           :do (walk child x y left top right bottom))))))
+                           :do (walk child x y left top right bottom layer))))))
       (when (ui-root ui)
-        (walk (ui-root ui) 0f0 0f0 -1f30 -1f30 1f30 1f30))
+        (walk (ui-root ui) 0f0 0f0 -1f30 -1f30 1f30 1f30 0))
       ;; The floats after the screen, so that the pointer finds them first; each is at its place in
       ;; the window (its X and Y), with nothing over it.
       (loop :for float :across (ui-floats ui)
-            :do (walk float 0f0 0f0 -1f30 -1f30 1f30 1f30)))
+            :do (walk float 0f0 0f0 -1f30 -1f30 1f30 1f30 (box-key float))
+                (when (float-spec-modal (box-data float))
+                  (setf (ui-modal-layer ui) (box-key float)))))
     (let ((saved (ui-saved-geometry ui)))
       (unless (= (length saved) (* 4 count))
         (setf saved (make-array (* 4 count) :element-type 'single-float)
@@ -264,17 +272,22 @@ key (RECT-OF, which a widget measures from) is the whole of it, wherever it is."
 
 (defun move-focus (ui)
   "Move the keyboard to the next (or, with Shift, the previous) box that can have it in the last
-frame presented, round."
+frame presented, round. While a modal float (a dialog) shows, only what is in it can have the
+keyboard: it goes there when the dialog comes, and Tab goes round inside it."
   (let ((direction (ui-tab-pending ui))
+        (modal (ui-modal-layer ui))
         (keys '()))
+    (loop :for i :below (ui-hit-count ui)
+          :do (let ((hit (aref (ui-hits ui) i)))
+                (when (and (hit-focusable hit) (or (zerop modal) (= (hit-layer hit) modal)))
+                  (push (hit-key hit) keys))))
+    (setf keys (nreverse keys))
+    (when (and (/= modal 0) keys (not (member (ui-focus ui) keys)))
+      (setf (ui-focus ui) (first keys)
+            (ui-click-focused ui) nil))
     (when direction
       (setf (ui-tab-pending ui) nil
             (ui-click-focused ui) nil)
-      (loop :for i :below (ui-hit-count ui)
-            :do (let ((hit (aref (ui-hits ui) i)))
-                  (when (hit-focusable hit)
-                    (push (hit-key hit) keys))))
-      (setf keys (nreverse keys))
       (when keys
         (let ((position (position (ui-focus ui) keys)))
           (setf (ui-focus ui)

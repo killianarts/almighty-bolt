@@ -86,6 +86,23 @@ VoiceOver does not yet scroll a `scroll` to the thing its cursor is on. (What it
 - The items are best a vector: a row is found by its index.
 - The wheel, the bar at the edge, and what cannot be pressed out of the window are as for `scroll`. Tab reaches only the rows that are described.
 
+### Popovers and dialogs
+
+```lisp
+(when (bolt:button "Details" :id :details) (setf details t))
+(when (bolt:popover (:id :more :open details :anchor :details)
+        (bolt:label "More about it" :id :about))
+  (setf details nil))
+
+(when (bolt:dialog (:id :confirm :open asking :title "Delete the file?")
+        (when (bolt:button "Delete" :id :delete) (delete-it) (setf asking nil)))
+  (setf asking nil))
+```
+
+- Both are containers that show while the app says they are `:open`, and return true on the frame the person dismisses them.
+- A `popover` floats below (or `:placement :right`, beside) the widget named by `:anchor`, an id described before it in the same container. A press outside it or Escape dismisses it, and the press goes nowhere else. Several can be open at once.
+- A `dialog` is modal: in the middle of the window, over a scrim that keeps the pointer from what is under it. The keyboard goes into it and Tab stays inside it. Escape dismisses it.
+
 ### Tooltips
 
 Every widget takes `:tooltip`:

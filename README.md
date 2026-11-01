@@ -50,10 +50,11 @@ below lists them bare.
   own state doesn't mean you lose Lisp's typical hot-reloading. Compiling your
   app's UI function updates live, open apps.
 
-- **Sixteen widgets and nine containers.** Label, paragraph, button, menu
+- **Sixteen widgets and eleven containers.** Label, paragraph, button, menu
   button, text field, text area, slider, choice, dropdown, check box, switch,
   spinner, list box, progress bar, canvas and scrim; row, column, stack,
-  padding, panel, center, scroll, lazy list and context menu. More coming soon.
+  padding, panel, center, scroll, lazy list, context menu, popover and dialog.
+  Menus, popovers, dialogs and tooltips float above the screen.
 
 - **Canvas.** For drawing non-widget elements.
 
