@@ -48,7 +48,8 @@
                 #:context-clipboard-text
                 #:context-appearance
                 #:context-set-clipboard-text
-                #:context-choose-file)
+                #:context-choose-file
+                #:context-forget-glyphs)
   (:import-from #:almighty-bolt/settle
                 #:settle-frame)
   (:import-from #:almighty-bolt/platform/macos/objc
@@ -106,6 +107,8 @@
                 #:last-frame-gpu-ns)
   (:import-from #:almighty-bolt/render/metal/draw-text
                 #:push-line)
+  (:import-from #:almighty-bolt/render/metal/glyph-atlas
+                #:clear-glyph-atlas)
   (:export #:host
            #:make-host
            #:host-variant
@@ -200,6 +203,12 @@ copied is kept in the context and the person's clipboard is never touched."
 (defmethod context-caret-rect ((context mac-context) font string index)
   (caret-rect (get-line font string) index))
 
+(defmethod context-forget-glyphs ((context mac-context))
+  ;; The frame before may still be drawing from the atlas.
+  (let ((renderer (mac-context-renderer context)))
+    (wait-for-last-frame renderer)
+    (clear-glyph-atlas (renderer-atlas renderer))))
+
 (defmethod context-push-text ((context mac-context) display-list font string x baseline color)
   (push-line display-list (renderer-atlas (mac-context-renderer context))
              (get-line font string) (float x 1f0) (float baseline 1f0) color))
@@ -264,16 +273,17 @@ flag set."
             (t (setf (context-frame-requested (host-context host)) t))))))
 
 (defun make-host (variant device pixel-format
-                  &key (capacity 65536) (ring-capacity 4096) (scale 2) phases
+                  &key (capacity 65536) (ring-capacity 4096) (scale 2) (atlas-size 1024) phases
                     (kept-state (make-kept-state)))
   "A host for VARIANT drawing with DEVICE into targets of PIXEL-FORMAT, with no
 window yet. CAPACITY is the most commands a frame may hold. SCALE is the pixels a
 point that the glyph atlas is rasterized at, which is the scale text must be drawn
-at. With PHASES, the instrumentation is on: the variant's update, layout and paint
+at, and ATLAS-SIZE the pixels square the atlas is. With PHASES, the instrumentation is on: the variant's update, layout and paint
 times, the first build, garbage collection and the GPU's time go into the ring as well
 (see WITH-PHASE). KEPT-STATE is what the app keeps when it is made again (STATE-LET); the one that
 made VARIANT had it bound. RUN-VARIANT makes one with a window; tests make one and call RUN-FRAME."
-  (let* ((renderer (make-renderer device pixel-format :capacity capacity :scale scale))
+  (let* ((renderer (make-renderer device pixel-format :capacity capacity :scale scale
+                                             :atlas-size atlas-size))
          (context (let ((context (make-mac-context :width 0f0 :height 0f0 :scale 1f0
                                                     :renderer renderer)))
                     (setf (context-phases-p context) (and phases t))

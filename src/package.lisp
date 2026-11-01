@@ -180,6 +180,8 @@
                 #:accessibility-tree
                 #:inherit-state
                 #:retire-variant
+           #:forget-painting
+                #:forget-painting
                 #:context
                 #:make-context
                 #:context-width
@@ -213,6 +215,10 @@
                 #:take-frame-request
                 #:deliver-event
                 #:no-text-support
+           #:glyphs-full
+           #:context-forget-glyphs
+                #:glyphs-full
+                #:context-forget-glyphs
                 #:no-text-support-operation
                 #:context-font
                 #:context-measure

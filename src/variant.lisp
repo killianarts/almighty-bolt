@@ -11,6 +11,7 @@
            #:accessibility-tree
            #:inherit-state
            #:retire-variant
+           #:forget-painting
            #:context
            #:make-context
            #:context-width
@@ -44,6 +45,8 @@
            #:take-frame-request
            #:deliver-event
            #:no-text-support
+           #:glyphs-full
+           #:context-forget-glyphs
            #:no-text-support-operation
            #:context-font
            #:context-measure
@@ -117,6 +120,14 @@ state: what the person did to the widgets (the focus, a caret, a scroll). Called
 thread before NEW draws. If it signals an error, OLD stays and NEW is retired.")
   (:method (new old)
     (declare (ignore new old))
+    nil))
+
+(defgeneric forget-painting (variant)
+  (:documentation "Forget every drawing command VARIANT kept from frames before, so that the next
+frame paints everything afresh. Called when the glyphs those commands name have been forgotten
+(CONTEXT-FORGET-GLYPHS).")
+  (:method (variant)
+    (declare (ignore variant))
     nil))
 
 (defgeneric retire-variant (variant)
@@ -309,6 +320,18 @@ while the context's instrumentation is on. Does not allocate."
   (:report (lambda (condition stream)
              (format stream "This context has no text support, which ~s needs."
                      (no-text-support-operation condition)))))
+
+(define-condition glyphs-full (error)
+  ()
+  (:documentation "The context has no room for another glyph. SETTLE-FRAME answers it by
+forgetting the glyphs (CONTEXT-FORGET-GLYPHS) and the painting that names them, and building the
+frame again."))
+
+(defgeneric context-forget-glyphs (context)
+  (:documentation "Forget every glyph the context has made room for, so that there is room again.
+Drawing commands made before name glyphs that are gone, and must not be drawn.")
+  (:method ((context context))
+    nil))
 
 (defun no-text (operation)
   (error 'no-text-support :operation operation))

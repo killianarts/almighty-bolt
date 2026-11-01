@@ -79,11 +79,11 @@
   (clip-stack (make-array (* 4 +max-clip-depth+) :element-type 'fixnum :initial-element 0)
    :type (simple-array fixnum (*)) :read-only t))
 
-(defun make-renderer (device pixel-format &key (capacity 65536) (scale 2))
+(defun make-renderer (device pixel-format &key (capacity 65536) (scale 2) (atlas-size 1024))
   "A renderer on DEVICE for targets of PIXEL-FORMAT that draws up to CAPACITY
 commands a frame. Compiles the shaders, which takes a few milliseconds. Its glyph
-atlas is rasterized at SCALE pixels a point, which is the scale that text must be
-drawn at."
+atlas is ATLAS-SIZE pixels square, rasterized at SCALE pixels a point, which is the scale that
+text must be drawn at."
   (multiple-value-bind (pipeline compile-ns pipeline-ns)
       (make-rect-pipeline device pixel-format)
     (let ((buffer (msg-send :id device "newBufferWithLength:options:"
@@ -94,7 +94,7 @@ drawn at."
                       :buffer buffer
                       :contents (msg-send :id buffer "contents")
                       :capacity capacity
-                      :atlas (make-glyph-atlas device :scale scale)
+                      :atlas (make-glyph-atlas device :scale scale :width atlas-size :height atlas-size)
                       :shader-compile-ns compile-ns
                       :pipeline-ns pipeline-ns))))
 

@@ -46,6 +46,8 @@ are not listed.
 
 ### Fixed
 
+- Text in many fonts or sizes no longer stops the window with "The glyph atlas is full": the atlas starts again, and the frame is drawn again ([0.2](docs/releases/dev.md#bug-fixes)).
+
 ### Security
 
 ## [0.1.0] - 2026-10-31

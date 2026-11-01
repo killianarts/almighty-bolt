@@ -8,6 +8,7 @@
                 #:hit-target
                 #:lookup-target
                 #:inherit-state
+                #:forget-painting
                 #:request-frame
                 #:context-width
                 #:context-scale
@@ -432,10 +433,15 @@ looked at. The widgets are given what they show by the app each frame, so none o
 What was laid out and painted is forgotten, so that the first frame does both again, whatever the
 hashes say: the code that changed may be the library's, which the hashes do not describe."
   (let ((ui (immediate-variant-ui old)))
-    (setf (ui-last-layout-hash ui) -1
-          (ui-last-paint-hash ui) -1)
-    (clrhash (ui-paint-cache ui))
+    (setf (ui-last-layout-hash ui) -1)
+    (forget-painting old)
     (setf (immediate-variant-ui new) ui)))
+
+(defmethod forget-painting ((variant immediate-variant))
+  "Every leaf is painted afresh in the next frame, and nothing is copied from the frame before."
+  (let ((ui (immediate-variant-ui variant)))
+    (setf (ui-last-paint-hash ui) -1)
+    (clrhash (ui-paint-cache ui))))
 
 ;;; --- asking where things are ---
 

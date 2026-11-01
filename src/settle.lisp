@@ -6,6 +6,9 @@
                 #:real-time-source)
   (:import-from #:almighty-bolt/variant
                 #:frame
+                #:forget-painting
+                #:glyphs-full
+                #:context-forget-glyphs
                 #:place-text-input-caret
                 #:context-frame-number
                 #:context-build-number
@@ -46,27 +49,38 @@ host logs. Returns the number of builds and true if the cap was reached. With th
 context's instrumentation on, the real time of the first build and of all the builds
 is added to the context's phase times, so that the cost of settling shows apart. When
 the builds are done, a caret that a canvas gave in its own coordinates is put in the
-window, where the canvas now is (PLACE-TEXT-INPUT-CARET)."
-  (let ((builds 0)
-        (timed (context-phases-p context)))
-    (declare (type fixnum builds))
+window, where the canvas now is (PLACE-TEXT-INPUT-CARET). If the context has no room for another
+glyph (GLYPHS-FULL), it forgets them all, the variant forgets what it painted, and the frame is
+built again."
+  (flet ((settle ()
+           (let ((builds 0)
+                 (timed (context-phases-p context)))
+             (declare (type fixnum builds))
+             (loop
+               (incf builds)
+               (setf (context-build-number context) builds)
+               (clear-display-list display-list)
+               (unless (if timed
+                           (let* ((start (real-time-source))
+                                  (again (frame variant context display-list))
+                                  (took (- (real-time-source) start))
+                                  (slots (context-phase-ns context)))
+                             (when (= builds 1)
+                               (incf (aref slots +phase-first-build+) took))
+                             (incf (aref slots +phase-all-builds+) took)
+                             again)
+                           (frame variant context display-list))
+                 (return (values builds nil)))
+               (when (>= builds +max-builds+)
+                 (warn 'settle-cap-reached :frame-number (context-frame-number context))
+                 (return (values builds t)))))))
     (multiple-value-prog1
-        (loop
-          (incf builds)
-          (setf (context-build-number context) builds)
-          (clear-display-list display-list)
-          (unless (if timed
-                      (let* ((start (real-time-source))
-                             (again (frame variant context display-list))
-                             (took (- (real-time-source) start))
-                             (slots (context-phase-ns context)))
-                        (when (= builds 1)
-                          (incf (aref slots +phase-first-build+) took))
-                        (incf (aref slots +phase-all-builds+) took)
-                        again)
-                      (frame variant context display-list))
-            (return (values builds nil)))
-          (when (>= builds +max-builds+)
-            (warn 'settle-cap-reached :frame-number (context-frame-number context))
-            (return (values builds t))))
+        ;; With no room for another glyph, the glyphs are forgotten, and so is every command kept
+        ;; from frames before (they name the glyphs by where they were), and the frame is built
+        ;; again. A frame that does not fit in an empty atlas is an error.
+        (handler-case (settle)
+          (glyphs-full ()
+            (context-forget-glyphs context)
+            (forget-painting variant)
+            (settle)))
       (place-text-input-caret variant context))))

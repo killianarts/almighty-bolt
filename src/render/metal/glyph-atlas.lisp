@@ -3,6 +3,8 @@
   (:import-from #:almighty-bolt/platform/macos/objc
                 #:msg-send
                 #:objc-class)
+  (:import-from #:almighty-bolt/variant
+                #:glyphs-full)
   (:import-from #:almighty-bolt/text/glyph-raster
                 #:rasterize-glyph
                 #:glyph-bitmap-pixels
@@ -17,6 +19,7 @@
            #:glyph-atlas-scale
            #:glyph-atlas-count
            #:glyph-atlas-full
+           #:clear-glyph-atlas
            #:atlas-glyph-index
            #:atlas-bearing-x
            #:atlas-bearing-y
@@ -31,7 +34,9 @@
 ;;; allocates nothing. Glyphs are rasterized at a fixed number of pixels a point
 ;;; (the atlas's scale) and must be drawn at that scale, one texel to a pixel.
 ;;;
-;;; The atlas never evicts: when it is full, asking for another glyph is an error.
+;;; The atlas does not evict glyphs one by one: when it is full, asking for another glyph signals
+;;; GLYPH-ATLAS-FULL (a GLYPHS-FULL), and the frame is built again on an atlas emptied by
+;;; CLEAR-GLYPH-ATLAS, after the commands that name the old glyphs are forgotten (SETTLE-FRAME).
 ;;; Glyphs are not positioned between pixels: the draw code snaps them to whole
 ;;; pixels.
 
@@ -39,7 +44,7 @@
 (defconstant +usage-shader-read+ 1)
 (defconstant +storage-shared+ 0)
 
-(define-condition glyph-atlas-full (error)
+(define-condition glyph-atlas-full (glyphs-full)
   ((what :initarg :what :reader glyph-atlas-full-what))
   (:report (lambda (condition stream)
              (format stream "The glyph atlas is full (~a)." (glyph-atlas-full-what condition)))))
@@ -91,6 +96,19 @@ rasterized at SCALE pixels a point."
     (upload atlas 0 0 width height
             (make-array (* width height) :element-type '(unsigned-byte 8) :initial-element 0))
     atlas))
+
+(defun clear-glyph-atlas (atlas)
+  "Forget every glyph in ATLAS, and empty its texture, so that it has all its room again. The GPU
+must not be drawing from it."
+  (clrhash (glyph-atlas-table atlas))
+  (setf (glyph-atlas-count atlas) 0
+        (glyph-atlas-shelf-x atlas) 0
+        (glyph-atlas-shelf-y atlas) 0
+        (glyph-atlas-shelf-height atlas) 0)
+  (let ((width (glyph-atlas-width atlas)) (height (glyph-atlas-height atlas)))
+    (upload atlas 0 0 width height
+            (make-array (* width height) :element-type '(unsigned-byte 8) :initial-element 0)))
+  atlas)
 
 (defun upload (atlas x y width height pixels)
   "Copy the WIDTH by HEIGHT bytes PIXELS into the texture with its top left at X, Y."

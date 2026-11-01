@@ -14,6 +14,8 @@
                     (#:host #:almighty-bolt/platform/macos/host)
                     (#:device #:almighty-bolt/render/metal/device)
                     (#:target #:almighty-bolt/render/metal/target)
+                    (#:renderer #:almighty-bolt/render/metal/renderer)
+                    (#:atlas #:almighty-bolt/render/metal/glyph-atlas)
                     (#:objc #:almighty-bolt/platform/macos/objc)
                     (#:window #:almighty-bolt/platform/macos/window)
                     (#:view #:almighty-bolt/platform/macos/view)
@@ -2204,3 +2206,61 @@ and another live label that comes with the first press."
           (let* ((*label-theme* :dark) (narrow (width))
                  (*label-theme* :test-courier) (wide (width)))
             (assert-true (> wide (* 1.5 narrow)) narrow wide)))))))
+
+;;; --- the glyph atlas fills up ---
+
+(defparameter *typed-size* 15
+  "The size of the words that change in MAKE-MANY-SIZES, as a font size typed in a designer would.")
+
+(defun make-many-sizes ()
+  "Words that stay as they are, in the window's theme, and words in a theme whose font size changes."
+  (lambda ()
+    (column (:gap 4)
+      (label "These words stay as they are, the same in every frame." :id :steady)
+      (with-theme ((make-theme :font-size *typed-size*))
+        (paragraph "The quick brown fox jumps over the lazy dog, 0123456789." :id :typed)))))
+
+(defun draw-on-host (host variant)
+  "Build a frame of VARIANT on HOST and draw it into a texture of its own; its pixels."
+  (let ((context (host:host-context host))
+        (list (host:host-display-list host)))
+    (setf (core:context-width context) 360f0
+          (core:context-height context) 240f0
+          (core:context-scale context) 2f0)
+    (core:settle-frame variant context list)
+    (let ((target (target:make-offscreen-target (device:default-device) 720 480)))
+      (renderer:render-display-list (host:host-renderer host) list
+                                    (target:offscreen-target-descriptor target) 0 360f0 240f0 2f0)
+      (renderer:wait-for-last-frame (host:host-renderer host))
+      (target:read-pixels target))))
+
+(define-test an-atlas-that-fills-up-starts-again-and-draws-the-same ()
+  ;; A small atlas, so that a few sizes fill it, as each letter of a long font name typed into the
+  ;; theme designer did: every one is a new font, whose glyphs are rasterized again.
+  (objc:with-masked-float-traps
+    (objc:with-autorelease-pool
+      (flet ((app ()
+               (core:with-kept-state ((core:make-kept-state))
+                 (app:make-app-instance 'make-many-sizes)))
+             (host (atlas-size)
+               (host:make-host (make-instance 'core:variant) (device:default-device)
+                               target:+pixel-format-bgra8-unorm+ :capacity 8192 :scale 2
+                                                                 :atlas-size atlas-size)))
+        (let* ((small (host 384))
+               (glyphs (renderer:renderer-atlas (host:host-renderer small)))
+               (variant (app))
+               (emptied 0))
+          (loop :for size :from 8 :to 26
+                :do (let ((before (atlas:glyph-atlas-count glyphs))
+                          (*typed-size* size))
+                      (draw-on-host small variant)
+                      (when (< (atlas:glyph-atlas-count glyphs) before)
+                        (incf emptied))))
+          ;; It filled up and started again, more than once; the steady words, painted in the first
+          ;; frame and kept, were painted again each time, with the glyphs as they are now.
+          (assert-true (>= emptied 2) emptied)
+          (let ((*typed-size* 18))
+            (let ((after (draw-on-host small variant))
+                  (fresh (draw-on-host (host 1024) (app))))
+              (assert-true (some #'plusp after))
+              (assert-true (equalp fresh after)))))))))

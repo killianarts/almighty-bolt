@@ -255,3 +255,7 @@ Every widget takes `:tooltip`:
 - `click`, `double-click` and `set-value` refuse a thing that is scrolled out of the window of a `scroll` or a `lazy-list` (it is `:hidden` in the tree), with a message that says to scroll first. A thing partly out of the window is pressed in the middle of the part that shows.
 
 - A widget's `:id` is its element's accessibility identifier, so the id that an agent or a test finds a widget by is what the Accessibility Inspector shows for it.
+
+## Bug fixes
+
+- The glyphs of text are drawn from one texture, which kept every glyph of every font and size it was given, and when it was full every frame failed with "The glyph atlas is full" and the window stopped. An app that shows many fonts or sizes filled it: in the theme designer, typing a long font name did, since each letter typed named a new font. Now a full texture is emptied and the frame is drawn again with the glyphs it needs; the frames before are not affected.
