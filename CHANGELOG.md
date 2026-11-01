@@ -31,9 +31,12 @@ are not listed.
 - `toast`, words at the bottom of the window for a while, read out by VoiceOver as they come ([0.2](docs/releases/dev.md#toasts)).
 - `combo-box`, a text field with a menu of suggestions ([0.2](docs/releases/dev.md#a-combo-box)).
 - `open-file-dialog` and `save-file-dialog`, the system's Open and Save panels ([0.2](docs/releases/dev.md#the-systems-file-panels)).
+- Themes: a light theme beside the dark one, the window following the system's setting; `define-theme`, `make-theme` and `with-theme`, for a window or a part of one ([0.2](docs/releases/dev.md#themes)).
 
 ### Changed
 
+- The words of a disabled button are dimmed ([0.2](docs/releases/dev.md#themes)).
+- `label` and `paragraph` with no `:size` are the theme's font size (15 in the themes that come with the library) ([0.2](docs/releases/dev.md#themes)).
 - The machine interface's `type-text` and `set-value` type a line feed as Return (in a text field, that submits it); `click`, `double-click` and `set-value` refuse a thing scrolled out of sight ([0.2](docs/releases/dev.md#machine-interface)).
 
 ### Deprecated

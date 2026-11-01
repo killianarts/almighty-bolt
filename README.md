@@ -6,7 +6,8 @@ memory efficiency. Building and understanding interfaces is far easier than in
 other frameworks like McClim, Flutter, GPUI, React, etc.
 
 **Status:** 0.1, the first release. macOS only (Apple silicon is what
-it is tested on), SBCL only, one window, one fixed dark theme. Has an MCP
+it is tested on), SBCL only, one window. Dark and light themes that follow the
+system, and themes of your own. Has an MCP
 interface. Windows and Linux support are planned.
 
 ```lisp
@@ -157,6 +158,22 @@ chosen: `(bolt:context-menu (:id :menu :items '("Cut" "Copy")) ...)`). A still a
 CPU; an animation asks for its next frame with `(bolt:ask-for-frame)`. The
 options of each, `:flex` and `:labelled-by` are in
 [docs/reference.md](docs/reference.md#widgets).
+
+## Themes
+
+A window is dark or light as the system is. A theme of your own is a few
+colours, the rest worked out from them; it can be the whole window's or one
+part's:
+
+```lisp
+(bolt:define-theme :sea () :accent "#20a090")
+
+(bolt:with-theme (:sea)
+  (bolt:button "Dive" :id :dive))
+```
+
+Compile a `define-theme` again and the open window shows it at once.
+[The reference](docs/reference.md#themes) has what a theme sets.
 
 ## Canvas
 

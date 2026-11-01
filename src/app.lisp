@@ -9,7 +9,10 @@
                 #:open-variant
                 #:close-variant
                 #:running-host
+                #:request-host-frame
                 #:host-kept-state)
+  (:import-from #:almighty-bolt/ui/theme
+                #:*theme-defined-hook*)
   (:import-from #:almighty-bolt/ui/immediate
                 #:make-immediate-variant)
   (:import-from #:almighty-bolt/sources
@@ -28,6 +31,13 @@
 ;;; given by name, so that compiling it again is what the window runs: when code is compiled the
 ;;; window calls the constructor again and swaps what it makes in, with the state that STATE-LET
 ;;; keeps, the caret and selection of fields, the scroll of lists and the keyboard focus.
+
+;;; A theme defined again (DEFINE-THEME, compiled in the editor) is drawn at once in the open window:
+;;; its new id is in the hashes of the boxes drawn in it, so a frame is all that is needed.
+(setf *theme-defined-hook*
+      (lambda ()
+        (let ((host (running-host)))
+          (when host (request-host-frame host)))))
 
 (defun make-app-instance (constructor)
   "Call CONSTRUCTOR, a function or the name of one, and make what the host runs from the function

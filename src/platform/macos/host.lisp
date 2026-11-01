@@ -46,6 +46,7 @@
                 #:context-caret-rect
                 #:context-push-text
                 #:context-clipboard-text
+                #:context-appearance
                 #:context-set-clipboard-text
                 #:context-choose-file)
   (:import-from #:almighty-bolt/settle
@@ -75,6 +76,7 @@
                 #:release-bridge)
   (:import-from #:almighty-bolt/platform/macos/view
                 #:make-metal-view
+                #:view-appearance
                 #:metal-view-object
                 #:metal-view-bridge
                 #:request-draw)
@@ -122,6 +124,7 @@
            #:swap-variant
            #:reload-host
            #:running-host
+           #:request-host-frame
            #:run-frame
            #:host-deliver-event
            #:close-host-window
@@ -570,6 +573,11 @@ the main thread (RUN-VARIANT and OPEN-VARIANT see to that). The arguments are th
                                                       (accessibility-tree (host-variant host)))
                                 :accessibility-press (lambda (x y) (click-at host x y))
                                 :on-draw (lambda (view) (draw-view host view))
+                                ;; The system went dark or light: the window's theme follows.
+                                :on-appearance (lambda (view)
+                                                 (setf (context-appearance (host-context host))
+                                                       (view-appearance (metal-view-object view)))
+                                                 (request-host-frame host))
                                 :event-handler (lambda (event)
                                                  (host-deliver-event host event))
                                 :text-input (lambda ()
@@ -586,7 +594,8 @@ the main thread (RUN-VARIANT and OPEN-VARIANT see to that). The arguments are th
                           :scale (window-scale-factor window)
                           :kept-state (or kept-state (make-kept-state))))
     (setf (mac-context-pasteboard (host-context host)) (general-pasteboard)
-          (mac-context-windowed (host-context host)) t)
+          (mac-context-windowed (host-context host)) t
+          (context-appearance (host-context host)) (view-appearance object))
     (setf (host-window host) window
           (host-view host) view
           (host-acquire host) (view-acquirer object)

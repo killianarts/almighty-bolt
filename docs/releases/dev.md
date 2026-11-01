@@ -2,13 +2,14 @@
 
 *Under development*
 
-Welcome to almighty-bolt 0.2, in development. A window of almighty-bolt can be read by VoiceOver; it scrolls, in a container or a list that builds only the rows that show; text areas and copy and paste are there for everyday text; a switch, radio buttons and a spinner join the widgets; and dropdowns, menus, context menus, tooltips, popovers, dialogs, toasts, a combo box and the system's file panels float above the screen. See [what's new](#whats-new-in-02).
+Welcome to almighty-bolt 0.2, in development. A window of almighty-bolt can be read by VoiceOver; it is dark or light as the system is, or in a theme of your own; it scrolls, in a container or a list that builds only the rows that show; text areas and copy and paste are there for everyday text; a switch, radio buttons and a spinner join the widgets; and dropdowns, menus, context menus, tooltips, popovers, dialogs, toasts, a combo box and the system's file panels float above the screen. See [what's new](#whats-new-in-02).
 
 <!-- highlights:start -->
 ## Highlights
 
 - Accessibility: VoiceOver reads every widget by what it is, what it is called and what it holds, can press buttons, check boxes, options and rows, move a slider and give a field the keyboard, is told when things change, and reads out a `:live` label or paragraph whenever its text changes.
 - Overlays: a layer above the screen, with dropdowns, menu buttons, context menus, tooltips on every widget, popovers, modal dialogs, toasts and a combo box on it, and the system's Open and Save panels.
+- Themes: dark and light, following the system, and themes of your own, made from three colours, for a window or a part of one.
 - Scrolling: `scroll` for anything, and `lazy-list`, which costs the same with a million rows as with a hundred.
 - Everyday text: `text-area`, and copy, cut and paste in text fields.
 - More widgets: `switch`, radio buttons (`choice :direction :vertical`) and `spinner`.
@@ -57,6 +58,25 @@ Nothing is worked out for this until something asks what the window shows (Voice
 A count that changes when a button elsewhere is pressed is not said by VoiceOver, since its cursor is on the button. Say that the text matters with `:live`: `(bolt:label (princ-to-string count) :id :count :live t)` is read out as the new count after each press. It is for a result, a count or a status that a person should hear without going to look for it, not for text that changes every frame. A live text that has just appeared is not read out, only one that changes, so a status that comes and goes is better as a label that is always there and sometimes empty.
 
 A list is read as the rows that are showing, so that scrolling it changes which ones there are; a screen reader is not told of the rows out of sight. What a canvas draws is not read: it is a group, called by its label if it has one.
+
+### Themes
+
+```lisp
+(bolt:define-theme :sea () :accent "#20a090")
+
+(bolt:with-theme (:sea)
+  (bolt:button "Dive" :id :dive))
+```
+
+- A window is dark or light as the system is, and changes when the system's setting does.
+- `define-theme` makes a theme from a base (`:dark` if not given) and what is different. Give a seed (`:background`, `:text` or `:accent`) and the colours that come from it are worked out again: hover, pressed, the ring, the selection and the rest. Any of those can be given too.
+- `with-theme` draws a part of the screen in a theme, and the menus, popovers and dialogs it opens.
+- A theme sets the font and its size, which labels and paragraphs take when they are given no `:size`, and how round the corners of a control are.
+- Compile a `define-theme` again and the open window shows it at once.
+- `theme-form` writes a theme down as a `define-theme` form, and `contrast-ratio` says how readable text in one colour is on another.
+- The words of a disabled button are dimmed, as those of a disabled dropdown and menu button were.
+
+See [Themes](../reference.md#themes).
 
 ### A scroll container
 

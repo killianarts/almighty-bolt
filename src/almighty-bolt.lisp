@@ -82,7 +82,23 @@
                 #:panel
                 #:center
                 #:scroll
-                #:lazy-list)
+                #:lazy-list
+                #:with-theme)
+  (:import-from #:almighty-bolt/ui/theme
+                #:theme
+                #:make-theme
+                #:define-theme
+                #:find-theme
+                #:theme-names
+                #:theme-name
+                #:theme-setting
+                #:theme-form
+                #:+theme-settings+
+                #:+theme-seeds+
+                #:parse-color
+                #:color-hex
+                #:mix-colors
+                #:contrast-ratio)
   (:import-from #:almighty-bolt/ui/immediate
                 #:now
                 #:ask-for-frame
@@ -95,6 +111,9 @@
            #:dialog #:toast #:open-file-dialog #:save-file-dialog #:list-box
            #:progress #:canvas #:scrim
            #:column #:row #:stack #:padding #:panel #:center #:scroll #:lazy-list
+           #:theme #:make-theme #:define-theme #:find-theme #:with-theme #:theme-names #:theme-name
+           #:theme-setting #:theme-form #:+theme-settings+ #:+theme-seeds+
+           #:parse-color #:color-hex #:mix-colors #:contrast-ratio
            #:now #:ask-for-frame #:current-context
            #:pack-color #:push-rect #:push-rounded-rect #:push-clip #:push-unclip
            #:context-font #:context-measure #:context-push-text #:context-caret-x

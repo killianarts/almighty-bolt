@@ -11,6 +11,9 @@
                     (#:todo #:almighty-bolt-examples/todo)
                     (#:gallery #:almighty-bolt-examples/gallery)
                     (#:theme #:almighty-bolt/ui/theme)
+                    (#:host #:almighty-bolt/platform/macos/host)
+                    (#:device #:almighty-bolt/render/metal/device)
+                    (#:target #:almighty-bolt/render/metal/target)
                     (#:objc #:almighty-bolt/platform/macos/objc)
                     (#:window #:almighty-bolt/platform/macos/window)
                     (#:view #:almighty-bolt/platform/macos/view)
@@ -2068,3 +2071,99 @@ and another live label that comes with the first press."
           (assert-true (member (list button :moved) told :test #'equal))
           (assert-false (member (list late :moved) told :test #'equal))
           (assert-false (member (list late :resized) told :test #'equal)))))))
+
+;;; --- themes ---
+
+(defun middle-color (screen id)
+  "The colour drawn at the middle of the control ID (the colour of a button, under its words)."
+  (multiple-value-bind (x y width height) (core:lookup-target (screen-variant screen) id)
+    (color-at screen (+ x (/ width 2)) (+ y (/ height 2)))))
+
+(defun same-theme-p (a b)
+  (every (lambda (setting) (equal (theme-setting a setting) (theme-setting b setting)))
+         +theme-settings+))
+
+(define-test the-window-is-dark-or-light-as-the-system-is ()
+  (let ((screen (show 'counter:make-counter)))
+    (assert-eql (theme-setting (find-theme :dark) :background) (color-at screen 1 1))
+    (assert-eql (theme-setting (find-theme :dark) :button) (middle-color screen :count-button))
+    ;; The system goes light, and nothing else changes: the next frame is drawn light.
+    (setf (core:context-appearance (screen-context screen)) :light)
+    (draw screen)
+    (assert-eql (theme-setting (find-theme :light) :background) (color-at screen 1 1))
+    (assert-eql (theme-setting (find-theme :light) :button) (middle-color screen :count-button))))
+
+(defun make-themed ()
+  "A button in the window's theme, and one in the theme :test-sea."
+  (lambda ()
+    (column (:gap 10)
+      (button "Plain" :id :plain)
+      (with-theme (:test-sea)
+        (button "Sea" :id :sea)))))
+
+(define-test a-part-of-the-screen-is-drawn-in-the-theme-it-is-described-in ()
+  (define-theme :test-sea () :accent "#20a090")
+  (let ((screen (show 'make-themed))
+        (dark (theme-setting (find-theme :dark) :button)))
+    (assert-eql dark (middle-color screen :plain))
+    (assert-eql (parse-color "#20a090") (middle-color screen :sea))
+    ;; Defined again (as an edit in the editor does), it is drawn in the new colour, though the app
+    ;; described nothing new.
+    (define-theme :test-sea () :accent "#c06030")
+    (draw screen)
+    (assert-eql (parse-color "#c06030") (middle-color screen :sea))
+    (assert-eql dark (middle-color screen :plain))))
+
+(define-test a-theme-given-an-accent-works-out-what-comes-from-it-and-keeps-the-rest ()
+  (let ((dark (find-theme :dark))
+        (sea (make-theme :accent "#20a090")))
+    (assert-eql (parse-color "#20a090") (theme-setting sea :button))
+    (assert-eql (parse-color "#20a090") (theme-setting sea :row-selected))
+    ;; Worked out from the accent: not dark's, and not the accent itself.
+    (dolist (setting '(:button-hover :button-pressed :thumb :ring))
+      (assert-false (eql (theme-setting dark setting) (theme-setting sea setting)) setting)
+      (assert-false (eql (parse-color "#20a090") (theme-setting sea setting)) setting))
+    ;; Not from the accent: dark's, as they were.
+    (dolist (setting '(:background :text :panel :field-border :field-fill :dim-text :row-hover))
+      (assert-eql (theme-setting dark setting) (theme-setting sea setting) setting))
+    ;; Given as well as the accent, it is what was given.
+    (assert-eql (parse-color "#ff0000")
+                (theme-setting (make-theme :accent "#20a090" :button-hover "#ff0000")
+                               :button-hover))))
+
+(define-test a-theme-written-down-defines-the-same-theme-again ()
+  (let* ((theme (make-theme :name :test-written :base :light :accent "#20a090" :ring "#ffeedd"
+                            :font-size 17 :radius 9))
+         (form (theme-form theme)))
+    (assert-eq 'define-theme (first form))
+    (eval form)
+    (assert-true (same-theme-p theme (find-theme :test-written)))
+    ;; And not merely any theme: the light one is not it.
+    (assert-false (same-theme-p theme (find-theme :light)))))
+
+(defparameter *label-theme* :dark)
+
+(define-test a-theme-with-another-font-lays-its-text-out-again ()
+  ;; With the real text engine (the fake one measures every font alike): only the font's name
+  ;; changes, so nothing but the theme says that the label is not as wide as it was.
+  (define-theme :test-courier () :font-name "Courier")
+  (objc:with-masked-float-traps
+    (objc:with-autorelease-pool
+      (let* ((host (host:make-host (make-instance 'core:variant) (device:default-device)
+                                   target:+pixel-format-bgra8-unorm+ :capacity 1024 :scale 2))
+             (context (host:host-context host))
+             (variant (core:with-kept-state ((core:make-kept-state))
+                        (app:make-app-instance
+                         (lambda ()
+                           (lambda ()
+                             (with-theme (*label-theme*)
+                               (label "iiiiiiii" :id :word)))))))
+             (list (core:make-display-list :capacity 4096)))
+        (setf (core:context-width context) 360f0
+              (core:context-height context) 320f0)
+        (flet ((width ()
+                 (core:settle-frame variant context list)
+                 (nth-value 2 (core:lookup-target variant :word))))
+          (let* ((*label-theme* :dark) (narrow (width))
+                 (*label-theme* :test-courier) (wide (width)))
+            (assert-true (> wide (* 1.5 narrow)) narrow wide)))))))

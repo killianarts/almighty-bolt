@@ -76,6 +76,22 @@ Moving the window lays the screen out again, so a wheel tick costs what a change
 
 The items are a vector (a list works, but it is walked from the start to the first row that shows). `:key` gives an item's id, which is the id of its row: what the ui keeps for a row (a caret, the keyboard) stays with its item when the items are reordered or one is put in above it. Without `:key` a row is known by its index. The window is `:height` points tall where nothing gives it a height (400 if there is no `:height`), and `:width` wide, or as wide as it is allowed to be. A wheel tick costs the same with a million rows as with a hundred, about 0.04 ms with rows of a label and a button. Tab reaches only the rows that are described. In the semantic tree it is a `:scroll-area` whose state also has `:row-count` and `:first-row`, and whose children are the rows that were described.
 
+## Themes
+
+A theme is the colours of the widgets, their font and its size, and how round the corners of a control are. The window is drawn in `:dark` or `:light`, whichever the system shows (it changes when the system's setting does), unless the app draws in a theme of its own.
+
+`(define-theme name (&key (base :dark)) &rest settings)` defines the theme called `name`, a keyword, like `base` with `settings`. Defining it again changes it, and an open window shows the change at once. `(make-theme &key name base &rest settings)` makes one without naming it.
+
+`(with-theme (theme) body...)` draws what `body` describes in `theme` (a theme or its name), and a menu, popover or dialog that `body` opens. With it round the whole app, the window and its background are in that theme. A tooltip and a toast are in the window's theme.
+
+The settings (`+theme-settings+`):
+
+- The seeds, `:background`, `:text` and `:accent` (the colour of a button, a chosen row and the selection). A theme that gives a seed works out the colours that come from it again, and keeps its base's others; a colour given as well as its seed is what was given.
+- The colours worked out from them: `:panel`, `:dim-text`, `:button-text`, `:ring` (round what has the keyboard), `:field-border`, `:field-fill`, `:field-invalid`, `:field-disabled`, `:selection`, `:caret`, `:track`, `:thumb`, `:row-selected`, `:row-hover`, `:scrim`, `:tooltip`, `:tooltip-text`, `:button`, `:button-hover`, `:button-pressed` and `:button-disabled`.
+- `:font-name`, `:font-size` (what a `label` or `paragraph` is with no `:size`) and `:radius`.
+
+A colour is `"#rrggbb"`, `"#rrggbbaa"`, or a packed colour (`pack-color`). `(find-theme name)` is the theme, `(theme-names)` the names there are, `(theme-setting theme setting)` one of its values, and `(theme-form theme)` the `define-theme` form that defines it again. `(contrast-ratio a b)` is the WCAG contrast of two colours (text is easy to read at 4.5 or more), `(mix-colors a b fraction)` a colour between two, `(parse-color designator)` a packed colour, and `(color-hex color)` its `"#rrggbb"`.
+
 ## Time
 
 `(bolt:now)` is the time of the frame in nanoseconds, and `(bolt:ask-for-frame)` asks for another one: a still app draws nothing and costs no CPU, and an animation asks for the next frame itself.

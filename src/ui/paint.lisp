@@ -161,7 +161,9 @@
         (multiple-value-bind (width ascent descent) (context-measure context font (box-text box))
           (declare (ignore width descent))
           (context-push-text context list font (box-text box) (+ x 14) (+ y 7 ascent)
-                             (theme-button-text *theme*)))))))
+                             (if (eq state :disabled)
+                                 (theme-dim-text *theme*)
+                                 (theme-button-text *theme*))))))))
 
 (defun draw-text-field (box context list x y)
   (let* ((w (box-w box)) (h (box-h box))

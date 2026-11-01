@@ -46,7 +46,7 @@
            #:theme-font-size
            #:theme-radius
            #:button-color
-           #:color
+           #:parse-color
            #:color-hex
            #:mix-colors
            #:contrast-ratio
@@ -64,7 +64,7 @@
 
 ;;; --- colours ---
 
-(defun color (designator)
+(defun parse-color (designator)
   "The packed colour of DESIGNATOR: a packed colour (an integer, as PACK-COLOR makes), or a string
 \"#rrggbb\" or \"#rrggbbaa\"."
   (etypecase designator
@@ -187,8 +187,21 @@ size and the corner radius.")
     (:button-disabled (theme-button-disabled theme)) (:font-name (theme-font-name theme))
     (:font-size (theme-font-size theme)) (:radius (theme-radius theme))))
 
+(defparameter +derived-from+
+  '((:panel :background :text) (:dim-text :background :text) (:button-text :accent)
+    (:ring :background :text :accent) (:field-border :background :text)
+    (:field-fill :background :text) (:field-invalid :background)
+    (:field-disabled :background :text) (:selection :accent) (:caret :text)
+    (:track :background :text) (:thumb :accent) (:row-selected :accent)
+    (:row-hover :background :text) (:scrim :background :text) (:tooltip :text)
+    (:tooltip-text :background) (:button :accent) (:button-hover :accent)
+    (:button-pressed :accent) (:button-disabled :background :text))
+  "Each colour worked out from the seeds, and the seeds it is worked out from: a theme that gives a
+seed works out again the colours that come from it, and keeps its base's others.")
+
 (defun derive (background text accent)
-  "The colours worked out from the seeds BACKGROUND, TEXT and ACCENT, as a property list."
+  "The colours worked out from the seeds BACKGROUND, TEXT and ACCENT, as a property list. (Whether
+the theme is dark, which some depend on, is from the background and the text.)"
   (let ((dark (< (luminance background) (luminance text))))
     (list :panel (if dark (mix-colors background text 0.07) (mix-colors background +white+ 0.75))
           :dim-text (mix-colors text background 0.45)
@@ -211,7 +224,7 @@ size and the corner radius.")
           :button accent
           :button-hover (mix-colors accent +white+ 0.12)
           :button-pressed (mix-colors accent +black+ 0.18)
-          :button-disabled (mix-colors background text 0.15))))
+          :button-disabled (mix-colors background text (if dark 0.15 0.08)))))
 
 (defun theme-hash (values name)
   (let ((hash (mix +seed+ (hash-of name))))
@@ -236,8 +249,8 @@ size and the corner radius.")
 (defun make-theme (&rest settings &key name (base :dark) &allow-other-keys)
   "A theme like BASE (a theme or its name; :dark if not given) with SETTINGS, which are any of
 +THEME-SETTINGS+ (colours as packed colours or \"#rrggbb\" strings). If a seed (the background, the
-text or the accent) is given, the colours that are worked out from the seeds are worked out again,
-except those given too; with no seed, they are BASE's."
+text or the accent) is given, the colours that are worked out from it are worked out again (see
++DERIVED-FROM+), except those given too; the others are BASE's."
   (let* ((base (and base (find-theme base)))
          (given (loop :for (key value) :on settings :by #'cddr
                       :unless (member key '(:name :base))
@@ -245,14 +258,14 @@ except those given too; with no seed, they are BASE's."
                               (error "~s is not something a theme sets. A theme sets ~{~s~^, ~}."
                                      key +theme-settings+))
                         :and :collect key :and :collect value))
-         (seeds-given (some (lambda (seed) (getf given seed)) +theme-seeds+)))
+         (seeds-given (remove-if-not (lambda (seed) (getf given seed)) +theme-seeds+)))
     (flet ((seed (key)
              (let ((value (getf given key)))
-               (cond (value (color value))
+               (cond (value (parse-color value))
                      (base (theme-setting base key))
                      (t (error "A theme with no base needs ~s." key))))))
       (let* ((background (seed :background)) (text (seed :text)) (accent (seed :accent))
-             (derived (and (or seeds-given (null base)) (derive background text accent)))
+             (derived (derive background text accent))
              (values
                (loop :for key :in +theme-settings+
                      :collect (let ((value (getf given key)))
@@ -261,8 +274,12 @@ except those given too; with no seed, they are BASE's."
                                        (or value (if base (theme-setting base key)
                                                      (ecase key (:font-name "Helvetica")
                                                        (:font-size 15) (:radius 6)))))
-                                      (value (color value))
-                                      (derived (getf derived key))
+                                      (value (parse-color value))
+                                      ;; Worked out again if a seed it comes from is given.
+                                      ((or (null base)
+                                           (intersection seeds-given
+                                                         (rest (assoc key +derived-from+))))
+                                       (getf derived key))
                                       (t (theme-setting base key)))))))
         (destructuring-bind (background text accent panel dim-text button-text ring field-border
                              field-fill field-invalid field-disabled selection caret track thumb
@@ -307,7 +324,7 @@ out, with colours as \"#rrggbb\" strings."
                  :collect key
                  :and :collect (if (member key '(:font-name :font-size :radius))
                                    value
-                                   (color-hex (color value)))))))
+                                   (color-hex (parse-color value)))))))
 
 (defun button-color (theme state)
   "The colour of a button of THEME that is STATE (:normal, :hover, :pressed or :disabled)."

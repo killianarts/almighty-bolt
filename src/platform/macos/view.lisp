@@ -36,7 +36,8 @@
            #:metal-view-object
            #:metal-view-bridge
            #:metal-view-device
-           #:request-draw))
+           #:request-draw
+           #:view-appearance))
 
 (in-package #:almighty-bolt/platform/macos/view)
 
@@ -62,7 +63,9 @@
   (marked-text "" :type string)
   (pending-key nil)
   ;; What a screen reader reads (the accessibility bridge), or NIL for a view that has none.
-  (bridge nil))
+  (bridge nil)
+  ;; Called with the view when the system goes from dark to light or back.
+  (on-appearance #'identity :type function))
 
 (defvar *view-slot-offset* 0
   "Offset of the instance variable that holds a view's index.")
@@ -84,6 +87,19 @@
   ;; The CGSize argument arrives in the registers of two doubles.
   (let ((view (view-of self)))
     (funcall (metal-view-on-resize view) view width height)))
+
+;;; Dark or light
+
+(defun view-appearance (object)
+  "Whether the view OBJECT is shown dark or light now, as the system is: :dark or :light. (The
+high-contrast dark appearance is dark too.)"
+  (let ((name (lisp-string (msg-send :id (msg-send :id object "effectiveAppearance") "name"))))
+    (if (search "Dark" name) :dark :light)))
+
+(define-callback view-appearance-changed sb-alien:void
+    ((self sb-alien:unsigned-long) (cmd sb-alien:unsigned-long))
+  (let ((view (view-of self)))
+    (funcall (metal-view-on-appearance view) view)))
 
 ;;; Answers to AppKit's questions about the view
 
@@ -347,6 +363,7 @@ out when it is asked, so that a window that was moved is where it is."
              ("mtkView:drawableSizeWillChange:" "v@:@{CGSize=dd}"
               view-drawable-size-will-change)
              ("isFlipped" "B@:" view-yes)
+             ("viewDidChangeEffectiveAppearance" "v@:" view-appearance-changed)
              ("acceptsFirstResponder" "B@:" view-yes)
              ("acceptsFirstMouse:" "B@:@" view-yes-for-event)
              ("mouseDown:" "v@:@" view-mouse-down)
@@ -396,7 +413,7 @@ out when it is asked, so that a window that was moved is where it is."
   "Options for the tracking area that delivers mouse moves.")
 
 (defun make-metal-view (&key device (width 480) (height 320) on-draw on-resize event-handler
-                          text-input accessibility-tree accessibility-press)
+                          text-input accessibility-tree accessibility-press on-appearance)
   "A Metal view WIDTH by HEIGHT points that draws only when REQUEST-DRAW is called.
 DEVICE is the Metal device to draw with (the system default if not given). ON-DRAW
 is called with the view when it is to draw, ON-RESIZE with the view and its new
@@ -405,7 +422,8 @@ text and composition events of the input method. TEXT-INPUT is a function that s
 the app takes text and where its caret is: it returns true or false and then the x, y, width and
 height of the caret in the view. ACCESSIBILITY-TREE returns the semantic tree of the window (a node,
 or NIL if there is none) and ACCESSIBILITY-PRESS is called with a point in the view to press it: with
-them a screen reader can read the view and press what is in it. Call on the main thread."
+them a screen reader can read the view and press what is in it. ON-APPEARANCE is called with the
+view when the system goes dark or light (VIEW-APPEARANCE says which). Call on the main thread."
   (let* ((device (or device
                      (sb-alien:alien-funcall
                       (sb-alien:extern-alien "MTLCreateSystemDefaultDevice"
@@ -418,6 +436,7 @@ them a screen reader can read the view and press what is in it. Call on the main
     (when on-resize (setf (metal-view-on-resize view) on-resize))
     (when event-handler (setf (metal-view-event-handler view) event-handler))
     (when text-input (setf (metal-view-text-input view) text-input))
+    (when on-appearance (setf (metal-view-on-appearance view) on-appearance))
     (when accessibility-tree
       (setf (metal-view-bridge view)
             (make-bridge :view object :tree accessibility-tree
