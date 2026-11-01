@@ -14,6 +14,13 @@ What is planned after [0.1](releases/0.1.md). These are plans, not promises, and
   - Bold, italic and a font for each widget; rich text.
   - Grid and wrapping layouts, minimum and maximum sizes, and splitters.
   - Tabs, a tree view, a table, and date and colour pickers.
+- **Effects.** Shadows, glows, blur, opacity and other filters.
+  - An effect can reach past the edges of the widget it belongs to, by as far as it needs.
+  - A soft shadow or glow is drawn in the shader. A blur or filter reads what is under it, so it is drawn to a texture off screen first.
+  - A scroll's clip lets each effect's reach through, as it does now for the focus ring, which becomes one effect among the others.
+- **Keeping pixels.** The renderer keeps the pixels it drew, in tiles, and repaints only the tiles whose drawing commands changed. This is how the painter of the [Blick](https://blickeditor.com/blog/caching-an-immediate-mode-ui) video editor works. It saves the GPU work, and the battery, of frames where only a caret blinks or an animation runs, and of expensive effects that did not change.
+  - A command's area includes the reach of its effect. When a glow changes, every tile it reaches is repainted, not only the tile of its widget.
+  - The cached frames are compared with frames painted without the cache, and must match exactly.
 - **Interaction.**
   - Mouse cursor shapes.
   - Drag and drop, inside an app and from the Finder.
