@@ -30,6 +30,8 @@
            #:text-delete-forward
            #:text-move
            #:text-select-all
+           #:unit-range
+           #:text-select-units
            #:text-place-caret
            #:text-replace
            #:edit-text))
@@ -157,6 +159,53 @@ put the caret at its edge. WORD moves by a word."
     (if (and (zerop (text-state-anchor state)) (= (text-state-caret state) end))
         state
         (%make-text-state (text-state-string state) end 0))))
+
+(defun word-range (string index)
+  "The start and end of the word that the character at INDEX is in. A character that is in no word is
+a range of its own, and so is a run of spaces."
+  (let ((length (length string)))
+    (if (zerop length)
+        (values 0 0)
+        (let* ((index (max 0 (min index (1- length))))
+               (character (char string index)))
+          (flet ((same-kind-p (other)
+                   (cond ((word-character-p character) (word-character-p other))
+                         ((member character '(#\Space #\Tab)) (member other '(#\Space #\Tab)))
+                         (t nil))))
+            (let ((start index) (end (1+ index)))
+              (loop :while (and (plusp start) (same-kind-p (char string (1- start))))
+                    :do (decf start))
+              (loop :while (and (< end length) (same-kind-p (char string end)))
+                    :do (incf end))
+              (values start end)))))))
+
+(defun line-range (string index)
+  "The start and end of the paragraph that the character at INDEX is in (the text between line feeds),
+with the line feed that ends it."
+  (let* ((length (length string))
+         (index (max 0 (min index length)))
+         (before (position #\Linefeed string :end index :from-end t))
+         (after (position #\Linefeed string :start index)))
+    (values (if before (1+ before) 0)
+            (if after (1+ after) length))))
+
+(defun unit-range (string index unit)
+  "The start and end of the UNIT (:word or :line) that the character at INDEX is in."
+  (ecase unit
+    (:word (word-range string index))
+    (:line (line-range string index))))
+
+(defun text-select-units (state index unit from to)
+  "STATE with the text from FROM to TO (the UNIT, :word or :line, that a double or triple press chose)
+selected, and as many more whole units as reach the character at INDEX, which a drag after the press
+is over. The anchor is at the end of FROM to TO that is away from INDEX."
+  (let ((string (text-state-string state)))
+    (multiple-value-bind (start end) (unit-range string index unit)
+      (multiple-value-bind (caret anchor)
+          (if (< start from) (values start to) (values (max end to) from))
+        (if (and (= caret (text-state-caret state)) (= anchor (text-state-anchor state)))
+            state
+            (%make-text-state string caret anchor))))))
 
 (defun printable-p (character)
   "True for a character that a key puts into text: not a control character, and not one

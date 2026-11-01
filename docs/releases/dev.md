@@ -244,6 +244,7 @@ Every widget takes `:tooltip`:
 #### Text fields
 
 - Command-C, Command-X and Command-V copy, cut and paste in a text field, through the system's clipboard. A line break that is pasted becomes a space, since the field holds one line. Copy and cut do nothing when nothing is selected.
+- A double-click in a text field, a text area or a combo box selects the word under the pointer, and a triple-click all of a field or the paragraph of an area (with its line feed). Holding the button down after either and dragging goes on by whole words or paragraphs, either way, as in a Mac app.
 
 #### Examples
 

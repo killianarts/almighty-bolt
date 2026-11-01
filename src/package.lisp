@@ -138,6 +138,10 @@
                 #:text-delete-forward
                 #:text-move
                 #:text-select-all
+           #:unit-range
+           #:text-select-units
+                #:unit-range
+                #:text-select-units
                 #:text-place-caret
                 #:text-replace
                 #:edit-text)

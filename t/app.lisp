@@ -48,11 +48,13 @@ frame."
   (when (screen-after-draw screen)
     (funcall (screen-after-draw screen))))
 
-(defun pointer (screen kind x y &key button (buttons 0))
+(defun pointer (screen kind x y &key button (buttons 0) (clicks 1))
+  "An event of the pointer at X, Y; CLICKS is which press in a row a press is (2 for the second of a
+double-click)."
   (core:handle-event (screen-variant screen)
                      (core:make-pointer-event :timestamp 0 :kind kind :x (float x 1d0)
                                               :y (float y 1d0) :button button :buttons buttons
-                                              :click-count (if (eq kind :move) 0 1)))
+                                              :click-count (if (eq kind :move) 0 clicks)))
   (draw screen))
 
 (defun click (screen id)
@@ -2264,3 +2266,82 @@ and another live label that comes with the first press."
                   (fresh (draw-on-host (host 1024) (app))))
               (assert-true (some #'plusp after))
               (assert-true (equalp fresh after)))))))))
+
+;;; --- selecting text with the pointer ---
+
+(defun make-selecting ()
+  (state-let ((line "hello brave world")
+              (notes (format nil "one two~%three four~%five")))
+    (lambda ()
+      (column (:gap 10)
+        (setf line (text-field line :id :line :width 300))
+        (setf notes (text-area notes :id :notes))))))
+
+(defun glyph-point (screen id n &optional (across 0.5))
+  "A point over the Nth character drawn in the control ID, ACROSS of the way from its left edge."
+  (multiple-value-bind (left top width height) (core:lookup-target (screen-variant screen) id)
+    (let ((list (screen-list screen)) (seen 0))
+      (dotimes (index (core:display-list-count list) (error "No glyph ~d in ~s." n id))
+        (when (and (= (core:display-list-kind list index) core:+command-glyph+)
+                   (<= left (core:display-list-x list index) (+ left width -1))
+                   (<= top (core:display-list-y list index) (+ top height -1)))
+          (when (= seen n)
+            (return (values (+ (core:display-list-x list index)
+                               (* across (core:display-list-width list index)))
+                            (+ (core:display-list-y list index)
+                               (/ (core:display-list-height list index) 2)))))
+          (incf seen))))))
+
+(defun presses (screen x y count &key (release t))
+  "COUNT presses in a row at X, Y, as a double-click (2) or a triple-click (3) is; the last is not
+released unless RELEASE."
+  (pointer screen :move x y)
+  (loop :for clicks :from 1 :to count
+        :do (pointer screen :down x y :button 0 :buttons 1 :clicks clicks)
+            (when (or release (< clicks count))
+              (pointer screen :up x y :button 0))))
+
+(defun copied (screen)
+  "Command-C, and what is on the clipboard then."
+  (core:handle-event (screen-variant screen)
+                     (core:make-key-event :timestamp 0 :kind :down :logical-key #\c
+                                          :modifiers core:+modifier-super+))
+  (draw screen)
+  (core:context-clipboard-text (screen-context screen)))
+
+(define-test a-double-click-selects-the-word-and-a-triple-click-all-of-a-field ()
+  (let ((screen (show 'make-selecting)))
+    ;; On the right half of the last letter of "brave", which is nearer the place after it.
+    (multiple-value-bind (x y) (glyph-point screen :line 10 0.8)
+      (presses screen x y 2)
+      (assert-equal "brave" (copied screen)))
+    (multiple-value-bind (x y) (glyph-point screen :line 7)
+      (presses screen x y 3)
+      (assert-equal "hello brave world" (copied screen)))
+    ;; One press puts the caret back, with nothing selected.
+    (multiple-value-bind (x y) (glyph-point screen :line 7)
+      (presses screen x y 1)
+      (core:context-set-clipboard-text (screen-context screen) "before")
+      (assert-equal "before" (copied screen)))))
+
+(define-test a-drag-after-a-double-click-selects-whole-words-either-way ()
+  (let ((screen (show 'make-selecting)))
+    (multiple-value-bind (x y) (glyph-point screen :line 7)
+      (presses screen x y 2 :release nil)
+      ;; Into "world", and back past the start into "hello".
+      (multiple-value-bind (x y) (glyph-point screen :line 13)
+        (pointer screen :move x y :buttons 1))
+      (assert-equal "brave world" (copied screen))
+      (multiple-value-bind (x y) (glyph-point screen :line 1)
+        (pointer screen :move x y :buttons 1)
+        (pointer screen :up x y :button 0))
+      (assert-equal "hello brave" (copied screen)))))
+
+(define-test in-a-text-area-a-double-click-selects-a-word-and-a-triple-click-its-paragraph ()
+  (let ((screen (show 'make-selecting)))
+    ;; The glyphs drawn are "one two", "three four" and "five": the 14th is the "o" of "four".
+    (multiple-value-bind (x y) (glyph-point screen :notes 14)
+      (presses screen x y 2)
+      (assert-equal "four" (copied screen))
+      (presses screen x y 3)
+      (assert-equal (format nil "three four~%") (copied screen)))))

@@ -97,6 +97,9 @@
                 #:text-state-caret
                 #:text-state-anchor
                 #:text-place-caret
+                #:text-select-all
+                #:text-select-units
+                #:unit-range
                 #:text-move
                 #:text-insert
                 #:text-state-selection-p
@@ -661,20 +664,65 @@ made spaces if SINGLE-LINE and line feeds if not."
 
 ;;; --- a line of editable text ---
 
-(defstruct (field-state (:constructor make-field-state ()))
+;;; --- selecting text with the pointer ---
+;;;
+;;; A press puts the caret where it is; two in a row select the word under the pointer, three the line
+;;; (in a text area, the paragraph between line feeds), and a drag after them goes on by whole words or
+;;; lines. What the press chose is kept, so that the drag, which is looked at in the build of the press
+;;; as well and in the builds after it, makes the same selection each time from it.
+
+(defstruct (text-press (:constructor nil))
+  ;; :char, :word or :line: what the last press selects by, from how many presses it was.
+  (unit :char)
+  ;; The word or line the press chose.
+  (from 0 :type fixnum)
+  (to 0 :type fixnum))
+
+(defun index-at (context font string x)
+  "Two values: the place between characters of STRING nearest X, and the character X is over."
+  (let* ((index (context-index-at-x context font string x)))
+    (values index
+            (if (and (plusp index) (< x (context-caret-x context font string index)))
+                (1- index)
+                index))))
+
+(defun press-text (press state index character clicks)
+  "The text STATE after a press at INDEX (over CHARACTER), which was the press CLICKS in a row."
+  (let ((unit (case clicks (1 :char) (2 :word) (t :line))))
+    (setf (text-press-unit press) unit)
+    (if (eq unit :char)
+        (text-place-caret state index)
+        (multiple-value-bind (from to) (unit-range (text-state-string state) character unit)
+          (setf (text-press-from press) from
+                (text-press-to press) to)
+          (text-select-units state character unit from to)))))
+
+(defun drag-text (press state index character)
+  "The text STATE with the button still down after a press, and the pointer at INDEX (over
+CHARACTER): the selection goes from the press to there, by what the press selected by."
+  (if (eq (text-press-unit press) :char)
+      (text-place-caret state index :extend t)
+      (text-select-units state character (text-press-unit press)
+                         (text-press-from press) (text-press-to press))))
+
+(defstruct (field-state (:include text-press) (:constructor make-field-state ()))
   (state (make-text-state "") :type almighty-bolt/internals:text-state)
   (view-start 0 :type fixnum))
 
 (defun field-index-at (ui key state x)
-  "The index in the text of the field KEY that the pointer, at X, is nearest."
+  "Two values: the index in the text of the field KEY that the pointer, at X, is nearest, and the
+index of the character it is over."
   (let ((rect (rect-of ui key))
         (context (ui-context ui)))
     (if (and rect context)
         (let* ((string (text-state-string (field-state-state state)))
                (start (field-state-view-start state)))
-          (+ start (context-index-at-x context (ui-font context) (subseq string start)
-                                       (- x (rect-x rect) +field-padding+))))
-        (text-state-caret (field-state-state state)))))
+          (multiple-value-bind (index character)
+              (index-at context (ui-font context) (subseq string start)
+                        (- x (rect-x rect) +field-padding+))
+            (values (+ start index) (+ start character))))
+        (let ((caret (text-state-caret (field-state-state state))))
+          (values caret caret)))))
 
 (defun keep-caret-visible (ui state width)
   (let ((context (ui-context ui)))
@@ -715,18 +763,21 @@ application passes something else, that is what is shown."
           (box-flex box) (float flex 1f0))
     (when enabled
       (let ((x (ui-pointer-x ui)))
-        ;; A press on the field gives it the keyboard and puts the caret there.
+        ;; A press on the field gives it the keyboard and puts the caret there (two select a word,
+        ;; three all of it).
         (when (and (= (ui-hot ui) key) (ui-pressed ui))
           (consume-press ui)
           (focus-by-click ui key)
-          (setf (ui-active ui) key
-                (field-state-state state)
-                (text-place-caret (field-state-state state) (field-index-at ui key state x))))
+          (setf (ui-active ui) key)
+          (multiple-value-bind (index character) (field-index-at ui key state x)
+            (setf (field-state-state state)
+                  (press-text state (field-state-state state) index character
+                              (ui-click-count ui)))))
         ;; Dragging with the button down extends the selection.
         (when (and (= (ui-active ui) key) (ui-down ui))
-          (setf (field-state-state state)
-                (text-place-caret (field-state-state state) (field-index-at ui key state x)
-                                  :extend t)))
+          (multiple-value-bind (index character) (field-index-at ui key state x)
+            (setf (field-state-state state)
+                  (drag-text state (field-state-state state) index character))))
         (when (and (= (ui-active ui) key) (ui-released ui))
           (consume-release ui)
           (setf (ui-active ui) 0)))
@@ -765,7 +816,7 @@ application passes something else, that is what is shown."
 
 (defconstant +area-padding+ 6f0 "Above and below the lines of a text area.")
 
-(defstruct (area-state (:constructor make-area-state ()))
+(defstruct (area-state (:include text-press) (:constructor make-area-state ()))
   (state (make-text-state "") :type almighty-bolt/internals:text-state)
   ;; How far down the lines are scrolled, in points.
   (offset 0f0 :type single-float)
@@ -829,22 +880,24 @@ that a caret where a long line goes on is at the start of the next)."
       (- width (* 2 +field-padding+))))
 
 (defun area-index-at (ui key area x y)
-  "The index in the text of the area KEY that the pointer at X, Y is nearest."
+  "Two values: the index in the text of the area KEY that the pointer at X, Y is nearest, and the
+index of the character it is over."
   (let* ((rect (rect-of ui key))
          (context (ui-context ui))
          (state (area-state-state area))
          (string (text-state-string state)))
     (if (not (and rect context))
-        (text-state-caret state)
+        (values (text-state-caret state) (text-state-caret state))
         (let* ((lines (area-lines context area string (area-inner-width area (rect-w rect))))
                (height (area-line-height context))
                (row (max 0 (min (1- (length lines))
                                 (floor (+ (- y (rect-y rect) +area-padding+) (area-state-offset area))
                                        height))))
                (line (svref lines row)))
-          (+ (car line)
-             (context-index-at-x context (ui-font context) (subseq string (car line) (cdr line))
-                                 (- x (rect-x rect) +field-padding+)))))))
+          (multiple-value-bind (index character)
+              (index-at context (ui-font context) (subseq string (car line) (cdr line))
+                        (- x (rect-x rect) +field-padding+))
+            (values (+ (car line) index) (+ (car line) character)))))))
 
 (defun area-move-vertically (context area lines down extend)
   "The text state of AREA with the caret a line up (or DOWN), at the x it was at when Up or Down
@@ -955,12 +1008,13 @@ else, that is what is shown."
           (focus-by-click ui key)
           (setf (ui-active ui) key
                 (area-state-goal-x area) nil
-                (area-state-state area)
-                (text-place-caret (area-state-state area) (area-index-at ui key area x y))
-                moved t))
+                moved t)
+          (multiple-value-bind (index character) (area-index-at ui key area x y)
+            (setf (area-state-state area)
+                  (press-text area (area-state-state area) index character (ui-click-count ui)))))
         (when (and (= (ui-active ui) key) (ui-down ui))
-          (let ((new (text-place-caret (area-state-state area) (area-index-at ui key area x y)
-                                       :extend t)))
+          (let ((new (multiple-value-bind (index character) (area-index-at ui key area x y)
+                       (drag-text area (area-state-state area) index character))))
             (unless (eq new (area-state-state area))
               (setf (area-state-state area) new
                     moved t))))
