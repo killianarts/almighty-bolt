@@ -43,6 +43,7 @@
                 #:scroll-state-offset
                 #:scroll-state-content-height
                 #:scroll-state-viewport-height
+                #:+scroll-inset+
                 #:+lazy-list-height+
                 #:area-lines
                 #:area-line-height
@@ -321,8 +322,13 @@ them in the boxes, and return the width and height."
                 (values 0f0 t)))
          (declare (dynamic-extent #'measure #'place #'flex-of))
          (multiple-value-bind (content-w content-h)
-             (layout-flex :vertical min-w max-w 0f0 +unbounded+ (length children)
+             (layout-flex :vertical (max 0f0 (- min-w (* 2 +scroll-inset+)))
+                          (if (< max-w +unbounded+) (max 0f0 (- max-w (* 2 +scroll-inset+))) max-w)
+                          0f0 +unbounded+ (length children)
                           #'measure #'place :flex-of #'flex-of :main-size :min)
+           ;; What is inside, with the inset round it.
+           (incf content-w (* 2 +scroll-inset+))
+           (incf content-h (* 2 +scroll-inset+))
            ;; As wide as it is allowed to be, as a lazy list is, so that the bar at its edge is
            ;; beside what is inside and not over it; as wide as what is inside where nothing limits it.
            (let* ((w (if (< max-w +unbounded+) max-w (constrain content-w min-w max-w)))
@@ -333,7 +339,8 @@ them in the boxes, and return the width and height."
                    (scroll-state-content-height state) content-h
                    (scroll-state-viewport-height state) h)
              (loop :for child :across children
-                   :do (decf (box-y child) offset))
+                   :do (incf (box-x child) +scroll-inset+)
+                       (setf (box-y child) (- (+ (box-y child) +scroll-inset+) offset)))
              (set-box box w h))))))
     (:lazy-list
      ;; The rows that were described are each ROW-HEIGHT (N2) tall and placed by their index (N3);
@@ -341,7 +348,7 @@ them in the boxes, and return the width and height."
      (let* ((children (box-children box))
             (state (box-data box))
             (row-height (box-n2 box))
-            (content-h (* (box-n3 box) row-height))
+            (content-h (+ (* (box-n3 box) row-height) (* 2 +scroll-inset+)))
             (w (if (plusp (box-pref-w box))
                    (constrain (box-pref-w box) min-w max-w)
                    (if (< max-w +unbounded+)
@@ -350,7 +357,7 @@ them in the boxes, and return the width and height."
                          (loop :for child :across children
                                :do (setf widest (max widest (layout-box child context 0f0 max-w
                                                                         row-height row-height))))
-                         widest))))
+                         (+ widest (* 2 +scroll-inset+))))))
             (h (constrain (if (plusp (box-pref-h box))
                               (box-pref-h box)
                               (min content-h +lazy-list-height+))
@@ -362,9 +369,11 @@ them in the boxes, and return the width and height."
        ;; In doubles: a million rows are tens of millions of points, where a single float's step is
        ;; more than a point, and rows next to each other would overlap.
        (loop :for child :across children
-             :do (layout-box child context w w row-height row-height)
-                 (setf (box-x child) 0f0
-                       (box-y child) (float (- (* (box-n3 child) (float row-height 1d0))
+             :do (let ((inner (max 0f0 (- w (* 2 +scroll-inset+)))))
+                   (layout-box child context inner inner row-height row-height))
+                 (setf (box-x child) +scroll-inset+
+                       (box-y child) (float (- (+ (* (box-n3 child) (float row-height 1d0))
+                                                   +scroll-inset+)
                                                 (float offset 1d0))
                                              1f0)))
        ;; The rows were chosen for the window the build thought there would be; if the window is
@@ -373,8 +382,9 @@ them in the boxes, and return the width and height."
              (end (if (plusp (length children))
                       (1+ (box-n3 (aref children (1- (length children)))))
                       0)))
-         (when (or (> (* first row-height) offset)
-                   (< (* end row-height) (min content-h (+ offset h))))
+         (when (or (and (plusp first) (> (+ (* first row-height) +scroll-inset+) offset))
+                   (< (+ (* end row-height) +scroll-inset+) (min (- content-h +scroll-inset+)
+                                                                 (+ offset h))))
            (request-frame context)))
        (set-box box w h)))
     ((:padding :panel)
