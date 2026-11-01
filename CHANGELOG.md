@@ -22,6 +22,8 @@ are not listed.
 
 ### Fixed
 
+- Command-Z and Command-Shift-Z undo and redo in text fields, combo boxes and text areas ([0.3](docs/releases/dev.md#bug-fixes)).
+
 ### Security
 
 ## [0.2.0] - 2026-11-01

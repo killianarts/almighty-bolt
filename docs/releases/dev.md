@@ -1,6 +1,6 @@
-# almighty-bolt X.Y release notes
+# almighty-bolt 0.3 release notes
 
-*Month D, YYYY* (or *Under development*)
+*Under development*
 
 Welcome to almighty-bolt X.Y! One paragraph on the theme of the release, then
 links to the major sections: [what's new](#whats-new-in-xy),
@@ -77,3 +77,7 @@ What to do, and why the change was made.
 
 These features have reached the end of their deprecation cycle. See the
 [X.(Y-2) release notes](X.(Y-2).md) for how to migrate.
+
+## Bug fixes
+
+- Text fields, combo boxes and text areas could not undo. Now Command-Z undoes an edit and Command-Shift-Z does it again. A run of typing is undone as one, and so is a run of deleting; a paste, a cut or a Return is one of its own, and a press or a key that moves the caret ends a run. When the app gives the field text of its own, what was done before can no longer be undone into it.

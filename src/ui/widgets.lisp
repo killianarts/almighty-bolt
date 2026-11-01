@@ -121,6 +121,7 @@
                 #:+key-left+
                 #:+key-right+
                 #:+key-up+
+                #:+key-delete-forward+
                 #:+key-down+
                 #:+key-home+
                 #:+key-end+
@@ -804,7 +805,87 @@ made spaces if SINGLE-LINE and line feeds if not."
 
 ;;; --- a line of editable text ---
 
-(defstruct (field-state (:include text-press) (:constructor make-field-state ()))
+;;; --- undo ---
+;;;
+;;; Text that is edited keeps what it was before each edit, to be put back by Command-Z (and taken
+;;; again by Command-Shift-Z). A run of typing is one edit, and so is a run of deleting, as in a Mac
+;;; app; any other edit (a paste, a cut, a Return) is one of its own, and a press of the pointer or a
+;;; key that only moves the caret ends a run. Text the app gives instead of what was edited starts
+;;; the history again.
+
+(defconstant +undo-limit+ 100 "The most edits that can be undone.")
+
+(defstruct (editable (:include text-press) (:constructor nil))
+  ;; The states before each edit, the latest first, and the states undone, the latest first.
+  (undo '() :type list)
+  (redo '() :type list)
+  ;; :typing or :deleting while a run of them goes on, which the next of the same kind joins.
+  (run nil))
+
+(defun forget-edits (editable)
+  (setf (editable-undo editable) '()
+        (editable-redo editable) '()
+        (editable-run editable) nil))
+
+(defun edit-kind (event)
+  "What the key EVENT does to text, if it edits it: :typing, :deleting or :other."
+  (let ((key (key-event-logical-key event))
+        (modifiers (key-event-modifiers event)))
+    (cond ((or (modifier-down-p modifiers +modifier-super+)
+               (modifier-down-p modifiers +modifier-control+))
+           :other)
+          ((or (eql key #\Backspace) (eql key +key-delete-forward+)) :deleting)
+          ((and (characterp key) (graphic-char-p key)) :typing)
+          (t :other))))
+
+(defun undo-key (event)
+  "The key EVENT as :undo (Command-Z) or :redo (Command-Shift-Z), or NIL."
+  (let ((key (key-event-logical-key event))
+        (modifiers (key-event-modifiers event)))
+    (and (eq (key-event-kind event) :down)
+         (characterp key)
+         (char-equal key #\z)
+         (modifier-down-p modifiers +modifier-super+)
+         (not (modifier-down-p modifiers +modifier-control+))
+         (if (modifier-down-p modifiers +modifier-shift+) :redo :undo))))
+
+(defun edit-with-history (editable state event edit)
+  "What the key EVENT does to the text STATE of EDITABLE, as two values, the new state and true if the
+key was taken: Command-Z and Command-Shift-Z undo and redo, and any other key is EDIT's (a function of
+the state and the event that gives the same two values). An edit that changes the text is noted so
+that it can be undone."
+  (let ((undo (undo-key event)))
+    (cond
+      ((eq undo :undo)
+       (setf (editable-run editable) nil)
+       (let ((before (pop (editable-undo editable))))
+         (cond (before (push state (editable-redo editable))
+                       (values before t))
+               (t (values state t)))))
+      ((eq undo :redo)
+       (setf (editable-run editable) nil)
+       (let ((after (pop (editable-redo editable))))
+         (cond (after (push state (editable-undo editable))
+                      (values after t))
+               (t (values state t)))))
+      (t
+       (multiple-value-bind (new taken) (funcall edit state event)
+         (when taken
+           (if (string= (text-state-string new) (text-state-string state))
+               ;; Only the caret or the selection moved: the next edit is one of its own.
+               (setf (editable-run editable) nil)
+               (let ((kind (edit-kind event)))
+                 (unless (and (member kind '(:typing :deleting))
+                              (eq kind (editable-run editable)))
+                   (push state (editable-undo editable))
+                   (when (> (length (editable-undo editable)) +undo-limit+)
+                     (setf (editable-undo editable)
+                           (subseq (editable-undo editable) 0 +undo-limit+))))
+                 (setf (editable-redo editable) '()
+                       (editable-run editable) (and (member kind '(:typing :deleting)) kind)))))
+         (values new taken))))))
+
+(defstruct (field-state (:include editable) (:constructor make-field-state ()))
   (state (make-text-state "") :type almighty-bolt/internals:text-state)
   (view-start 0 :type fixnum))
 
@@ -852,7 +933,8 @@ application passes something else, that is what is shown."
          (submitted nil))
     (unless (string= (text-state-string (field-state-state state)) string)
       (setf (field-state-state state) (make-text-state string)
-            (field-state-view-start state) 0))
+            (field-state-view-start state) 0)
+      (forget-edits state))
     (setf (box-enabled box) enabled
           (box-interactive box) enabled
           (box-focusable box) enabled
@@ -867,7 +949,9 @@ application passes something else, that is what is shown."
         (when (and (= (ui-hot ui) key) (ui-pressed ui))
           (consume-press ui)
           (focus-by-click ui key)
-          (setf (ui-active ui) key)
+          (setf (ui-active ui) key
+                ;; What is typed after a press is an edit of its own.
+                (editable-run state) nil)
           (multiple-value-bind (index character) (field-index-at ui key state x)
             (setf (field-state-state state)
                   (press-text state (field-state-state state) index character
@@ -888,11 +972,14 @@ application passes something else, that is what is shown."
              (setf submitted t))
             (t
              (multiple-value-bind (new edited)
-                 (multiple-value-bind (pasted command)
-                     (clipboard-edit (field-state-state state) event (ui-context ui) :single-line t)
-                   (if command
-                       (values pasted t)
-                       (edit-text (field-state-state state) event)))
+                 (edit-with-history
+                  state (field-state-state state) event
+                  (lambda (text event)
+                    (multiple-value-bind (pasted command)
+                        (clipboard-edit text event (ui-context ui) :single-line t)
+                      (if command
+                          (values pasted t)
+                          (edit-text text event)))))
                (when edited
                  (consume-key ui event)
                  (unless (string= (text-state-string new)
@@ -915,7 +1002,7 @@ application passes something else, that is what is shown."
 
 (defconstant +area-padding+ 6f0 "Above and below the lines of a text area.")
 
-(defstruct (area-state (:include text-press) (:constructor make-area-state ()))
+(defstruct (area-state (:include editable) (:constructor make-area-state ()))
   (state (make-text-state "") :type almighty-bolt/internals:text-state)
   ;; How far down the lines are scrolled, in points.
   (offset 0f0 :type single-float)
@@ -1091,7 +1178,8 @@ else, that is what is shown."
     (unless (string= (text-state-string (area-state-state area)) string)
       (setf (area-state-state area) (make-text-state string)
             (area-state-offset area) 0f0
-            (area-state-goal-x area) nil))
+            (area-state-goal-x area) nil)
+      (forget-edits area))
     (setf (box-enabled box) enabled
           (box-interactive box) enabled
           (box-focusable box) enabled
@@ -1107,6 +1195,7 @@ else, that is what is shown."
           (focus-by-click ui key)
           (setf (ui-active ui) key
                 (area-state-goal-x area) nil
+                (editable-run area) nil
                 moved t)
           (multiple-value-bind (index character) (area-index-at ui key area x y)
             (setf (area-state-state area)
@@ -1128,7 +1217,11 @@ else, that is what is shown."
       (when (= (ui-focus ui) key)
         (dolist (event (copy-list (ui-keys ui)))
           (let ((vertical (member (key-event-logical-key event) (list +key-up+ +key-down+))))
-            (multiple-value-bind (new edited) (area-key ui area event width)
+            (multiple-value-bind (new edited)
+                (edit-with-history area (area-state-state area) event
+                                   (lambda (text event)
+                                     (declare (ignore text))
+                                     (area-key ui area event width)))
               (when edited
                 (consume-key ui event)
                 (unless vertical
