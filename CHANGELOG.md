@@ -32,6 +32,7 @@ are not listed.
 - `combo-box`, a text field with a menu of suggestions ([0.2](docs/releases/dev.md#a-combo-box)).
 - `open-file-dialog` and `save-file-dialog`, the system's Open and Save panels ([0.2](docs/releases/dev.md#the-systems-file-panels)).
 - Themes: a light theme beside the dark one, the window following the system's setting; `define-theme`, `make-theme` and `with-theme`, for a window or a part of one ([0.2](docs/releases/dev.md#themes)).
+- A theme designer, `apps/theme-designer` ([0.2](docs/releases/dev.md#themes)).
 
 ### Changed
 

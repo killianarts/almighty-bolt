@@ -5,7 +5,7 @@ What is planned after [0.1](releases/0.1.md). These are plans, not promises, and
 ## Next
 
 - **Images and icons.**
-- **Theming.** Light and dark (following the system setting) and custom themes, for the widgets that exist, and for a part of a screen as well as the whole.
+- **Spacing in a theme.** Paddings, gaps, and the heights of rows and controls, set by a theme as its colours, font and corners are.
 
 ## Later
 

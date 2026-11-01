@@ -1,0 +1,150 @@
+(defpackage #:almighty-bolt-theme-designer/t/designer
+  (:use #:cl #:lisp-unit2)
+  (:local-nicknames (#:bolt #:almighty-bolt)
+                    (#:core #:almighty-bolt/internals)
+                    (#:app #:almighty-bolt/app)
+                    (#:m #:almighty-bolt/machine)
+                    (#:s #:almighty-bolt/ui/semantics)
+                    (#:fake #:almighty-bolt/test-support/fake-context)
+                    (#:designer #:almighty-bolt-theme-designer)))
+
+(in-package #:almighty-bolt-theme-designer/t/designer)
+
+;;; The designer worked as a person works it, through the machine interface, in a context with no
+;;; window that is tall enough for all of it to show. What it draws is read back from the display
+;;; list; what it writes down is read and evaluated, and must be the theme it shows.
+
+(defstruct (screen (:constructor %make-screen (variant context list)))
+  variant context list)
+
+(defun draw (screen)
+  (core:settle-frame (screen-variant screen) (screen-context screen) (screen-list screen)))
+
+(defun open-designer ()
+  "The designer and a machine session on it."
+  (let* ((variant (core:with-kept-state ((core:make-kept-state))
+                    (app:make-app-instance 'designer:make-designer)))
+         (screen (%make-screen variant (fake:make-fake-context :width 1200f0 :height 3000f0)
+                               (core:make-display-list :capacity 65536))))
+    (draw screen)
+    (values screen
+            (m:make-session :variant (lambda () (screen-variant screen))
+                            :deliver (lambda (event)
+                                       (core:handle-event (screen-variant screen) event)
+                                       (draw screen))
+                            :settle (lambda () (dotimes (i 4) (draw screen)))
+                            :on-main #'funcall))))
+
+(defun color-at (screen x y)
+  "The colour of the last rectangle drawn over the point X, Y, inside every clip it is in."
+  (let ((list (screen-list screen)) (clips '()) (color nil))
+    (flet ((over (index)
+             (let ((left (core:display-list-x list index)) (top (core:display-list-y list index)))
+               (and (<= left x) (< x (+ left (core:display-list-width list index)))
+                    (<= top y) (< y (+ top (core:display-list-height list index)))))))
+      (dotimes (index (core:display-list-count list) color)
+        (let ((kind (core:display-list-kind list index)))
+          (cond ((= kind core:+command-clip+) (push index clips))
+                ((= kind core:+command-unclip+) (pop clips))
+                ((and (or (= kind core:+command-rect+) (= kind core:+command-rounded-rect+))
+                      (over index) (every #'over clips))
+                 (setf color (core:display-list-color list index)))))))))
+
+(defun middle-color (screen id)
+  (multiple-value-bind (x y width height) (core:lookup-target (screen-variant screen) id)
+    (color-at screen (+ x (/ width 2)) (+ y (/ height 2)))))
+
+(defun corner-color (screen id)
+  "The colour just inside the top left of the control ID (a panel's background)."
+  (multiple-value-bind (x y) (core:lookup-target (screen-variant screen) id)
+    (color-at screen (+ x 2) (+ y 2))))
+
+(defun shown-text (session id)
+  (s:node-value (m:find-node session :id id)))
+
+(defun shown-name (session id)
+  (s:node-name (m:find-node session :id id)))
+
+(defun defined (session)
+  "The theme that the definition the designer shows defines, once evaluated."
+  (eval (read-from-string (shown-text session :source))))
+
+(define-test the-accents-hue-changes-the-preview-and-what-is-written-down ()
+  (multiple-value-bind (screen session) (open-designer)
+    (let ((dark (bolt:find-theme :dark)))
+      (assert-eql (bolt:theme-setting dark :button) (middle-color screen :sample-button))
+      ;; A green accent: hue 140, as the dark accent's saturation and lightness are.
+      (m:set-value session 140 :id :accent-hue)
+      (let* ((name (defined session))
+             (theme (bolt:find-theme name))
+             (accent (bolt:theme-setting theme :accent)))
+        (assert-eq :my-theme name)
+        (assert-false (eql (bolt:theme-setting dark :accent) accent))
+        ;; The preview is in the theme written down: its button, and the hover worked out from it.
+        (assert-eql accent (middle-color screen :sample-button))
+        (assert-false (eql (bolt:theme-setting dark :button-hover)
+                           (bolt:theme-setting theme :button-hover)))
+        ;; Green, more than anything else.
+        (multiple-value-bind (r g b) (values (ldb (byte 8 24) accent) (ldb (byte 8 16) accent)
+                                             (ldb (byte 8 8) accent))
+          (assert-true (> g (max r b)) r g b))
+        ;; The seed's field says its colour.
+        (assert-equal (bolt:color-hex accent) (shown-text session :accent-hex))))))
+
+(define-test a-background-typed-in-shows-behind-the-preview-and-its-text-is-said-to-be-hard-to-read ()
+  (multiple-value-bind (screen session) (open-designer)
+    (assert-true (search "easy to read" (shown-name session :contrast-0)))
+    ;; A grey near the dark text's: the text on it is hard to read.
+    (m:set-value session "#c8cad0" :id :background-hex)
+    (assert-eql (bolt:parse-color "#c8cad0") (corner-color screen :preview-back))
+    (assert-true (search "too low" (shown-name session :contrast-0)))
+    (assert-eql (bolt:parse-color "#c8cad0")
+                (bolt:theme-setting (bolt:find-theme (defined session)) :background))))
+
+(define-test starting-from-light-is-the-light-theme-and-says-no-more ()
+  (multiple-value-bind (screen session) (open-designer)
+    (m:set-value session 1 :id :base)
+    (let ((light (bolt:find-theme :light)))
+      (assert-eql (bolt:theme-setting light :button) (middle-color screen :sample-button))
+      (assert-eql (bolt:theme-setting light :background) (corner-color screen :preview-back))
+      (assert-equal (bolt:color-hex (bolt:theme-setting light :accent))
+                    (shown-text session :accent-hex))
+      (assert-equal "(almighty-bolt:define-theme :my-theme (:base :light))"
+                    (shown-text session :source)))))
+
+(define-test a-worked-out-colour-can-be-given-and-taken-back ()
+  (multiple-value-bind (screen session) (open-designer)
+    (m:set-value session "button" :id :override-which)
+    (assert-equal "button" (shown-text session :override-which))
+    (m:set-value session "#d04080" :id :override-hex)
+    (assert-eql (bolt:parse-color "#d04080") (middle-color screen :sample-button))
+    (assert-true (search ":button \"#d04080\"" (shown-text session :source)))
+    (m:click session :id :override-clear)
+    (assert-eql (bolt:theme-setting (bolt:find-theme :dark) :button)
+                (middle-color screen :sample-button))
+    (assert-false (search "#d04080" (shown-text session :source)))))
+
+(define-test save-writes-a-file-that-defines-the-theme ()
+  (multiple-value-bind (screen session) (open-designer)
+    ;; A name no theme has yet, so that only loading the file can define it.
+    (let* ((name (format nil "sea-~d" (random 1000000000)))
+           (keyword (intern (string-upcase name) :keyword))
+           (path (merge-pathnames (format nil "~a.lisp" name) (uiop:temporary-directory))))
+      (unwind-protect
+           (progn
+             (setf (core:context-file-chooser (screen-context screen))
+                   (lambda (kind types offered)
+                     (assert-eq :save kind)
+                     (assert-equal '("lisp") types)
+                     (assert-equal (format nil "~a.lisp" name) offered)
+                     (namestring path)))
+             (m:set-value session name :id :name)
+             (m:set-value session 170 :id :accent-hue)
+             (m:click session :id :save)
+             (assert-true (search "Saved to" (shown-name session :saved)))
+             (assert-false (member keyword (bolt:theme-names)))
+             (load path)
+             (assert-true (member keyword (bolt:theme-names)))
+             (assert-equal (shown-text session :accent-hex)
+                           (bolt:color-hex (bolt:theme-setting (bolt:find-theme keyword) :accent))))
+        (when (probe-file path) (delete-file path))))))

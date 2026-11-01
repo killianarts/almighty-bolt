@@ -19,7 +19,7 @@
 (let ((root (namestring (uiop:getcwd))))
   (asdf:initialize-output-translations
    `(:output-translations
-     ,@(loop :for directory :in '("src" "t" "examples" "bench")
+     ,@(loop :for directory :in '("src" "t" "examples" "bench" "apps")
              :collect `((,(format nil "~a~a/" root directory) :**/ :*.*.*)
                         (,(format nil "~a~a/" *cache* directory) :**/ :*.*.*)))
      :inherit-configuration)))
@@ -37,7 +37,8 @@
         (*standard-output* (make-broadcast-stream)))
     (dolist (name '("almighty-bolt" "almighty-bolt/mcp" "almighty-bolt/tests" "almighty-bolt-examples"
                     "almighty-bolt-7guis/launcher" "almighty-bolt-7guis/acceptance"
-                    "almighty-bolt-stress/acceptance" "almighty-bolt-bench"))
+                    "almighty-bolt-stress/acceptance" "almighty-bolt-bench"
+                    "almighty-bolt-theme-designer" "almighty-bolt-theme-designer/tests"))
       (asdf:load-system name))))
 
 (uiop:delete-directory-tree (uiop:ensure-directory-pathname *cache*) :validate t

@@ -230,6 +230,11 @@ what comes first, is in [docs/roadmap.md](docs/roadmap.md).
   widget and container with what each returns, written with the public package
   only: `(bolt:open-app 'almighty-bolt-examples/gallery:make-gallery :width 960
   :height 760)` after loading [`load-examples.lisp`](load-examples.lisp).
+- [`apps/theme-designer/`](apps/theme-designer): a theme designer. Pick a
+  theme's colours, font and corners, see every kind of widget in it as you do,
+  check that its text is readable, and save it as a `define-theme` form:
+  `(almighty-bolt-theme-designer:open-designer)` after loading the system
+  `almighty-bolt-theme-designer`.
 - [`examples/7guis/`](examples/7guis): the seven 7GUIs tasks.
   [`bench/stress/`](bench/stress) has a dashboard, a million-row list and a text
   editor with input-method support.

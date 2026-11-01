@@ -9,7 +9,7 @@ Welcome to almighty-bolt 0.2, in development. A window of almighty-bolt can be r
 
 - Accessibility: VoiceOver reads every widget by what it is, what it is called and what it holds, can press buttons, check boxes, options and rows, move a slider and give a field the keyboard, is told when things change, and reads out a `:live` label or paragraph whenever its text changes.
 - Overlays: a layer above the screen, with dropdowns, menu buttons, context menus, tooltips on every widget, popovers, modal dialogs, toasts and a combo box on it, and the system's Open and Save panels.
-- Themes: dark and light, following the system, and themes of your own, made from three colours, for a window or a part of one.
+- Themes: dark and light, following the system, and themes of your own, made from three colours, for a window or a part of one, and a theme designer to make them by eye.
 - Scrolling: `scroll` for anything, and `lazy-list`, which costs the same with a million rows as with a hundred.
 - Everyday text: `text-area`, and copy, cut and paste in text fields.
 - More widgets: `switch`, radio buttons (`choice :direction :vertical`) and `spinner`.
@@ -75,6 +75,8 @@ A list is read as the rows that are showing, so that scrolling it changes which 
 - Compile a `define-theme` again and the open window shows it at once.
 - `theme-form` writes a theme down as a `define-theme` form, and `contrast-ratio` says how readable text in one colour is on another.
 - The words of a disabled button are dimmed, as those of a disabled dropdown and menu button were.
+
+A theme designer, in [`apps/theme-designer/`](../../apps/theme-designer), makes one by eye: a theme starts as the dark or the light one, and its seeds are picked by hue, saturation and lightness or typed in. Any worked-out colour can be given instead, and the font, its size and the corners set. Some of every kind of widget is shown in the theme as it changes, how readable each kind of text is is worked out (WCAG's contrast), and the theme is written down as a `define-theme` form, to copy or to save to a file. `(almighty-bolt-theme-designer:open-designer)` opens it.
 
 See [Themes](../reference.md#themes).
 

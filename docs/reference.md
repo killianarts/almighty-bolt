@@ -90,7 +90,7 @@ The settings (`+theme-settings+`):
 - The colours worked out from them: `:panel`, `:dim-text`, `:button-text`, `:ring` (round what has the keyboard), `:field-border`, `:field-fill`, `:field-invalid`, `:field-disabled`, `:selection`, `:caret`, `:track`, `:thumb`, `:row-selected`, `:row-hover`, `:scrim`, `:tooltip`, `:tooltip-text`, `:button`, `:button-hover`, `:button-pressed` and `:button-disabled`.
 - `:font-name`, `:font-size` (what a `label` or `paragraph` is with no `:size`) and `:radius`.
 
-A colour is `"#rrggbb"`, `"#rrggbbaa"`, or a packed colour (`pack-color`). `(find-theme name)` is the theme, `(theme-names)` the names there are, `(theme-setting theme setting)` one of its values, and `(theme-form theme)` the `define-theme` form that defines it again. `(contrast-ratio a b)` is the WCAG contrast of two colours (text is easy to read at 4.5 or more), `(mix-colors a b fraction)` a colour between two, `(parse-color designator)` a packed colour, and `(color-hex color)` its `"#rrggbb"`.
+A colour is `"#rrggbb"`, `"#rrggbbaa"`, or a packed colour (`pack-color`). `(find-theme name)` is the theme, `(theme-names)` the names there are, `(theme-setting theme setting)` one of its values, and `(theme-form theme)` the `define-theme` form that defines it again. The theme designer (`apps/theme-designer`, `(almighty-bolt-theme-designer:open-designer)`) makes a theme by eye and writes its `define-theme` form. `(contrast-ratio a b)` is the WCAG contrast of two colours (text is easy to read at 4.5 or more), `(mix-colors a b fraction)` a colour between two, `(parse-color designator)` a packed colour, and `(color-hex color)` its `"#rrggbb"`.
 
 ## Time
 
