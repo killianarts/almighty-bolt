@@ -54,7 +54,8 @@
                    (:file "window")
                    (:file "accessibility")
                    (:file "view")
-                   (:file "pasteboard")))))
+                   (:file "pasteboard")
+                   (:file "file-panel")))))
                (:module "text"
                 :serial t
                 :if-feature :darwin
@@ -148,7 +149,8 @@
                      (:file "image")
                      (:file "text-input")
                      (:file "ns-event")
-                     (:file "pasteboard")))))
+                     (:file "pasteboard")
+                     (:file "file-panel")))))
                  (:module "text"
                   :serial t
                   :if-feature :darwin
@@ -175,6 +177,7 @@
                                                       #+darwin :almighty-bolt/t/platform/macos/text-input
                                                       #+darwin :almighty-bolt/t/platform/macos/ns-event
                                                       #+darwin :almighty-bolt/t/platform/macos/pasteboard
+                                                      #+darwin :almighty-bolt/t/platform/macos/file-panel
                                                       #+darwin :almighty-bolt/t/text/line
                                                       #+darwin :almighty-bolt/t/text/glyph-raster
                                                       #+darwin :almighty-bolt/t/render/metal/renderer

@@ -30,6 +30,7 @@ are not listed.
 - `popover` and `dialog`, a modal one that keeps the pointer and the keyboard ([0.2](docs/releases/dev.md#popovers-and-dialogs)).
 - `toast`, words at the bottom of the window for a while, read out by VoiceOver as they come ([0.2](docs/releases/dev.md#toasts)).
 - `combo-box`, a text field with a menu of suggestions ([0.2](docs/releases/dev.md#a-combo-box)).
+- `open-file-dialog` and `save-file-dialog`, the system's Open and Save panels ([0.2](docs/releases/dev.md#the-systems-file-panels)).
 
 ### Changed
 

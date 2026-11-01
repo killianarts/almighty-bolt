@@ -103,6 +103,7 @@
                 #:edit-text
                 #:context-clipboard-text
                 #:context-set-clipboard-text
+                #:context-choose-file
                 #:key-event-kind
                 #:key-event-modifiers
                 #:modifier-down-p
@@ -145,6 +146,8 @@
            #:context-menu
            #:popover
            #:combo-box
+           #:open-file-dialog
+           #:save-file-dialog
            #:begin-popover
            #:end-popover
            #:dialog
@@ -1388,6 +1391,46 @@ whether it changed because a suggestion was taken."
                   (consume-key ui event)
                   (open-menu state 0))))))
         (values text (or changed (and taken (string/= taken string))) (and taken t))))))
+
+;;; --- the system's file panels ---
+;;;
+;;; Called every frame, as a widget is. While SHOW is false they do nothing; on a frame it is true
+;;; (what a button returned), the host is asked for the system's panel, which it shows after the
+;;; frame; the path the person chose comes back later, and the call returns it on the frame after,
+;;; once. A context with no window (a test) answers through its FILE-CHOOSER at once.
+
+(defstruct (file-dialog-state (:constructor make-file-dialog-state ()))
+  (waiting nil)
+  (chosen nil))
+
+(defun file-dialog (kind widget id show types name)
+  (let* ((ui *ui*)
+         (context (ui-context ui))
+         (state (state-of ui (owner-key ui (or id (required-id widget))) #'make-file-dialog-state)))
+    (when (and show (not (file-dialog-state-waiting state)))
+      (setf (file-dialog-state-waiting state) t)
+      (context-choose-file context kind types name
+                           (lambda (path)
+                             (setf (file-dialog-state-chosen state) path
+                                   (file-dialog-state-waiting state) nil)
+                             (request-frame context))))
+    (let ((path (file-dialog-state-chosen state)))
+      (when path
+        (setf (file-dialog-state-chosen state) nil
+              (ui-consumed ui) t))
+      path)))
+
+(defun open-file-dialog (&key id show types)
+  "On a frame SHOW is true, ask the person for a file to open with the system's Open panel, which
+allows only the extensions in TYPES (strings without the dot; all if NIL). Returns the path chosen,
+on the frame it comes back, and otherwise NIL (as after Cancel). The :id is required."
+  (file-dialog :open 'open-file-dialog id show types nil))
+
+(defun save-file-dialog (&key id show types name)
+  "On a frame SHOW is true, ask the person where to save with the system's Save panel, offering NAME,
+with TYPES the extensions allowed. Returns the path chosen, on the frame it comes back, and otherwise
+NIL. The :id is required."
+  (file-dialog :save 'save-file-dialog id show types name))
 
 ;;; --- a popover and a dialog ---
 ;;;

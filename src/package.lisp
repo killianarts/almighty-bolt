@@ -222,7 +222,9 @@
                 #:context-caret-rect
                 #:context-push-text
                 #:context-clipboard-text
-                #:context-set-clipboard-text)
+                #:context-set-clipboard-text
+                #:context-choose-file
+                #:context-file-chooser)
   (:import-from #:almighty-bolt/kept
                 #:state-let
                 #:kept-state
@@ -508,6 +510,8 @@
            #:context-push-text
            #:context-clipboard-text
            #:context-set-clipboard-text
+           #:context-choose-file
+           #:context-file-chooser
            #:state-let
            #:kept-state
            #:make-kept-state

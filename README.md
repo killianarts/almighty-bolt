@@ -54,7 +54,8 @@ below lists them bare.
   button, text field, combo box, text area, slider, choice, dropdown, check box, switch,
   spinner, list box, progress bar, canvas and scrim; row, column, stack,
   padding, panel, center, scroll, lazy list, context menu, popover and dialog.
-  Menus, popovers, dialogs and tooltips float above the screen.
+  Menus, popovers, dialogs, tooltips and toasts float above the screen, and the
+  system's Open and Save panels choose files.
 
 - **Canvas.** For drawing non-widget elements.
 

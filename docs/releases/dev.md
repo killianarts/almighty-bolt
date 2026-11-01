@@ -87,6 +87,19 @@ VoiceOver does not yet scroll a `scroll` to the thing its cursor is on. (What it
 - The items are best a vector: a row is found by its index.
 - The wheel, the bar at the edge, and what cannot be pressed out of the window are as for `scroll`. Tab reaches only the rows that are described.
 
+### The system's file panels
+
+```lisp
+(let ((path (bolt:open-file-dialog :id :open :types '("txt" "md")
+                                   :show (bolt:button "Open..." :id :open-button))))
+  (when path (setf document (load-document path))))
+```
+
+- `open-file-dialog` and `save-file-dialog` show macOS's own Open and Save panels. They are called every frame as widgets are, and on the frame `:show` is true the panel is shown.
+- The path chosen is returned once, on the frame it comes back; after Cancel, nothing is.
+- `:types` limits the extensions; `:name` is what a Save panel offers.
+- While a panel is open, what the REPL and an agent give the window still runs.
+
 ### A combo box
 
 ```lisp

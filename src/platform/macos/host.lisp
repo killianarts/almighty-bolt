@@ -46,7 +46,8 @@
                 #:context-caret-rect
                 #:context-push-text
                 #:context-clipboard-text
-                #:context-set-clipboard-text)
+                #:context-set-clipboard-text
+                #:context-choose-file)
   (:import-from #:almighty-bolt/settle
                 #:settle-frame)
   (:import-from #:almighty-bolt/platform/macos/objc
@@ -55,6 +56,7 @@
   (:import-from #:almighty-bolt/platform/macos/main-queue
                 #:on-main-thread-p
                 #:run-on-main
+                #:run-on-main-in-a-turn
                 #:call-on-main)
   (:import-from #:almighty-bolt/redefinition
                 #:watch-redefinitions
@@ -76,6 +78,9 @@
                 #:metal-view-object
                 #:metal-view-bridge
                 #:request-draw)
+  (:import-from #:almighty-bolt/platform/macos/file-panel
+                #:make-file-panel
+                #:run-file-panel)
   (:import-from #:almighty-bolt/platform/macos/pasteboard
                 #:general-pasteboard
                 #:pasteboard-string
@@ -142,13 +147,24 @@ pasteboard that copy and paste use; with none (a host made without a window, as 
 copied is kept in the context and the person's clipboard is never touched."
   (renderer nil :read-only t)
   (fonts (make-hash-table :test 'equal) :read-only t)
-  (pasteboard nil))
+  (pasteboard nil)
+  ;; True for the context of a host with a window, which shows the system's file panels.
+  (windowed nil))
 
 (defmethod context-clipboard-text ((context mac-context))
   (let ((pasteboard (mac-context-pasteboard context)))
     (if pasteboard
         (pasteboard-string pasteboard)
         (call-next-method))))
+
+(defmethod context-choose-file ((context mac-context) kind types name callback)
+  ;; The system's panel, for a context with a window; after the frame, since the panel runs a loop
+  ;; of its own.
+  (if (mac-context-windowed context)
+      (run-on-main-in-a-turn (lambda ()
+                           (funcall callback (run-file-panel (make-file-panel kind :types types
+                                                                                   :name name)))))
+      (call-next-method)))
 
 (defmethod context-set-clipboard-text ((context mac-context) string)
   (let ((pasteboard (mac-context-pasteboard context)))
@@ -569,7 +585,8 @@ the main thread (RUN-VARIANT and OPEN-VARIANT see to that). The arguments are th
                           :capacity capacity
                           :scale (window-scale-factor window)
                           :kept-state (or kept-state (make-kept-state))))
-    (setf (mac-context-pasteboard (host-context host)) (general-pasteboard))
+    (setf (mac-context-pasteboard (host-context host)) (general-pasteboard)
+          (mac-context-windowed (host-context host)) t)
     (setf (host-window host) window
           (host-view host) view
           (host-acquire host) (view-acquirer object)

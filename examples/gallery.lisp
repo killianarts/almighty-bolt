@@ -63,6 +63,7 @@
                    (overlay nil)
                    (popover nil)
                    (toasts 0)
+                   (file-note "The system's file panels: nothing chosen yet.")
                    (asking nil)
                    (answer "Not asked yet."))
     (lambda ()
@@ -228,7 +229,7 @@
                     (bolt:padding (:id :over :left 16 :top 20)
                       (bolt:label "On top of the panel" :id :on-top))))
                 (section ("Overlays" :overlays)
-                  (bolt:paragraph "A popover floats by the widget it belongs to; a dialog keeps the pointer and the keyboard until it is answered; a scrim covers what is under it; a toast says something for a while."
+                  (bolt:paragraph "A popover floats by the widget it belongs to; a dialog keeps the pointer and the keyboard until it is answered; a scrim covers what is under it; a toast says something for a while; and the system's own panels choose files."
                                   :id :overlay-about :size 13 :color +note-color+)
                   (bolt:column (:id :overlay-buttons :gap 8)
                     (when (bolt:button "Show a popover" :id :show-popover)
@@ -244,7 +245,17 @@
                       (setf overlay t))
                     (when (bolt:button "Make a toast" :id :show-toast)
                       (bolt:toast (format nil "Toast number ~d" (incf toasts)))))
-                  (note answer :dialog-answer))))))
+                  (note answer :dialog-answer)
+                  (bolt:row (:id :file-buttons :gap 8)
+                    (let ((path (bolt:open-file-dialog
+                                 :id :open-file
+                                 :show (bolt:button "Open a file..." :id :open-file-button))))
+                      (when path (setf file-note (format nil "Chose ~a" path))))
+                    (let ((path (bolt:save-file-dialog
+                                 :id :save-file :name "Untitled.txt" :types '("txt")
+                                 :show (bolt:button "Save as..." :id :save-file-button))))
+                      (when path (setf file-note (format nil "Would save to ~a" path)))))
+                  (note file-note :file-note))))))
         (when (bolt:dialog (:id :question :open asking :title "Keep the changes?")
                 (bolt:label "A dialog keeps the keyboard; Tab goes round its buttons." :id :question-text)
                 (bolt:row (:gap 8)

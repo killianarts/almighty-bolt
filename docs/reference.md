@@ -38,6 +38,14 @@ A `dialog` (`:id :open :title`) is modal: while `:open`, it is in the middle of 
 
 A `combo-box` is a text field with a menu of suggestions under it: `(bolt:combo-box text suggestions :id :city)`, where SUGGESTIONS are the strings the app finds for the text, each frame. Typing opens them; Down and Up move into them, Return or a press takes one (its text becomes the field's), and Escape closes them; the space bar types. It returns the text, whether it changed, and whether it changed because a suggestion was taken. It is a `:combo-box` in the tree and to VoiceOver (`AXComboBox`), and `set-value` types into it as into a field.
 
+`open-file-dialog` (`:id :show :types`) and `save-file-dialog` (`:id :show :types :name`) ask the person for a file with the system's own Open and Save panels. They are called every frame, as widgets are; on a frame `:show` is true (pass what a button returned), the panel is shown, after the frame, and the call returns the path chosen on the frame it comes back, once, and otherwise NIL (as after Cancel). `:types` are the extensions allowed, without the dot; `:name` is the name a Save panel offers. While a panel is open the window still does what the REPL and an agent give it.
+
+```lisp
+(let ((path (bolt:open-file-dialog :id :open :types '("txt" "md")
+                                   :show (bolt:button "Open..." :id :open-button))))
+  (when path (setf document (load-document path))))
+```
+
 A `text-area` is a text field of several lines: `:rows` lines tall (6 if not given) and `:width` wide (320), with the lines that are too long going on in the next. It returns the text and whether it changed; its lines end in a line feed. Return puts one in. Up and Down move a line, keeping to where across the first of them started; Command-Up and Command-Down go to the start and the end of the text, and Command-Left and Command-Right to the start and the end of the line. The other keys, and copy, cut and paste, are a text field's; a pasted line break stays one (a return, or a return and a line feed, becomes a line feed). It scrolls itself to keep the caret in sight, and the wheel scrolls it. In the semantic tree it is a `:text-area` with the text as its value and `:caret`, `:selection` and `:offset` in its state; the machine interface's `type-text` and `set-value` type a line feed as Return.
 
 Every widget also takes `:tooltip`, words that float under it when the pointer has rested on it for half a second, until the pointer leaves or something is pressed or typed. A widget with a tooltip takes the pointer even if it takes no presses (a label, a disabled button). In the semantic tree the words are the node's `:help`, and the shown tooltip is a `:tooltip` node; VoiceOver reads them as the widget's help.

@@ -1,7 +1,16 @@
 (defpackage #:almighty-bolt/platform/macos/main-queue
   (:use #:cl)
+  (:import-from #:almighty-bolt/platform/macos/objc
+                #:msg-send
+                #:objc-class
+                #:selector
+                #:define-callback
+                #:define-runtime-class
+                #:define-startup)
   (:export #:on-main-thread-p
            #:run-on-main
+           #:run-on-main-later
+           #:run-on-main-in-a-turn
            #:call-on-main))
 
 (in-package #:almighty-bolt/platform/macos/main-queue)
@@ -64,6 +73,48 @@ the main thread, in which case THUNK has run when this returns."
       (funcall thunk)
       (enqueue thunk nil))
   nil)
+
+(defun run-on-main-later (thunk)
+  "Call THUNK on the main thread after what it is doing now, even if the caller is the main thread:
+for work that must not run inside a frame (a panel that runs a loop of its own). Returns at once."
+  (enqueue thunk nil)
+  nil)
+
+;;; Work that runs a loop of its own (the system's file panels, which wait for the person) must not
+;;; run from the main queue: the queue is serial, and nothing else given to it would run until the
+;;; loop ended, so the REPL and an agent could do nothing in the window meanwhile. It is started from
+;;; a timer of the main thread's run loop instead, and the loop it runs then goes on serving the queue.
+
+(define-callback later-run sb-alien:void
+    ((self sb-alien:unsigned-long) (cmd sb-alien:unsigned-long) (number sb-alien:unsigned-long))
+  (let* ((id (msg-send :long number "longValue"))
+         (thunk (sb-thread:with-mutex (*lock*)
+                  (prog1 (gethash id *thunks*)
+                    (remhash id *thunks*)))))
+    (when thunk
+      (funcall thunk))))
+
+(define-runtime-class *later-class* "AlmightyBoltLater" "NSObject"
+  :methods '(("run:" "v@:@" later-run)))
+
+(defvar *later* nil "The object whose run: the timers call.")
+
+(define-startup later-object
+  (setf *later* (msg-send :id (msg-send :id *later-class* "alloc") "init")))
+
+(defun run-on-main-in-a-turn (thunk)
+  "Call THUNK on the main thread at the next turn of its run loop, from a timer and not from the
+main queue, so that the main queue goes on being served while THUNK runs a loop of its own (a modal
+panel). Call on the main thread; returns at once."
+  (let ((id (sb-thread:with-mutex (*lock*)
+              (let ((id (incf *next-id*)))
+                (setf (gethash id *thunks*) thunk)
+                id))))
+    (msg-send :void *later* "performSelector:withObject:afterDelay:"
+              (:ulong (selector "run:"))
+              (:id (msg-send :id (objc-class "NSNumber") "numberWithLong:" (:long id)))
+              (:double 0d0))
+    nil))
 
 (defun call-on-main (thunk)
   "Call THUNK on the main thread and return its values, waiting for it. Must not

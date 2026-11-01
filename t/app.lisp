@@ -704,6 +704,46 @@ at the start, and a button under where the popovers' catchers are that counts it
     (m:press-key session :return)
     (assert-equal "long b" (s:node-value (node-of screen :city)))))
 
+;;; --- the system's file panels ---
+
+(defun make-documents ()
+  (state-let ((opened "nothing") (saved "nowhere") (opens 0))
+    (lambda ()
+      (column (:gap 8)
+        (let ((path (open-file-dialog :id :open :types '("txt" "md")
+                                      :show (button "Open..." :id :open-button))))
+          (when path (setf opened path) (incf opens)))
+        (label (format nil "~d opens" opens) :id :opens)
+        (let ((path (save-file-dialog :id :save :types '("txt") :name "Untitled.txt"
+                                      :show (button "Save as..." :id :save-button))))
+          (when path (setf saved path)))
+        (label (format nil "Opened ~a, saved ~a" opened saved) :id :said)))))
+
+(define-test the-file-panels-are-asked-for-on-a-press-and-give-the-path-back ()
+  (let* ((screen (show 'make-documents))
+         (asked '()))
+    (setf (core:context-file-chooser (screen-context screen))
+          (lambda (kind types name)
+            (push (list kind types name) asked)
+            (ecase kind (:open "/notes/a.txt") (:save "/notes/b.txt"))))
+    (assert-eq nil asked)
+    (click screen :open-button)
+    (assert-equal '((:open ("txt" "md") nil)) asked)
+    (assert-equal "Opened /notes/a.txt, saved nowhere" (s:node-name (node-of screen :said)))
+    (click screen :save-button)
+    (assert-equal '(:save ("txt") "Untitled.txt") (first asked))
+    (assert-equal "Opened /notes/a.txt, saved /notes/b.txt" (s:node-name (node-of screen :said)))
+    ;; Asked once a press, and the path given back once, however many frames there are.
+    (dotimes (i 3) (draw screen))
+    (assert-equal 2 (length asked))
+    (assert-equal "1 opens" (s:node-name (node-of screen :opens)))))
+
+(define-test a-cancelled-file-panel-gives-nothing-back ()
+  (let ((screen (show 'make-documents)))
+    ;; With no chooser, a context with no window cancels.
+    (click screen :open-button)
+    (assert-equal "Opened nothing, saved nowhere" (s:node-name (node-of screen :said)))))
+
 ;;; --- toasts ---
 
 (defun make-saver ()

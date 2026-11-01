@@ -45,6 +45,8 @@
         (cons 'w:context-menu (lambda () (w:context-menu (:items '("a")) (w:label "x" :id :x))))
         (cons 'w:popover (lambda () (w:button "a" :id :a) (w:popover (:open t :anchor :a))))
         (cons 'w:dialog (lambda () (w:dialog (:open t))))
+        (cons 'w:open-file-dialog (lambda () (w:open-file-dialog)))
+        (cons 'w:save-file-dialog (lambda () (w:save-file-dialog)))
         (cons 'w:list-box (lambda () (w:list-box '("a" "b") 0)))
         (cons 'w:canvas (lambda () (w:canvas 20 20 (lambda (&rest arguments)
                                                      (declare (ignore arguments))))))

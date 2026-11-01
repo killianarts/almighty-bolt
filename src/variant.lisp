@@ -53,7 +53,9 @@
            #:context-caret-rect
            #:context-push-text
            #:context-clipboard-text
-           #:context-set-clipboard-text))
+           #:context-set-clipboard-text
+           #:context-choose-file
+           #:context-file-chooser))
 
 (in-package #:almighty-bolt/variant)
 
@@ -177,6 +179,9 @@ within the frame. REQUESTER is what REQUEST-FRAME calls; the host replaces it."
   ;; What was copied, for a context whose host has no clipboard of the system's (a test, a replay):
   ;; see CONTEXT-CLIPBOARD-TEXT.
   (clipboard nil :type (or null string))
+  ;; For a context with no window (a test): a function of the kind (:open or :save), the types and
+  ;; the name, that answers as a person would, with a path or NIL. See CONTEXT-CHOOSE-FILE.
+  (file-chooser nil :type (or null function))
   (phase-ns (make-array +phase-slots+ :element-type '(unsigned-byte 64) :initial-element 0)
    :type (simple-array (unsigned-byte 64) (*)) :read-only t))
 
@@ -368,3 +373,15 @@ Returns the number of commands added.")
   (:documentation "Put STRING on the clipboard, in place of what it held. Returns STRING.")
   (:method ((context context) string)
     (setf (context-clipboard context) (copy-seq string))))
+
+;;; --- the system's file panels, which the host supplies ---
+
+(defgeneric context-choose-file (context kind types name callback)
+  (:documentation "Ask the person for a file: KIND :open, for one to open, or :save, for where to
+save, with TYPES the extensions allowed (all if NIL) and NAME the name offered to save as. CALLBACK is
+called with the path chosen, or NIL if the person cancelled, later (a host with a window shows the
+system's panel after the frame) or at once. A context with no window answers with its FILE-CHOOSER,
+or cancels.")
+  (:method ((context context) kind types name callback)
+    (funcall callback (let ((chooser (context-file-chooser context)))
+                        (and chooser (funcall chooser kind types name))))))
