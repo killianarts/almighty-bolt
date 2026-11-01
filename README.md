@@ -199,8 +199,10 @@ list, and what comes first, is in [docs/roadmap.md](docs/roadmap.md).
 
 ## Examples
 
-- [`examples/`](examples): a counter and a to-do list, written with the public
-  package only.
+- [`examples/`](examples): a counter, a to-do list, and a gallery of every
+  widget and container with what each returns, written with the public package
+  only: `(bolt:open-app 'almighty-bolt-examples/gallery:make-gallery :width 960
+  :height 760)` after loading [`load-examples.lisp`](load-examples.lisp).
 - [`examples/7guis/`](examples/7guis): the seven 7GUIs tasks.
   [`bench/stress/`](bench/stress) has a dashboard, a million-row list and a text
   editor with input-method support.

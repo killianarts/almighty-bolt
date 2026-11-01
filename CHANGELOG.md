@@ -20,10 +20,11 @@ are not listed.
 - `scroll`, a container that shows what is inside it in a window moved by the wheel ([0.2](docs/releases/dev.md#a-scroll-container)).
 - `lazy-list`, a scrolling list that describes only the rows that show, so a million rows cost what the visible ones do ([0.2](docs/releases/dev.md#a-list-that-builds-only-the-rows-that-show)).
 - `text-area`, a text field of several lines whose long lines go on in the next ([0.2](docs/releases/dev.md#a-text-area)).
+- A gallery example with every widget and container on one page ([0.2](docs/releases/dev.md#examples)).
 
 ### Changed
 
-- The machine interface's `type-text` and `set-value` type a line feed as Return (in a text field, that submits it); `click` and `double-click` refuse a thing scrolled out of sight ([0.2](docs/releases/dev.md#machine-interface)).
+- The machine interface's `type-text` and `set-value` type a line feed as Return (in a text field, that submits it); `click`, `double-click` and `set-value` refuse a thing scrolled out of sight ([0.2](docs/releases/dev.md#machine-interface)).
 
 ### Deprecated
 

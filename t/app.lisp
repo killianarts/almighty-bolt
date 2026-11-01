@@ -9,6 +9,7 @@
                     (#:fake #:almighty-bolt/test-support/fake-context)
                     (#:counter #:almighty-bolt-examples/counter)
                     (#:todo #:almighty-bolt-examples/todo)
+                    (#:gallery #:almighty-bolt-examples/gallery)
                     (#:objc #:almighty-bolt/platform/macos/objc)
                     (#:window #:almighty-bolt/platform/macos/window)
                     (#:view #:almighty-bolt/platform/macos/view)
@@ -142,6 +143,70 @@ frame."
     (assert-equal "3 left" (text-in screen :left))
     (assert-equal "Feed the cat" (text-in screen 4))
     (assert-equal "" (s:node-value (m:find-node session :id :draft)))))
+
+;;; --- the gallery of every widget ---
+
+(defparameter +every-widget+
+  ;; What each widget and container that is not only layout is in the semantic tree. A widget added
+  ;; to the library is added here and to the gallery (examples/gallery.lisp).
+  '((label . :static-text) (paragraph . :paragraph) (button . :button) (text-field . :text-field)
+    (text-area . :text-area) (slider . :slider) (choice . :radio-group) (checkbox . :checkbox)
+    (list-box . :list) (progress . :progress-bar) (canvas . :canvas) (scrim . :overlay)
+    (scroll . :scroll-area) (lazy-list . :scroll-area)))
+
+(defun roles-in (screen)
+  (let ((roles '()))
+    (s:walk-nodes (lambda (node) (pushnew (s:node-role node) roles))
+                  (core:accessibility-tree (screen-variant screen)))
+    roles))
+
+(defun scroll-into-sight (session screen container id)
+  "Turn the wheel over CONTAINER until the thing ID is not hidden."
+  (loop :repeat 100
+        :while (s:node-property (node-of screen id) :hidden)
+        :do (m:scroll session :id container :dy -2)))
+
+(define-test the-gallery-has-one-of-every-widget ()
+  (let* ((screen (show 'gallery:make-gallery))
+         (session (screen-session screen)))
+    ;; The scrim is there while the overlay shows.
+    (scroll-into-sight session screen :page :show-overlay)
+    (m:click session :id :show-overlay)
+    (let ((roles (roles-in screen)))
+      (loop :for (widget . role) :in +every-widget+
+            :do (assert-true (member role roles) widget role)))
+    (assert-eql 10000 (s:node-property (node-of screen :tasks) :row-count))
+    (assert-eq :scroll-area (s:node-role (node-of screen :inner)))
+    (m:click session :id :close)
+    (assert-false (member :overlay (roles-in screen)))))
+
+(define-test what-the-gallerys-widgets-return-is-shown-under-them ()
+  (let* ((screen (show 'gallery:make-gallery))
+         (session (screen-session screen)))
+    (flet ((says (id) (s:node-name (node-of screen id))))
+      (scroll-into-sight session screen :page :presses)
+      (m:click session :id :press)
+      (m:click session :id :press)
+      (assert-equal "Pressed 2 times." (says :presses))
+      ;; What is out of sight is not typed into.
+      (handler-case (progn (m:set-value session "" :id :notes)
+                           (assert-true nil "a hidden text area was typed into"))
+        (m:cannot () t))
+      (scroll-into-sight session screen :page :greeting)
+      (m:set-value session "" :id :name)
+      (assert-true (s:node-property (node-of screen :name) :invalid))
+      (m:set-value session "Grace" :id :name)
+      (assert-equal "Hello, Grace." (says :greeting))
+      (scroll-into-sight session screen :page :volume-note)
+      (m:set-value session 75 :id :volume)
+      (assert-equal "75%" (says :volume-note))
+      (assert-true (< 0.7d0 (s:node-value (node-of screen :loudness)) 0.8d0))
+      (scroll-into-sight session screen :page :dots)
+      (m:click session :id :canvas)
+      (assert-equal "1 dot." (says :dots))
+      (scroll-into-sight session screen :page :done-count)
+      (m:click session :role :checkbox :name "Task 1")
+      (assert-equal "1 done." (says :done-count)))))
 
 ;;; --- copy, cut and paste ---
 

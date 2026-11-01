@@ -280,6 +280,7 @@ keyboard."
 selecting what was there), press a check box if it is not as wanted, press a slider where the
 value is, press the option of a choice, pick the item of a list."
   (let ((node (find-node session :id id :role role :name name)))
+    (refuse-hidden node)
     (when (node-property node :disabled)
       (refuse 'cannot "The ~a is disabled." (describe-node node)))
     (ecase (node-role node)

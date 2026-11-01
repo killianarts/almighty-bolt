@@ -3,6 +3,9 @@
 ;;; then, for example,
 ;;;   (almighty-bolt:open-app 'almighty-bolt-examples/counter:make-counter
 ;;;                           :title "Counter" :width 360 :height 160)
+;;; or, for every widget on one page,
+;;;   (almighty-bolt:open-app 'almighty-bolt-examples/gallery:make-gallery
+;;;                           :title "Gallery" :width 960 :height 760)
 
 (require :asdf)
 (asdf:initialize-source-registry

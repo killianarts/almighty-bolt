@@ -7,4 +7,5 @@
   :serial t
   :depends-on ("almighty-bolt")
   :components ((:file "counter")
-               (:file "todo")))
+               (:file "todo")
+               (:file "gallery")))

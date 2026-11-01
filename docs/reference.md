@@ -86,7 +86,7 @@ Two other things use the tree, in different systems because they are for differe
   (m:screenshot session))                                            ; a PNG, in a vector of bytes
 ```
 
-Things are named by `:id`, or by `:role` and `:name`, and a name that fits two things is an error that says so (`ambiguous-node`). The calls are `see`, `find-node`, `click`, `double-click`, `type-text`, `press-key`, `set-value`, `select-item`, `scroll`, `wait` and `screenshot`. The tests of the 7GUIs drive their apps through it. A thing scrolled out of the window of a `scroll` is `:hidden` in its state, with bounds of no size where it went out, and `click` and `double-click` refuse it with a message that says to scroll first; `scroll` on the container (its role is `:scroll-area`, and its state has `:offset` and `:content-height`) brings it into sight.
+Things are named by `:id`, or by `:role` and `:name`, and a name that fits two things is an error that says so (`ambiguous-node`). The calls are `see`, `find-node`, `click`, `double-click`, `type-text`, `press-key`, `set-value`, `select-item`, `scroll`, `wait` and `screenshot`. The tests of the 7GUIs drive their apps through it. A thing scrolled out of the window of a `scroll` is `:hidden` in its state, with bounds of no size where it went out, and `click`, `double-click` and `set-value` refuse it with a message that says to scroll first; `scroll` on the container (its role is `:scroll-area`, and its state has `:offset` and `:content-height`) brings it into sight.
 
 ## The MCP server
 

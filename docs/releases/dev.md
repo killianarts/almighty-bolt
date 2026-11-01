@@ -104,9 +104,13 @@ VoiceOver does not yet scroll a `scroll` to the thing its cursor is on. (What it
 
 - Command-C, Command-X and Command-V copy, cut and paste in a text field, through the system's clipboard. A line break that is pasted becomes a space, since the field holds one line. Copy and cut do nothing when nothing is selected.
 
+#### Examples
+
+- `almighty-bolt-examples/gallery:make-gallery` puts every widget and container on one page, each with what it returns shown under it, for trying them and for showing them. The tests check that it has one of each, so a new widget is added to it.
+
 #### Machine interface
 
 - `type-text` and `set-value` type a line feed in the text as Return, the key a person presses for it. In a text area that starts a new line; in a text field it submits the field (before, a line feed was dropped).
-- `click` and `double-click` refuse a thing that is scrolled out of the window of a `scroll` or a `lazy-list` (it is `:hidden` in the tree), with a message that says to scroll first. A thing partly out of the window is pressed in the middle of the part that shows.
+- `click`, `double-click` and `set-value` refuse a thing that is scrolled out of the window of a `scroll` or a `lazy-list` (it is `:hidden` in the tree), with a message that says to scroll first. A thing partly out of the window is pressed in the middle of the part that shows.
 
 - A widget's `:id` is its element's accessibility identifier, so the id that an agent or a test finds a widget by is what the Accessibility Inspector shows for it.
