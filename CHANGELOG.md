@@ -26,6 +26,7 @@ are not listed.
 - `menu-button`, and `context-menu`, a menu on a right-click or Control-click anywhere in an area ([0.2](docs/releases/dev.md#a-menu-button-and-context-menus)).
 - A press of the primary button with Control down is a secondary press, as on a Mac ([0.2](docs/releases/dev.md#a-menu-button-and-context-menus)).
 - `secondary-click` in the machine interface and `secondary_click` in the MCP server ([0.2](docs/releases/dev.md#a-menu-button-and-context-menus)).
+- `:tooltip` on every widget ([0.2](docs/releases/dev.md#tooltips)).
 
 ### Changed
 

@@ -115,7 +115,8 @@ Widgets are simple functions that can be composed into a GUI. Each takes a
 required `:id`, a name that stays with the widget from frame to frame: it keeps
 a text field's caret across frames and across a hot-reload/function compile, and
 it is what tests and agents find the widget by. Leave it out, or use one twice
-in a container, and the error names the widget. Pass a widget the value your app
+in a container, and the error names the widget. Each also takes `:tooltip`,
+words shown when the pointer rests on it. Pass a widget the value your app
 holds, and it gives you the new one:
 
 ```lisp

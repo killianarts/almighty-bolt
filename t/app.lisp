@@ -419,6 +419,84 @@ its presses, a label outside the area, and what was chosen last."
     (assert-equal '("Cut" "Copy" "Paste") (menu-rows screen))
     (assert-equal "Pressed 0" (s:node-name (node-of screen :press)))))
 
+;;; --- tooltips ---
+
+(defun make-tips ()
+  (state-let ((saves 0))
+    (lambda ()
+      (column (:gap 8)
+        (when (button "Save" :id :save :tooltip "Save the document")
+          (incf saves))
+        (label "Plain words" :id :plain :tooltip "A label can have one too")
+        (button "Locked" :id :locked :enabled nil :tooltip "Not now")
+        (button "No tip" :id :no-tip)
+        (label (format nil "~d saves" saves) :id :saves)))))
+
+(defun tooltip-of (screen)
+  (first (s:find-nodes (core:accessibility-tree (screen-variant screen)) :role :tooltip)))
+
+(defun rest-on (screen id)
+  "Move the pointer to the middle of ID."
+  (destructuring-bind (x y w h) (s:node-bounds (node-of screen id))
+    (pointer screen :move (+ x (/ w 2)) (+ y (/ h 2)))))
+
+(defmacro with-clock ((clock) &body body)
+  `(let ((,clock (core:make-virtual-clock 1000000000)))
+     (core:with-time-source ((core:virtual-clock-source ,clock))
+       ,@body)))
+
+(define-test a-tooltip-comes-when-the-pointer-has-rested-on-its-widget ()
+  (with-clock (clock)
+    (let ((screen (show 'make-tips)))
+      (assert-equal "Save the document" (s:node-help (node-of screen :save)))
+      (rest-on screen :save)
+      (assert-eq nil (tooltip-of screen))
+      ;; It asks for the frames that bring it on time.
+      (assert-true (core:take-frame-request (screen-context screen)))
+      (core:advance-virtual-clock clock 300000000)
+      (draw screen)
+      (assert-eq nil (tooltip-of screen))
+      (core:advance-virtual-clock clock 300000000)
+      (draw screen)
+      (assert-equal "Save the document" (s:node-name (tooltip-of screen)))
+      ;; Under the button.
+      (destructuring-bind (x y w h) (s:node-bounds (node-of screen :save))
+        (declare (ignore x w))
+        (assert-true (>= (second (s:node-bounds (tooltip-of screen))) (+ y h))))
+      ;; Moved onto a widget with none, it goes.
+      (rest-on screen :no-tip)
+      (core:advance-virtual-clock clock 600000000)
+      (draw screen)
+      (assert-eq nil (tooltip-of screen)))))
+
+(define-test a-press-puts-a-tooltip-away-until-the-pointer-comes-again ()
+  (with-clock (clock)
+    (let ((screen (show 'make-tips)))
+      (rest-on screen :save)
+      (core:advance-virtual-clock clock 600000000)
+      (draw screen)
+      (assert-true (tooltip-of screen))
+      (click screen :save)
+      (assert-eq nil (tooltip-of screen))
+      (assert-equal "1 saves" (s:node-name (node-of screen :saves)))
+      (core:advance-virtual-clock clock 600000000)
+      (draw screen)
+      (assert-eq nil (tooltip-of screen))
+      (rest-on screen :no-tip)
+      (rest-on screen :save)
+      (core:advance-virtual-clock clock 600000000)
+      (draw screen)
+      (assert-true (tooltip-of screen)))))
+
+(define-test a-label-and-a-disabled-button-have-tooltips-too ()
+  (with-clock (clock)
+    (let ((screen (show 'make-tips)))
+      (dolist (each '((:plain "A label can have one too") (:locked "Not now")))
+        (rest-on screen (first each))
+        (core:advance-virtual-clock clock 600000000)
+        (draw screen)
+        (assert-equal (second each) (s:node-name (tooltip-of screen)))))))
+
 ;;; --- the gallery of every widget ---
 
 (defparameter +every-widget+
@@ -1215,6 +1293,12 @@ screen reader was given are taken away and their places are used again."
                       (mapcar (lambda (e) (says e :label))
                               (remove "AXMenuItem" (elements reader)
                                       :key (lambda (e) (says e :role)) :test-not #'equal)))))))
+
+(define-test a-screen-reader-gives-a-tooltip-as-the-help-of-its-widget ()
+  (let ((screen (show 'make-tips)))
+    (with-reader (reader screen)
+      (assert-equal "Save the document"
+                    (ns-value (objc:msg-send :id (element-named reader :save) "accessibilityHelp"))))))
 
 (define-test a-window-that-was-closed-has-nothing-to-read ()
   (let ((screen (show 'counter:make-counter)))

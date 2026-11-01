@@ -30,6 +30,7 @@
                 #:box-key
                 #:box-id
                 #:box-kind
+                #:box-tooltip
                 #:box-parent
                 #:box-data
                 #:box-children
@@ -97,7 +98,8 @@
                 #:begin-frame-input
                 #:end-frame-input)
   (:import-from #:almighty-bolt/ui/widgets
-                #:own-hashes)
+                #:own-hashes
+                #:describe-tooltip)
   (:import-from #:almighty-bolt/ui/layout
                 #:layout-box)
   (:import-from #:almighty-bolt/ui/paint
@@ -201,7 +203,7 @@ key (RECT-OF, which a widget measures from) is the whole of it, wherever it is."
                       (shown-top (max y top))
                       (shown-w (max 0f0 (- (min (+ x (box-w box)) right) shown-left)))
                       (shown-h (max 0f0 (- (min (+ y (box-h box)) bottom) shown-top))))
-                 (when (or (box-id box) (box-interactive box))
+                 (when (or (box-id box) (box-interactive box) (box-tooltip box))
                    (let ((rect (next-rect ui)))
                      (setf (rect-x rect) x (rect-y rect) y
                            (rect-w rect) (box-w box) (rect-h rect) (box-h box))
@@ -212,7 +214,8 @@ key (RECT-OF, which a widget measures from) is the whole of it, wherever it is."
                                 (or (zerop (box-w box)) (zerop (box-h box))
                                     (and (plusp shown-w) (plusp shown-h))))
                        (setf (gethash (box-id box) (ui-id-rects ui)) rect))))
-                 (when (box-interactive box)
+                 ;; A box with a tooltip takes the pointer too, so that the pointer can rest on it.
+                 (when (or (box-interactive box) (box-tooltip box))
                    (let ((index (ui-hit-count ui))
                          (hits (ui-hits ui)))
                      (when (>= index (length hits))
@@ -374,7 +377,8 @@ menu), turned to the other side or moved in where it would go out of the window.
     (with-phase (context +phase-update+)
       (begin-build ui context)
       (let ((*ui* ui))
-        (funcall (app variant)))
+        (funcall (app variant))
+        (describe-tooltip ui))
       (compute-hashes ui))
     (let ((consumed (ui-consumed ui))
           (last-build (>= (almighty-bolt/internals:context-build-number context) +max-builds+)))

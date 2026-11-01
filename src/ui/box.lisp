@@ -28,6 +28,7 @@
            #:box-n3
            #:box-data
            #:box-labelled-by
+           #:box-tooltip
            #:box-aux
            #:box-aux-doubles
            #:box-interactive
@@ -80,6 +81,8 @@
   (data nil)
   ;; The id of the widget that names this one (a label beside a field), for the semantic tree.
   (labelled-by nil)
+  ;; What it says when the pointer rests on it, or NIL.
+  (tooltip nil)
   ;; A small array of doubles, made once and refilled, for a widget's numbers that the other slots
   ;; do not hold (the slider's value, minimum and maximum), so that describing a frame allocates
   ;; nothing for them.
@@ -130,6 +133,7 @@ made."
         (box-n3 box) 0
         (box-data box) nil
         (box-labelled-by box) nil
+        (box-tooltip box) nil
         (box-interactive box) nil
         (box-focusable box) nil
         (box-moves box) nil

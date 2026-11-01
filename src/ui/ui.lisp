@@ -11,6 +11,7 @@
                 #:box-id
                 #:box-kind
                 #:box-labelled-by
+                #:box-tooltip
                 #:box-data
                 #:box-interactive
                 #:box-parent
@@ -37,7 +38,8 @@
                 #:composition-event
                 #:modifier-down-p
                 #:+modifier-shift+
-                #:make-display-list)
+                #:make-display-list
+                #:now-ns)
   (:export #:ui
            #:make-ui
            #:*ui*
@@ -60,6 +62,8 @@
            #:ui-rect-pool
            #:ui-rect-count
            #:ui-hot
+           #:ui-hot-since
+           #:ui-tooltip-dismissed
            #:ui-active
            #:ui-focus
            #:ui-started
@@ -192,6 +196,10 @@
   (queue '() :type list)
   ;; The widget the pointer is over, the one a press began on, the one with the keyboard.
   (hot 0 :type fixnum)
+  ;; When the pointer came onto what it is over (the time of the frame), and whether a press since
+  ;; has put the tooltip of it away: a tooltip shows when the pointer has rested on its widget.
+  (hot-since 0 :type (unsigned-byte 62))
+  (tooltip-dismissed nil)
   (active 0 :type fixnum)
   (focus 0 :type fixnum)
   ;; True once a frame has been laid out and drawn: the window has opened, and a canvas that asks
@@ -326,7 +334,7 @@ but the last, which is being opened)."
            :container (and parent
                            (format nil "the ~(~a~)~@[ ~s~]" (box-kind parent) (box-id parent))))))
 
-(defun open-box (ui kind &key id labelled-by)
+(defun open-box (ui kind &key id labelled-by tooltip)
   "Start a box of KIND inside the one that is open. Its key is made from its parent's and
 its ID (or, with none, its place among its parent's children), so it is the same from one
 frame to the next as long as it is described in the same place. Two boxes of one build with
@@ -335,6 +343,7 @@ the same key are an error (DUPLICATE-ID): the ui could not tell them apart."
          (parent (ui-parent ui)))
     (setf (box-id box) id
           (box-labelled-by box) labelled-by
+          (box-tooltip box) tooltip
           (box-parent box) parent)
     (let ((key (mix (if parent (box-key parent) +seed+)
                     (if id (hash-of id) (if parent (fill-pointer (box-children parent)) 0)))))
@@ -536,7 +545,13 @@ were left."
            (setf (ui-inputs ui) (nconc (ui-inputs ui) (list event))))))
       (pop queue))
     (setf (ui-queue ui) queue)
-    (compute-hot ui)
+    (let ((before (ui-hot ui)))
+      (compute-hot ui)
+      (unless (= before (ui-hot ui))
+        (setf (ui-hot-since ui) (now-ns)
+              (ui-tooltip-dismissed ui) nil)))
+    (when (or (ui-pressed ui) (ui-secondary-pressed ui) (ui-keys ui))
+      (setf (ui-tooltip-dismissed ui) t))
     ;; A press takes the keyboard from what a press gave it to; a widget that wants it gives
     ;; it back as it takes the press.
     (when (and (ui-pressed ui) (ui-click-focused ui))

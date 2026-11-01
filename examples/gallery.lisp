@@ -77,11 +77,13 @@
                                   :id :paragraph))
                 (section ("Buttons" :buttons)
                   (bolt:row (:gap 8)
-                    (when (bolt:button "Press me" :id :press)
+                    (when (bolt:button "Press me" :id :press
+                                         :tooltip "Rest the pointer on a widget to see its tooltip")
                       (incf presses))
                     (when (bolt:button "Reset" :id :reset :enabled (plusp presses))
                       (setf presses 0))
-                    (bolt:button "Disabled" :id :disabled :enabled nil))
+                    (bolt:button "Disabled" :id :disabled :enabled nil
+                                 :tooltip "A disabled button still has a tooltip"))
                   ;; Live: a screen reader reads the count out when it changes.
                   (note (format nil "Pressed ~d time~:p." presses) :presses :live t)))
 
@@ -151,7 +153,8 @@
                 (section ("Slider, progress bar, switch and spinner" :ranges)
                   (bolt:label "Volume" :id :volume-label)
                   (multiple-value-bind (value changed)
-                      (bolt:slider volume 0 100 :id :volume :labelled-by :volume-label :width 260)
+                      (bolt:slider volume 0 100 :id :volume :labelled-by :volume-label :width 260
+                                             :tooltip "Drag, or use the arrow keys")
                     (when changed (setf volume value)))
                   (bolt:label "Loudness" :id :loudness-label)
                   (bolt:progress (/ volume 100) :id :loudness :labelled-by :loudness-label

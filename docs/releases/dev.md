@@ -86,6 +86,19 @@ VoiceOver does not yet scroll a `scroll` to the thing its cursor is on. (What it
 - The items are best a vector: a row is found by its index.
 - The wheel, the bar at the edge, and what cannot be pressed out of the window are as for `scroll`. Tab reaches only the rows that are described.
 
+### Tooltips
+
+Every widget takes `:tooltip`:
+
+```lisp
+(bolt:button "Save" :id :save :tooltip "Save the document (Command-S)")
+```
+
+- The words float under the widget when the pointer has rested on it for half a second, and go when the pointer leaves or something is pressed or typed.
+- A label, a disabled button, anything with a tooltip takes the pointer, so that it can be rested on.
+- While a tooltip waits to come, the frames ask for the next one, so that it comes on time.
+- The words are the node's `:help` in the semantic tree, and the widget's help to VoiceOver.
+
 ### A menu button and context menus
 
 ```lisp

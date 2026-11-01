@@ -96,6 +96,8 @@
   ;; True for a text that is read out whenever it changes.
   (live nil)
   (identifier nil)
+  ;; A widget's tooltip, which a screen reader gives as its help.
+  (help nil)
   ;; Where it is, in points from the top left of the view.
   (x 0d0 :type double-float)
   (y 0d0 :type double-float)
@@ -161,6 +163,9 @@ element (that a client still holds) answers."
 
 (define-item-callback element-label sb-alien:unsigned-long 0
   (object-for (item-label item)))
+
+(define-item-callback element-help sb-alien:unsigned-long 0
+  (object-for (item-help item)))
 
 (define-item-callback element-value sb-alien:unsigned-long 0
   (object-for (item-value item)))
@@ -296,6 +301,7 @@ by pressing where the value then is, as a hand would. True if that is a change."
   :ivars '(("lispSlot" 8 3 "Q"))
   :methods '(("accessibilityRole" "@@:" element-role)
              ("accessibilityLabel" "@@:" element-label)
+             ("accessibilityHelp" "@@:" element-help)
              ("accessibilityValue" "@@:" element-value)
              ("accessibilityIdentifier" "@@:" element-identifier)
              ("isAccessibilityEnabled" "B@:" element-enabled)
@@ -396,7 +402,8 @@ thing that is not told yet."
     (setf (item-enabled item) (not (getf state :disabled))
           (item-focused item) (and (getf state :focused) t)
           (item-live item) (and (getf state :live) t)
-          (item-identifier item) (and id (string-downcase (princ-to-string id))))
+          (item-identifier item) (and id (string-downcase (princ-to-string id)))
+          (item-help item) (getf node :help))
     (ecase (item-role item)
       (:static-text (setf (item-label item) nil
                           (item-value item) name))

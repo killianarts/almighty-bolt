@@ -20,6 +20,7 @@
                 #:box-n3
                 #:box-aux
                 #:box-labelled-by
+                #:box-tooltip
                 #:box-main-align
                 #:box-x
                 #:box-y
@@ -54,6 +55,7 @@
            #:node-state
            #:node-bounds
            #:node-children
+           #:node-help
            #:node-property
            #:find-nodes
            #:walk-nodes))
@@ -79,6 +81,7 @@
 (defun node-state (node) (getf node :state))
 (defun node-bounds (node) (getf node :bounds))
 (defun node-children (node) (getf node :children))
+(defun node-help (node) (getf node :help))
 (defun node-property (node key) (getf (getf node :state) key))
 
 (defun role-of (box)
@@ -98,6 +101,7 @@
     (:menu-button :menu-button)
     (:menu :menu)
     (:menu-item :menu-item)
+    (:tooltip :tooltip)
     (:catcher :none)
     (:list-box :list)
     (:canvas :canvas)
@@ -115,7 +119,7 @@
 (defun name-of (ui box)
   "What the thing is called: its own words, or the words of the widget that its :labelled-by names."
   (case (box-kind box)
-    ((:label :paragraph :button :checkbox :switch :menu-item :menu-button) (box-text box))
+    ((:label :paragraph :button :checkbox :switch :menu-item :menu-button :tooltip) (box-text box))
     (t (let ((label (and (box-labelled-by box) (find-box ui (box-labelled-by box)))))
          (and label (box-text label))))))
 
@@ -234,6 +238,8 @@ shows; one that is all out of sight is :hidden, with no width or height."
             ;; A check box that is not checked has the value NIL, which is a value.
             (and (or value (member (box-kind box) '(:checkbox :switch))) (list :value value))
             (and state (list :state state))
+            ;; What it says when the pointer rests on it.
+            (and (box-tooltip box) (list :help (box-tooltip box)))
             (list :bounds (if hidden
                               (list (min (max x left) right) (min (max y top) bottom) 0f0 0f0)
                               (list shown-left shown-top shown-w shown-h)))

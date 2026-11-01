@@ -19,6 +19,8 @@
            #:+row-selected-color+
            #:+row-hover-color+
            #:+scrim-color+
+           #:+tooltip-color+
+           #:+tooltip-text-color+
            #:+font-name+
            #:+font-size+
            #:+control-radius+
@@ -45,6 +47,8 @@
 (defparameter +row-selected-color+ (pack-color 72 104 200))
 (defparameter +row-hover-color+ (pack-color 58 64 90))
 (defparameter +scrim-color+ (pack-color 0 0 0 130))
+(defparameter +tooltip-color+ (pack-color 232 234 240))
+(defparameter +tooltip-text-color+ (pack-color 30 33 46))
 (defparameter +font-name+ "Helvetica")
 (defparameter +font-size+ 15)
 (defconstant +control-radius+ 6)

@@ -224,6 +224,11 @@ them in the boxes, and return the width and height."
                                 (float (context-measure context (ui-font context) (box-text box)) 1f0))
                              min-w max-w)
               (constrain +menu-row-height+ min-h max-h)))
+    (:tooltip
+     (multiple-value-bind (width ascent descent)
+         (context-measure context (context-font context +font-name+ 13) (box-text box))
+       (set-box box (constrain (+ (float width 1f0) 16f0) min-w max-w)
+                (constrain (+ (float (+ ascent descent) 1f0) 8f0) min-h max-h))))
     (:catcher
      (set-box box (if (< max-w +unbounded+) max-w min-w) (if (< max-h +unbounded+) max-h min-h)))
     (:switch

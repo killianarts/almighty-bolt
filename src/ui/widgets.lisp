@@ -7,6 +7,7 @@
   (:import-from #:almighty-bolt/ui/box
                 #:box-key
                 #:box-parent
+                #:box-tooltip
                 #:box-id
                 #:box-kind
                 #:box-text
@@ -39,6 +40,8 @@
                 #:ui-context
                 #:ui-consumed
                 #:ui-hot
+                #:ui-hot-since
+                #:ui-tooltip-dismissed
                 #:ui-active
                 #:ui-focus
                 #:ui-started
@@ -169,6 +172,8 @@
            #:lazy-list-rows
            #:+lazy-list-height+
            #:own-hashes
+           #:describe-tooltip
+           #:+tooltip-delay-ns+
            #:text-area
            #:area-state
            #:area-state-state
@@ -482,10 +487,10 @@ wide, or as wide as it is allowed to be. The :id is required."
 
 ;;; --- text ---
 
-(defun label (text &key (id (required-id 'label)) (size 15) color (flex 0) live)
+(defun label (text &key (id (required-id 'label)) tooltip (size 15) color (flex 0) live)
   "A line of TEXT. A LIVE label is read out by a screen reader whenever its text changes, wherever the
 reader is: for a result, a count or a status that a person should hear without going to look for it."
-  (let ((box (open-box *ui* :label :id id)))
+  (let ((box (open-box *ui* :label :id id :tooltip tooltip)))
     (setf (box-text box) text
           (box-size box) size
           (box-color box) (or color 0)
@@ -513,10 +518,10 @@ are not the ones that were drawn before."
   (incf (paragraph-state-generation state))
   state)
 
-(defun paragraph (text &key (id (required-id 'paragraph)) (size 15) color (flex 0) live)
+(defun paragraph (text &key (id (required-id 'paragraph)) tooltip (size 15) color (flex 0) live)
   "TEXT broken into lines to the width it is given, SIZE points high. LIVE is as for a label."
   (let* ((ui *ui*)
-         (box (open-box ui :paragraph :id id)))
+         (box (open-box ui :paragraph :id id :tooltip tooltip)))
     (setf (box-text box) text
           (box-size box) size
           (box-color box) (or color 0)
@@ -526,9 +531,9 @@ are not the ones that were drawn before."
     (close-box ui)
     nil))
 
-(defun progress (fraction &key (id (required-id 'progress)) labelled-by (width 200) (flex 0))
+(defun progress (fraction &key (id (required-id 'progress)) tooltip labelled-by (width 200) (flex 0))
   "A bar that is FRACTION (0 to 1) full."
-  (let ((box (open-box *ui* :progress :id id :labelled-by labelled-by)))
+  (let ((box (open-box *ui* :progress :id id :tooltip tooltip :labelled-by labelled-by)))
     (setf (box-n1 box) (float (max 0 (min 1 fraction)) 1f0)
           (box-pref-w box) (float width 1f0)
           (box-flex box) (float flex 1f0))
@@ -537,11 +542,11 @@ are not the ones that were drawn before."
 
 ;;; --- a button ---
 
-(defun button (text &key (id (required-id 'button)) (enabled t) (flex 0))
+(defun button (text &key (id (required-id 'button)) tooltip (enabled t) (flex 0))
   "A button. Returns true when it is clicked: the primary button went down and up over it,
 or the space bar or Return was pressed with the keyboard on it."
   (let* ((ui *ui*)
-         (box (open-box ui :button :id id))
+         (box (open-box ui :button :id id :tooltip tooltip))
          (key (box-key box))
          (clicked nil))
     (setf (box-text box) text
@@ -646,14 +651,14 @@ made spaces if SINGLE-LINE and line feeds if not."
         (setf (field-state-view-start state) start)))))
 
 (defun text-field (string
-                   &key (id (required-id 'text-field)) labelled-by
+                   &key (id (required-id 'text-field)) tooltip labelled-by
                      (width 180) invalid (enabled t) (flex 0))
   "An editable line showing STRING. Returns the text now, whether the person changed it this
 frame, and whether Return was pressed. Command-C, Command-X and Command-V copy, cut and paste
 (a line break that is pasted becomes a space). Pass what it returned back in the next frame; if the
 application passes something else, that is what is shown."
   (let* ((ui *ui*)
-         (box (open-box ui :text-field :id id :labelled-by labelled-by))
+         (box (open-box ui :text-field :id id :tooltip tooltip :labelled-by labelled-by))
          (key (box-key box))
          (state (state-of ui key #'make-field-state))
          (changed nil)
@@ -873,7 +878,7 @@ key was one for the area."
               (max 0f0 (min offset (max 0f0 (- (* (length lines) height) inner)))))))))
 
 (defun text-area (string
-                  &key (id (required-id 'text-area)) labelled-by
+                  &key (id (required-id 'text-area)) tooltip labelled-by
                     (width 320) (rows 6) (enabled t) (flex 0))
   "An editable text of several lines showing STRING, WIDTH points wide and ROWS lines tall, whose long
 lines go on in the next. Returns the text now and whether the person changed it this frame. Return
@@ -882,7 +887,7 @@ with Left and Right to the start and the end of the line; the other keys, and co
 are a text field's. Pass what it returned back in the next frame; if the application passes something
 else, that is what is shown."
   (let* ((ui *ui*)
-         (box (open-box ui :text-area :id id :labelled-by labelled-by))
+         (box (open-box ui :text-area :id id :tooltip tooltip :labelled-by labelled-by))
          (key (box-key box))
          (area (state-of ui key #'make-area-state))
          (width (float width 1f0))
@@ -960,11 +965,11 @@ else, that is what is shown."
 ;;; --- a slider ---
 
 (defun slider (value minimum maximum
-               &key (id (required-id 'slider)) labelled-by (width 200) (enabled t) (flex 0))
+               &key (id (required-id 'slider)) tooltip labelled-by (width 200) (enabled t) (flex 0))
   "A slider showing VALUE between MINIMUM and MAXIMUM. Returns the value now and whether the
 person changed it this frame."
   (let* ((ui *ui*)
-         (box (open-box ui :slider :id id :labelled-by labelled-by))
+         (box (open-box ui :slider :id id :tooltip tooltip :labelled-by labelled-by))
          (key (box-key box))
          (new (float value 1d0))
          (range (- (float maximum 1d0) (float minimum 1d0))))
@@ -1028,14 +1033,14 @@ person changed it this frame."
   (option-height 0f0 :type single-float))
 
 (defun choice (options selected
-               &key (id (required-id 'choice)) labelled-by (direction :horizontal) (enabled t)
+               &key (id (required-id 'choice)) tooltip labelled-by (direction :horizontal) (enabled t)
                  (flex 0))
   "A choice among OPTIONS (strings), each with a round button, with the SELECTED one (an index)
 marked: side by side, or with DIRECTION :vertical one under another (radio buttons, as a Mac lays
 them out). Returns the index now and whether the person changed it this frame."
   (check-type direction (member :horizontal :vertical))
   (let* ((ui *ui*)
-         (box (open-box ui :choice :id id :labelled-by labelled-by))
+         (box (open-box ui :choice :id id :tooltip tooltip :labelled-by labelled-by))
          (key (box-key box))
          (state (state-of ui key #'make-choice-state))
          (new selected))
@@ -1184,13 +1189,13 @@ person pressed outside it or pressed Escape)."
 ;;; --- a dropdown ---
 
 (defun dropdown (options selected
-                 &key (id (required-id 'dropdown)) labelled-by width (enabled t) (flex 0))
+                 &key (id (required-id 'dropdown)) tooltip labelled-by width (enabled t) (flex 0))
   "A button showing the SELECTED one (an index) of OPTIONS (strings), which a press opens into a menu
 of them all: a pop-up button. WIDTH is how wide it is (by default, as wide as the option it shows).
 Returns the index now and whether the person changed it this frame. With the keyboard on it, the
 space bar, Return and the arrows open the menu."
   (let* ((ui *ui*)
-         (box (open-box ui :dropdown :id id :labelled-by labelled-by))
+         (box (open-box ui :dropdown :id id :tooltip tooltip :labelled-by labelled-by))
          (key (box-key box))
          (state (state-of ui key #'make-menu-state))
          (new selected))
@@ -1229,12 +1234,12 @@ space bar, Return and the arrows open the menu."
 
 ;;; --- a button with a menu of commands ---
 
-(defun menu-button (text items &key (id (required-id 'menu-button)) (enabled t) (flex 0))
+(defun menu-button (text items &key (id (required-id 'menu-button)) tooltip (enabled t) (flex 0))
   "A button with TEXT that a press opens into a menu of ITEMS (strings): commands, of which none is
 chosen beforehand. Returns the item chosen, on the frame it is chosen, and otherwise NIL. With the
 keyboard on it, the space bar, Return and the arrows open the menu."
   (let* ((ui *ui*)
-         (box (open-box ui :menu-button :id id))
+         (box (open-box ui :menu-button :id id :tooltip tooltip))
          (key (box-key box))
          (state (state-of ui key #'make-menu-state))
          (chosen nil))
@@ -1326,12 +1331,12 @@ chosen, on the frame it is chosen, and otherwise NIL. The :id is required."
 
 ;;; --- a box that is checked or not, with a label ---
 
-(defun checkbox (label checked &key (id (required-id 'checkbox)) (enabled t) (flex 0))
+(defun checkbox (label checked &key (id (required-id 'checkbox)) tooltip (enabled t) (flex 0))
   "A box with LABEL beside it, CHECKED or not (what the application holds). Returns the state now
 and whether the person changed it this frame: the primary button went down and up over the box or
 the label, or the space bar was pressed with the keyboard on it."
   (let* ((ui *ui*)
-         (box (open-box ui :checkbox :id id))
+         (box (open-box ui :checkbox :id id :tooltip tooltip))
          (key (box-key box))
          (new (and checked t)))
     (setf (box-text box) label
@@ -1360,13 +1365,13 @@ the label, or the space bar was pressed with the keyboard on it."
 
 ;;; --- a switch, on or off ---
 
-(defun switch (label on &key (id (required-id 'switch)) (enabled t) (flex 0))
+(defun switch (label on &key (id (required-id 'switch)) tooltip (enabled t) (flex 0))
   "A switch with LABEL beside it, ON or off (what the application holds): a check box that looks
 like a light switch, for a setting that takes effect at once. Returns the state now and whether the
 person changed it this frame: the primary button went down and up over it, or the space bar was
 pressed with the keyboard on it."
   (let* ((ui *ui*)
-         (box (open-box ui :switch :id id))
+         (box (open-box ui :switch :id id :tooltip tooltip))
          (key (box-key box))
          (new (and on t)))
     (setf (box-text box) label
@@ -1396,11 +1401,11 @@ pressed with the keyboard on it."
 ;;; --- something going on whose end is not known ---
 (defconstant +spinner-steps+ 8 "How many dots go round a spinner.")
 
-(defun spinner (&key (id (required-id 'spinner)) labelled-by (size 18) (flex 0))
+(defun spinner (&key (id (required-id 'spinner)) tooltip labelled-by (size 18) (flex 0))
   "A ring of dots that goes round while it is shown, for work whose end is not known (for work whose
 end is known, a progress bar). It asks for the frames it needs to move, about ten a second: an app
 with a spinner showing is not at rest."
-  (let ((box (open-box *ui* :spinner :id id :labelled-by labelled-by)))
+  (let ((box (open-box *ui* :spinner :id id :tooltip tooltip :labelled-by labelled-by)))
     (setf (box-pref-w box) (float size 1f0)
           (box-pref-h box) (float size 1f0)
           ;; The step the ring is at, from the time of the frame.
@@ -1417,12 +1422,12 @@ with a spinner showing is not at rest."
   (remainder 0f0 :type single-float))
 
 (defun list-box (items selected
-                 &key (id (required-id 'list-box)) labelled-by
+                 &key (id (required-id 'list-box)) tooltip labelled-by
                    (rows 8) (width 200) (enabled t) (flex 0))
   "A list of ITEMS (strings), showing ROWS at a time, with the SELECTED one (an index, or
 NIL) marked. Returns the index now and whether the person changed it this frame."
   (let* ((ui *ui*)
-         (box (open-box ui :list-box :id id :labelled-by labelled-by))
+         (box (open-box ui :list-box :id id :tooltip tooltip :labelled-by labelled-by))
          (key (box-key box))
          (state (state-of ui key #'make-list-state))
          (count (length items))
@@ -1485,7 +1490,7 @@ NIL) marked. Returns the index now and whether the person changed it this frame.
   (was-hot nil))
 
 (defun canvas (width height painter
-               &key (id (required-id 'canvas)) labelled-by focusable autofocus (flex 0))
+               &key (id (required-id 'canvas)) tooltip labelled-by focusable autofocus (flex 0))
   "An area of WIDTH by HEIGHT. PAINTER is called every frame with the list to append to, the
 context, and the width and height, and draws from the top left of the area, which it clips
 to; if what it draws is what it drew last frame, nothing more is done for it. Returns the
@@ -1495,7 +1500,7 @@ selection-length), (:wheel dx dy) and (:exit), with points in the canvas. The co
 them can ask CURRENT-CONTEXT for the context, which measures text. A FOCUSABLE canvas that is
 also AUTOFOCUS has the keyboard when the window opens, if nothing has it by then."
   (let* ((ui *ui*)
-         (box (open-box ui :canvas :id id :labelled-by labelled-by))
+         (box (open-box ui :canvas :id id :tooltip tooltip :labelled-by labelled-by))
          (key (box-key box))
          (state (state-of ui key #'make-canvas-state))
          (events '())
@@ -1574,11 +1579,11 @@ also AUTOFOCUS has the keyboard when the window opens, if nothing has it by then
 
 ;;; --- a veil that takes the pointer ---
 
-(defun scrim (&key (id (required-id 'scrim)))
+(defun scrim (&key (id (required-id 'scrim)) tooltip)
   "A translucent layer over everything before it in a stack, as large as it is allowed to be,
 that takes the pointer from what is under it. Returns true when it is pressed."
   (let* ((ui *ui*)
-         (box (open-box ui :scrim :id id))
+         (box (open-box ui :scrim :id id :tooltip tooltip))
          (key (box-key box))
          (pressed nil))
     (setf (box-interactive box) t)
@@ -1587,6 +1592,32 @@ that takes the pointer from what is under it. Returns true when it is pressed."
       (setf pressed t))
     (close-box ui)
     pressed))
+
+;;; --- a tooltip ---
+;;;
+;;; Any widget given :tooltip takes the pointer, and when the pointer has rested on it for
+;;; +TOOLTIP-DELAY-NS+ (with no press or key since it came), its words float under it, until the
+;;; pointer leaves or something is pressed. Until then the frames ask for the next, so that it comes
+;;; on time.
+
+(defconstant +tooltip-delay-ns+ 500000000 "How long the pointer rests on a widget before its tooltip.")
+
+(defun describe-tooltip (ui)
+  "Describe the tooltip of the widget the pointer is on, if it has one and its time has come. Called
+after the app's function, with the build's boxes made."
+  (let ((hot (ui-hot ui)))
+    (unless (or (zerop hot) (ui-tooltip-dismissed ui) (ui-down ui))
+      (let ((box (loop :for index :below (ui-count ui)
+                       :for box = (svref (ui-boxes ui) index)
+                       :when (= (box-key box) hot) :return box)))
+        (when (and box (box-tooltip box))
+          (if (< (- (now-ns) (ui-hot-since ui)) +tooltip-delay-ns+)
+              (request-frame (ui-context ui))
+              (multiple-value-bind (float open)
+                  (open-float ui :tooltip hot :tooltip
+                              (make-float-spec :anchor box :placement :below))
+                (setf (box-text float) (box-tooltip box))
+                (close-float ui open))))))))
 
 ;;; --- what decides size and look ---
 
@@ -1598,7 +1629,7 @@ counting its children."
                                (hash-of (box-main-align box)) (hash-of (box-cross-align box))
                                (hash-of (box-fill box)) (hash-of (box-id box))
                                (hash-of (box-interactive box)) (hash-of (box-focusable box))
-                               (hash-of (box-moves box))
+                               (hash-of (box-moves box)) (hash-of (box-tooltip box))
                                (hash-of (box-pad-left box)) (hash-of (box-pad-top box))
                                (hash-of (box-pad-right box)) (hash-of (box-pad-bottom box))
                                (hash-of (box-pref-w box)) (hash-of (box-pref-h box))))
@@ -1611,7 +1642,7 @@ counting its children."
                    ;; A row of a lazy list is placed by its index.
                    (:column (mix layout (box-n3 box)))
                    ;; A float is put where its spec says (its anchor's place is the screen's).
-                   ((:menu :catcher)
+                   ((:menu :catcher :tooltip)
                     (let ((spec (box-data box)))
                       (hash-numbers layout (hash-of (float-spec-placement spec))
                                     (hash-of (float-spec-x spec)) (hash-of (float-spec-y spec))

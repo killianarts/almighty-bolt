@@ -84,6 +84,8 @@
                 #:+thumb-color+
                 #:+row-selected-color+
                 #:+scrim-color+
+                #:+tooltip-color+
+                #:+tooltip-text-color+
                 #:+font-name+
                 #:+font-size+
                 #:+control-radius+
@@ -346,6 +348,17 @@
                 :do (push-rect list (- cx (- 3 i)) (+ cy i) (+ 1 (* 2 (- 3 i))) 1
                                +button-text-color+)))))))
 
+(defun draw-tooltip (box context list x y)
+  "Small words on a light background, with a thin edge."
+  (let ((font (context-font context +font-name+ 13)))
+    (push-rounded-rect list (- x 1) (- y 1) (+ (box-w box) 2) (+ (box-h box) 2) 5
+                       +field-border-color+)
+    (push-rounded-rect list x y (box-w box) (box-h box) 4 +tooltip-color+)
+    (multiple-value-bind (width ascent) (context-measure context font (box-text box))
+      (declare (ignore width))
+      (context-push-text context list font (box-text box) (+ x 8) (+ y 4 ascent)
+                         +tooltip-text-color+))))
+
 (defun draw-menu-item (box context list x y)
   "A row of a menu: the highlight under it if it has it, the mark of the chosen one, and its words."
   (let ((font (ui-font context))
@@ -457,6 +470,7 @@ behind it fading."
     (:dropdown (draw-dropdown box context list x y))
     (:menu-button (draw-menu-button box context list x y))
     (:menu-item (draw-menu-item box context list x y))
+    (:tooltip (draw-tooltip box context list x y))
     (:spinner (draw-spinner box list x y))
     (:list-box (draw-list-box box context list x y))))
 
@@ -511,7 +525,7 @@ kept, and otherwise afresh, which is then kept."
         (y (+ y (box-y box))))
     (ecase (box-kind box)
       ((:label :paragraph :button :text-field :text-area :slider :progress :choice :checkbox :switch :spinner
-        :list-box :dropdown :menu-button :menu-item)
+        :list-box :dropdown :menu-button :menu-item :tooltip)
        (paint-cached ui box context list x y))
       (:canvas
        (let ((scale (context-scale context))
