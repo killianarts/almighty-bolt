@@ -20,6 +20,7 @@
                 #:box-n3
                 #:box-aux
                 #:box-labelled-by
+                #:box-main-align
                 #:box-x
                 #:box-y
                 #:box-w
@@ -36,6 +37,8 @@
                 #:area-state-offset
                 #:choice-state-lefts
                 #:choice-state-widths
+                #:choice-state-tops
+                #:choice-state-option-height
                 #:list-state-top
                 #:scroll-state-offset
                 #:scroll-state-content-height
@@ -88,6 +91,8 @@
     (:slider :slider)
     (:choice :radio-group)
     (:checkbox :checkbox)
+    (:switch :switch)
+    (:spinner :busy-indicator)
     (:list-box :list)
     (:canvas :canvas)
     (:scrim :overlay)
@@ -104,7 +109,7 @@
 (defun name-of (ui box)
   "What the thing is called: its own words, or the words of the widget that its :labelled-by names."
   (case (box-kind box)
-    ((:label :paragraph :button :checkbox) (box-text box))
+    ((:label :paragraph :button :checkbox :switch) (box-text box))
     (t (let ((label (and (box-labelled-by box) (find-box ui (box-labelled-by box)))))
          (and label (box-text label))))))
 
@@ -114,7 +119,7 @@
     (:slider (let ((aux (box-aux box)))
                (and aux (aref aux 0))))
     (:progress (float (box-n1 box) 1d0))
-    (:checkbox (= (box-n3 box) 1))
+    ((:checkbox :switch) (= (box-n3 box) 1))
     (:choice (let ((options (car (box-data box))))
                (nth (box-n3 box) options)))
     (:list-box (let ((items (car (box-data box))) (selected (box-n2 box)))
@@ -147,7 +152,7 @@
            (when aux
              (note :minimum (aref aux 1))
              (note :maximum (aref aux 2)))))
-        (:checkbox (note :checked (= (box-n3 box) 1)))
+        ((:checkbox :switch) (note :checked (= (box-n3 box) 1)))
         ((:scroll :lazy-list)
          (note :offset (scroll-state-offset (box-data box)))
          (note :content-height (scroll-state-content-height (box-data box)))
@@ -160,12 +165,15 @@
         (:choice
          (note :selected (box-n3 box))
          (note :options (car (box-data box)))
+         (note :direction (box-main-align box))
          ;; Where each option is, so that it can be pressed.
          (let ((state (cdr (box-data box))))
            (note :option-bounds
                  (loop :for left :across (choice-state-lefts state)
+                       :for top :across (choice-state-tops state)
                        :for width :across (choice-state-widths state)
-                       :collect (list (+ x left) y width (box-h box))))))
+                       :collect (list (+ x left) (+ y top) width
+                                      (choice-state-option-height state))))))
         (:list-box
          (note :selected (let ((selected (box-n2 box)))
                            (and (>= selected 0) (round selected))))
@@ -211,7 +219,7 @@ shows; one that is all out of sight is :hidden, with no width or height."
             (list :role (role-of box))
             (and name (list :name name))
             ;; A check box that is not checked has the value NIL, which is a value.
-            (and (or value (eq (box-kind box) :checkbox)) (list :value value))
+            (and (or value (member (box-kind box) '(:checkbox :switch))) (list :value value))
             (and state (list :state state))
             (list :bounds (if hidden
                               (list (min (max x left) right) (min (max y top) bottom) 0f0 0f0)

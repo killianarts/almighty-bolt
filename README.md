@@ -50,8 +50,9 @@ below lists them bare.
   own state doesn't mean you lose Lisp's typical hot-reloading. Compiling your
   app's UI function updates live, open apps.
 
-- **Twelve widgets and eight containers.** Label, paragraph, button, text field,
-  text area, slider, choice, check box, list box, progress bar, canvas and scrim; row,
+- **Fourteen widgets and eight containers.** Label, paragraph, button, text field,
+  text area, slider, choice, check box, switch, spinner, list box, progress bar,
+  canvas and scrim; row,
   column, stack, padding, panel, center, scroll and lazy list. More coming soon.
 
 - **Canvas.** For drawing non-widget elements.
@@ -131,8 +132,10 @@ holds, and it gives you the new one:
 | `(text-field string &key id labelled-by width invalid enabled flex)`         | the text now, whether it was changed this frame, whether Return was pressed |
 | `(text-area string &key id labelled-by width rows enabled flex)`             | the text now (lines end in a line feed), whether it was changed this frame  |
 | `(slider value minimum maximum &key id labelled-by width enabled flex)`      | the value now, whether it was changed                                       |
-| `(choice options selected &key id labelled-by enabled flex)`                 | the index now, whether it was changed                                       |
+| `(choice options selected &key id labelled-by direction enabled flex)`       | the index now, whether it was changed (`:direction :vertical`: radio buttons) |
 | `(checkbox label checked &key id enabled flex)`                              | the state now, whether it was changed                                       |
+| `(switch label on &key id enabled flex)`                                     | the state now, whether it was changed                                       |
+| `(spinner &key id labelled-by size flex)`                                    | (it goes round while it shows, and asks for the frames it needs)           |
 | `(list-box items selected &key id labelled-by rows width enabled flex)`      | the index now, whether it was changed                                       |
 | `(canvas width height painter &key id labelled-by focusable autofocus flex)` | the events for the canvas, oldest first                                     |
 | `(scrim &key id)`                                                            | true when pressed: a translucent layer over what is before it in a `stack`  |
@@ -192,8 +195,7 @@ tools and how to point an MCP client at the server
 
 ## Roadmap
 
-Planned: theming (light, dark and custom), small widgets (a switch, radio
-buttons, a spinner), menus, dropdowns and dialogs, images and icons, multiple
+Planned: theming (light, dark and custom), menus, dropdowns and dialogs, images and icons, multiple
 windows, a widget designer and a GUI designer, and Windows and Linux. The full
 list, and what comes first, is in [docs/roadmap.md](docs/roadmap.md).
 

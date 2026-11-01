@@ -21,6 +21,8 @@
 
 (defparameter +sizes+ '("Small" "Medium" "Large"))
 
+(defparameter +deliveries+ '("Standard" "Express" "Collect in person"))
+
 (defparameter +canvas-color+ (bolt:pack-color 30 33 46))
 (defparameter +dot-color+ (bolt:pack-color 150 200 255))
 (defparameter +note-color+ (bolt:pack-color 150 156 175))
@@ -48,6 +50,8 @@
                    (notes (format nil "Several lines of text.~%Return starts another, and a long line goes on in the next."))
                    (subscribed t)
                    (size 1)
+                   (delivery 0)
+                   (busy nil)
                    (fruit 2)
                    (volume 40d0)
                    (dots '())
@@ -110,7 +114,13 @@
                     (when changed (setf size index)))
                   (note (format nil "~:[No newsletter~;Newsletter~], ~(~a~)."
                                 subscribed (nth size +sizes+))
-                        :choices-note))
+                        :choices-note)
+                  (bolt:label "Delivery" :id :delivery-label)
+                  (multiple-value-bind (index changed)
+                      (bolt:choice +deliveries+ delivery :id :delivery :labelled-by :delivery-label
+                                                         :direction :vertical)
+                    (when changed (setf delivery index)))
+                  (note (format nil "~a delivery." (nth delivery +deliveries+)) :delivery-note))
                 (section ("List" :list)
                   (bolt:label "Fruit" :id :fruit-label)
                   (multiple-value-bind (index changed)
@@ -119,7 +129,7 @@
                   (note (format nil "Picked: ~a." (nth fruit +fruits+)) :fruit-note)))
 
               (bolt:row (:id :fourth :gap 20 :fill t)
-                (section ("Slider and progress bar" :ranges)
+                (section ("Slider, progress bar, switch and spinner" :ranges)
                   (bolt:label "Volume" :id :volume-label)
                   (multiple-value-bind (value changed)
                       (bolt:slider volume 0 100 :id :volume :labelled-by :volume-label :width 260)
@@ -127,7 +137,13 @@
                   (bolt:label "Loudness" :id :loudness-label)
                   (bolt:progress (/ volume 100) :id :loudness :labelled-by :loudness-label
                                                 :width 260)
-                  (note (format nil "~d%" (round volume)) :volume-note))
+                  (note (format nil "~d%" (round volume)) :volume-note)
+                  (bolt:row (:gap 12 :cross-align :center)
+                    (multiple-value-bind (on changed) (bolt:switch "Busy" busy :id :busy)
+                      (when changed (setf busy on)))
+                    ;; Only while it is wanted: a spinner asks for frames as long as it shows.
+                    (when busy
+                      (bolt:spinner :id :working :labelled-by :busy))))
                 (section ("Canvas" :drawing)
                   (bolt:label "Click to put a dot" :id :canvas-label)
                   (let ((shown dots))

@@ -104,7 +104,9 @@
                 #:+key-down+
                 #:+key-home+
                 #:+key-end+
-                #:+points-per-line+)
+                #:+points-per-line+
+                #:now-ns
+                #:request-frame)
   (:import-from #:almighty-bolt/ui/theme
                 #:+font-name+
                 #:+font-size+)
@@ -123,6 +125,9 @@
            #:slider
            #:choice
            #:checkbox
+           #:switch
+           #:spinner
+           #:+spinner-steps+
            #:list-box
            #:progress
            #:canvas
@@ -162,6 +167,8 @@
            #:choice-state
            #:choice-state-lefts
            #:choice-state-widths
+           #:choice-state-tops
+           #:choice-state-option-height
            #:list-state
            #:list-state-top
            #:canvas-state
@@ -171,7 +178,9 @@
            #:+row-height+
            #:+thumb-size+
            #:+dot-size+
-           #:+option-gap+))
+           #:+option-gap+
+           #:+option-row-gap+
+           #:+switch-width+))
 
 (in-package #:almighty-bolt/ui/widgets)
 
@@ -187,6 +196,10 @@
 (defconstant +thumb-size+ 16f0)
 (defconstant +dot-size+ 16f0)
 (defconstant +option-gap+ 20f0)
+
+(defconstant +option-row-gap+ 6f0 "Between the options of a choice that goes down.")
+
+(defconstant +switch-width+ 32f0 "How wide the track of a switch is; it is half as tall.")
 
 (defun ui-font (context)
   (context-font context +font-name+ +font-size+))
@@ -983,12 +996,19 @@ person changed it this frame."
 ;;; --- a choice between options ---
 
 (defstruct (choice-state (:constructor make-choice-state ()))
+  ;; Where each option is in the box, from layout: across, down, how wide, and how tall each is.
   (lefts #() :type simple-vector)
-  (widths #() :type simple-vector))
+  (tops #() :type simple-vector)
+  (widths #() :type simple-vector)
+  (option-height 0f0 :type single-float))
 
-(defun choice (options selected &key (id (required-id 'choice)) labelled-by (enabled t) (flex 0))
-  "A choice among OPTIONS (strings) side by side, with the SELECTED one (an index) marked.
-Returns the index now and whether the person changed it this frame."
+(defun choice (options selected
+               &key (id (required-id 'choice)) labelled-by (direction :horizontal) (enabled t)
+                 (flex 0))
+  "A choice among OPTIONS (strings), each with a round button, with the SELECTED one (an index)
+marked: side by side, or with DIRECTION :vertical one under another (radio buttons, as a Mac lays
+them out). Returns the index now and whether the person changed it this frame."
+  (check-type direction (member :horizontal :vertical))
   (let* ((ui *ui*)
          (box (open-box ui :choice :id id :labelled-by labelled-by))
          (key (box-key box))
@@ -998,6 +1018,8 @@ Returns the index now and whether the person changed it this frame."
           (box-interactive box) enabled
           (box-focusable box) enabled
           (box-data box) (cons options state)
+          ;; Which way the options go, which decides the layout.
+          (box-main-align box) direction
           (box-flex box) (float flex 1f0))
     (when enabled
       (when (and (= (ui-hot ui) key) (ui-pressed ui))
@@ -1008,12 +1030,15 @@ Returns the index now and whether the person changed it this frame."
         (setf (ui-active ui) 0)
         (let ((rect (rect-of ui key))
               (lefts (choice-state-lefts state))
-              (widths (choice-state-widths state)))
+              (tops (choice-state-tops state))
+              (widths (choice-state-widths state))
+              (height (choice-state-option-height state)))
           (when (and rect (= (ui-hot ui) key))
             (dotimes (i (length lefts))
-              (let ((left (+ (rect-x rect) (svref lefts i))))
-                (when (and (<= left (ui-pointer-x ui))
-                           (< (ui-pointer-x ui) (+ left (svref widths i))))
+              (let ((left (+ (rect-x rect) (svref lefts i)))
+                    (top (+ (rect-y rect) (svref tops i))))
+                (when (and (<= left (ui-pointer-x ui) (+ left (svref widths i)))
+                           (<= top (ui-pointer-y ui) (+ top height)))
                   (setf new i)
                   (return)))))))
       (when (= (ui-focus ui) key)
@@ -1062,6 +1087,58 @@ the label, or the space bar was pressed with the keyboard on it."
           (box-look box) (look-of ui key enabled))
     (close-box ui)
     (values new (not (eq new (and checked t))))))
+
+;;; --- a switch, on or off ---
+
+(defun switch (label on &key (id (required-id 'switch)) (enabled t) (flex 0))
+  "A switch with LABEL beside it, ON or off (what the application holds): a check box that looks
+like a light switch, for a setting that takes effect at once. Returns the state now and whether the
+person changed it this frame: the primary button went down and up over it, or the space bar was
+pressed with the keyboard on it."
+  (let* ((ui *ui*)
+         (box (open-box ui :switch :id id))
+         (key (box-key box))
+         (new (and on t)))
+    (setf (box-text box) label
+          (box-enabled box) enabled
+          (box-interactive box) enabled
+          (box-focusable box) enabled
+          (box-flex box) (float flex 1f0))
+    (when enabled
+      (when (and (= (ui-hot ui) key) (ui-pressed ui))
+        (consume-press ui)
+        (setf (ui-active ui) key))
+      (when (and (= (ui-active ui) key) (ui-released ui))
+        (consume-release ui)
+        (setf (ui-active ui) 0)
+        (when (= (ui-hot ui) key)
+          (setf new (not new))))
+      (when (= (ui-focus ui) key)
+        (dolist (event (copy-list (ui-keys ui)))
+          (when (eql (key-event-logical-key event) #\Space)
+            (consume-key ui event)
+            (setf new (not new))))))
+    (setf (box-n3 box) (if new 1 0)
+          (box-look box) (look-of ui key enabled))
+    (close-box ui)
+    (values new (not (eq new (and on t))))))
+
+;;; --- something going on whose end is not known ---
+(defconstant +spinner-steps+ 8 "How many dots go round a spinner.")
+
+(defun spinner (&key (id (required-id 'spinner)) labelled-by (size 18) (flex 0))
+  "A ring of dots that goes round while it is shown, for work whose end is not known (for work whose
+end is known, a progress bar). It asks for the frames it needs to move, about ten a second: an app
+with a spinner showing is not at rest."
+  (let ((box (open-box *ui* :spinner :id id :labelled-by labelled-by)))
+    (setf (box-pref-w box) (float size 1f0)
+          (box-pref-h box) (float size 1f0)
+          ;; The step the ring is at, from the time of the frame.
+          (box-n3 box) (mod (floor (now-ns) 100000000) +spinner-steps+)
+          (box-flex box) (float flex 1f0))
+    (request-frame (ui-context *ui*))
+    (close-box *ui*)
+    nil))
 
 ;;; --- a list to pick from ---
 

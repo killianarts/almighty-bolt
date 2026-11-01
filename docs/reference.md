@@ -8,6 +8,8 @@ Every widget takes a required `:id` keyword: a name that stays with the widget f
 
 A text field takes the keys a Mac text field does: the arrows (with Shift to select and Option to move by a word), Home, End, Backspace, forward delete, Command-A to select everything, and Command-C, Command-X and Command-V to copy, cut and paste through the system's clipboard. A line break that is pasted into it becomes a space. A host made without a window (in a test or a replay) keeps what is copied to itself, and never touches the clipboard.
 
+A `choice` puts its options side by side; with `:direction :vertical` it puts them one under another, as radio buttons are on a Mac. A `switch` is a check box that looks like a light switch, for a setting that takes effect at once. A `spinner` (`:size`, 18 points) is a ring of dots that goes round, for work whose end is not known; it asks for a frame about ten times a second while it is shown, so show it only while the work goes on.
+
 A `text-area` is a text field of several lines: `:rows` lines tall (6 if not given) and `:width` wide (320), with the lines that are too long going on in the next. It returns the text and whether it changed; its lines end in a line feed. Return puts one in. Up and Down move a line, keeping to where across the first of them started; Command-Up and Command-Down go to the start and the end of the text, and Command-Left and Command-Right to the start and the end of the line. The other keys, and copy, cut and paste, are a text field's; a pasted line break stays one (a return, or a return and a line feed, becomes a line feed). It scrolls itself to keep the caret in sight, and the wheel scrolls it. In the semantic tree it is a `:text-area` with the text as its value and `:caret`, `:selection` and `:offset` in its state; the machine interface's `type-text` and `set-value` type a line feed as Return.
 
 Every widget also takes `:flex`, its share of the free space of its container. A widget that holds something but has no words of its own (a text field, a text area, a slider, a choice, a list, a progress bar, a canvas) takes `:labelled-by`, the id of the label that names it, which is what an agent calls it by: `(bolt:text-field name :id :name :labelled-by :name-label)`.
@@ -58,7 +60,8 @@ VoiceOver reads the tree through the system's accessibility API. Each widget is 
 | `button` | `AXButton` | |
 | `text-field` | `AXTextField` | |
 | `text-area` | `AXTextArea` | |
-| `checkbox` | `AXCheckBox` | |
+| `checkbox`, `switch` | `AXCheckBox` | |
+| `spinner` | `AXBusyIndicator` | |
 | `slider` | `AXSlider` | its value, and its least and greatest |
 | `progress` | `AXProgressIndicator` | its value, from 0 to 1 |
 | `choice` | `AXRadioGroup` | an `AXRadioButton` for each option, valued 1 if it is the chosen one, with the identifier of the choice and the option's number after a dot |

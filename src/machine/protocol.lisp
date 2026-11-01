@@ -298,7 +298,7 @@ value is, press the option of a choice, pick the item of a list."
                  :do (deliver session (make-key-event :timestamp (now-ns) :kind :down
                                                       :logical-key (typed-key character)
                                                       :modifiers 0)))))
-      (:checkbox
+      ((:checkbox :switch)
        (unless (eq (and value t) (and (node-value node) t))
          (multiple-value-bind (x y) (middle node)
            (press-at session x y))))

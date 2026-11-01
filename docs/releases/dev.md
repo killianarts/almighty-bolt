@@ -27,7 +27,8 @@ A window of almighty-bolt draws all of itself in one view, so to the system it w
 | button | button |
 | text field | text field, holding its text |
 | text area | text area, holding its text |
-| check box | check box, checked or not |
+| check box, switch | check box, checked or not |
+| spinner | busy indicator |
 | slider | slider, with its value and its ends |
 | progress bar | progress indicator, from 0 to 1 |
 | choice | radio group, with a radio button for each option and the chosen one marked |
@@ -82,6 +83,19 @@ VoiceOver does not yet scroll a `scroll` to the thing its cursor is on. (What it
 - `:key` gives each item's id. What the ui keeps for a row (the caret of a field in it, the keyboard) stays with its item when the items are sorted again or one is put in above it. Without `:key`, a row is known by its index.
 - The items are best a vector: a row is found by its index.
 - The wheel, the bar at the edge, and what cannot be pressed out of the window are as for `scroll`. Tab reaches only the rows that are described.
+
+### A switch, radio buttons and a spinner
+
+```lisp
+(multiple-value-bind (on changed) (bolt:switch "Wi-Fi" wifi :id :wifi)
+  (when changed (setf wifi on)))
+(bolt:choice '("Standard" "Express") delivery :id :delivery :direction :vertical)
+(when loading (bolt:spinner :id :loading))
+```
+
+- `switch` is a check box that looks like a light switch, for a setting that takes effect at once. It returns what `checkbox` does.
+- `choice` takes `:direction :vertical`, which puts its options one under another: radio buttons, as a Mac lays them out. Arrow keys move the choice either way.
+- `spinner` is a ring of dots that goes round, for work whose end is not known. It asks for about ten frames a second while it is shown, so show it only while the work goes on.
 
 ### A text area
 

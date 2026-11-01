@@ -56,6 +56,10 @@
                 #:field-state-state
                 #:field-state-view-start
                 #:choice-state-lefts
+                #:choice-state-tops
+                #:choice-state-option-height
+                #:+switch-width+
+                #:+spinner-steps+
                 #:list-state-top
                 #:scroll-state-offset
                 #:scroll-state-content-height
@@ -275,17 +279,18 @@
 
 (defun draw-choice (box context list x y)
   (let* ((font (ui-font context))
-         (h (box-h box))
          (options (car (box-data box)))
          (state (cdr (box-data box)))
+         (h (choice-state-option-height state))
          (selected (box-n3 box))
          (focused (nth-value 1 (look-state box))))
     (multiple-value-bind (height ascent) (line-metrics context)
       (declare (ignore height))
       (loop :for option :in options
             :for i :from 0
-            :do (let ((left (+ x (svref (choice-state-lefts state) i)))
-                      (top (+ y (/ (- h +dot-size+) 2))))
+            :do (let* ((left (+ x (svref (choice-state-lefts state) i)))
+                       (row (+ y (svref (choice-state-tops state) i)))
+                       (top (+ row (/ (- h +dot-size+) 2))))
                   (when (and focused (= i selected))
                     (push-rounded-rect list (- left 2) (- top 2) (+ +dot-size+ 4) (+ +dot-size+ 4)
                                        (+ (/ +dot-size+ 2) 2) +accent-color+))
@@ -297,8 +302,48 @@
                     (push-rounded-rect list (+ left 4) (+ top 4) (- +dot-size+ 8) (- +dot-size+ 8)
                                        (/ (- +dot-size+ 8) 2) +row-selected-color+))
                   (context-push-text context list font option (+ left +dot-size+ 6f0)
-                                     (+ y (/ (- h (+ ascent 4f0)) 2) ascent)
+                                     (+ row (/ (- h (+ ascent 4f0)) 2) ascent)
                                      (if (box-enabled box) +text-color+ +dim-text-color+)))))))
+
+(defun draw-switch (box context list x y)
+  "A track as wide as +SWITCH-WIDTH+ and half as tall, filled with the accent when on, and a knob at
+the end it is at."
+  (let* ((h (/ +switch-width+ 2))
+         (top (+ y (/ (- (box-h box) h) 2)))
+         (on (eql (box-n3 box) 1))
+         (enabled (box-enabled box))
+         (focused (nth-value 1 (look-state box)))
+         (knob (- h 4)))
+    (when focused
+      (push-rounded-rect list (- x 2) (- top 2) (+ +switch-width+ 4) (+ h 4) (+ (/ h 2) 2)
+                         +accent-color+))
+    (push-rounded-rect list x top +switch-width+ h (/ h 2)
+                       (if on +row-selected-color+ +track-color+))
+    (push-rounded-rect list (if on (+ x +switch-width+ (- knob) -2) (+ x 2)) (+ top 2) knob knob
+                       (/ knob 2) (if enabled +thumb-color+ +dim-text-color+))
+    (multiple-value-bind (height ascent) (line-metrics context)
+      (declare (ignore height))
+      (context-push-text context list (ui-font context) (box-text box) (+ x +switch-width+ 8f0)
+                         (+ y (/ (- (box-h box) (+ ascent 4f0)) 2) ascent)
+                         (if enabled +text-color+ +dim-text-color+)))))
+
+(defun draw-spinner (box list x y)
+  "+SPINNER-STEPS+ dots round a ring, the one at the step the spinner is at the brightest and those
+behind it fading."
+  (let* ((size (min (box-w box) (box-h box)))
+         (dot (max 2f0 (* size 0.22f0)))
+         (radius (/ (- size dot) 2))
+         (cx (+ x (/ (box-w box) 2)))
+         (cy (+ y (/ (box-h box) 2)))
+         (step (box-n3 box)))
+    (dotimes (i +spinner-steps+)
+      (let* ((angle (* 2 pi (/ i +spinner-steps+)))
+             (behind (mod (- step i) +spinner-steps+))
+             (alpha (max 40 (- 255 (* behind 30)))))
+        (push-rounded-rect list (- (+ cx (* radius (float (sin angle) 1f0))) (/ dot 2))
+                           (- (- cy (* radius (float (cos angle) 1f0))) (/ dot 2))
+                           dot dot (/ dot 2)
+                           (logior (logand +text-color+ #xFFFFFF00) alpha))))))
 
 (defun draw-list-box (box context list x y)
   (let* ((font (ui-font context))
@@ -354,6 +399,8 @@
     (:progress (draw-progress box list x y))
     (:choice (draw-choice box context list x y))
     (:checkbox (draw-checkbox box context list x y))
+    (:switch (draw-switch box context list x y))
+    (:spinner (draw-spinner box list x y))
     (:list-box (draw-list-box box context list x y))))
 
 (defun draw-scroll-bar (box list x y)
@@ -406,7 +453,8 @@ kept, and otherwise afresh, which is then kept."
   (let ((x (+ x (box-x box)))
         (y (+ y (box-y box))))
     (ecase (box-kind box)
-      ((:label :paragraph :button :text-field :text-area :slider :progress :choice :checkbox :list-box)
+      ((:label :paragraph :button :text-field :text-area :slider :progress :choice :checkbox :switch :spinner
+        :list-box)
        (paint-cached ui box context list x y))
       (:canvas
        (let ((scale (context-scale context))

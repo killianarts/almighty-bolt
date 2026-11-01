@@ -21,6 +21,7 @@ are not listed.
 - `lazy-list`, a scrolling list that describes only the rows that show, so a million rows cost what the visible ones do ([0.2](docs/releases/dev.md#a-list-that-builds-only-the-rows-that-show)).
 - `text-area`, a text field of several lines whose long lines go on in the next ([0.2](docs/releases/dev.md#a-text-area)).
 - A gallery example with every widget and container on one page ([0.2](docs/releases/dev.md#examples)).
+- `switch`, `spinner`, and `:direction :vertical` on `choice` for radio buttons ([0.2](docs/releases/dev.md#a-switch-radio-buttons-and-a-spinner)).
 
 ### Changed
 

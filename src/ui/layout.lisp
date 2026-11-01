@@ -53,6 +53,10 @@
                 #:+field-padding+
                 #:choice-state-lefts
                 #:choice-state-widths
+                #:choice-state-tops
+                #:choice-state-option-height
+                #:+option-row-gap+
+                #:+switch-width+
                 #:+row-height+
                 #:+dot-size+
                 #:+option-gap+)
@@ -146,23 +150,46 @@ them in the boxes, and return the width and height."
      (set-box box (constrain (box-pref-w box) min-w max-w)
               (constrain (+ 2f0 (* +row-height+ (box-n3 box))) min-h max-h)))
     (:choice
+     ;; Side by side, or (MAIN-ALIGN :vertical) one under another, each option 22 points tall.
      (let* ((options (car (box-data box)))
             (state (cdr (box-data box)))
+            (vertical (eq (box-main-align box) :vertical))
             (count (length options))
             (lefts (make-array count))
+            (tops (make-array count))
             (widths (make-array count))
             (left 0f0)
+            (top 0f0)
+            (widest 0f0)
+            (height (max 22f0 +dot-size+))
             (font (ui-font context)))
        (loop :for option :in options
              :for i :from 0
-             :do (let ((text-width (context-measure context font option)))
+             :do (let ((width (+ +dot-size+ 6f0 (float (context-measure context font option) 1f0))))
                    (setf (svref lefts i) left
-                         (svref widths i) (+ +dot-size+ 6f0 (float text-width 1f0)))
-                   (incf left (+ (svref widths i) +option-gap+))))
+                         (svref tops i) top
+                         (svref widths i) width
+                         widest (max widest width))
+                   (if vertical
+                       (incf top (+ height +option-row-gap+))
+                       (incf left (+ width +option-gap+)))))
        (setf (choice-state-lefts state) lefts
-             (choice-state-widths state) widths)
-       (set-box box (constrain (max 0f0 (- left +option-gap+)) min-w max-w)
-                (constrain (max 22f0 +dot-size+) min-h max-h))))
+             (choice-state-tops state) tops
+             (choice-state-widths state) widths
+             (choice-state-option-height state) height)
+       (if vertical
+           (set-box box (constrain widest min-w max-w)
+                    (constrain (max 0f0 (- top +option-row-gap+)) min-h max-h))
+           (set-box box (constrain (max 0f0 (- left +option-gap+)) min-w max-w)
+                    (constrain height min-h max-h)))))
+    (:switch
+     (set-box box (constrain (+ +switch-width+ 8f0 (float (context-measure context (ui-font context)
+                                                                            (box-text box))
+                                                           1f0))
+                             min-w max-w)
+              (constrain 22f0 min-h max-h)))
+    (:spinner
+     (set-box box (constrain (box-pref-w box) min-w max-w) (constrain (box-pref-h box) min-h max-h)))
     (:checkbox
      (set-box box (constrain (+ +dot-size+ 6f0 (float (context-measure context (ui-font context)
                                                                         (box-text box))

@@ -144,6 +144,78 @@ frame."
     (assert-equal "Feed the cat" (text-in screen 4))
     (assert-equal "" (s:node-value (m:find-node session :id :draft)))))
 
+;;; --- a switch, choices one under another, a spinner ---
+
+(defun make-settings ()
+  (state-let ((wifi nil) (delivery 0) (busy t))
+    (lambda ()
+      (column (:gap 8)
+        (multiple-value-bind (on changed) (switch "Wi-Fi" wifi :id :wifi)
+          (when changed (setf wifi on)))
+        (label (if wifi "On" "Off") :id :wifi-note)
+        (label "Delivery" :id :delivery-label)
+        (multiple-value-bind (index changed)
+            (choice '("Standard" "Express" "Collect") delivery :id :delivery
+                    :labelled-by :delivery-label :direction :vertical)
+          (when changed (setf delivery index)))
+        (when busy
+          (spinner :id :working))))))
+
+(define-test a-switch-turns-on-and-off-by-the-pointer-and-the-space-bar ()
+  (let* ((screen (show 'make-settings))
+         (session (screen-session screen)))
+    (assert-eq :switch (s:node-role (node-of screen :wifi)))
+    (assert-equal "Wi-Fi" (s:node-name (node-of screen :wifi)))
+    (assert-eq nil (s:node-value (node-of screen :wifi)))
+    (click screen :wifi)
+    (assert-equal "On" (text-in screen :wifi-note))
+    (assert-true (s:node-property (node-of screen :wifi) :checked))
+    (m:press-key session :tab)
+    (m:press-key session :space)
+    (assert-equal "Off" (text-in screen :wifi-note))
+    (m:set-value session t :id :wifi)
+    (assert-equal "On" (text-in screen :wifi-note))))
+
+(define-test a-choice-that-goes-down-has-its-options-one-under-another ()
+  (let* ((screen (show 'make-settings))
+         (session (screen-session screen))
+         (bounds (s:node-property (node-of screen :delivery) :option-bounds)))
+    (assert-eq :vertical (s:node-property (node-of screen :delivery) :direction))
+    ;; One left edge, each lower than the one before.
+    (assert-equal 1 (length (remove-duplicates (mapcar #'first bounds))))
+    (assert-true (apply #'< (mapcar #'second bounds)))
+    (m:set-value session "Collect" :id :delivery)
+    (assert-equal "Collect" (s:node-value (node-of screen :delivery)))
+    ;; The switch, then the choice. (A press does not give a choice the keyboard.)
+    (m:press-key session :tab)
+    (m:press-key session :tab)
+    (m:press-key session :up)
+    (assert-equal "Express" (s:node-value (node-of screen :delivery)))))
+
+(defun spinner-colors (screen)
+  "The colours of what is drawn in the spinner's place, in order."
+  (multiple-value-bind (left top width height) (core:lookup-target (screen-variant screen) :working)
+    (let ((list (screen-list screen)))
+      (loop :for index :below (core:display-list-count list)
+            :when (and (<= left (core:display-list-x list index) (+ left width))
+                       (<= top (core:display-list-y list index) (+ top height)))
+              :collect (core:display-list-color list index)))))
+
+(define-test a-spinner-goes-round-as-time-passes-and-asks-for-the-frames-it-needs ()
+  (let ((clock (core:make-virtual-clock 0)))
+    (core:with-time-source ((core:virtual-clock-source clock))
+      (let* ((screen (show 'make-settings))
+             (before (spinner-colors screen)))
+        (assert-eq :busy-indicator (s:node-role (node-of screen :working)))
+        (assert-true (core:take-frame-request (screen-context screen)))
+        (assert-equal 8 (length before))
+        ;; A tenth of a second is a step round.
+        (core:advance-virtual-clock clock 100000000)
+        (draw screen)
+        (let ((after (spinner-colors screen)))
+          (assert-false (equal before after))
+          (assert-equal (append (last before) (butlast before)) after))))))
+
 ;;; --- the gallery of every widget ---
 
 (defparameter +every-widget+
@@ -152,6 +224,7 @@ frame."
   '((label . :static-text) (paragraph . :paragraph) (button . :button) (text-field . :text-field)
     (text-area . :text-area) (slider . :slider) (choice . :radio-group) (checkbox . :checkbox)
     (list-box . :list) (progress . :progress-bar) (canvas . :canvas) (scrim . :overlay)
+    (switch . :switch) (spinner . :busy-indicator)
     (scroll . :scroll-area) (lazy-list . :scroll-area)))
 
 (defun roles-in (screen)
@@ -169,7 +242,9 @@ frame."
 (define-test the-gallery-has-one-of-every-widget ()
   (let* ((screen (show 'gallery:make-gallery))
          (session (screen-session screen)))
-    ;; The scrim is there while the overlay shows.
+    ;; The spinner is there while Busy is on, and the scrim while the overlay shows.
+    (scroll-into-sight session screen :page :busy)
+    (m:set-value session t :id :busy)
     (scroll-into-sight session screen :page :show-overlay)
     (m:click session :id :show-overlay)
     (let ((roles (roles-in screen)))
@@ -898,6 +973,18 @@ screen reader was given are taken away and their places are used again."
         (assert-eql notes (objc:msg-send :id (reader-view reader) "accessibilityFocusedUIElement"))
         (type-text screen "!")
         (assert-equal (format nil "one~%two!") (says notes :value))))))
+
+(define-test a-screen-reader-reads-a-switch-as-a-check-box-and-a-spinner-as-busy ()
+  (let ((screen (show 'make-settings)))
+    (with-reader (reader screen)
+      (let ((wifi (element-named reader :wifi))
+            (working (element-named reader :working)))
+        (assert-equal "AXCheckBox" (says wifi :role))
+        (assert-equal "Wi-Fi" (says wifi :label))
+        (assert-equal 0d0 (says wifi :value))
+        (press wifi)
+        (assert-equal 1d0 (says wifi :value))
+        (assert-equal "AXBusyIndicator" (says working :role))))))
 
 (define-test a-window-that-was-closed-has-nothing-to-read ()
   (let ((screen (show 'counter:make-counter)))

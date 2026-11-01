@@ -60,6 +60,8 @@
                 #:slider
                 #:choice
                 #:checkbox
+                #:switch
+                #:spinner
                 #:list-box
                 #:progress
                 #:canvas
@@ -79,7 +81,8 @@
   (:export #:run-app #:open-app #:close-app #:state
            #:state-let
            #:missing-id #:duplicate-id #:duplicate-id-id
-           #:label #:paragraph #:button #:text-field #:text-area #:slider #:choice #:checkbox #:list-box
+           #:label #:paragraph #:button #:text-field #:text-area #:slider #:choice #:checkbox
+           #:switch #:spinner #:list-box
            #:progress #:canvas #:scrim
            #:column #:row #:stack #:padding #:panel #:center #:scroll #:lazy-list
            #:now #:ask-for-frame #:current-context

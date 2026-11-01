@@ -136,6 +136,7 @@ element (that a client still holds) answers."
     (:text-field (foreign-constant "NSAccessibilityTextFieldRole"))
     (:text-area (foreign-constant "NSAccessibilityTextAreaRole"))
     (:checkbox (foreign-constant "NSAccessibilityCheckBoxRole"))
+    (:busy-indicator (foreign-constant "NSAccessibilityBusyIndicatorRole"))
     (:progress-bar (foreign-constant "NSAccessibilityProgressIndicatorRole"))
     (:slider (foreign-constant "NSAccessibilitySliderRole"))
     (:radio-group (foreign-constant "NSAccessibilityRadioGroupRole"))
@@ -348,7 +349,9 @@ thing that is not told yet."
     (:button :button)
     (:text-field :text-field)
     (:text-area :text-area)
-    (:checkbox :checkbox)
+    ;; A switch is a check box to a screen reader, as AppKit's own switch is.
+    ((:checkbox :switch) :checkbox)
+    (:busy-indicator :busy-indicator)
     (:progress-bar :progress-bar)
     (:slider :slider)
     (:radio-group :radio-group)
@@ -395,6 +398,8 @@ thing that is not told yet."
                          (item-value item) (or (getf node :value) "")))
       (:checkbox (setf (item-label item) name
                        (item-value item) (if (getf node :value) 1 0)))
+      (:busy-indicator (setf (item-label item) name
+                             (item-value item) nil))
       (:progress-bar (setf (item-label item) name
                            (item-value item) (getf node :value)
                            (item-minimum item) 0d0
