@@ -3074,3 +3074,65 @@ released unless RELEASE."
           (assert-eql (objc:register-selector "performClose:")
                       (objc:msg-send :ulong (item "Application" "Quit") "action"))
           (assert-true (plusp (item "Window" "Minimize"))))))))
+
+;;; --- an id used in two containers ---
+;;;
+;;; Ids need be unique only within a container, so two panels can each have a label :title and a
+;;; field labelled by it. Each field is named by the label in its own panel, and the machine
+;;; interface tells the two apart by the container they are in.
+
+(defun make-two-searches ()
+  (state-let ((texts (list :hebrew "" :gregorian "")))
+    (lambda ()
+      (row (:id :searches :gap 8)
+        (dolist (calendar '(:hebrew :gregorian))
+          (panel (:id calendar :all 4)
+            (column (:gap 4)
+              (label (if (eq calendar :hebrew) "Hebrew date" "Gregorian date") :id :title)
+              (multiple-value-bind (text changed)
+                  (text-field (getf texts calendar) :id :field :labelled-by :title :width 80)
+                (when changed (setf (getf texts calendar) text)))
+              (button "Show" :id :show))))))))
+
+(define-test each-field-is-named-by-the-label-in-its-own-container ()
+  (let* ((screen (show 'make-two-searches))
+         (fields (s:find-nodes (m:see (screen-session screen)) :role :text-field)))
+    (assert-equal '("Hebrew date" "Gregorian date") (mapcar #'s:node-name fields))))
+
+(define-test within-says-which-container-a-thing-with-a-shared-id-is-in ()
+  (let* ((screen (show 'make-two-searches))
+         (session (screen-session screen)))
+    (let ((message (handler-case (progn (m:find-node session :id :show) nil)
+                     (m:ambiguous-node (condition) (princ-to-string condition)))))
+      (assert-true (search ":within" message) message))
+    (let ((gregorian (m:find-node session :id :show :within :gregorian))
+          (hebrew (m:find-node session :id :show :within :hebrew)))
+      (assert-true (> (first (s:node-bounds gregorian)) (first (s:node-bounds hebrew)))))
+    (m:set-value session "7 Nov" :id :field :within :gregorian)
+    (assert-equal "7 Nov" (s:node-value (m:find-node session :id :field :within :gregorian)))
+    (assert-equal "" (s:node-value (m:find-node session :id :field :within :hebrew)))))
+
+;;; --- a panel with a colour of its own ---
+
+(defun make-clear-panel ()
+  (state-let ((clear nil))
+    (lambda ()
+      (column (:gap 8)
+        ;; A shortcut and not a button, so that the panel's colour is all that changes.
+        (when (shortcut #\k :command) (setf clear t))
+        (label "Command-K clears it" :id :how)
+        (panel (:id :pane :all 20 :color (and clear (pack-color 0 0 0 0)))
+          (label "x" :id :inside))))))
+
+(define-test a-panel-whose-colour-is-transparent-draws-no-background ()
+  (let ((screen (show 'make-clear-panel)))
+    (multiple-value-bind (x y) (core:lookup-target (screen-variant screen) :pane)
+      ;; Without a colour, the theme's panel colour.
+      (assert-eql (theme:theme-panel (theme:find-theme :dark)) (color-at screen (+ x 4) (+ y 4)))
+      ;; Black with nothing of it showing, and not the theme's colour again, from the frame it is
+      ;; given.
+      (core:handle-event (screen-variant screen)
+                         (core:make-key-event :timestamp 0 :kind :down :logical-key #\k
+                                              :modifiers core:+modifier-super+))
+      (draw screen)
+      (assert-eql 0 (color-at screen (+ x 4) (+ y 4))))))

@@ -61,7 +61,9 @@
   ;; What it holds.
   (text "" :type string)
   (size 15 :type fixnum)
-  (color 0 :type (unsigned-byte 32))
+  ;; A packed colour, or NIL for the theme's (text for a label, the panel colour for a panel). NIL
+  ;; and not 0, since 0 is a colour: black with nothing of it showing.
+  (color nil :type (or null (unsigned-byte 32)))
   (flex 0f0 :type single-float)
   (gap 0f0 :type single-float)
   (main-align :start :type keyword)
@@ -121,7 +123,7 @@ made."
         (fill-pointer (box-children box)) 0
         (box-text box) ""
         (box-size box) 15
-        (box-color box) 0
+        (box-color box) nil
         (box-flex box) 0f0
         (box-gap box) 0f0
         (box-main-align box) :start

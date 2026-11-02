@@ -20,6 +20,7 @@
                 #:box-n3
                 #:box-aux
                 #:box-labelled-by
+                #:box-parent
                 #:box-tooltip
                 #:box-main-align
                 #:box-theme
@@ -123,13 +124,35 @@
               (when (and (box-id box) (equal (box-id box) id))
                 (return box)))))
 
+(defun find-labelling-box (ui box id)
+  "The box with the id ID nearest BOX: among BOX's parent's children and what is inside them, then
+its grandparent's, and so on out. Ids need be unique only within a container, so two panels can each
+have a label :title and a field labelled by it; each field is named by the label in its own panel.
+The whole frame is searched last, for a label in a float (a dialog's title) or elsewhere."
+  (labels ((inside (container skip)
+             (loop :for child :across (box-children container)
+                   :unless (eq child skip)
+                     :do (when (equal (box-id child) id)
+                           (return-from inside child))
+                         (let ((found (inside child nil)))
+                           (when found (return-from inside found))))
+             nil))
+    (loop :for from = box :then container
+          :for container = (box-parent box) :then (box-parent container)
+          :while container
+          :do (when (equal (box-id container) id)
+                (return-from find-labelling-box container))
+              (let ((found (inside container from)))
+                (when found (return-from find-labelling-box found))))
+    (find-box ui id)))
+
 (defun name-of (ui box)
   "What the thing is called: its own words, or the words of the widget that its :labelled-by names."
   (case (box-kind box)
     ((:label :paragraph :button :checkbox :switch :menu-item :menu-button :tooltip :dialog
       :toast)
      (box-text box))
-    (t (let ((label (and (box-labelled-by box) (find-box ui (box-labelled-by box)))))
+    (t (let ((label (and (box-labelled-by box) (find-labelling-box ui box (box-labelled-by box)))))
          (and label (box-text label))))))
 
 (defun value-of (box)

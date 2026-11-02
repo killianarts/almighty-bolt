@@ -68,6 +68,8 @@ A theme that gives the spacing works out every size again, except those it gives
 
 #### Machine interface
 
+- Every call that names a thing (`find-node`, `click`, `set-value` and the rest) takes `:within`, the id of a container it is inside. Ids need be unique only within a container, so `(m:click session :id :show :within :gregorian-search)` presses the Show button of one panel of two that each have one. A name that fits more than one thing says to use it. The MCP server's tools take `within` as well.
+
 ## Backwards incompatible changes in X.Y
 
 ### Area
@@ -103,4 +105,6 @@ These features have reached the end of their deprecation cycle. See the
 - The pointer was an arrow everywhere. It is now a text cursor over text fields, text areas, combo boxes and selectable text, as in other Mac apps.
 - The menu bar had the application's menu with Quit only. It now has the menus every Mac app has: Hide, Hide Others and Show All beside Quit; Edit, with Undo, Redo, Cut, Copy, Paste and Select All, which do what their keys do in whatever has the keyboard; and Window, with Minimize, Zoom and Close.
 - A key pressed with Command and Option was what Option makes of the key (Option-I is the dead key of the circumflex, and types nothing), so a `shortcut` with `:option` never came. With Command held, the key is now the key itself.
+- `:labelled-by` named a field after the first widget in the window with that id, though ids need be unique only within a container: of two panels that each had a label `:title` and a field labelled by it, both fields were called by the first panel's label. A field is now named by the label nearest it: among what is in its own container first, then outward.
+- A panel given a transparent `:color` (`"#00000000"`, or `(pack-color 0 0 0 0)`) was drawn in the theme's panel colour, since 0 stood for "the theme's". It now draws nothing, and a panel with no `:color` is the theme's. The same holds for a label's or a paragraph's `:color`.
 - A slider whose value the app keeps rounded (a whole number, say) was moved again in every build of a frame while the pointer held it, so the frame did not settle and a warning was printed, every frame of a drag. It now slides only when the pointer has moved, and shows the value the app keeps. The theme designer's Size, Corners and Spacing sliders did this.

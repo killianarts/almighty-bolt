@@ -56,7 +56,7 @@ A `text-area` is a text field of several lines: `:rows` lines tall (6 if not giv
 
 Every widget also takes `:tooltip`, words that float under it when the pointer has rested on it for half a second, until the pointer leaves or something is pressed or typed. A widget with a tooltip takes the pointer even if it takes no presses (a label, a disabled button). In the semantic tree the words are the node's `:help`, and the shown tooltip is a `:tooltip` node; VoiceOver reads them as the widget's help.
 
-Every widget also takes `:flex`, its share of the free space of its container. A widget that holds something but has no words of its own (a text field, a text area, a slider, a choice, a list, a progress bar, a canvas) takes `:labelled-by`, the id of the label that names it, which is what an agent calls it by: `(bolt:text-field name :id :name :labelled-by :name-label)`.
+Every widget also takes `:flex`, its share of the free space of its container. A widget that holds something but has no words of its own (a text field, a text area, a slider, a choice, a list, a progress bar, a canvas) takes `:labelled-by`, the id of the label that names it, which is what an agent calls it by: `(bolt:text-field name :id :name :labelled-by :name-label)`. The label is the one with that id nearest the widget: in its own container first, then outward, so two panels can each have a label `:title` and a field labelled by it.
 
 ## Containers
 
@@ -156,7 +156,7 @@ Two other things use the tree, in different systems because they are for differe
   (m:screenshot session))                                            ; a PNG, in a vector of bytes
 ```
 
-Things are named by `:id`, or by `:role` and `:name`, and a name that fits two things is an error that says so (`ambiguous-node`). The calls are `see`, `find-node`, `click`, `double-click`, `secondary-click`, `type-text`, `press-key`, `set-value`, `select-item`, `scroll`, `wait` and `screenshot`. The tests of the 7GUIs drive their apps through it. A thing scrolled out of the window of a `scroll` is `:hidden` in its state, with bounds of no size where it went out, and `click`, `double-click` and `set-value` refuse it with a message that says to scroll first; `scroll` on the container (its role is `:scroll-area`, and its state has `:offset` and `:content-height`) brings it into sight.
+Things are named by `:id`, or by `:role` and `:name`, and a name that fits two things is an error that says so (`ambiguous-node`). Each call also takes `:within`, the id of a container the thing is in, for an id that is used in more than one container: `(m:click session :id :show :within :gregorian-search)`. The calls are `see`, `find-node`, `click`, `double-click`, `secondary-click`, `type-text`, `press-key`, `set-value`, `select-item`, `scroll`, `wait` and `screenshot`. The tests of the 7GUIs drive their apps through it. A thing scrolled out of the window of a `scroll` is `:hidden` in its state, with bounds of no size where it went out, and `click`, `double-click` and `set-value` refuse it with a message that says to scroll first; `scroll` on the container (its role is `:scroll-area`, and its state has `:offset` and `:content-height`) brings it into sight.
 
 ## The MCP server
 

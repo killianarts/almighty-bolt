@@ -141,7 +141,9 @@ lay things out, with no id and no name, are left out and what is in them is not 
        "role" (obj "type" "string" "enum" (coerce +roles+ 'vector)
                    "description" "What kind of thing it is.")
        "name" (obj "type" "string"
-                   "description" "What it is called: the words on a button, label or check box, or the label that names a field.")))
+                   "description" "What it is called: the words on a button, label or check box, or the label that names a field.")
+       "within" (obj "type" "string"
+                     "description" "The id of a container the thing is inside, when its id is used in more than one container.")))
 
 (defun schema (&key (properties (make-hash-table :test 'equal)) required)
   (obj "type" "object"
@@ -168,12 +170,14 @@ lay things out, with no id and no name, are left out and what is in them is not 
   "The keyword arguments for the machine interface that ARGUMENTS name a thing by."
   (let ((id (field arguments "id"))
         (role (field arguments "role"))
-        (name (field arguments "name")))
+        (name (field arguments "name"))
+        (within (field arguments "within")))
     (when (and role (not (member role +roles+ :test #'string=)))
       (error 'm:cannot :message (format nil "There is no role ~s; the roles are ~{~a~^, ~}." role +roles+)))
     (append (and id (list :id (resolve-id session id)))
             (and role (list :role (intern (string-upcase role) :keyword)))
-            (and name (list :name name)))))
+            (and name (list :name name))
+            (and within (list :within (resolve-id session within))))))
 
 (defun required (arguments key)
   (multiple-value-bind (value present) (and (hash-table-p arguments) (gethash key arguments))

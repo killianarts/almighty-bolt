@@ -347,7 +347,7 @@ the box a press began on), 3 disabled, and 4 more if it has the keyboard."
              (box-pad-top ,box) (float (or ,top ,all 0) 1f0)
              (box-pad-right ,box) (float (or ,right ,all 0) 1f0)
              (box-pad-bottom ,box) (float (or ,bottom ,all 0) 1f0)
-             (box-color ,box) (or ,color 0)
+             (box-color ,box) ,color
              (box-n1 ,box) (float ,radius 1f0)
              (box-flex ,box) (float ,flex 1f0))
        ,@body)))
@@ -634,7 +634,7 @@ A SELECTABLE label's text can be selected with the pointer and copied."
          (box (open-box ui :label :id id :tooltip tooltip)))
     (setf (box-text box) text
           (box-size box) (or size (theme-font-size *theme*))
-          (box-color box) (or color 0)
+          (box-color box) color
           (box-flex box) (float flex 1f0)
           (box-n3 box) (if live 1 0))
     (when selectable
@@ -702,7 +702,7 @@ given). LIVE and SELECTABLE are as for a label."
          (state (state-of ui (box-key box) #'make-paragraph-state)))
     (setf (box-text box) text
           (box-size box) (or size (theme-font-size *theme*))
-          (box-color box) (or color 0)
+          (box-color box) color
           (box-flex box) (float flex 1f0)
           (box-n3 box) (if live 1 0)
           (box-data box) state)
@@ -2223,7 +2223,8 @@ counting its children."
                                     (hash-of (float-spec-x spec)) (hash-of (float-spec-y spec))
                                     (hash-of (float-spec-min-width spec)))))
                    (t layout)))
-         (paint (hash-numbers layout (box-color box) (box-look box) (hash-of (box-n1 box))
+         ;; One more than the colour, so that NIL (the theme's) and 0 (transparent) differ.
+         (paint (hash-numbers layout (if (box-color box) (1+ (box-color box)) 0) (box-look box) (hash-of (box-n1 box))
                               (hash-of (box-n2 box)) (box-n3 box)
                               (hash-of (box-enabled box)))))
     (setf paint

@@ -161,7 +161,7 @@ is when its selection shows."
         (draw-selection-on-line context list font text 0 (length text) selected x y
                                 (+ ascent descent)))
       (context-push-text context list font text x (+ y ascent)
-                         (if (zerop (box-color box)) (theme-text *theme*) (box-color box))))))
+                         (or (box-color box) (theme-text *theme*))))))
 
 (defun draw-paragraph (box context list x y)
   (let* ((state (box-data box))
@@ -177,7 +177,7 @@ is when its selection shows."
                   (draw-selection-on-line context list font text start end selected x top
                                           (+ ascent descent)))
                 (context-push-text context list font (subseq text start end) x (+ top ascent)
-                                   (if (zerop (box-color box)) (theme-text *theme*) (box-color box)))))))
+                                   (or (box-color box) (theme-text *theme*)))))))
 
 (defun draw-button (box context list x y)
   (let ((w (box-w box)) (h (box-h box)))
@@ -596,7 +596,7 @@ kept, and otherwise afresh, which is then kept."
          (draw-scroll-bar box list x y))
         (:panel
          (push-rounded-rect list x y (box-w box) (box-h box) (box-n1 box)
-                            (if (zerop (box-color box)) (theme-panel *theme*) (box-color box)))
+                            (or (box-color box) (theme-panel *theme*)))
          (paint-children ui box context list x y))
         ((:column :row :padding :center :stack :context-area)
          (paint-children ui box context list x y))))))

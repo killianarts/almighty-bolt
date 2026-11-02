@@ -98,18 +98,21 @@ a PNG in a vector of bytes, or NIL if it cannot."
 (defun describe-node (node)
   (format nil "~(~a~)~@[ ~s~]~@[ with the id ~s~]" (node-role node) (node-name node) (node-id node)))
 
-(defun find-node (session &key id role name)
-  "The one node of the screen with the given ID, ROLE and NAME (each only if given). An error that
-lists what there is if there is none or more than one."
+(defun find-node (session &key id role name within)
+  "The one node of the screen with the given ID, ROLE and NAME (each only if given), inside the node
+with the id WITHIN if that is given. An error that lists what there is if there is none or more than
+one. Ids need be unique only within their container, so WITHIN tells apart two things that have the
+same id in two panels: (find-node session :id :show :within :gregorian-search)."
   (unless (or id role name)
     (refuse 'no-such-node "Say which thing: an id, or a role and a name."))
-  (let ((found (find-nodes (see session) :id id :role role :name name)))
+  (let* ((tree (if within (find-node session :id within) (see session)))
+         (found (find-nodes tree :id id :role role :name name)))
     (case (length found)
       (1 (first found))
-      (0 (refuse 'no-such-node "There is nothing on the screen~@[ with the id ~s~]~@[ with the role ~(~a~)~]~@[ called ~s~]."
-                 id role name))
-      (t (refuse 'ambiguous-node "~d things match~@[ the id ~s~]~@[ the role ~(~a~)~]~@[ the name ~s~]: ~{~a~^; ~}. Say more."
-                 (length found) id role name (mapcar #'describe-node found))))))
+      (0 (refuse 'no-such-node "There is nothing on the screen~@[ with the id ~s~]~@[ with the role ~(~a~)~]~@[ called ~s~]~@[ inside ~s~]."
+                 id role name within))
+      (t (refuse 'ambiguous-node "~d things match~@[ the id ~s~]~@[ the role ~(~a~)~]~@[ the name ~s~]~@[ inside ~s~]: ~{~a~^; ~}. Say more~:[, or say which container with :within~;~]."
+                 (length found) id role name within (mapcar #'describe-node found) within)))))
 
 ;;; --- the events of hands ---
 
@@ -186,12 +189,12 @@ lists what there is if there is none or more than one."
   "The key that types CHARACTER: Return for a line feed."
   (if (char= character #\Linefeed) #\Return character))
 
-(defun type-text (session text &key id role name)
+(defun type-text (session text &key id role name within)
   "Type TEXT, a key for each character (Return for a line feed), into the thing that has the
 keyboard, or, if ID, ROLE or NAME says which, into that thing, after pressing it to give it the
 keyboard."
   (when (or id role name)
-    (focus session :id id :role role :name name))
+    (focus session :id id :role role :name name :within within))
   (loop :for character :across text
         :do (deliver session (make-key-event :timestamp (now-ns) :kind :down
                                              :logical-key (typed-key character) :modifiers 0)))
@@ -205,9 +208,9 @@ keyboard."
     (refuse 'cannot "The ~a is scrolled out of sight. Scroll the container it is in until it shows."
             (describe-node node))))
 
-(defun click (session &key id role name)
+(defun click (session &key id role name within)
   "Press and release the primary button in the middle of the thing."
-  (let ((node (find-node session :id id :role role :name name)))
+  (let ((node (find-node session :id id :role role :name name :within within)))
     (refuse-hidden node)
     (when (node-property node :disabled)
       (refuse 'cannot "The ~a is disabled." (describe-node node)))
@@ -216,8 +219,8 @@ keyboard."
     (settle session)
     nil))
 
-(defun double-click (session &key id role name)
-  (let ((node (find-node session :id id :role role :name name)))
+(defun double-click (session &key id role name within)
+  (let ((node (find-node session :id id :role role :name name :within within)))
     (refuse-hidden node)
     (multiple-value-bind (x y) (middle node)
       (press-at session x y :count 1)
@@ -225,9 +228,9 @@ keyboard."
     (settle session)
     nil))
 
-(defun secondary-click (session &key id role name)
+(defun secondary-click (session &key id role name within)
   "Press and release the secondary button in the middle of the thing: what opens a context menu."
-  (let ((node (find-node session :id id :role role :name name)))
+  (let ((node (find-node session :id id :role role :name name :within within)))
     (refuse-hidden node)
     (multiple-value-bind (x y) (middle node)
       (pointer session :move x y)
@@ -236,13 +239,13 @@ keyboard."
     (settle session)
     nil))
 
-(defun focus (session &key id role name)
+(defun focus (session &key id role name within)
   "Give the thing the keyboard, by pressing it."
-  (click session :id id :role role :name name))
+  (click session :id id :role role :name name :within within))
 
-(defun scroll (session &key id role name (dx 0) (dy 0))
+(defun scroll (session &key id role name within (dx 0) (dy 0))
   "Turn the wheel over the thing: DX and DY in lines, a negative DY showing what is further down."
-  (let ((node (find-node session :id id :role role :name name)))
+  (let ((node (find-node session :id id :role role :name name :within within)))
     (multiple-value-bind (x y) (middle node)
       (deliver session (make-wheel-event :timestamp (now-ns) :x (float x 1d0) :y (float y 1d0)
                                          :dx (float dx 1d0) :dy (float dy 1d0)
@@ -250,9 +253,9 @@ keyboard."
     (settle session)
     nil))
 
-(defun select-item (session index &key id role name)
+(defun select-item (session index &key id role name within)
   "Pick the item INDEX of a list, scrolling it into view first if it is not showing."
-  (let ((target (find-node session :id id :role (or role :list) :name name)))
+  (let ((target (find-node session :id id :role (or role :list) :name name :within within)))
     (unless (eq (node-role target) :list)
       (refuse 'cannot "The ~a is not a list." (describe-node target)))
     (let ((count (length (node-property target :items))))
@@ -287,11 +290,11 @@ keyboard."
     (multiple-value-bind (x y) (bounds-point (nth index (node-property node :option-bounds)))
       (press-at session x y))))
 
-(defun set-value (session value &key id role name)
+(defun set-value (session value &key id role name within)
   "Make the thing have VALUE, by what a person would do to it: type it into a text field (after
 selecting what was there), press a check box if it is not as wanted, press a slider where the
 value is, press the option of a choice, pick the item of a list."
-  (let ((node (find-node session :id id :role role :name name)))
+  (let ((node (find-node session :id id :role role :name name :within within)))
     (refuse-hidden node)
     (when (node-property node :disabled)
       (refuse 'cannot "The ~a is disabled." (describe-node node)))
