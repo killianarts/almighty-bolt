@@ -27,6 +27,8 @@
                 #:box-kind
                 #:box-text
                 #:box-size
+                #:box-max-w
+                #:box-max-h
                 #:box-color
                 #:box-pad-left
                 #:box-enabled
@@ -597,9 +599,19 @@ kept, and otherwise afresh, which is then kept."
         (:panel
          (push-rounded-rect list x y (box-w box) (box-h box) (box-n1 box)
                             (or (box-color box) (theme-panel *theme*)))
-         (paint-children ui box context list x y))
+         (paint-contents ui box context list x y))
         ((:column :row :padding :center :stack :context-area)
-         (paint-children ui box context list x y))))))
+         (paint-contents ui box context list x y))))))
+
+(defun paint-contents (ui box context list x y)
+  "Draw what is in the container BOX. One given a greatest size (:height, :max-width ...) cuts off
+what is too large for it, as a scroll container does with what is out of its window."
+  (if (or (>= (box-max-w box) 0f0) (>= (box-max-h box) 0f0))
+      (progn
+        (push-clip list x y (box-w box) (box-h box))
+        (paint-children ui box context list x y)
+        (push-unclip list))
+      (paint-children ui box context list x y)))
 
 ;;; A scroll container or a lazy list clips what is in it to its edges, so that what is out of its
 ;;; window does not show; but the ring round what has the keyboard is drawn +RING-REACH+ points

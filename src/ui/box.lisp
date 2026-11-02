@@ -23,6 +23,10 @@
            #:box-pad-bottom
            #:box-pref-w
            #:box-pref-h
+           #:box-min-w
+           #:box-max-w
+           #:box-min-h
+           #:box-max-h
            #:box-enabled
            #:box-look
            #:box-n1
@@ -75,6 +79,12 @@
   (pad-bottom 0f0 :type single-float)
   (pref-w 0f0 :type single-float)
   (pref-h 0f0 :type single-float)
+  ;; The least and greatest size a container was given (:min-width, :width and the rest), within
+  ;; what its parent allows; a greatest size of -1 is none.
+  (min-w 0f0 :type single-float)
+  (max-w -1f0 :type single-float)
+  (min-h 0f0 :type single-float)
+  (max-h -1f0 :type single-float)
   (enabled t)
   ;; How it looks to the pointer and keyboard, a small number: 0 plain, 1 hovered, 2 pressed,
   ;; 3 disabled, and 4 added if it has the keyboard.
@@ -135,6 +145,10 @@ made."
         (box-pad-bottom box) 0f0
         (box-pref-w box) 0f0
         (box-pref-h box) 0f0
+        (box-min-w box) 0f0
+        (box-max-w box) -1f0
+        (box-min-h box) 0f0
+        (box-max-h box) -1f0
         (box-enabled box) t
         (box-look box) 0
         (box-n1 box) 0f0

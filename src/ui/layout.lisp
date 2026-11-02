@@ -26,6 +26,10 @@
                 #:box-pad-bottom
                 #:box-pref-w
                 #:box-pref-h
+                #:box-min-w
+                #:box-max-w
+                #:box-min-h
+                #:box-max-h
                 #:box-n1
                 #:box-n2
                 #:box-n3
@@ -101,6 +105,14 @@
   "Work out the size of BOX within the constraints and the places of its children, store
 them in the boxes, and return the width and height."
   (declare (type single-float min-w max-w min-h max-h))
+  ;; A container's own least and greatest size (:width, :min-height ...), within what its parent
+  ;; allows: the parent's limits win.
+  (let ((least-w (box-min-w box)) (most-w (box-max-w box))
+        (least-h (box-min-h box)) (most-h (box-max-h box)))
+    (when (> least-w min-w) (setf min-w (min least-w max-w)))
+    (when (>= most-w 0f0) (setf max-w (max min-w (min most-w max-w))))
+    (when (> least-h min-h) (setf min-h (min least-h max-h)))
+    (when (>= most-h 0f0) (setf max-h (max min-h (min most-h max-h)))))
   ;; Laid out in the theme it was described in (its font).
   (let ((*theme* (box-theme box)))
     (ecase (box-kind box)

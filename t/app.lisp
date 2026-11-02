@@ -3200,3 +3200,49 @@ released unless RELEASE."
       (m:scroll session :id :items :dy -100)
       (click screen :five)
       (assert-true (<= (first-visible) 5 (+ (first-visible) 7)) (first-visible)))))
+
+;;; --- containers given a size ---
+
+(defun make-sized ()
+  (state-let ((taller nil))
+    (lambda ()
+      (column (:gap 8)
+        ;; A shortcut, so that the panel's height is all that changes.
+        (when (shortcut #\t :command) (setf taller t))
+        (column (:id :least :min-height 60)
+          (label "x" :id :x))
+        (column (:id :narrow :max-width 120)
+          (paragraph "A paragraph of words that goes on well past a hundred and twenty points"
+                     :id :words))
+        (panel (:id :fixed :height (if taller 90 40) :all 4)
+          (column ()
+            (dotimes (i 6)
+              (label (format nil "Line ~d" i) :id i))))))))
+
+(defun clip-of (screen x y)
+  "The clip rectangle on SCREEN's display list that starts at X, Y, as a list, or NIL."
+  (let ((list (screen-list screen)))
+    (dotimes (index (core:display-list-count list))
+      (when (and (= (core:display-list-kind list index) core:+command-clip+)
+                 (= x (core:display-list-x list index)) (= y (core:display-list-y list index)))
+        (return (list (core:display-list-width list index) (core:display-list-height list index)))))))
+
+(define-test a-container-takes-the-size-it-is-given ()
+  (let ((screen (show 'make-sized)))
+    ;; At least 60 tall, though a label is less.
+    (assert-eql 60f0 (fourth (bounds-of screen :least)))
+    ;; No wider than 120, and the paragraph in it is broken to that width.
+    (assert-true (<= (third (bounds-of screen :narrow)) 120) (bounds-of screen :narrow))
+    (assert-true (<= (third (bounds-of screen :words)) 120) (bounds-of screen :words))
+    (assert-true (> (fourth (bounds-of screen :words)) (* 2 (fourth (bounds-of screen :x)))))
+    ;; Exactly 40 tall, with six lines in it that are taller than that: they are cut off at its
+    ;; edges.
+    (destructuring-bind (x y width height) (bounds-of screen :fixed)
+      (assert-eql 40f0 height)
+      (assert-equal (list width height) (clip-of screen x y)))
+    ;; Given another height, it is that height from the next frame.
+    (core:handle-event (screen-variant screen)
+                       (core:make-key-event :timestamp 0 :kind :down :logical-key #\t
+                                            :modifiers core:+modifier-super+))
+    (draw screen)
+    (assert-eql 90f0 (fourth (bounds-of screen :fixed)))))

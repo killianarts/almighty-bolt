@@ -25,6 +25,10 @@
                 #:box-pad-bottom
                 #:box-pref-w
                 #:box-pref-h
+                #:box-min-w
+                #:box-max-w
+                #:box-min-h
+                #:box-max-h
                 #:box-enabled
                 #:box-look
                 #:box-n1
@@ -297,42 +301,61 @@ the box a press began on), 3 disabled, and 4 more if it has the keyboard."
 
 ;;; --- containers ---
 
+(defun set-size-limits (box
+                     width height min-width min-height max-width max-height)
+  "Give the container BOX the least and greatest size it was described with. WIDTH is both the least
+and the greatest width, and HEIGHT the height; MIN- and MAX- give one side only. Each is within what
+the container's parent allows, which wins."
+  (flet ((size (value) (and value (float value 1f0))))
+    (let ((min-w (size (or width min-width))) (max-w (size (or width max-width)))
+          (min-h (size (or height min-height))) (max-h (size (or height max-height))))
+      (setf (box-min-w box) (or min-w 0f0)
+            (box-max-w box) (or max-w -1f0)
+            (box-min-h box) (or min-h 0f0)
+            (box-max-h box) (or max-h -1f0)))))
+
 (defmacro with-container ((box kind &rest keys) &body body)
   `(let ((,box (open-box *ui* ,kind :id ,(getf keys :id))))
      ,@body
      (close-box *ui*)
      nil))
 
-(defmacro column ((&key id (gap 0) (main-align :start) (cross-align :start) fill (flex 0))
+(defmacro column ((&key id (gap 0) (main-align :start) (cross-align :start) fill (flex 0)
+                     width height min-width min-height max-width max-height)
                   &body body)
   "Children one under another."
   (let ((box (gensym "BOX")))
     `(with-container (,box :column :id ,id)
+       (set-size-limits ,box ,width ,height ,min-width ,min-height ,max-width ,max-height)
        (setf (box-gap ,box) (float ,gap 1f0) (box-main-align ,box) ,main-align
              (box-cross-align ,box) ,cross-align (box-fill ,box) ,fill
              (box-flex ,box) (float ,flex 1f0))
        ,@body)))
 
-(defmacro row ((&key id (gap 0) (main-align :start) (cross-align :start) fill (flex 0))
+(defmacro row ((&key id (gap 0) (main-align :start) (cross-align :start) fill (flex 0)
+                     width height min-width min-height max-width max-height)
                &body body)
   "Children side by side."
   (let ((box (gensym "BOX")))
     `(with-container (,box :row :id ,id)
+       (set-size-limits ,box ,width ,height ,min-width ,min-height ,max-width ,max-height)
        (setf (box-gap ,box) (float ,gap 1f0) (box-main-align ,box) ,main-align
              (box-cross-align ,box) ,cross-align (box-fill ,box) ,fill
              (box-flex ,box) (float ,flex 1f0))
        ,@body)))
 
-(defmacro stack ((&key id (flex 0)) &body body)
+(defmacro stack ((&key id (flex 0) width height min-width min-height max-width max-height) &body body)
   "Children on top of each other, the later on top."
   (let ((box (gensym "BOX")))
     `(with-container (,box :stack :id ,id)
+       (set-size-limits ,box ,width ,height ,min-width ,min-height ,max-width ,max-height)
        (setf (box-flex ,box) (float ,flex 1f0))
        ,@body)))
 
-(defmacro padding ((&key id all left top right bottom (flex 0)) &body body)
+(defmacro padding ((&key id all left top right bottom (flex 0) width height min-width min-height max-width max-height) &body body)
   (let ((box (gensym "BOX")))
     `(with-container (,box :padding :id ,id)
+       (set-size-limits ,box ,width ,height ,min-width ,min-height ,max-width ,max-height)
        (setf (box-pad-left ,box) (float (or ,left ,all 0) 1f0)
              (box-pad-top ,box) (float (or ,top ,all 0) 1f0)
              (box-pad-right ,box) (float (or ,right ,all 0) 1f0)
@@ -340,10 +363,11 @@ the box a press began on), 3 disabled, and 4 more if it has the keyboard."
              (box-flex ,box) (float ,flex 1f0))
        ,@body)))
 
-(defmacro panel ((&key id all left top right bottom color (radius 8) (flex 0)) &body body)
+(defmacro panel ((&key id all left top right bottom color (radius 8) (flex 0) width height min-width min-height max-width max-height) &body body)
   "Children on a rounded background."
   (let ((box (gensym "BOX")))
     `(with-container (,box :panel :id ,id)
+       (set-size-limits ,box ,width ,height ,min-width ,min-height ,max-width ,max-height)
        (setf (box-pad-left ,box) (float (or ,left ,all 0) 1f0)
              (box-pad-top ,box) (float (or ,top ,all 0) 1f0)
              (box-pad-right ,box) (float (or ,right ,all 0) 1f0)
@@ -362,10 +386,11 @@ tree."
     (close-box *ui*)
     nil))
 
-(defmacro center ((&key id (flex 0)) &body body)
+(defmacro center ((&key id (flex 0) width height min-width min-height max-width max-height) &body body)
   "The child in the middle of all the room there is."
   (let ((box (gensym "BOX")))
     `(with-container (,box :center :id ,id)
+       (set-size-limits ,box ,width ,height ,min-width ,min-height ,max-width ,max-height)
        (setf (box-flex ,box) (float ,flex 1f0))
        ,@body)))
 
@@ -2227,7 +2252,9 @@ counting its children."
                                (hash-of (box-moves box)) (hash-of (box-tooltip box))
                                (hash-of (box-pad-left box)) (hash-of (box-pad-top box))
                                (hash-of (box-pad-right box)) (hash-of (box-pad-bottom box))
-                               (hash-of (box-pref-w box)) (hash-of (box-pref-h box))))
+                               (hash-of (box-pref-w box)) (hash-of (box-pref-h box))
+                               (hash-of (box-min-w box)) (hash-of (box-max-w box))
+                               (hash-of (box-min-h box)) (hash-of (box-max-h box))))
          (layout (case (box-kind box)
                    (:choice (mix layout (hash-options (car (box-data box)))))
                    ((:list-box :text-area) (mix layout (box-n3 box)))

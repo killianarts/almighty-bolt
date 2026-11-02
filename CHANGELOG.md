@@ -16,6 +16,7 @@ are not listed.
 
 - `:cursor` on `canvas`: the shape the pointer has over it ([0.3](docs/releases/dev.md#input)).
 - `shortcut`, true in the frame a keyboard shortcut is pressed ([0.3](docs/releases/dev.md#input)).
+- `:width`, `:height`, `:min-width`, `:min-height`, `:max-width` and `:max-height` on `column`, `row`, `stack`, `padding`, `panel` and `center` ([0.3](docs/releases/dev.md#layout)).
 - `spacer`, empty room that takes the free space of its row or column ([0.3](docs/releases/dev.md#layout)).
 - `:within` on the machine interface's calls and the MCP server's tools: the container a thing is in, for an id used in more than one container ([0.3](docs/releases/dev.md#machine-interface)).
 - Spacing in a theme: `:spacing`, a scale that the paddings, gaps and heights of the controls are worked out from, and each of those sizes on its own; and a Spacing slider in the theme designer ([0.3](docs/releases/dev.md#spacing-in-a-theme)).

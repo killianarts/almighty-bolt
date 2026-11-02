@@ -61,6 +61,8 @@ A theme that gives the spacing works out every size again, except those it gives
 
 #### Layout
 
+- A container can be given a size. `column`, `row`, `stack`, `padding`, `panel` and `center` take `:width` and `:height`, which fix it, and `:min-width`, `:min-height`, `:max-width` and `:max-height`, which bound one side. A paragraph in a container with a greatest width is broken to that width, and what is too large for a container with a greatest size is cut off at its edges, as in a scroll container. The limits hold within what the parent allows: a parent's limits win. Before, only a `scroll` took a height.
+
 - `(spacer)` is empty room that takes the free space of the row or column it is in, so that what comes after it goes to the far edge: `(row (:fill t) (label "Title" :id :title) (spacer) (button "Done" :id :done))`. `:flex` gives it more than one share. It needs no id, since it holds nothing, and it is not in the semantic tree. It replaces an empty `(row (:id :gap :flex 1))`.
 
 #### Input
