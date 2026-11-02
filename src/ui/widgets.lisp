@@ -16,6 +16,8 @@
                 #:box-weight
                 #:box-font
                 #:box-color
+                #:box-border-color
+                #:box-border-width
                 #:box-flex
                 #:box-gap
                 #:box-main-align
@@ -375,7 +377,7 @@ the container's parent allows, which wins."
              (box-flex ,box) (float ,flex 1f0))
        ,@body)))
 
-(defmacro panel ((&key id all left top right bottom color (radius 8) (flex 0) width height min-width min-height max-width max-height) &body body)
+(defmacro panel ((&key id all left top right bottom color (radius 8) (flex 0) border-color (border-width 1) width height min-width min-height max-width max-height) &body body)
   "Children on a rounded background."
   (let ((box (gensym "BOX")))
     `(with-container (,box :panel :id ,id)
@@ -385,6 +387,8 @@ the container's parent allows, which wins."
              (box-pad-right ,box) (float (or ,right ,all 0) 1f0)
              (box-pad-bottom ,box) (float (or ,bottom ,all 0) 1f0)
              (box-color ,box) (theme-color ,color)
+             (box-border-color ,box) (theme-color ,border-color)
+             (box-border-width ,box) (float ,border-width 1f0)
              (box-n1 ,box) (float ,radius 1f0)
              (box-flex ,box) (float ,flex 1f0))
        ,@body)))
@@ -450,6 +454,7 @@ and true if it was clicked this frame."
     (values box clicked)))
 
 (defmacro pressable ((&key id tooltip (enabled t) (selected :none) name (look :plain) color
+                        border-color (border-width 1)
                         (radius 8) all left top right bottom (gap 0) (flex 0)
                         width height min-width min-height max-width max-height)
                      &body body)
@@ -466,7 +471,9 @@ what a screen reader calls it; by default the words of what is in it."
                             (or ,left ,all 0) (or ,top ,all 0) (or ,right ,all 0) (or ,bottom ,all 0)
                             ,flex)
          (set-size-limits ,box ,width ,height ,min-width ,min-height ,max-width ,max-height)
-         (setf (box-data ,box) ,name)
+         (setf (box-data ,box) ,name
+               (box-border-color ,box) (theme-color ,border-color)
+               (box-border-width ,box) (float ,border-width 1f0))
          (let ((*foreground* (cond ((not (eq ,looks :button)) *foreground*)
                                    ((box-enabled ,box) (theme-button-text *theme*))
                                    (t (theme-dim-text *theme*)))))
@@ -2464,7 +2471,9 @@ counting its children."
                                     (hash-of (float-spec-min-width spec)))))
                    (t layout)))
          ;; One more than the colour, so that NIL (the theme's) and 0 (transparent) differ.
-         (paint (hash-numbers layout (if (box-color box) (1+ (box-color box)) 0) (box-look box) (hash-of (box-n1 box))
+         (paint (hash-numbers layout (if (box-color box) (1+ (box-color box)) 0) (box-look box)
+                              (if (box-border-color box) (1+ (box-border-color box)) 0)
+                              (hash-of (box-border-width box)) (hash-of (box-n1 box))
                               (hash-of (box-n2 box)) (box-n3 box)
                               (hash-of (box-enabled box)))))
     (setf paint

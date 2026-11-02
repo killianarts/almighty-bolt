@@ -14,6 +14,9 @@
            #:+command-glyph+
            #:+command-clip+
            #:+command-unclip+
+           #:+command-rounded-stroke+
+           #:push-rounded-stroke
+           #:stroke-width-of
            #:push-clip
            #:push-unclip
            #:pack-color
@@ -56,6 +59,11 @@ the glyph atlas, and the colour is the colour of the text.")
 Nothing is drawn by it; it counts as a command and takes a place in the list.")
 (defconstant +command-unclip+ 4
   "End the innermost clip that was started. Its rectangle is not used.")
+
+(defconstant +command-rounded-stroke+ 16
+  "The edge of a rounded rectangle, drawn inside it: the kind is this and the stroke's width in
+quarter points added (17 to 255, a quarter of a point to 59.75 points), so that a stroke needs no
+field of its own; the parameter is the corner radius, as for a filled one.")
 
 (deftype color () '(unsigned-byte 32))
 
@@ -147,6 +155,17 @@ changing TARGET, if SOURCE holds more commands than TARGET has room for."
 (defun push-rounded-rect (display-list x y width height radius color)
   "Append a filled rectangle with corners of RADIUS. Returns its index."
   (push-command display-list +command-rounded-rect+ x y width height radius color))
+
+(defun push-rounded-stroke (display-list x y width height radius stroke-width color)
+  "Append the edge of a rectangle with corners of RADIUS, STROKE-WIDTH points wide and inside it.
+Returns its index."
+  (push-command display-list
+                (+ +command-rounded-stroke+ (max 1 (min 239 (round (* 4 stroke-width)))))
+                x y width height radius color))
+
+(defun stroke-width-of (kind)
+  "The width in points of the stroke that a command of KIND is, or NIL if it is not one."
+  (and (> kind +command-rounded-stroke+) (/ (- kind +command-rounded-stroke+) 4f0)))
 
 (defun push-glyph (display-list x y width height atlas-index color)
   "Append the glyph at ATLAS-INDEX in the glyph atlas, with its bitmap's top left

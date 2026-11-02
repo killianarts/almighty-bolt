@@ -14,6 +14,8 @@
            #:box-weight
            #:box-font
            #:box-color
+           #:box-border-color
+           #:box-border-width
            #:box-flex
            #:box-gap
            #:box-main-align
@@ -73,6 +75,9 @@
   ;; A packed colour, or NIL for the theme's (text for a label, the panel colour for a panel). NIL
   ;; and not 0, since 0 is a colour: black with nothing of it showing.
   (color nil :type (or null (unsigned-byte 32)))
+  ;; The colour and width of a panel's or a pressable's edge, or NIL for none.
+  (border-color nil :type (or null (unsigned-byte 32)))
+  (border-width 0f0 :type single-float)
   (flex 0f0 :type single-float)
   (gap 0f0 :type single-float)
   (main-align :start :type keyword)
@@ -141,6 +146,8 @@ made."
         (box-weight box) :regular
         (box-font box) nil
         (box-color box) nil
+        (box-border-color box) nil
+        (box-border-width box) 0f0
         (box-flex box) 0f0
         (box-gap box) 0f0
         (box-main-align box) :start

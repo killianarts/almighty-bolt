@@ -36,7 +36,7 @@ struct Instance {
   float4 rect;      // x, y, width, height in points, from the top left
   float parameter;  // the corner radius in points, or a glyph's index in the atlas
   uint color;       // red, green, blue, alpha: a byte each, red in the high byte
-  uint kind;        // 0 rectangle, 1 rounded rectangle, 2 glyph
+  uint kind;        // 0 rectangle, 1 rounded rectangle, 2 glyph, 16 + quarter points a stroke
   uint pad;
 };
 
@@ -101,6 +101,11 @@ fragment float4 rect_fragment(VertexOut in [[stage_in]],
     // Signed distance to a rounded box: negative inside, zero on the edge.
     float2 q = abs(in.local) - (in.half_size - in.radius);
     float d = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - in.radius;
+    // A stroke is the band of width W just inside the edge: -W <= d <= 0.
+    if (in.kind > 16u) {
+      float w = float(in.kind - 16u) * 0.25;
+      d = abs(d + w * 0.5) - w * 0.5;
+    }
     coverage = clamp(0.5 - d * in.scale, 0.0, 1.0);
   }
   float alpha = in.color.a * coverage;

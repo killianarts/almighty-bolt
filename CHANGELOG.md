@@ -17,6 +17,7 @@ are not listed.
 - `:cursor` on `canvas`: the shape the pointer has over it ([0.3](docs/releases/dev.md#input)).
 - `shortcut`, true in the frame a keyboard shortcut is pressed ([0.3](docs/releases/dev.md#input)).
 - `:width`, `:height`, `:min-width`, `:min-height`, `:max-width` and `:max-height` on `column`, `row`, `stack`, `padding`, `panel` and `center` ([0.3](docs/releases/dev.md#layout)).
+- `:border-color` and `:border-width` on `panel` and `pressable`, and `push-rounded-stroke` for a canvas ([0.3](docs/releases/dev.md#rendering)).
 - `:weight :bold` and `:font` on `label` and `paragraph` ([0.3](docs/releases/dev.md#text)).
 - `:style :segmented` on `choice`: joined segments, for switching between views ([0.3](docs/releases/dev.md#input)).
 - A `:color` can be a colour of the theme: `:accent`, `(:accent :alpha 0.2)`, `(:mix :accent :background 0.8)`; and `theme-color` ([0.3](docs/releases/dev.md#rendering)).

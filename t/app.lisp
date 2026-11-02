@@ -3518,3 +3518,34 @@ released unless RELEASE."
       (draw screen)
       ;; Broken again in the bold font: a line more.
       (assert-eql (* 1.5 regular) (fourth (bounds-of screen :note))))))
+
+;;; --- an edge round a panel ---
+
+(defun make-outlined ()
+  (state-let ((marked nil))
+    (lambda ()
+      (column (:gap 8)
+        (when (shortcut #\m :command) (setf marked t))
+        (panel (:id :today :all 6 :border-color (if marked :text :accent) :border-width 2)
+          (label "Today" :id :today-label))))))
+
+(defun strokes-at (screen x y)
+  "The (width colour) of each stroke on SCREEN's display list that starts at X, Y."
+  (let ((list (screen-list screen)))
+    (loop :for index :below (core:display-list-count list)
+          :for width = (core:stroke-width-of (core:display-list-kind list index))
+          :when (and width (= x (core:display-list-x list index))
+                     (= y (core:display-list-y list index)))
+            :collect (list width (core:display-list-color list index)))))
+
+(define-test a-panel-can-have-an-edge-of-its-own ()
+  (let ((screen (show 'make-outlined))
+        (theme (theme:find-theme :dark)))
+    (multiple-value-bind (x y) (core:lookup-target (screen-variant screen) :today)
+      (assert-equal (list (list 2f0 (theme:theme-accent theme))) (strokes-at screen x y))
+      ;; Its colour changed, and nothing else: drawn again in the new one.
+      (core:handle-event (screen-variant screen)
+                         (core:make-key-event :timestamp 0 :kind :down :logical-key #\m
+                                              :modifiers core:+modifier-super+))
+      (draw screen)
+      (assert-equal (list (list 2f0 (theme:theme-text theme))) (strokes-at screen x y)))))

@@ -57,6 +57,8 @@ A theme that gives the spacing works out every size again, except those it gives
 
 #### Rendering
 
+- A `panel` or a `pressable` can have an edge: `:border-color` (any colour, a theme's too) and `:border-width`, drawn inside it, round its corners, antialiased as its fill is. It shows over a translucent fill, as a larger rectangle behind a smaller one would not: a calendar's today can be ringed in the accent colour and keep its own tint. The renderer draws it in the same pass as rectangles and glyphs; `push-rounded-stroke` puts one in a canvas.
+
 - A `:color` can be a colour of the theme that the thing is drawn in, so that an app's tints suit a dark window and a light one without a colour for each: a setting (`:accent`, `:dim-text`, `:panel` ...), `(:accent :alpha 0.2)`, or `(:mix :accent :background 0.8)`. Labels, paragraphs, panels and pressables take them, and `"#rrggbb"` strings as well as packed colours. `(theme-color designator)` gives the packed colour.
 
 #### Text

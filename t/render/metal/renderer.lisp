@@ -93,6 +93,23 @@ its pixels."
         (assert-equal +blue+ (pixel pixels 128 60 30))
         (assert-equal +blue+ (pixel pixels 128 85 30))))))
 
+(define-test a-stroke-is-the-edge-of-a-rounded-rectangle-inside-it ()
+  ;; 50 by 40 points at 60, 10, a stroke 2 points wide: the two rows and columns at each edge are
+  ;; covered, what is inside them is not, and nothing outside.
+  (with-metal (device renderer)
+    (let ((list (dl:make-display-list :capacity 4)))
+      (dl:push-rounded-stroke list 60 10 50 40 6 2 (dl:pack-color 255 0 0))
+      (let ((pixels (render-scene device renderer list 128 96 1)))
+        (assert-equal +red+ (pixel pixels 128 85 10))
+        (assert-equal +red+ (pixel pixels 128 85 11))
+        (assert-equal +red+ (pixel pixels 128 60 30))
+        (assert-equal +red+ (pixel pixels 128 109 30))
+        (assert-equal +red+ (pixel pixels 128 85 49))
+        (assert-equal +background+ (pixel pixels 128 85 13))
+        (assert-equal +background+ (pixel pixels 128 85 30))
+        (assert-equal +background+ (pixel pixels 128 85 8))
+        (assert-eql 2f0 (dl:stroke-width-of (dl:display-list-kind list 0)))))))
+
 (define-test a-radius-larger-than-the-shape-is-limited-to-the-shape ()
   ;; A 20 by 20 square with a radius of 100 becomes a circle, not nothing.
   (with-metal (device renderer)

@@ -160,6 +160,9 @@
                 #:+command-glyph+
                 #:+command-clip+
                 #:+command-unclip+
+                #:+command-rounded-stroke+
+                #:push-rounded-stroke
+                #:stroke-width-of
                 #:push-clip
                 #:push-unclip
                 #:pack-color
@@ -457,6 +460,9 @@
            #:+command-glyph+
            #:+command-clip+
            #:+command-unclip+
+           #:+command-rounded-stroke+
+           #:push-rounded-stroke
+           #:stroke-width-of
            #:push-clip
            #:push-unclip
            #:pack-color

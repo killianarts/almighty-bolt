@@ -9,6 +9,7 @@
                 #:context-scale
                 #:push-rect
                 #:push-rounded-rect
+                #:push-rounded-stroke
                 #:push-clip
                 #:push-unclip
                 #:make-display-list
@@ -31,6 +32,8 @@
                 #:box-main-align
                 #:box-max-h
                 #:box-color
+                #:box-border-color
+                #:box-border-width
                 #:box-pad-left
                 #:box-enabled
                 #:box-look
@@ -656,9 +659,11 @@ kept, and otherwise afresh, which is then kept."
         (:panel
          (push-rounded-rect list x y (box-w box) (box-h box) (box-n1 box)
                             (or (box-color box) (theme-panel *theme*)))
+         (draw-border box list x y)
          (paint-contents ui box context list x y))
         (:pressable
          (draw-pressable box list x y)
+         (draw-border box list x y)
          (paint-contents ui box context list x y))
         ((:column :row :padding :center :stack :context-area :grid)
          (paint-contents ui box context list x y))))))
@@ -679,6 +684,12 @@ the pointer and more so pressed; with the ring when it has the keyboard."
       (when focused
         (push-rounded-rect list (- x 2) (- y 2) (+ w 4) (+ h 4) (+ radius 2) (theme-ring *theme*)))
       (push-rounded-rect list x y w h radius fill))))
+
+(defun draw-border (box list x y)
+  "The edge of a panel or a pressable given a :border-color, inside it."
+  (when (and (box-border-color box) (plusp (box-border-width box)))
+    (push-rounded-stroke list x y (box-w box) (box-h box) (box-n1 box) (box-border-width box)
+                         (box-border-color box))))
 
 (defun paint-contents (ui box context list x y)
   "Draw what is in the container BOX. One given a greatest size (:height, :max-width ...) cuts off
