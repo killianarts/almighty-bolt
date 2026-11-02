@@ -3296,3 +3296,83 @@ released unless RELEASE."
       (let ((one (third (s:node-bounds (m:find-node session :id :one))))
             (two (third (s:node-bounds (m:find-node session :id :two)))))
         (assert-true (< (abs (- two (* 2 one))) 0.5) (list one two))))))
+
+;;; --- a container that is pressed ---
+
+(defun make-days ()
+  (state-let ((opened nil) (on nil) (inner 0))
+    (lambda ()
+      (column (:gap 8)
+        (when (pressable (:id :day :all 6)
+                (label "27" :id :number)
+                (label "7 Nov" :id :date)
+                (paragraph "Seder 30" :id :reading))
+          (setf opened t))
+        (label (if opened "Opened" "Closed") :id :opened)
+        (when (pressable (:id :toggle :selected on :look :button :name "Candles" :all 6)
+                (label "Show the times" :id :words)
+                (when (button "Inner" :id :inner) (incf inner)))
+          (setf on (not on)))
+        (label (princ-to-string inner) :id :inner-count)))))
+
+(defun glyph-colors-in (screen id)
+  "The colours of the characters drawn inside the control ID."
+  (multiple-value-bind (left top width height) (core:lookup-target (screen-variant screen) id)
+    (let ((list (screen-list screen)))
+      (remove-duplicates
+       (loop :for index :below (core:display-list-count list)
+             :when (and (= (core:display-list-kind list index) core:+command-glyph+)
+                        (<= left (core:display-list-x list index) (+ left width -1))
+                        (<= top (core:display-list-y list index) (+ top height -1)))
+               :collect (core:display-list-color list index))))))
+
+(define-test a-press-on-what-is-in-a-pressable-presses-it ()
+  (let ((screen (show 'make-days)))
+    ;; Over the date, a label inside it, and not over the pressable's own padding.
+    (click screen :date)
+    (assert-equal "Opened" (text-in screen :opened))))
+
+(define-test a-pressable-is-one-button-named-by-its-words ()
+  (let* ((screen (show 'make-days))
+         (session (screen-session screen))
+         (day (m:find-node session :id :day))
+         (toggle (m:find-node session :id :toggle)))
+    (assert-eq :button (s:node-role day))
+    (assert-equal "27, 7 Nov, Seder 30" (s:node-name day))
+    ;; Its labels are its name, and not things of their own.
+    (assert-eq nil (s:node-children day))
+    ;; A toggle, named as it was told, holding the button inside it.
+    (assert-eq :toggle-button (s:node-role toggle))
+    (assert-equal "Candles" (s:node-name toggle))
+    (assert-eq nil (s:node-property toggle :selected))
+    (assert-equal '(:inner) (mapcar #'s:node-id (s:node-children toggle)))
+    ;; Pressed on its words: at its middle is the button inside it, which takes that press.
+    (click screen :words)
+    (assert-true (s:node-property (m:find-node session :id :toggle) :selected))))
+
+(define-test a-button-inside-a-pressable-takes-its-own-press ()
+  (let ((screen (show 'make-days)))
+    (click screen :inner)
+    (assert-equal "1" (text-in screen :inner-count))
+    (assert-eq nil (s:node-property (node-of screen :toggle) :selected))))
+
+(define-test the-keyboard-presses-a-pressable ()
+  (let* ((screen (show 'make-days))
+         (session (screen-session screen)))
+    (m:press-key session :tab)
+    (assert-true (s:node-property (node-of screen :day) :focused))
+    (m:press-key session :space)
+    (assert-equal "Opened" (text-in screen :opened))))
+
+(define-test a-pressable-answers-the-pointer-and-looks-like-a-button-when-asked ()
+  (let* ((screen (show 'make-days))
+         (theme (theme:find-theme :dark)))
+    (multiple-value-bind (x y) (core:lookup-target (screen-variant screen) :day)
+      (assert-eql (theme:theme-panel theme) (color-at screen (+ x 2) (+ y 2)))
+      (pointer screen :move (+ x 2) (+ y 2))
+      (assert-false (eql (theme:theme-panel theme) (color-at screen (+ x 2) (+ y 2)))))
+    ;; The look of a button: its colour, and the words in it in the button's text colour.
+    (multiple-value-bind (x y) (core:lookup-target (screen-variant screen) :toggle)
+      (assert-eql (theme:theme-button theme) (color-at screen (+ x 2) (+ y 2))))
+    (assert-equal (list (theme:theme-button-text theme)) (glyph-colors-in screen :words))
+    (assert-equal (list (theme:theme-text theme)) (glyph-colors-in screen :date))))

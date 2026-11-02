@@ -51,6 +51,7 @@
         (cons 'w:canvas (lambda () (w:canvas 20 20 (lambda (&rest arguments)
                                                      (declare (ignore arguments))))))
         (cons 'w:scrim (lambda () (w:scrim)))
+        (cons 'w:pressable (lambda () (w:pressable () (w:label "x" :id :x))))
         (cons 'w:scroll (lambda () (w:scroll () (w:label "x" :id :x))))
         (cons 'w:lazy-list (lambda () (w:lazy-list (item '("a")) (w:label item :id :x))))))
 

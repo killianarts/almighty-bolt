@@ -21,6 +21,7 @@
                 #:box-aux
                 #:box-labelled-by
                 #:box-parent
+                #:box-interactive
                 #:box-tooltip
                 #:box-main-align
                 #:box-theme
@@ -116,7 +117,8 @@
     (:scrim :overlay)
     ((:scroll :lazy-list) :scroll-area)
     ((:column :row :stack :padding :panel :center :context-area) :group)
-    (:grid :grid)))
+    (:grid :grid)
+    (:pressable (if (zerop (box-n3 box)) :button :toggle-button))))
 
 (defun find-box (ui id)
   "The box of the frame with the id ID, or NIL."
@@ -147,9 +149,22 @@ The whole frame is searched last, for a label in a float (a dialog's title) or e
                 (when found (return-from find-labelling-box found))))
     (find-box ui id)))
 
+(defun words-inside (box)
+  "The words of the labels and paragraphs inside BOX, in order, joined by commas, or NIL."
+  (let ((words '()))
+    (labels ((walk (box)
+               (loop :for child :across (box-children box)
+                     :do (when (and (member (box-kind child) '(:label :paragraph))
+                                    (plusp (length (box-text child))))
+                           (push (box-text child) words))
+                         (walk child))))
+      (walk box))
+    (and words (format nil "~{~a~^, ~}" (nreverse words)))))
+
 (defun name-of (ui box)
   "What the thing is called: its own words, or the words of the widget that its :labelled-by names."
   (case (box-kind box)
+    (:pressable (or (box-data box) (words-inside box)))
     ((:label :paragraph :button :checkbox :switch :menu-item :menu-button :tooltip :dialog
       :toast)
      (box-text box))
@@ -186,6 +201,8 @@ The whole frame is searched last, for a label in a float (a dialog's title) or e
       (case (box-kind box)
         ((:label :paragraph)
          (when (= (box-n3 box) 1) (note :live t)))
+        (:pressable
+         (unless (zerop (box-n3 box)) (note :selected (= (box-n3 box) 2))))
         ;; Read out as it comes.
         (:toast (note :announce t))
         ((:text-field :combo-box :text-area)
@@ -268,14 +285,25 @@ shows; one that is all out of sight is :hidden, with no width or height."
          (name (name-of ui box))
          (value (value-of box))
          (state (state-of ui box x y hidden))
-         (children (if (member (box-kind box) '(:scroll :lazy-list))
-                       (loop :for child :across (box-children box)
-                             :collect (node-of ui child x y shown-left shown-top
-                                               (+ shown-left shown-w) (+ shown-top shown-h)))
-                       ;; A spacer is room and nothing more, and says nothing to anyone.
-                       (loop :for child :across (box-children box)
-                             :unless (eq (box-kind child) :spacer)
-                               :collect (node-of ui child x y left top right bottom)))))
+         (children (cond
+                     ;; A pressable is one thing to press, named by its words: what is in it is left
+                     ;; out, but for what can be pressed or typed into in its own right.
+                     ((eq (box-kind box) :pressable)
+                      (labels ((pressed-inside (box x y)
+                                 (loop :for child :across (box-children box)
+                                       :append (if (box-interactive child)
+                                                   (list (node-of ui child x y left top right bottom))
+                                                   (pressed-inside child (+ x (box-x child))
+                                                                   (+ y (box-y child)))))))
+                        (pressed-inside box x y)))
+                     ((member (box-kind box) '(:scroll :lazy-list))
+                      (loop :for child :across (box-children box)
+                            :collect (node-of ui child x y shown-left shown-top
+                                              (+ shown-left shown-w) (+ shown-top shown-h))))
+                     ;; A spacer is room and nothing more, and says nothing to anyone.
+                     (t (loop :for child :across (box-children box)
+                              :unless (eq (box-kind child) :spacer)
+                                :collect (node-of ui child x y left top right bottom))))))
     (append (and id (list :id id))
             (list :role (role-of box))
             (and name (list :name name))

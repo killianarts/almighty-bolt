@@ -141,6 +141,8 @@
                 #:theme-id
                 #:theme-font-name
                 #:theme-font-size
+                #:theme-button-text
+                #:theme-dim-text
                 #:theme-field-padding-x
                 #:theme-field-padding-y
                 #:theme-row-height)
@@ -214,6 +216,8 @@
            #:shortcut
            #:spacer
            #:grid
+           #:pressable
+           #:*foreground*
            #:+tooltip-delay-ns+
            #:text-area
            #:area-state
@@ -395,6 +399,74 @@ between rows."
              (box-data ,box) (cons ,column-widths ,row-heights)
              (box-flex ,box) (float ,flex 1f0))
        ,@body)))
+
+(defvar *foreground* nil
+  "The colour a label or a paragraph with no :color of its own is drawn in, or NIL for the theme's
+text. A pressable that looks like a button makes it the theme's button text, for what is in it.")
+
+(defun begin-pressable (id tooltip enabled selected look color radius left top right bottom flex)
+  "Open the box of a pressable and take the pointer and the keys a button takes. Returns the box,
+and true if it was clicked this frame."
+  (let* ((ui *ui*)
+         (box (open-box ui :pressable :id (or id (required-id 'pressable)) :tooltip tooltip))
+         (key (box-key box))
+         (clicked nil))
+    (setf (box-enabled box) enabled
+          (box-interactive box) enabled
+          (box-focusable box) enabled
+          (box-pad-left box) (float left 1f0)
+          (box-pad-top box) (float top 1f0)
+          (box-pad-right box) (float right 1f0)
+          (box-pad-bottom box) (float bottom 1f0)
+          (box-color box) color
+          (box-n1 box) (float radius 1f0)
+          ;; 1 for the look of a button, 0 for a plain one.
+          (box-n2 box) (if (eq look :button) 1f0 0f0)
+          ;; 0 a button, 1 a toggle that is off, 2 one that is on.
+          (box-n3 box) (cond ((eq selected :none) 0) (selected 2) (t 1))
+          (box-flex box) (float flex 1f0))
+    (when enabled
+      (when (and (= (ui-hot ui) key) (ui-pressed ui))
+        (consume-press ui)
+        (setf (ui-active ui) key))
+      (when (and (= (ui-active ui) key) (ui-released ui))
+        (consume-release ui)
+        (setf (ui-active ui) 0)
+        (when (= (ui-hot ui) key)
+          (setf clicked t)))
+      (when (= (ui-focus ui) key)
+        (dolist (event (copy-list (ui-keys ui)))
+          (when (member (key-event-logical-key event) '(#\Space #\Return))
+            (consume-key ui event)
+            (setf clicked t)))))
+    (setf (box-look box) (look-of ui key enabled))
+    (values box clicked)))
+
+(defmacro pressable ((&key id tooltip (enabled t) (selected :none) name (look :plain) color
+                        (radius 8) all left top right bottom (gap 0) (flex 0)
+                        width height min-width min-height max-width max-height)
+                     &body body)
+  "A container that is pressed as a button is: what BODY describes, one under another (GAP apart), on
+a background that answers the pointer. Returns true on the frame it is clicked (the pointer, or Space
+or Return with the keyboard on it). LOOK :BUTTON draws it in the theme's button colours, and what is in
+it in the button's text colour; :PLAIN (the default) on COLOR, or the theme's panel colour, a little
+darker or lighter under the pointer. SELECTED, if given, makes it a toggle that is on or off. NAME is
+what a screen reader calls it; by default the words of what is in it."
+  (let ((box (gensym "BOX")) (clicked (gensym "CLICKED")) (looks (gensym "LOOK")))
+    `(let ((,looks ,look))
+       (multiple-value-bind (,box ,clicked)
+           (begin-pressable ,id ,tooltip ,enabled ,selected ,looks ,color ,radius
+                            (or ,left ,all 0) (or ,top ,all 0) (or ,right ,all 0) (or ,bottom ,all 0)
+                            ,flex)
+         (set-size-limits ,box ,width ,height ,min-width ,min-height ,max-width ,max-height)
+         (setf (box-data ,box) ,name)
+         (let ((*foreground* (cond ((not (eq ,looks :button)) *foreground*)
+                                   ((box-enabled ,box) (theme-button-text *theme*))
+                                   (t (theme-dim-text *theme*)))))
+           (column (:gap ,gap :cross-align :stretch)
+             ,@body))
+         (close-box *ui*)
+         ,clicked))))
 
 (defun spacer (&key (flex 1))
   "Empty room that takes FLEX shares of the free space of the row or column it is in: in a row, what
@@ -688,7 +760,7 @@ A SELECTABLE label's text can be selected with the pointer and copied."
          (box (open-box ui :label :id id :tooltip tooltip)))
     (setf (box-text box) text
           (box-size box) (or size (theme-font-size *theme*))
-          (box-color box) color
+          (box-color box) (or color *foreground*)
           (box-flex box) (float flex 1f0)
           (box-n3 box) (if live 1 0))
     (when selectable
@@ -756,7 +828,7 @@ given). LIVE and SELECTABLE are as for a label."
          (state (state-of ui (box-key box) #'make-paragraph-state)))
     (setf (box-text box) text
           (box-size box) (or size (theme-font-size *theme*))
-          (box-color box) color
+          (box-color box) (or color *foreground*)
           (box-flex box) (float flex 1f0)
           (box-n3 box) (if live 1 0)
           (box-data box) state)

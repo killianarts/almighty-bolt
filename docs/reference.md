@@ -64,7 +64,16 @@ Every widget also takes `:flex`, its share of the free space of its container. A
 
 A `list-box` scrolls to show the selected row on its first frame, and whenever the app gives a selected row other than the one it gave last; while the selection stays the same, the list stays where the wheel put it.
 
-Containers take their options in a list and their children after it: `(bolt:column (:gap 10 :cross-align :center) ...)`. They are `column` and `row` (`:gap :main-align :cross-align :fill :flex`), `stack` (children on top of each other), `padding` (`:all :left :top :right :bottom`), `panel` (padding with a background: `:color :radius`), `center`, `grid`, `scroll`, `lazy-list`, `context-menu`, `popover` and `dialog`.
+Containers take their options in a list and their children after it: `(bolt:column (:gap 10 :cross-align :center) ...)`. They are `column` and `row` (`:gap :main-align :cross-align :fill :flex`), `stack` (children on top of each other), `padding` (`:all :left :top :right :bottom`), `panel` (padding with a background: `:color :radius`), `center`, `grid`, `pressable`, `scroll`, `lazy-list`, `context-menu`, `popover` and `dialog`.
+
+`pressable` (`:id :tooltip :enabled :selected :name :look :color :radius :gap`, the padding keys and the sizes below) is a container that is pressed as a button is: what is in it is one under another, `:gap` apart, on a background that answers the pointer, and it returns true on the frame it is clicked, by the pointer anywhere on it or by Space or Return with the keyboard on it. `:look :button` draws it in the theme's button colours and what is in it in the button's text colour; `:look :plain` (the default) draws it on `:color` (the theme's panel colour if none), a little darker or lighter under the pointer. Given `:selected`, it is a toggle, drawn in the theme's selected-row colour when on. What is in it that takes presses of its own (a button, a field, selectable text) takes them first. To a screen reader it is one button (a `:toggle-button` with `:selected` in its state, if it is a toggle) named by `:name`, or by the words of the labels and paragraphs in it, joined by commas; they are not things of their own, but what can be pressed or typed into inside it is.
+
+```lisp
+(when (bolt:pressable (:id (list :day day) :all 6 :selected (= day shown))
+        (bolt:label (day-number day) :id :number :size 16)
+        (bolt:label (day-reading day) :id :reading :size 12))
+  (setf shown day))
+```
 
 `grid` (`:columns :gap :row-gap :column-widths :row-heights` and the sizes below) puts its children in `:columns` columns, filling each row before the next, and stretches each to its cell. `:column-widths` is `:equal` (the default) or a list of numbers, each column's share of the width; where nothing limits the width, the columns are as wide as their widest child. `:row-heights` is `:auto` (each row as tall as its tallest child), `:uniform` (every row as tall as the tallest child of all, as the days of a month are) or a number of points. `:gap` is between columns and `:row-gap` (`:gap` if not given) between rows. In the semantic tree it is a `:grid`, and each child's state has its `:row` and `:column`, from 0.
 
@@ -75,7 +84,7 @@ Containers take their options in a list and their children after it: `(bolt:colu
       (bolt:label (day-name day) :id :name))))
 ```
 
-`column`, `row`, `stack`, `padding`, `panel`, `center` and `grid` also take a size: `:width` and `:height`, which fix it, and `:min-width`, `:min-height`, `:max-width` and `:max-height`, which bound it on one side. They are in points and hold within what the container's parent allows, which wins (a container stretched by `:cross-align :stretch` is as wide as it is stretched to). What is in a container given a greatest size and is too large for it is cut off at its edges: `(bolt:panel (:id :day :height 100) ...)` is 100 points tall whatever is in it.
+`column`, `row`, `stack`, `padding`, `panel`, `center`, `grid` and `pressable` also take a size: `:width` and `:height`, which fix it, and `:min-width`, `:min-height`, `:max-width` and `:max-height`, which bound it on one side. They are in points and hold within what the container's parent allows, which wins (a container stretched by `:cross-align :stretch` is as wide as it is stretched to). What is in a container given a greatest size and is too large for it is cut off at its edges: `(bolt:panel (:id :day :height 100) ...)` is 100 points tall whatever is in it.
 
 `scroll` (`:id :height :flex`) shows what is inside it, one under another, in a window that the wheel or a trackpad moves up and down, with a bar at the right edge when not all of it shows. Its `:id` is required, since the place the window is at is kept by it. The window is `:height` points tall where nothing gives it a height (the window is as tall as what is inside if there is no `:height`), and `:flex` gives it a share of a column's free space instead. It is as wide as it is allowed to be (as wide as what is inside where nothing limits it), so its bar is beside what is inside. The wheel goes first to what is inside it (a `list-box` scrolls its own rows), and what is left moves the window while the pointer is over the container or anything in it. When Tab brings the keyboard to something out of the window, the window moves as little as shows all of it and its ring. The ring round what has the keyboard is drawn past the container's edges, where what is inside is cut off. What is out of the window cannot be pressed, and is `:hidden` in the semantic tree.
 
@@ -137,6 +146,8 @@ VoiceOver reads the tree through the system's accessibility API. Each widget is 
 |---|---|---|
 | `label`, `paragraph` | `AXStaticText` | |
 | `button` | `AXButton` | |
+| `pressable` | `AXButton` | what can be pressed or typed into inside it; its labels are its name |
+| `grid` | `AXGroup` | its cells, each with its `:row` and `:column` in the semantic tree |
 | `text-field` | `AXTextField` | |
 | `text-area` | `AXTextArea` | |
 | `combo-box` | `AXComboBox` | while its suggestions show, an `AXMenuItem` for each |

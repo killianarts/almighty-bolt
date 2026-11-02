@@ -474,7 +474,7 @@ them in the boxes, and return the width and height."
                      (< (* end row-height) (min content-h (+ offset h))))
              (request-frame context)))
          (set-box box w h)))
-      ((:padding :panel)
+      ((:padding :panel :pressable)
        (let ((children (box-children box)))
          (flet ((measure (a b c d)
                   (layout-box (aref children 0) context a b c d)))

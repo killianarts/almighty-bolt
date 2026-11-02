@@ -79,7 +79,7 @@
                 #:theme-track #:theme-thumb #:theme-row-selected #:theme-scrim #:theme-tooltip
                 #:theme-tooltip-text #:theme-font-name #:theme-radius
                 #:theme-field-padding-x #:theme-field-padding-y #:theme-row-height #:spaced
-                #:button-color)
+                #:button-color #:mix-colors)
   (:export #:paint-box))
 
 (in-package #:almighty-bolt/ui/paint)
@@ -600,8 +600,28 @@ kept, and otherwise afresh, which is then kept."
          (push-rounded-rect list x y (box-w box) (box-h box) (box-n1 box)
                             (or (box-color box) (theme-panel *theme*)))
          (paint-contents ui box context list x y))
+        (:pressable
+         (draw-pressable box list x y)
+         (paint-contents ui box context list x y))
         ((:column :row :padding :center :stack :context-area :grid)
          (paint-contents ui box context list x y))))))
+
+(defun draw-pressable (box list x y)
+  "The background of a pressable: a button's colours for the look of a button, the theme's selected
+row for one that is on, or its own colour (the panel's if none), mixed toward the text colour under
+the pointer and more so pressed; with the ring when it has the keyboard."
+  (multiple-value-bind (state focused) (look-state box)
+    (let* ((w (box-w box)) (h (box-h box)) (radius (box-n1 box))
+           (fill (cond ((= (box-n2 box) 1f0) (button-color *theme* state))
+                       ((= (box-n3 box) 2) (theme-row-selected *theme*))
+                       (t (let ((base (or (box-color box) (theme-panel *theme*))))
+                            (case state
+                              (:hover (mix-colors base (theme-text *theme*) 0.08))
+                              (:pressed (mix-colors base (theme-text *theme*) 0.16))
+                              (t base)))))))
+      (when focused
+        (push-rounded-rect list (- x 2) (- y 2) (+ w 4) (+ h 4) (+ radius 2) (theme-ring *theme*)))
+      (push-rounded-rect list x y w h radius fill))))
 
 (defun paint-contents (ui box context list x y)
   "Draw what is in the container BOX. One given a greatest size (:height, :max-width ...) cuts off

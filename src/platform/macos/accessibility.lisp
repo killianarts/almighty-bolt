@@ -358,7 +358,7 @@ by pressing where the value then is, as a hand would. True if that is a change."
 thing that is not told yet."
   (case (getf node :role)
     ((:static-text :paragraph :toast) :static-text)
-    (:button :button)
+    ((:button :toggle-button) :button)
     (:text-field :text-field)
     (:combo-box :combo-box)
     (:text-area :text-area)

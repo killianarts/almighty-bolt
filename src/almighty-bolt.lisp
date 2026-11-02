@@ -72,6 +72,7 @@
                 #:shortcut
                 #:spacer
                 #:grid
+                #:pressable
                 #:open-file-dialog
                 #:save-file-dialog
                 #:list-box
@@ -113,7 +114,7 @@
            #:missing-id #:duplicate-id #:duplicate-id-id
            #:label #:paragraph #:button #:text-field #:text-area #:combo-box #:slider #:choice #:checkbox
            #:switch #:spinner #:dropdown #:menu-button #:context-menu #:popover
-           #:dialog #:toast #:shortcut #:spacer #:grid #:open-file-dialog #:save-file-dialog #:list-box
+           #:dialog #:toast #:shortcut #:spacer #:grid #:pressable #:open-file-dialog #:save-file-dialog #:list-box
            #:progress #:canvas #:scrim
            #:column #:row #:stack #:padding #:panel #:center #:scroll #:lazy-list
            #:theme #:make-theme #:define-theme #:find-theme #:with-theme #:theme-names #:theme-name

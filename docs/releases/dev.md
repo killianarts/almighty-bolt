@@ -61,6 +61,8 @@ A theme that gives the spacing works out every size again, except those it gives
 
 #### Layout
 
+- `pressable` is a container that is pressed as a button is, so that a card, a calendar day or a row of two lines is one thing to press and not a button among labels. It returns true on the frame it is clicked, by the pointer anywhere on it or by Space or Return. It looks like a button (`:look :button`, with what is in it in the button's text colour) or like a panel that answers the pointer (`:look :plain`), and with `:selected` it is a toggle. A screen reader reads it as one button named by the words in it; a button or a field inside it is still pressed on its own.
+
 - `grid` lays its children out in `:columns` columns, a row at a time, each stretched to its cell. The columns are equal or take shares of the width (`:column-widths '(1 2 1)`); the rows are each as tall as their tallest child (`:auto`), all as tall as the tallest child of all (`:uniform`, for a month of days whose cells should be one size), or a given height. In the semantic tree it is a `:grid`, and each cell says its `:row` and `:column`.
 
 - A container can be given a size. `column`, `row`, `stack`, `padding`, `panel` and `center` take `:width` and `:height`, which fix it, and `:min-width`, `:min-height`, `:max-width` and `:max-height`, which bound one side. A paragraph in a container with a greatest width is broken to that width, and what is too large for a container with a greatest size is cut off at its edges, as in a scroll container. The limits hold within what the parent allows: a parent's limits win. Before, only a `scroll` took a height.
