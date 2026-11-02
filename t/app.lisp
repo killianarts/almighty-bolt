@@ -1941,6 +1941,52 @@ screen reader was given are taken away and their places are used again."
         (assert-false (press (second options)))
         (assert-equal '(1d0 0d0) (mapcar (lambda (e) (says e :value)) options))))))
 
+(defvar *slides* 0 "How many times the slider in MAKE-WHOLE-SLIDER has said it was moved.")
+
+(defun make-whole-slider ()
+  "A slider whose value the app keeps as a whole number, as a font size or a count is."
+  (state-let ((size 5))
+    (lambda ()
+      (column (:gap 8)
+        (multiple-value-bind (value moved) (slider size 0 10 :id :whole)
+          (when moved
+            (incf *slides*)
+            (setf size (round value))))
+        (label (format nil "~d" size) :id :whole-value)))))
+
+(define-test a-slider-held-still-is-not-moved-again-when-the-app-rounds-its-value ()
+  (let ((*slides* 0)
+        (warned nil))
+    (handler-bind ((core:settle-cap-reached (lambda (warning)
+                                              (setf warned t)
+                                              (muffle-warning warning))))
+      (let ((screen (show 'make-whole-slider)))
+        (multiple-value-bind (x y width height) (core:lookup-target (screen-variant screen) :whole)
+          ;; The thumb's middle travels the width less the thumb, 16: a press at 7.3 of the 10.
+          (let ((px (+ x 8 (* 0.73 (- width 16)))) (py (+ y (/ height 2))))
+            (pointer screen :move px py)
+            (pointer screen :down px py :button 0 :buttons 1)
+            ;; It moved once, and the app holds 7, which is what it shows, though the pointer is
+            ;; still at 7.3.
+            (assert-eql 1 *slides*)
+            (assert-equal "7" (text-in screen :whole-value))
+            (assert-eql 7d0 (s:node-value (node-of screen :whole)))
+            ;; Held there for a frame more, it is not moved again.
+            (draw screen)
+            (assert-eql 1 *slides*)
+            ;; Dragged on, it is.
+            (pointer screen :move (+ px 37) py :buttons 1)
+            (assert-eql 2 *slides*)
+            (assert-equal "9" (text-in screen :whole-value))
+            (pointer screen :up (+ px 37) py :button 0)
+            ;; A key moves it on, and a press where the pointer last was slides it back there.
+            (key screen core:+key-right+)
+            (assert-equal "10" (text-in screen :whole-value))
+            (pointer screen :down (+ px 37) py :button 0 :buttons 1)
+            (pointer screen :up (+ px 37) py :button 0)
+            (assert-equal "9" (text-in screen :whole-value))))
+        (assert-false warned)))))
+
 (define-test the-system-is-told-once-something-has-asked-for-the-screen-and-not-before ()
   (let ((screen (show 'counter:make-counter)))
     (with-reader (reader screen)

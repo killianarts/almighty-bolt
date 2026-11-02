@@ -1249,6 +1249,15 @@ else, that is what is shown."
 
 ;;; --- a slider ---
 
+;;; A press and a key are taken once, but a drag is where the pointer is, and it is there in every
+;;; build of the frame and in the frames after it until the pointer moves. A slider slides only when
+;;; the pointer is somewhere it has not slid to: the value the app keeps from a slide (rounded to a
+;;; whole number, say) is the value it shows, rather than a slide again to where it was before.
+
+(defstruct (slider-state (:constructor make-slider-state ()))
+  ;; Where the pointer was when the slider last slid; NIL from a press until it slides.
+  (slid-x nil :type (or null single-float)))
+
 (defun slider (value minimum maximum
                &key (id (required-id 'slider)) tooltip labelled-by (width 200) (enabled t) (flex 0))
   "A slider showing VALUE between MINIMUM and MAXIMUM. Returns the value now and whether the
@@ -1256,6 +1265,7 @@ person changed it this frame."
   (let* ((ui *ui*)
          (box (open-box ui :slider :id id :tooltip tooltip :labelled-by labelled-by))
          (key (box-key box))
+         (state (state-of ui key #'make-slider-state))
          (new (float value 1d0))
          (range (- (float maximum 1d0) (float minimum 1d0))))
     (flet ((slide-to (x)
@@ -1275,10 +1285,13 @@ person changed it this frame."
         (when (and (= (ui-hot ui) key) (ui-pressed ui))
           (consume-press ui)
           (focus-by-click ui key)
-          (setf (ui-active ui) key))
+          (setf (ui-active ui) key
+                (slider-state-slid-x state) nil))
         (when (= (ui-active ui) key)
-          (when (ui-down ui)
-            (slide-to (ui-pointer-x ui)))
+          (let ((x (ui-pointer-x ui)))
+            (when (and (ui-down ui) (not (eql x (slider-state-slid-x state))))
+              (setf (slider-state-slid-x state) x)
+              (slide-to x)))
           (when (ui-released ui)
             (consume-release ui)
             (setf (ui-active ui) 0)))
