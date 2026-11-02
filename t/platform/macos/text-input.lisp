@@ -45,12 +45,12 @@ clears them. The app takes text if ACTIVE, with its caret at 10, 20, 2 by 16."
                  (:id (ns text)) (:ulong selected-start) (:ulong selected-length)
                  (:ulong +not-found+) (:ulong 0)))
 
-(defun key-event (characters key-code &optional (flags 0))
-  "An NSEvent of a key going down."
+(defun key-event (characters key-code &optional (flags 0) (ignoring characters))
+  "An NSEvent of a key going down, which typed CHARACTERS, and IGNORING with no modifier but Shift."
   (objc:msg-send :id (objc:objc-class "NSEvent")
                  "keyEventWithType:location:modifierFlags:timestamp:windowNumber:context:characters:charactersIgnoringModifiers:isARepeat:keyCode:"
                  (:ulong 10) (:point 0 0) (:ulong flags) (:double 0d0) (:long 0) (:id 0)
-                 (:id (ns characters)) (:id (ns characters)) (:bool nil) (:ushort key-code)))
+                 (:id (ns characters)) (:id (ns ignoring)) (:bool nil) (:ushort key-code)))
 
 ;;; --- text ---
 
@@ -221,3 +221,20 @@ clears them. The app takes text if ACTIVE, with its caret at 10, 20, 2 by 16."
       (assert-equal 1 (length seen))
       (assert-true (typep (first seen) 'event:key-event))
       (assert-eql #\a (event:key-event-logical-key (first seen))))))
+
+(define-test a-command-key-with-option-is-the-key-and-not-what-option-makes-of-it ()
+  ;; Command-Option-I: Option-I is the dead key of the circumflex, which types nothing; the key is I,
+  ;; with Command and Option (bits 20 and 19), whether the app takes text or not.
+  (dolist (active '(t nil))
+    (with-view (view object events :active active)
+      (objc:msg-send :void object "keyDown:"
+                     (:id (key-event "" 34 (logior (ash 1 20) (ash 1 19)) "i")))
+      (let ((seen (events)))
+        (assert-equal 1 (length seen) active)
+        (assert-eql #\i (event:key-event-logical-key (first seen)) active)
+        (assert-eql (logior event:+modifier-super+ event:+modifier-alt+)
+                    (event:key-event-modifiers (first seen)) active)))
+    ;; Without Command, a key is what it types: Option-A is å.
+    (with-view (view object events :active nil)
+      (objc:msg-send :void object "keyDown:" (:id (key-event "å" 0 (ash 1 19) "a")))
+      (assert-eql #\å (event:key-event-logical-key (first (events)))))))

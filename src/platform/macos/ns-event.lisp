@@ -90,13 +90,19 @@ U+007F and is #\Backspace; and the Enter key of the keypad is U+0003 and is Retu
         (t character)))))
 
 (defun key-event-from-ns-event (ns-event kind)
-  "A key event of KIND (:down or :up) for NS-EVENT."
-  (let* ((characters (msg-send :id ns-event "characters"))
+  "A key event of KIND (:down or :up) for NS-EVENT. With Command held the key is a command (a
+shortcut), and its logical key is the key's character with Shift only: with Option as well, the
+characters typed are what Option makes of it (Option-I is the dead key of the circumflex, and gives
+no I), and Command-Option-I is a shortcut on I."
+  (let* ((flags (msg-send :ulong ns-event "modifierFlags"))
+         (characters (msg-send :id ns-event (if (logtest flags (ash 1 20))
+                                                 "charactersIgnoringModifiers"
+                                                 "characters")))
          (text (if (zerop characters) "" (lisp-string characters))))
     (make-key-event
      :timestamp (event-time-ns ns-event)
      :kind kind
      :physical-key (msg-send :ushort ns-event "keyCode")
      :logical-key (logical-key text)
-     :modifiers (modifiers-from-flags (msg-send :ulong ns-event "modifierFlags"))
+     :modifiers (modifiers-from-flags flags)
      :repeat-p (msg-send :bool ns-event "isARepeat"))))
