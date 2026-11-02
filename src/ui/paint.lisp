@@ -28,6 +28,7 @@
                 #:box-text
                 #:box-size
                 #:box-max-w
+                #:box-main-align
                 #:box-max-h
                 #:box-color
                 #:box-pad-left
@@ -60,6 +61,7 @@
                 #:field-state-state
                 #:field-state-view-start
                 #:choice-state-lefts
+                #:choice-state-widths
                 #:choice-state-tops
                 #:choice-state-option-height
                 #:+switch-width+
@@ -306,7 +308,47 @@ is when its selection shows."
     (when (> filled 0f0)
       (push-rounded-rect list x y (max filled h) h (* 0.5f0 h) (theme-thumb *theme*)))))
 
+(defun draw-segments (box context list x y)
+  "A choice drawn as joined segments: one rounded field, the chosen segment filled in the selected
+row's colour with its words in the button's text colour, and a line between the others."
+  (let* ((font (ui-font context))
+         (options (car (box-data box)))
+         (state (cdr (box-data box)))
+         (h (choice-state-option-height state))
+         (w (box-w box))
+         (radius (theme-radius *theme*))
+         (selected (box-n3 box))
+         (focused (nth-value 1 (look-state box))))
+    (when focused
+      (push-rounded-rect list (- x 2) (- y 2) (+ w 4) (+ h 4) (+ radius 2) (theme-ring *theme*)))
+    (push-rounded-rect list x y w h radius (theme-field-border *theme*))
+    (push-rounded-rect list (+ x 1) (+ y 1) (- w 2) (- h 2) (max 0 (1- radius))
+                       (theme-field-fill *theme*))
+    (multiple-value-bind (height ascent) (line-metrics context)
+      (declare (ignore height))
+      (loop :for option :in options
+            :for i :from 0
+            :do (let ((left (+ x (svref (choice-state-lefts state) i)))
+                      (width (svref (choice-state-widths state) i)))
+                  (cond ((= i selected)
+                         (push-rounded-rect list (+ left 2) (+ y 2) (- width 4) (- h 4)
+                                            (max 0 (- radius 2)) (theme-row-selected *theme*)))
+                        ;; A line between two segments, neither of them the chosen one.
+                        ((and (plusp i) (/= (1- i) selected))
+                         (push-rect list left (+ y 5) 1 (- h 10) (theme-field-border *theme*))))
+                  (context-push-text context list font option
+                                     (+ left (/ (- width (context-measure context font option)) 2))
+                                     (+ y (/ (- h (+ ascent 4f0)) 2) ascent)
+                                     (cond ((not (box-enabled box)) (theme-dim-text *theme*))
+                                           ((= i selected) (theme-button-text *theme*))
+                                           (t (theme-text *theme*)))))))))
+
 (defun draw-choice (box context list x y)
+  (if (eq (box-main-align box) :segmented)
+      (draw-segments box context list x y)
+      (draw-radio-choice box context list x y)))
+
+(defun draw-radio-choice (box context list x y)
   (let* ((font (ui-font context))
          (options (car (box-data box)))
          (state (cdr (box-data box)))

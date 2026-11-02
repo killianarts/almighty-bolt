@@ -246,6 +246,7 @@ them in the boxes, and return the width and height."
        (let* ((options (car (box-data box)))
               (state (cdr (box-data box)))
               (vertical (eq (box-main-align box) :vertical))
+              (segmented (eq (box-main-align box) :segmented))
               (count (length options))
               (lefts (make-array count))
               (tops (make-array count))
@@ -253,18 +254,24 @@ them in the boxes, and return the width and height."
               (left 0f0)
               (top 0f0)
               (widest 0f0)
-              (height (max (theme-control-height *theme*) +dot-size+))
-              (font (ui-font context)))
+              (font (ui-font context))
+              ;; A segment is as tall as a button, its words a button's padding from its sides.
+              (height (if segmented
+                          (+ (line-height context) (* 2 (theme-button-padding-y *theme*)))
+                          (max (theme-control-height *theme*) +dot-size+))))
          (loop :for option :in options
                :for i :from 0
-               :do (let ((width (+ +dot-size+ 6f0 (float (context-measure context font option) 1f0))))
+               :do (let ((width (if segmented
+                                    (+ (float (context-measure context font option) 1f0)
+                                       (* 2 (theme-button-padding-x *theme*)))
+                                    (+ +dot-size+ 6f0 (float (context-measure context font option) 1f0)))))
                      (setf (svref lefts i) left
                            (svref tops i) top
                            (svref widths i) width
                            widest (max widest width))
-                     (if vertical
-                         (incf top (+ height (theme-option-row-gap *theme*)))
-                         (incf left (+ width (theme-option-gap *theme*))))))
+                     (cond (vertical (incf top (+ height (theme-option-row-gap *theme*))))
+                           (segmented (incf left width))
+                           (t (incf left (+ width (theme-option-gap *theme*)))))))
          (setf (choice-state-lefts state) lefts
                (choice-state-tops state) tops
                (choice-state-widths state) widths
@@ -272,7 +279,8 @@ them in the boxes, and return the width and height."
          (if vertical
              (set-box box (constrain widest min-w max-w)
                       (constrain (max 0f0 (- top (theme-option-row-gap *theme*))) min-h max-h))
-             (set-box box (constrain (max 0f0 (- left (theme-option-gap *theme*))) min-w max-w)
+             (set-box box (constrain (max 0f0 (- left (if segmented 0f0 (theme-option-gap *theme*))))
+                                     min-w max-w)
                       (constrain height min-h max-h)))))
       (:menu-button
        (let ((font (ui-font context)))

@@ -73,6 +73,8 @@ A theme that gives the spacing works out every size again, except those it gives
 
 #### Input
 
+- `choice` takes `:style :segmented`, which draws its options as one control of joined segments with the chosen one filled, as a Mac segmented control is: the usual look for switching between two or three views, which radio buttons are not. It is chosen as any choice is, and is a radio group in the semantic tree and to VoiceOver. (Tabs are still on the roadmap.)
+
 - A menu longer than the window shows as many rows as fit, with a bar that says where they are among them all, and scrolls: by the wheel, and by the arrow keys, which keep the highlighted row in view. `dropdown` and `menu-button` take `:max-rows`. Letters typed while a menu is open move the highlight to the first row they begin, as in a Mac pop-up button. Before, a dropdown of sixty countries opened a menu that ran past the bottom of the window. A row is highlighted by the pointer only when the pointer moves onto it, so a still pointer no longer takes the highlight back from the keys.
 
 - A `list-box` whose selected row is out of its window shows it: on its first frame, and when the app selects a row other than the one it selected before (say, from a search field beside it). While the selection stays the same, the list stays where the wheel put it. Before, a list opened at its top whatever was selected.

@@ -1461,11 +1461,14 @@ person changed it this frame."
 
 (defun choice (options selected
                &key (id (required-id 'choice)) tooltip labelled-by (direction :horizontal) (enabled t)
-                 (flex 0))
+                 (flex 0) (style :radio))
   "A choice among OPTIONS (strings), each with a round button, with the SELECTED one (an index)
 marked: side by side, or with DIRECTION :vertical one under another (radio buttons, as a Mac lays
-them out). Returns the index now and whether the person changed it this frame."
+them out). STYLE :SEGMENTED draws them as one control of joined segments, the chosen one filled,
+as a Mac segmented control is (side by side, whatever DIRECTION says): for a switch between views.
+Returns the index now and whether the person changed it this frame."
   (check-type direction (member :horizontal :vertical))
+  (check-type style (member :radio :segmented))
   (let* ((ui *ui*)
          (box (open-box ui :choice :id id :tooltip tooltip :labelled-by labelled-by))
          (key (box-key box))
@@ -1475,8 +1478,8 @@ them out). Returns the index now and whether the person changed it this frame."
           (box-interactive box) enabled
           (box-focusable box) enabled
           (box-data box) (cons options state)
-          ;; Which way the options go, which decides the layout.
-          (box-main-align box) direction
+          ;; Which way the options go, which decides the layout; :SEGMENTED for joined segments.
+          (box-main-align box) (if (eq style :segmented) :segmented direction)
           (box-flex box) (float flex 1f0))
     (when enabled
       (when (and (= (ui-hot ui) key) (ui-pressed ui))

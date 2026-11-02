@@ -12,7 +12,7 @@ What is planned after [0.1](releases/0.1.md). These are plans, not promises, and
 - **Text and layout.**
   - Bold, italic and a font for each widget; rich text.
   - Wrapping layouts and splitters.
-  - Tabs, a tree view, a table, and date and colour pickers.
+  - Tabs, a tree view, a table, and date and colour pickers (a segmented `choice` switches between views until there are tabs).
 - **Effects.** Shadows, glows, blur, opacity and other filters.
   - An effect can reach past the edges of the widget it belongs to, by as far as it needs.
   - A soft shadow or glow is drawn in the shader. A blur or filter reads what is under it, so it is drawn to a texture off screen first.

@@ -3460,3 +3460,35 @@ released unless RELEASE."
     (assert-equal "Fir 45" (text-in screen :tree-chosen))
     (m:set-value session "Birch 12" :id :tree)
     (assert-equal "Birch 12" (text-in screen :tree-chosen))))
+
+;;; --- a segmented choice ---
+
+(defun make-views ()
+  (state-let ((view 0))
+    (lambda ()
+      (column (:gap 8)
+        (multiple-value-bind (index changed)
+            (choice '("Readings" "Calendar") view :id :view :style :segmented)
+          (when changed (setf view index)))
+        (label (nth view '("Readings" "Calendar")) :id :view-shown)))))
+
+(define-test a-segmented-choice-is-joined-segments-and-chooses-as-a-choice-does ()
+  (let* ((screen (show 'make-views))
+         (session (screen-session screen))
+         (theme (theme:find-theme :dark))
+         (node (node-of screen :view)))
+    (assert-eq :radio-group (s:node-role node))
+    (assert-eq :segmented (s:node-property node :style))
+    ;; Joined: the second segment begins where the first ends.
+    (destructuring-bind (first second) (s:node-property node :option-bounds)
+      (assert-true (< (abs (- (second first) (second second))) 0.5))
+      (assert-true (< (abs (- (+ (first first) (third first)) (first second))) 0.5) (list first second))
+      ;; A press on the second chooses it, and it is filled, its words in the button's colour.
+      (pointer screen :move (+ (first second) 10) (+ (second second) 10))
+      (pointer screen :down (+ (first second) 10) (+ (second second) 10) :button 0 :buttons 1)
+      (pointer screen :up (+ (first second) 10) (+ (second second) 10) :button 0)
+      (assert-equal "Calendar" (text-in screen :view-shown))
+      (assert-eql (theme:theme-row-selected theme)
+                  (color-at screen (+ (first second) 10) (+ (second second) 10))))
+    (m:set-value session "Readings" :id :view)
+    (assert-equal "Readings" (text-in screen :view-shown))))
