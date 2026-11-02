@@ -101,6 +101,69 @@
     (declare (ignore width))
     (+ ascent descent)))
 
+(defun grid-shares (widths columns)
+  "Each column's share of a grid's width, as a list of COLUMNS numbers that add up to one."
+  (let* ((given (if (listp widths) widths '()))
+         (shares (loop :for column :below columns
+                       :collect (float (max 0 (or (nth column given) 1)) 1f0)))
+         (total (reduce #'+ shares)))
+    (if (plusp total)
+        (mapcar (lambda (share) (/ share total)) shares)
+        (make-list columns :initial-element (/ 1f0 columns)))))
+
+(defun layout-grid (box context min-w max-w min-h max-h)
+  "Lay out the grid BOX: its children in rows of (BOX-N3 BOX), each stretched to its cell."
+  (declare (type single-float min-w max-w min-h max-h))
+  (let* ((children (box-children box))
+         (count (length children))
+         (columns (max 1 (box-n3 box)))
+         (rows (ceiling count columns))
+         (gap (box-gap box))
+         (row-gap (box-n1 box))
+         (row-heights (cdr (box-data box)))
+         (gaps-w (* gap (1- columns)))
+         (widths (make-array columns :element-type 'single-float :initial-element 0f0))
+         (heights (make-array (max 1 rows) :element-type 'single-float :initial-element 0f0)))
+    ;; The columns' widths: shares of the width there is, or, where nothing limits it, what the
+    ;; widest child needs (all the same when the shares are equal).
+    (if (< max-w +unbounded+)
+        (let ((room (max 0f0 (- max-w gaps-w))))
+          (loop :for share :in (grid-shares (car (box-data box)) columns)
+                :for column :from 0
+                :do (setf (aref widths column) (* room share))))
+        (progn
+          (dotimes (i count)
+            (let ((w (layout-box (aref children i) context 0f0 +unbounded+ 0f0 +unbounded+)))
+              (setf (aref widths (mod i columns)) (max (aref widths (mod i columns)) w))))
+          (when (eq (car (box-data box)) :equal)
+            (let ((widest (reduce #'max widths)))
+              (fill widths widest)))))
+    ;; The rows' heights, from the children laid out at their columns' widths.
+    (dotimes (i count)
+      (let* ((w (aref widths (mod i columns)))
+             (h (nth-value 1 (layout-box (aref children i) context w w 0f0 +unbounded+)))
+             (row (floor i columns)))
+        (setf (aref heights row) (max (aref heights row) h))))
+    (cond ((numberp row-heights) (fill heights (float row-heights 1f0)))
+          ((eq row-heights :uniform) (fill heights (reduce #'max heights))))
+    ;; Each child again, stretched to its cell, and placed in it.
+    (let ((y 0f0))
+      (dotimes (row rows)
+        (let ((x 0f0) (h (aref heights row)))
+          (dotimes (column columns)
+            (let ((i (+ (* row columns) column)))
+              (when (< i count)
+                (let ((child (aref children i)) (w (aref widths column)))
+                  (layout-box child context w w h h)
+                  (setf (box-x child) x (box-y child) y))))
+            (incf x (+ (aref widths column) gap))))
+        (incf y (+ (aref heights row) row-gap))))
+    (set-box box
+             (constrain (+ (reduce #'+ widths) gaps-w) min-w max-w)
+             (constrain (+ (reduce #'+ heights :end (max 0 rows))
+                           (* row-gap (max 0 (1- rows))))
+                        min-h max-h))))
+
 (defun layout-box (box context min-w max-w min-h max-h)
   "Work out the size of BOX within the constraints and the places of its children, store
 them in the boxes, and return the width and height."
@@ -297,6 +360,7 @@ them in the boxes, and return the width and height."
            (context-measure context (context-font context (theme-font-name *theme*) 13) (box-text box))
          (set-box box (constrain (+ (float width 1f0) (spaced 16)) min-w max-w)
                   (constrain (+ (float (+ ascent descent) 1f0) (spaced 8)) min-h max-h))))
+      (:grid (layout-grid box context min-w max-w min-h max-h))
       (:spacer
        ;; As small as it may be: a flex gives it its share as its least size.
        (set-box box (constrain 0f0 min-w max-w) (constrain 0f0 min-h max-h)))

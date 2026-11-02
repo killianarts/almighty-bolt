@@ -39,7 +39,7 @@
 
 (defparameter +roles+
   '("static-text" "paragraph" "progress-bar" "button" "text-field" "slider" "radio-group"
-    "checkbox" "list" "canvas" "overlay" "group"))
+    "checkbox" "list" "canvas" "overlay" "group" "grid"))
 
 ;;; --- JSON as hash tables, which is what the library reads and writes ---
 

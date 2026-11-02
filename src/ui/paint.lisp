@@ -600,7 +600,7 @@ kept, and otherwise afresh, which is then kept."
          (push-rounded-rect list x y (box-w box) (box-h box) (box-n1 box)
                             (or (box-color box) (theme-panel *theme*)))
          (paint-contents ui box context list x y))
-        ((:column :row :padding :center :stack :context-area)
+        ((:column :row :padding :center :stack :context-area :grid)
          (paint-contents ui box context list x y))))))
 
 (defun paint-contents (ui box context list x y)

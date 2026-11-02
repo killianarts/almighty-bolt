@@ -3246,3 +3246,53 @@ released unless RELEASE."
                                             :modifiers core:+modifier-super+))
     (draw screen)
     (assert-eql 90f0 (fourth (bounds-of screen :fixed)))))
+
+;;; --- a grid ---
+
+(defun make-month ()
+  (state-let ((uniform t))
+    (lambda ()
+      (column (:gap 8)
+        (when (shortcut #\u :command) (setf uniform nil))
+        (grid (:id :month :columns 3 :gap 4 :row-heights (if uniform :uniform :auto) :width 300)
+          (dotimes (i 6)
+            (panel (:id i :all 2)
+              (column ()
+                (label "x" :id :a)
+                ;; The fifth cell, in the second row, is taller than the others.
+                (when (= i 4)
+                  (label "y" :id :b)
+                  (label "z" :id :c))))))
+        (grid (:id :shares :columns 2 :column-widths '(1 2) :gap 4 :width 304)
+          (label "a" :id :one)
+          (label "b" :id :two))))))
+
+(define-test a-grid-lines-its-cells-up-in-columns-and-rows ()
+  (let* ((screen (show 'make-month))
+         (session (screen-session screen)))
+    (flet ((cell (i) (m:find-node session :id i :within :month)))
+      ;; Equal columns, each a third of what is left of 300 after the gaps.
+      (dotimes (i 6)
+        (assert-true (< (abs (- (third (s:node-bounds (cell i))) (/ 292 3))) 0.5) i))
+      ;; Uniform rows: every cell is as tall as the tallest.
+      (let ((tallest (fourth (s:node-bounds (cell 4)))))
+        (dotimes (i 6)
+          (assert-eql tallest (fourth (s:node-bounds (cell i))) i)))
+      ;; Each cell says where it is.
+      (assert-eq :grid (s:node-role (m:find-node session :id :month)))
+      (assert-eql 1 (s:node-property (cell 4) :row))
+      (assert-eql 1 (s:node-property (cell 4) :column))
+      (assert-eql 0 (s:node-property (cell 2) :row))
+      (assert-eql 2 (s:node-property (cell 2) :column))
+      ;; Rows of their own heights, from the next frame: the first row is shorter than the second,
+      ;; and the cells of a row are still one height.
+      (core:handle-event (screen-variant screen)
+                         (core:make-key-event :timestamp 0 :kind :down :logical-key #\u
+                                              :modifiers core:+modifier-super+))
+      (draw screen)
+      (assert-true (< (fourth (s:node-bounds (cell 0))) (fourth (s:node-bounds (cell 4)))))
+      (assert-eql (fourth (s:node-bounds (cell 3))) (fourth (s:node-bounds (cell 4))))
+      ;; Shares of the width: one column twice the other.
+      (let ((one (third (s:node-bounds (m:find-node session :id :one))))
+            (two (third (s:node-bounds (m:find-node session :id :two)))))
+        (assert-true (< (abs (- two (* 2 one))) 0.5) (list one two))))))

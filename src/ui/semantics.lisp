@@ -115,7 +115,8 @@
     (:canvas :canvas)
     (:scrim :overlay)
     ((:scroll :lazy-list) :scroll-area)
-    ((:column :row :stack :padding :panel :center :context-area) :group)))
+    ((:column :row :stack :padding :panel :center :context-area) :group)
+    (:grid :grid)))
 
 (defun find-box (ui id)
   "The box of the frame with the id ID, or NIL."
@@ -175,6 +176,13 @@ The whole frame is searched last, for a label in a float (a dialog's title) or e
       (unless (box-enabled box) (note :disabled t))
       (when (and (plusp (ui-focus ui)) (= (box-key box) (ui-focus ui))) (note :focused t))
       (when (and (plusp (ui-hot ui)) (= (box-key box) (ui-hot ui))) (note :hovered t))
+      ;; A cell of a grid says where it is in it, from 0.
+      (let ((parent (box-parent box)))
+        (when (and parent (eq (box-kind parent) :grid))
+          (let ((index (position box (box-children parent)))
+                (columns (max 1 (box-n3 parent))))
+            (note :row (floor index columns))
+            (note :column (mod index columns)))))
       (case (box-kind box)
         ((:label :paragraph)
          (when (= (box-n3 box) 1) (note :live t)))

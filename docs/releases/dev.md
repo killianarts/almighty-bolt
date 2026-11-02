@@ -61,6 +61,8 @@ A theme that gives the spacing works out every size again, except those it gives
 
 #### Layout
 
+- `grid` lays its children out in `:columns` columns, a row at a time, each stretched to its cell. The columns are equal or take shares of the width (`:column-widths '(1 2 1)`); the rows are each as tall as their tallest child (`:auto`), all as tall as the tallest child of all (`:uniform`, for a month of days whose cells should be one size), or a given height. In the semantic tree it is a `:grid`, and each cell says its `:row` and `:column`.
+
 - A container can be given a size. `column`, `row`, `stack`, `padding`, `panel` and `center` take `:width` and `:height`, which fix it, and `:min-width`, `:min-height`, `:max-width` and `:max-height`, which bound one side. A paragraph in a container with a greatest width is broken to that width, and what is too large for a container with a greatest size is cut off at its edges, as in a scroll container. The limits hold within what the parent allows: a parent's limits win. Before, only a `scroll` took a height.
 
 - `(spacer)` is empty room that takes the free space of the row or column it is in, so that what comes after it goes to the far edge: `(row (:fill t) (label "Title" :id :title) (spacer) (button "Done" :id :done))`. `:flex` gives it more than one share. It needs no id, since it holds nothing, and it is not in the semantic tree. It replaces an empty `(row (:id :gap :flex 1))`.

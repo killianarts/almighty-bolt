@@ -372,7 +372,7 @@ thing that is not told yet."
     (:slider :slider)
     (:radio-group :radio-group)
     (:list :list)
-    ((:canvas :overlay) :group)))
+    ((:canvas :overlay :grid) :group)))
 
 (defun text-of (thing)
   "What a person is shown for THING, an item of a list or an option of a choice."

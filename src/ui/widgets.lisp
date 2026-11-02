@@ -213,6 +213,7 @@
            #:toast
            #:shortcut
            #:spacer
+           #:grid
            #:+tooltip-delay-ns+
            #:text-area
            #:area-state
@@ -374,6 +375,24 @@ the container's parent allows, which wins."
              (box-pad-bottom ,box) (float (or ,bottom ,all 0) 1f0)
              (box-color ,box) ,color
              (box-n1 ,box) (float ,radius 1f0)
+             (box-flex ,box) (float ,flex 1f0))
+       ,@body)))
+
+(defmacro grid ((&key id (columns 1) (gap 0) row-gap (column-widths :equal) (row-heights :auto)
+                      (flex 0) width height min-width min-height max-width max-height)
+                &body body)
+  "Children in COLUMNS columns, filling each row before the next. COLUMN-WIDTHS is :EQUAL, or a
+list of numbers, each column's share of the width. ROW-HEIGHTS is :AUTO (each row as tall as its
+tallest child), :UNIFORM (every row as tall as the tallest child of all) or a number of points. Each
+child is stretched to the cell it is in. GAP is between columns, and ROW-GAP (GAP if not given)
+between rows."
+  (let ((box (gensym "BOX")))
+    `(with-container (,box :grid :id ,id)
+       (set-size-limits ,box ,width ,height ,min-width ,min-height ,max-width ,max-height)
+       (setf (box-n3 ,box) (max 1 ,columns)
+             (box-gap ,box) (float ,gap 1f0)
+             (box-n1 ,box) (float (or ,row-gap ,gap) 1f0)
+             (box-data ,box) (cons ,column-widths ,row-heights)
              (box-flex ,box) (float ,flex 1f0))
        ,@body)))
 
@@ -2263,6 +2282,8 @@ counting its children."
                                              (box-n3 box)))
                    ;; A row of a lazy list is placed by its index.
                    (:column (mix layout (box-n3 box)))
+                   (:grid (hash-numbers layout (box-n3 box) (hash-of (box-n1 box))
+                                        (hash-of (car (box-data box))) (hash-of (cdr (box-data box)))))
                    ;; A float is put where its spec says (its anchor's place is the screen's).
                    ((:menu :catcher :tooltip :popover :dialog :toasts)
                     (let ((spec (box-data box)))

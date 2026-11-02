@@ -11,7 +11,7 @@ What is planned after [0.1](releases/0.1.md). These are plans, not promises, and
 - **Images and icons.**
 - **Text and layout.**
   - Bold, italic and a font for each widget; rich text.
-  - Grid and wrapping layouts, minimum and maximum sizes, and splitters.
+  - Wrapping layouts and splitters.
   - Tabs, a tree view, a table, and date and colour pickers.
 - **Effects.** Shadows, glows, blur, opacity and other filters.
   - An effect can reach past the edges of the widget it belongs to, by as far as it needs.
