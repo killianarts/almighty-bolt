@@ -57,6 +57,7 @@ Command-Option-I in any app opens the inspector: a panel down the right of the w
 - Whether it is enabled, and what the semantic tree says of its state: whether a check box is checked, the items of a list, the options of a choice.
 - While it picks, the outline follows the pointer; Escape stops.
 - It changes the picked widget's value as a hand would: Press for a button or a check box, a field and Set for a text field or a slider, a button for each option of a choice, a dropdown or a list. The app stays in charge of what it holds, and the panel says why when something cannot be done (the widget is disabled).
+- It changes a setting of the theme the picked widget is drawn in (`accent`, `row-height`, `font-size`), which defines that theme again, and shows the theme's `define-theme` form to copy into the app's code.
 
 What it says is of the last frame drawn. The pick is kept while the widget is described in the same place, so it survives a hot reload. The inspector is above a dialog, which would otherwise keep the pointer from it, and it is not in the semantic tree, so an agent or a screen reader sees the app alone.
 

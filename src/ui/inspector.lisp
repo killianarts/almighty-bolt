@@ -47,7 +47,14 @@
                 #:*theme*
                 #:theme-name
                 #:theme-panel
-                #:theme-ring)
+                #:theme-ring
+                #:find-theme
+                #:theme-setting
+                #:theme-form
+                #:change-theme-setting
+                #:+theme-settings+
+                #:+theme-colors+
+                #:color-hex)
   (:import-from #:almighty-bolt/ui/widgets
                 #:with-theme
                 #:column
@@ -121,7 +128,10 @@ say which widget, as the machine interface's FIND-NODE takes them (the inspector
   (draft "" :type string)
   (draft-for 0 :type fixnum)
   (pending '())
-  (message nil))
+  (message nil)
+  ;; The fields of the theme's part of the panel: which setting, and what to make it.
+  (setting-draft "" :type string)
+  (setting-value-draft "" :type string))
 
 (defun inspector-open-p (ui)
   (let ((inspector (ui-inspector ui)))
@@ -240,6 +250,70 @@ WIDTH how wide it is. Called on the first build of a frame."
                  (ignore-errors (read-from-string string)))))
     (and (realp value) value)))
 
+(defun setting-named (words)
+  "The setting of a theme (one of +THEME-SETTINGS+) that WORDS name, with or without a colon, or NIL."
+  (let ((words (string-left-trim ":" (string-trim " " words))))
+    (find words +theme-settings+ :key #'symbol-name :test #'string-equal)))
+
+(defun setting-value (key words)
+  "What WORDS, typed for the setting KEY, are: a colour as it is written, a font's name, or a
+number. Signals an error that says what is wrong."
+  (cond ((or (member key +theme-colors+) (eq key :font-name)) words)
+        (t (let ((number (number-in words)))
+             (unless number
+               (error "~a takes a number, and ~s is not one." (shown key) words))
+             (if (member key '(:font-size :radius)) (round number) number)))))
+
+(defun describe-theme-change (inspector)
+  "The theme's part of the panel: a setting of the theme the picked widget is drawn in changed, which
+redefines the theme, and the theme written down."
+  (let ((name (getf (inspector-facts inspector) :theme)))
+    (label "Its theme" :id :inspector-theme-title :size 16)
+    (if (null name)
+        (paragraph "It is drawn in a theme with no name (one MAKE-THEME made), which cannot be defined again here."
+                   :id :inspector-theme-unnamed)
+        (let ((key (setting-named (inspector-setting-draft inspector))))
+          (paragraph "A setting (accent, row-height, font-size, ...), and what to make it:"
+                     :id :inspector-setting-hint)
+          (row (:id :inspector-setting-row :gap 8)
+            (setf (inspector-setting-draft inspector)
+                  (text-field (inspector-setting-draft inspector) :id :inspector-setting :width 120))
+            (setf (inspector-setting-value-draft inspector)
+                  (text-field (inspector-setting-value-draft inspector) :id :inspector-setting-value
+                                                                       :width 120)))
+          (paragraph (if key
+                         (format nil "~a is ~a now." (shown key)
+                                 (let ((value (theme-setting (find-theme name) key)))
+                                   (if (member key +theme-colors+)
+                                       (color-hex value)
+                                       (shown value))))
+                         "No setting yet.")
+                     :id :inspector-setting-now)
+          (when (button "Change the theme" :id :inspector-change-theme)
+            (setf (inspector-message inspector)
+                  (if key
+                      (handler-case
+                          (progn (change-theme-setting
+                                  name key (setting-value key (inspector-setting-value-draft inspector)))
+                                 nil)
+                        (error (condition) (princ-to-string condition)))
+                      (format nil "A theme has no setting called ~s."
+                              (inspector-setting-draft inspector)))))
+          ;; Written down, to be copied into the app's code.
+          (paragraph (theme-source (find-theme name)) :id :inspector-theme-form :selectable t)))))
+
+(defun theme-source (theme)
+  "THEME's DEFINE-THEME form as it would be written in an app: by the library's name, a setting to a
+line."
+  (destructuring-bind (operator name (&key base) &rest settings) (theme-form theme)
+    (declare (ignore operator))
+    (with-output-to-string (out)
+      (let ((*print-case* :downcase))
+        (format out "(almighty-bolt:define-theme ~s (:base ~s)" name base)
+        (loop :for (key value) :on settings :by #'cddr
+              :do (format out "~%  ~s ~s" key value))
+        (format out ")")))))
+
 ;;; --- what it changes ---
 
 (defun note-action (inspector op &rest value)
@@ -293,11 +367,10 @@ is found again by its id, which every widget that can be changed has."
         (column (:id :inspector-options :gap 4)
           (loop :for option :in options
                 :for i :from 0
-                :do (when (button (format nil "Choose ~a" option) :id i)
+                :do (when (button (format nil "Choose ~a" option) :id (list :inspector-option i))
                       ;; A dropdown is set by the words of its row, a choice or a list by the index.
                       (note-action inspector :set-value (if (eq role :pop-up-button) option i)))))))
-    (when (inspector-message inspector)
-      (paragraph (inspector-message inspector) :id :inspector-message))))
+))
 
 ;;; --- what it describes after the app ---
 
@@ -373,6 +446,10 @@ after the app's function, the toasts and the tooltip."
                    (column (:id :inspector-facts :gap 4)
                      (loop :for line :in (fact-lines (inspector-facts inspector))
                            :for i :from 0
-                           :do (paragraph line :id i)))
-                   (describe-changes inspector)))))
+                           :do (paragraph line :id (list :inspector-fact i))))
+                   (describe-changes inspector)
+                   ;; What went wrong with the last change, if anything, under what changes.
+                   (when (inspector-message inspector)
+                     (paragraph (inspector-message inspector) :id :inspector-message))
+                   (describe-theme-change inspector)))))
           (close-float ui open))))))

@@ -3275,12 +3275,19 @@ the field that has the keyboard is drawn again at the edges, clipped to its ring
    (almighty-bolt/ui/ui:ui-inspector
     (almighty-bolt/ui/immediate:immediate-variant-ui (screen-variant screen)))))
 
-(defun scroll-panel (screen)
-  "Turn the wheel over the inspector's panel, to the end of what is in it."
-  (core:handle-event (screen-variant screen)
-                     (core:make-wheel-event :timestamp 0 :x 600d0 :y 200d0 :dx 0d0 :dy -20d0
-                                            :precise-p nil :modifiers 0))
-  (dotimes (i 3) (draw screen)))
+(defun scroll-panel (screen id)
+  "Turn the wheel over the inspector's panel, a line at a time, until the control ID shows in it,
+all of it, inside the panel's padding (16 points) in the 400 points of the window."
+  (loop :repeat 80
+        :do (multiple-value-bind (x y width height) (core:lookup-target (screen-variant screen) id)
+              (declare (ignore x width))
+              (let ((dy (cond ((and y (< y 16)) 1d0)
+                              ((or (null y) (> (+ y height) 384)) -1d0))))
+                (unless dy (return))
+                (core:handle-event (screen-variant screen)
+                                   (core:make-wheel-event :timestamp 0 :x 600d0 :y 200d0 :dx 0d0
+                                                          :dy dy :precise-p nil :modifiers 0))
+                (dotimes (i 3) (draw screen))))))
 
 (defun pick (screen id)
   "Open the inspector if it is not, and pick the widget ID."
@@ -3351,9 +3358,9 @@ the field that has the keyboard is drawn again at the edges, clipped to its ring
       (pick screen :delivery)
       ;; The options are below the bottom of the window; the wheel over the panel brings them up.
       (assert-false (search "Choose Collect" (inspector-says screen)))
-      (scroll-panel screen)
+      (scroll-panel screen '(:inspector-option 2))
       (assert-true (search "Choose Collect" (inspector-says screen)))
-      (click screen 2)
+      (click screen '(:inspector-option 2))
       (do-asked screen)
       (assert-equal "Collect" (s:node-value (node-of screen :delivery))))))
 
@@ -3407,8 +3414,83 @@ the field that has the keyboard is drawn again at the edges, clipped to its ring
   (with-asking
     (let ((screen (show-wide 'make-picker)))
       (pick screen :size)
-      (scroll-panel screen)
-      (click screen 2)
+      (scroll-panel screen '(:inspector-option 2))
+      (click screen '(:inspector-option 2))
       (assert-equal '((:op :set-value :value "Large" :id :size)) *asked*)
       (do-asked screen)
       (assert-equal "Large" (s:node-value (node-of screen :size))))))
+
+(defun make-inked ()
+  "A button in the window's theme, one in the theme :test-ink, and one in a theme with no name."
+  (lambda ()
+    (column (:gap 10)
+      (button "Plain" :id :plain-ink)
+      (with-theme (:test-ink)
+        (button "Inked" :id :inked))
+      (with-theme ((make-theme :accent "#808020"))
+        (button "Nameless" :id :nameless)))))
+
+(defun type-into (screen id text)
+  "Bring the inspector's field ID into sight, give it the keyboard, and type TEXT into it."
+  (scroll-panel screen id)
+  (click screen id)
+  (key screen #\a :command)
+  (type-text screen text))
+
+(defun change-theme (screen setting value)
+  (type-into screen :inspector-setting setting)
+  (type-into screen :inspector-setting-value value)
+  (scroll-panel screen :inspector-change-theme)
+  (click screen :inspector-change-theme))
+
+(define-test the-inspector-changes-a-setting-of-the-theme-a-widget-is-drawn-in ()
+  (define-theme :test-ink (:base :light) :accent "#20a090")
+  (let ((screen (show-wide 'make-inked))
+        (plain (middle-color (show-wide 'make-inked) :plain-ink)))
+    (pick screen :inked)
+    (type-into screen :inspector-setting "accent")
+    (assert-true (search ":accent is #20a090 now." (inspector-says screen)) (inspector-says screen))
+    (type-into screen :inspector-setting-value "#c06030")
+    (scroll-panel screen :inspector-change-theme)
+    (click screen :inspector-change-theme)
+    ;; The theme is defined again, and what is drawn in it is drawn so; the rest is not.
+    (assert-eql (parse-color "#c06030") (middle-color screen :inked))
+    (assert-eql plain (middle-color screen :plain-ink))
+    ;; On its own base, with what it was given otherwise, written down as so.
+    (let ((form (theme-form (find-theme :test-ink))))
+      (assert-equal '(:base :light) (third form))
+      (assert-equal "#c06030" (getf (cdddr form) :accent)))
+    ;; And the panel shows it written down (in quotes, as only the form has it).
+    (scroll-panel screen :inspector-theme-form)
+    (assert-true (search "\"#c06030\"" (text-in screen :inspector-theme-form)))))
+
+(define-test the-inspector-says-what-is-wrong-with-a-change-to-a-theme ()
+  (define-theme :test-ink (:base :light) :accent "#20a090")
+  (let ((screen (show-wide 'make-inked)))
+    (pick screen :inked)
+    (change-theme screen "acent" "#c06030")
+    (assert-true (search "no setting called \"acent\"" (inspector-says screen)))
+    (change-theme screen "accent" "nope")
+    (assert-true (search "is not a colour" (inspector-says screen)))
+    (change-theme screen "row-height" "tall")
+    (assert-true (search "takes a number" (inspector-says screen)))
+    (assert-eql (parse-color "#20a090") (theme-setting (find-theme :test-ink) :accent))))
+
+(define-test a-theme-with-no-name-cannot-be-changed-in-the-inspector ()
+  (define-theme :test-ink (:base :light) :accent "#20a090")
+  (let ((screen (show-wide 'make-inked)))
+    (pick screen :nameless)
+    (assert-true (search "a theme with no name" (inspector-says screen)))
+    (assert-false (core:lookup-target (screen-variant screen) :inspector-change-theme))))
+
+(define-test the-inspector-is-drawn-in-the-theme-it-was-opened-in-when-that-theme-changes ()
+  (let ((dark (find-theme :dark)))
+    (unwind-protect
+         (let ((screen (show-wide 'make-inked)))
+           (pick screen :plain-ink)
+           (change-theme screen "button" "#ff0000")
+           ;; The app's button, in the window's theme, changes; the inspector's does not.
+           (assert-eql (parse-color "#ff0000") (middle-color screen :plain-ink))
+           (scroll-panel screen :inspector-pick)
+           (assert-eql (theme-setting dark :button) (middle-color screen :inspector-pick)))
+      (setf (gethash :dark theme::*themes*) dark))))

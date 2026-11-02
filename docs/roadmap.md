@@ -26,7 +26,6 @@ Nothing is next yet.
   - Animation helpers (easing and tweens).
   - Undo and redo of the app's own changes (text fields undo their own already).
 - **Tools.**
-  - An inspector: click a widget in the running window to see what it is, and change it.
   - An API for writing your own widgets, which says how a widget appears in the semantic tree.
   - A widget designer, to build new widgets.
   - A GUI designer, to build a screen by placing widgets instead of writing code.
