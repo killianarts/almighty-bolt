@@ -113,6 +113,12 @@
                 #:own-hashes
                 #:describe-tooltip
                 #:describe-toasts)
+  (:import-from #:almighty-bolt/ui/inspector
+                #:+inspector-width+
+                #:inspector-open-p
+                #:inspector-take-input
+                #:describe-inspector
+                #:inspector-float-p)
   (:import-from #:almighty-bolt/ui/layout
                 #:layout-box)
   (:import-from #:almighty-bolt/ui/paint
@@ -326,20 +332,26 @@ to a root (the screen, or a float, whose place is in the window)."
               (incf y (box-y b)))
     (values x y)))
 
-(defun lay-out-floats (ui context width height)
+(defun lay-out-floats (ui context app-width window-width height)
   "Lay out each float of the frame against the window, in the order they were opened, and put it
 where its spec says: against its anchor where that is in this frame (so a submenu can be put by a
-menu), turned to the other side or moved in where it would go out of the window."
+menu), turned to the other side or moved in where it would go out of the window. The app's floats
+are in the part of the window that is the app's, APP-WIDTH wide (all of it, WINDOW-WIDTH, unless the
+inspector is open), and the inspector's are in all of it."
   (loop :for float :across (ui-floats ui)
-        :do (let ((spec (box-data float)))
+        :do (let ((spec (box-data float))
+                  (width (if (inspector-float-p float) window-width app-width)))
               (multiple-value-bind (w h)
-                  (if (eq (float-spec-placement spec) :fill)
-                      (layout-box float context width width height height)
-                      (layout-box float context (min width (float-spec-min-width spec)) width
-                                  0f0 height))
+                  (case (float-spec-placement spec)
+                    (:fill (layout-box float context width width height height))
+                    (:side (let ((w (min width (float-spec-min-width spec))))
+                             (layout-box float context w w height height)))
+                    (t (layout-box float context (min width (float-spec-min-width spec)) width
+                                   0f0 height)))
                 (multiple-value-bind (x y)
                     (ecase (float-spec-placement spec)
                       (:fill (values 0f0 0f0))
+                      (:side (values (- width w) 0f0))
                       ;; In the middle, a little above the bottom.
                       (:bottom (values (/ (- width w) 2) (- height h 24f0)))
                       (:center (values (/ (- width w) 2) (/ (- height h) 2)))
@@ -367,6 +379,8 @@ menu), turned to the other side or moved in where it would go out of the window.
   (let* ((ui (immediate-variant-ui variant))
          (root (ui-root ui))
          (width (context-width context))
+         ;; Beside the inspector, when it is open, the app has what is left.
+         (app-width (if (inspector-open-p ui) (max 0f0 (- width +inspector-width+)) width))
          (height (context-height context))
          (scale (context-scale context)))
     (cond
@@ -381,9 +395,9 @@ menu), turned to the other side or moved in where it would go out of the window.
          (with-phase (context +phase-layout+)
            (if same-layout
                (restore-geometry ui)
-               (progn (layout-box root context 0f0 width 0f0 height)
+               (progn (layout-box root context 0f0 app-width 0f0 height)
                       (setf (box-x root) 0f0 (box-y root) 0f0)
-                      (lay-out-floats ui context width height)
+                      (lay-out-floats ui context app-width width height)
                       (remember-geometry ui))))
          (with-phase (context +phase-paint+)
            (cond
@@ -411,7 +425,8 @@ menu), turned to the other side or moved in where it would go out of the window.
   (let ((ui (immediate-variant-ui variant)))
     (when (<= (almighty-bolt/internals:context-build-number context) 1)
       (setf (more-input variant) (begin-frame-input ui))
-      (move-focus ui))
+      (move-focus ui)
+      (inspector-take-input ui (window-theme context) (context-width context)))
     (with-phase (context +phase-update+)
       (begin-build ui context)
       (let ((*ui* ui)
@@ -424,6 +439,7 @@ menu), turned to the other side or moved in where it would go out of the window.
           (close-box ui))
         (describe-toasts ui)
         (describe-tooltip ui)
+        (describe-inspector ui)
         (setf (context-cursor context) (ui-cursor ui)))
       (compute-hashes ui))
     (let ((consumed (ui-consumed ui))

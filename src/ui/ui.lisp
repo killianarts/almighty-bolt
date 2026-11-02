@@ -56,6 +56,7 @@
            #:float-spec-y
            #:float-spec-min-width
            #:float-spec-modal
+           #:float-spec-inspector
            #:ui-parent
            #:ui-count
            #:ui-boxes
@@ -64,6 +65,7 @@
            #:ui-hot
            #:ui-hot-since
            #:ui-toasts
+           #:ui-inspector
            #:ui-tooltip-dismissed
            #:ui-active
            #:ui-focus
@@ -209,6 +211,8 @@
   ;; The toasts showing, oldest first: (words . until), UNTIL a time in nanoseconds.
   (toasts '() :type list)
   (tooltip-dismissed nil)
+  ;; The inspector's state, if it has been opened (see inspector.lisp).
+  (inspector nil)
   (active 0 :type fixnum)
   (focus 0 :type fixnum)
   ;; True once a frame has been laid out and drawn: the window has opened, and a canvas that asks
@@ -385,16 +389,20 @@ the same key are an error (DUPLICATE-ID): the ui could not tell them apart."
 ;;; of a list has a menu of its own.
 
 (defstruct (float-spec (:constructor make-float-spec
-                           (&key anchor (placement :below) (x 0f0) (y 0f0) (min-width 0f0) modal)))
+                           (&key anchor (placement :below) (x 0f0) (y 0f0) (min-width 0f0) modal
+                                 inspector)))
   "Where a float goes. PLACEMENT is :below (or above, if there is no room below) or :right of the box
-ANCHOR, :at the point X, Y of the window, :center of the window, or :fill the window. MIN-WIDTH is the
-least it is as wide. A MODAL float is one the keyboard stays in."
+ANCHOR, :at the point X, Y of the window, :center of the window, :fill the window, or (the inspector's
+panel) :side, MIN-WIDTH wide down the right of the window. MIN-WIDTH is the least it is as wide. A
+MODAL float is one the keyboard stays in. An INSPECTOR float is the inspector's: it is laid out
+against the whole window, and is not in the semantic tree."
   (anchor nil)
   (placement :below :type keyword)
   (x 0f0 :type single-float)
   (y 0f0 :type single-float)
   (min-width 0f0 :type single-float)
-  (modal nil))
+  (modal nil)
+  (inspector nil))
 
 (defun open-float (ui kind owner id spec)
   "Start a float of KIND belonging to the box with the key OWNER, called ID among that box's floats

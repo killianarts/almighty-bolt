@@ -143,6 +143,10 @@ VoiceOver says a changed value only for the thing its cursor is on. A `label` or
 
 Two other things use the tree, in different systems because they are for different people.
 
+## The inspector
+
+Command-Option-I in any app opens the inspector, a panel 300 points wide down the right of the window, and the app is laid out in the rest; the keys again close it. Its Pick button makes the next press on the app pick the widget under the pointer instead of pressing it (Escape stops), and an outline follows the pointer while it picks. The panel says what the picked widget is: its kind and role, its id, its name and value, where it is and how big, the theme it is drawn in, whether it is enabled, and what the tree says of its state (a check box's `:checked`, a list's items). It says it as of the last frame drawn, and the pick is kept while the widget is described in the same place, through hot reloads. The inspector is above a dialog, and is drawn in the theme the window had when it was opened. It is not in the semantic tree: an agent, the machine interface and VoiceOver see the app alone.
+
 ## The machine interface
 
 **`almighty-bolt/machine`** is the Lisp side, in the `almighty-bolt` system: a session on the open window that does what a person's hands do. Each action goes in as the events a person would make (a click is a move, a press and a release at the middle of the thing), and returns when the app has answered, which the window says itself when it has nothing more to draw; there are no sleeps.

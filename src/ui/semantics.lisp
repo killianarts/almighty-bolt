@@ -47,6 +47,9 @@
                 #:scroll-state-content-height)
   (:import-from #:almighty-bolt/ui/theme
                 #:theme-row-height)
+  (:import-from #:almighty-bolt/ui/inspector
+                #:inspector-float-p
+                #:*box-facts*)
   (:import-from #:almighty-bolt/ui/immediate
                 #:immediate-variant
                 #:immediate-variant-ui)
@@ -114,7 +117,8 @@
     (:canvas :canvas)
     (:scrim :overlay)
     ((:scroll :lazy-list) :scroll-area)
-    ((:column :row :stack :padding :panel :center :context-area) :group)))
+    ((:column :row :stack :padding :panel :center :context-area :inspector) :group)
+    (:outline :none)))
 
 (defun find-box (ui id)
   "The box of the frame with the id ID, or NIL."
@@ -265,8 +269,9 @@ no frame has been built."
          (let ((node (node-of ui root 0f0 0f0 -1f30 -1f30 1f30 1f30))
                ;; What floats above the screen (a menu) is in the window too, after the rest; the
                ;; catcher under a menu, which shows nothing, is not.
+               ;; Nor is the inspector, which is the library's and not the app's.
                (floats (loop :for float :across (ui-floats ui)
-                             :unless (eq (box-kind float) :catcher)
+                             :unless (or (eq (box-kind float) :catcher) (inspector-float-p float))
                                :collect (node-of ui float 0f0 0f0 -1f30 -1f30 1f30 1f30))))
            (if floats
                (append (loop :for (key value) :on node :by #'cddr
@@ -290,3 +295,13 @@ no frame has been built."
                     (push node found)))
                 tree)
     (nreverse found)))
+
+;;; What the inspector says of a box is what the tree says of it.
+(setf *box-facts*
+      (lambda (ui box x y)
+        (let ((name (name-of ui box))
+              (value (value-of box)))
+          (append (list :role (role-of box))
+                  (and name (list :name name))
+                  (and (or value (member (box-kind box) '(:checkbox :switch))) (list :value value))
+                  (list :state (state-of ui box x y nil))))))

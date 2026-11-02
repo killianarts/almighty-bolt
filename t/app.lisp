@@ -3074,3 +3074,172 @@ released unless RELEASE."
           (assert-eql (objc:register-selector "performClose:")
                       (objc:msg-send :ulong (item "Application" "Quit") "action"))
           (assert-true (plusp (item "Window" "Minimize"))))))))
+
+;;; --- the inspector ---
+
+(defun show-wide (constructor)
+  "Make the app of CONSTRUCTOR, as SHOW does, in a window 760 wide: room for the app beside the
+inspector's panel, which is 300."
+  (let* ((state (core:make-kept-state))
+         (variant (core:with-kept-state (state) (app:make-app-instance constructor)))
+         (screen (%make-screen variant (fake:make-fake-context :width 760f0 :height 400f0)
+                               (core:make-display-list :capacity 16384) state)))
+    (draw screen)
+    screen))
+
+(defun toggle-inspector (screen)
+  "Command-Option-I."
+  (core:handle-event (screen-variant screen)
+                     (core:make-key-event :timestamp 0 :kind :down :logical-key #\i
+                                          :modifiers (logior core:+modifier-super+
+                                                             core:+modifier-alt+)))
+  (draw screen))
+
+(defun inspector-says (screen)
+  "The characters drawn in the inspector's panel, or NIL if it is not open."
+  (and (core:lookup-target (screen-variant screen) :inspector)
+       (text-in screen :inspector)))
+
+(defun make-spread ()
+  "A label at the left of the window and one pushed to the right edge of what the app has."
+  (lambda ()
+    (row (:fill t)
+      (label "Left" :id :left-end)
+      (column (:flex 1))
+      (label "Right" :id :right-end))))
+
+(defun right-edge (screen id)
+  (multiple-value-bind (x y width) (core:lookup-target (screen-variant screen) id)
+    (declare (ignore y))
+    (+ x width)))
+
+(define-test the-inspector-opens-beside-the-app-and-is-not-in-what-the-app-shows ()
+  (let ((screen (show-wide 'make-spread)))
+    (assert-eql 760f0 (right-edge screen :right-end))
+    (assert-false (inspector-says screen))
+    (toggle-inspector screen)
+    ;; The panel down the right, 300 wide, and the app in what is left.
+    (multiple-value-bind (x y width height) (core:lookup-target (screen-variant screen) :inspector)
+      (assert-equal '(460f0 0f0 300f0 400f0) (list x y width height)))
+    (assert-eql 460f0 (right-edge screen :right-end))
+    (assert-true (search "Press Pick" (inspector-says screen)))
+    ;; An agent or a screen reader sees the app, and nothing of the inspector.
+    (let ((tree (core:accessibility-tree (screen-variant screen))))
+      (assert-true (s:find-nodes tree :id :right-end))
+      (assert-false (s:find-nodes tree :id :inspector-pick))
+      (assert-false (s:find-nodes tree :id :inspector)))
+    ;; The keys again close it, and the app has the window again.
+    (toggle-inspector screen)
+    (assert-false (inspector-says screen))
+    (assert-eql 760f0 (right-edge screen :right-end))))
+
+(define-test the-inspector-picks-a-widget-instead-of-pressing-it-and-says-what-it-is ()
+  (let ((screen (show-wide 'counter:make-counter)))
+    (toggle-inspector screen)
+    (click screen :inspector-pick)
+    (assert-true (search "Press a widget" (inspector-says screen)))
+    (click screen :count-button)
+    ;; Picked, and not pressed.
+    (assert-equal "0" (text-in screen :count))
+    (let ((says (inspector-says screen)))
+      (dolist (line '("Kind: button" "Role: button" "Id: :count-button" "Name: Count"
+                      "Theme: :dark" "Enabled"))
+        (assert-true (search line says) line says)))
+    (multiple-value-bind (x y width height) (core:lookup-target (screen-variant screen) :count-button)
+      (assert-true (search (format nil "At: ~d, ~d" (round x) (round y)) (inspector-says screen)))
+      (assert-true (search (format nil "Size: ~d by ~d" (round width) (round height))
+                           (inspector-says screen)))
+      ;; Outlined, in the ring's colour, just inside each edge.
+      (let ((ring (theme-setting (find-theme :dark) :ring)))
+        (assert-eql ring (color-at screen (+ x (/ width 2)) (+ y 1)))
+        (assert-eql ring (color-at screen (+ x (/ width 2)) (+ y height -1)))
+        (assert-eql ring (color-at screen (+ x 1) (+ y (/ height 2))))
+        (assert-eql ring (color-at screen (+ x width -1) (+ y (/ height 2))))))
+    ;; The pick is done: the next press is the app's.
+    (click screen :count-button)
+    (assert-equal "1" (text-in screen :count))))
+
+(define-test escape-stops-the-inspector-picking ()
+  (let ((screen (show-wide 'counter:make-counter)))
+    (toggle-inspector screen)
+    (click screen :inspector-pick)
+    (key screen #\Escape)
+    (assert-true (search "Press Pick" (inspector-says screen)))
+    (click screen :count-button)
+    (assert-equal "1" (text-in screen :count))))
+
+(define-test the-inspector-picks-in-a-dialog-which-does-not-keep-it-out ()
+  (let ((screen (show-wide 'make-confirm)))
+    (draw screen)
+    (toggle-inspector screen)
+    ;; The dialog keeps the pointer from what is under it, but not from the inspector's panel.
+    (click screen :inspector-pick)
+    (click screen :delete)
+    (assert-equal "none, 0 behind" (text-in screen :answer))
+    (assert-true (search "Name: Delete" (inspector-says screen)))))
+
+(define-test what-the-inspector-picked-is-picked-still-when-the-app-is-made-again ()
+  (let ((screen (show-wide 'counter:make-counter)))
+    (toggle-inspector screen)
+    (click screen :inspector-pick)
+    (click screen :count-button)
+    (let ((new (core:with-kept-state ((screen-state screen))
+                 (app:make-app-instance 'counter:make-counter))))
+      (core:inherit-state new (screen-variant screen))
+      (setf (screen-variant screen) new)
+      (draw screen)
+      (draw screen)
+      (assert-true (search "Id: :count-button" (inspector-says screen)) (inspector-says screen)))))
+
+(defun make-twins ()
+  "Two buttons the same size, one under the other."
+  (lambda ()
+    (column (:gap 20)
+      (button "One" :id :one)
+      (button "Two" :id :two))))
+
+(define-test picked-again-the-outline-goes-to-the-new-one ()
+  (let ((screen (show-wide 'make-twins))
+        (ring (theme-setting (find-theme :dark) :ring)))
+    (toggle-inspector screen)
+    (click screen :inspector-pick)
+    ;; While it picks, the outline is on what the pointer is over, and goes with it.
+    (flet ((over (id)
+             (multiple-value-bind (x y w h) (core:lookup-target (screen-variant screen) id)
+               (pointer screen :move (+ x (/ w 2)) (+ y (/ h 2)))
+               (values x y)))
+           (outlined-p (x y) (eql ring (color-at screen (+ x 1) (+ y 1)))))
+      (multiple-value-bind (x y) (over :one)
+        (assert-true (outlined-p x y)))
+      (multiple-value-bind (x y) (over :two)
+        (assert-true (outlined-p x y)))
+      (multiple-value-bind (x y) (core:lookup-target (screen-variant screen) :one)
+        (assert-false (outlined-p x y))))
+    (click screen :one)
+    (click screen :inspector-pick)
+    (click screen :two)
+    (assert-true (search "Id: :two" (inspector-says screen)))
+    (multiple-value-bind (x y) (core:lookup-target (screen-variant screen) :two)
+      (assert-eql ring (color-at screen (+ x 1) (+ y 1))))
+    (multiple-value-bind (x y) (core:lookup-target (screen-variant screen) :one)
+      (assert-false (eql ring (color-at screen (+ x 1) (+ y 1)))))))
+
+(defun make-heading-over-lines ()
+  "A heading over a scroll container of many lines."
+  (lambda ()
+    (column (:gap 0)
+      (label "Heading" :id :heading)
+      (scroll (:id :lines :height 100)
+        (column (:gap 0)
+          (dotimes (i 40) (label (format nil "Line ~d" i) :id i)))))))
+
+(define-test the-inspector-picks-what-shows-not-what-is-scrolled-out-of-sight-under-it ()
+  (let* ((screen (show-wide 'make-heading-over-lines))
+         (session (screen-session screen)))
+    ;; Scrolled down, the first lines are above the container's window, where the heading is.
+    (m:scroll session :id :lines :dy -5)
+    (assert-true (plusp (offset-of screen :lines)))
+    (toggle-inspector screen)
+    (click screen :inspector-pick)
+    (click screen :heading)
+    (assert-true (search "Name: Heading" (inspector-says screen)) (inspector-says screen))))

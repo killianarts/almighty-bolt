@@ -49,6 +49,16 @@ The room in a toast and a tooltip follows the spacing too. What a mark is (a che
 
 A theme that gives the spacing works out every size again, except those it gives as well; a theme that does not give it keeps its base's. `theme-form` writes the spacing and the sizes down as numbers, and `+theme-sizes+` lists the sizes with what each is at a spacing of 1. The theme designer has a Spacing slider, from 50% to 200%.
 
+### The inspector
+
+Command-Option-I in any app opens the inspector: a panel down the right of the window, beside the app. Press Pick, then a widget, and the press picks it instead of pressing it; the panel says what it is, and an outline shows where.
+
+- Its kind and role, its id, its name and value, where it is and how big, and the theme it is drawn in.
+- Whether it is enabled, and what the semantic tree says of its state: whether a check box is checked, the items of a list, the options of a choice.
+- While it picks, the outline follows the pointer; Escape stops.
+
+What it says is of the last frame drawn. The pick is kept while the widget is described in the same place, so it survives a hot reload. The inspector is above a dialog, which would otherwise keep the pointer from it, and it is not in the semantic tree, so an agent or a screen reader sees the app alone.
+
 ### Minor features
 
 #### Windowing

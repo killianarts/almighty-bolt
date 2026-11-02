@@ -2217,7 +2217,7 @@ counting its children."
                    ;; A row of a lazy list is placed by its index.
                    (:column (mix layout (box-n3 box)))
                    ;; A float is put where its spec says (its anchor's place is the screen's).
-                   ((:menu :catcher :tooltip :popover :dialog :toasts)
+                   ((:menu :catcher :tooltip :popover :dialog :toasts :inspector :outline)
                     (let ((spec (box-data box)))
                       (hash-numbers layout (hash-of (float-spec-placement spec))
                                     (hash-of (float-spec-x spec)) (hash-of (float-spec-y spec))

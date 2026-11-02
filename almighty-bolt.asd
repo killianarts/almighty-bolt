@@ -95,6 +95,7 @@
                  (:file "box")
                  (:file "ui")
                  (:file "widgets")
+                 (:file "inspector")
                  (:file "layout")
                  (:file "paint")
                  (:file "immediate")
