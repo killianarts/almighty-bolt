@@ -66,6 +66,8 @@
            #:ui-hot-since
            #:ui-toasts
            #:ui-inspector
+           #:ui-inspector-keyboard
+           #:+inspector-layer+
            #:ui-tooltip-dismissed
            #:ui-active
            #:ui-focus
@@ -211,8 +213,10 @@
   ;; The toasts showing, oldest first: (words . until), UNTIL a time in nanoseconds.
   (toasts '() :type list)
   (tooltip-dismissed nil)
-  ;; The inspector's state, if it has been opened (see inspector.lisp).
+  ;; The inspector's state, if it has been opened (see inspector.lisp), and whether the keyboard is
+  ;; in it this frame, when the app's shortcuts leave the keys to it.
   (inspector nil)
+  (inspector-keyboard nil)
   (active 0 :type fixnum)
   (focus 0 :type fixnum)
   ;; True once a frame has been laid out and drawn: the window has opened, and a canvas that asks
@@ -387,6 +391,10 @@ the same key are an error (DUPLICATE-ID): the ui could not tell them apart."
 ;;; the thing it belongs to (its anchor), and it is drawn and found by the pointer after the screen,
 ;;; and so on top. Its key comes from its owner's (the widget's) key, so that a dropdown in every row
 ;;; of a list has a menu of its own.
+
+(defconstant +inspector-layer+ -1
+  "The layer of what the pointer finds in the inspector's floats: not the app's, so that a dialog
+of the app, which keeps the keyboard in its own layer, leaves it in the inspector too.")
 
 (defstruct (float-spec (:constructor make-float-spec
                            (&key anchor (placement :below) (x 0f0) (y 0f0) (min-width 0f0) modal

@@ -3,7 +3,14 @@
   (:import-from #:almighty-bolt/machine
                 #:make-session
                 #:cannot
-                #:machine-error-message)
+                #:machine-error-message
+                #:perform-actions)
+  (:import-from #:almighty-bolt/ui/inspector
+                #:*inspector-runner*
+                #:inspector-say)
+  (:import-from #:almighty-bolt/ui/immediate
+                #:immediate-variant
+                #:immediate-variant-ui)
   (:import-from #:almighty-bolt/machine/png
                 #:png-octets)
   (:import-from #:almighty-bolt/internals
@@ -22,6 +29,7 @@
                 #:host-renderer
                 #:host-display-list
                 #:host-deliver-event
+                #:request-host-frame
                 #:wait-for-idle)
   (:import-from #:almighty-bolt/render/metal/device
                 #:default-device)
@@ -77,3 +85,23 @@ texture that nobody sees, between frames, on the main thread."
     (unless host
       (error 'cannot :message "There is no window open: call open-app or run-app first."))
     (host-session host)))
+
+;;; What the inspector asks for, done after the frame that asked, on a thread of its own: the actions
+;;; wait for the window between their steps, which the main thread, drawing it, cannot. What goes
+;;; wrong (a widget that is disabled, or that two things on the screen fit) is said in the panel.
+(setf *inspector-runner*
+      (lambda (variant actions)
+        (let ((host (running-host)))
+          (when (and host (eq (host-variant host) variant) (typep variant 'immediate-variant))
+            (sb-thread:make-thread
+             (lambda ()
+               (flet ((say (message)
+                        (call-on-main (lambda ()
+                                        (inspector-say (immediate-variant-ui (host-variant host))
+                                                       message)
+                                        (request-host-frame host)))))
+                 (let ((message (handler-case (perform-actions (host-session host) actions)
+                                  (error (condition) (princ-to-string condition)))))
+                   (when message
+                     (say message)))))
+             :name "inspector action")))))

@@ -28,6 +28,13 @@
                 #:ui-root
                 #:ui-floats
                 #:ui-inspector
+                #:ui-inspector-keyboard
+                #:ui-focus
+                #:ui-hits
+                #:ui-hit-count
+                #:hit-key
+                #:hit-layer
+                #:+inspector-layer+
                 #:ui-pressed
                 #:ui-pointer-x
                 #:ui-pointer-y
@@ -44,16 +51,22 @@
   (:import-from #:almighty-bolt/ui/widgets
                 #:with-theme
                 #:column
+                #:scroll
                 #:label
                 #:paragraph
                 #:button
-                #:shortcut)
+                #:text-field
+                #:row
+                #:take-shortcut)
   (:export #:+inspector-width+
            #:inspector-open-p
            #:inspector-take-input
            #:describe-inspector
            #:inspector-float-p
-           #:*box-facts*))
+           #:*box-facts*
+           #:*inspector-runner*
+           #:run-inspector-actions
+           #:inspector-say))
 
 (in-package #:almighty-bolt/ui/inspector)
 
@@ -70,6 +83,13 @@
 ;;; that frame when the input of a new one is taken, and they are where they were drawn. The pick is
 ;;; kept by the box's key, which is the same from frame to frame while the widget is described in
 ;;; the same place, and so survives the app being made again by new code.
+;;;
+;;; It changes a widget as a person would, by the machine interface's actions (a click, SET-VALUE),
+;;; whose events go to the app as a hand's do: the app stays in charge of what it holds. An action
+;;; cannot be done inside the frame that asks for it (some wait for frames between their steps: a
+;;; dropdown's menu opens before its row is pressed), so the panel notes it, as data, and after the
+;;; frame hands what it noted to *INSPECTOR-RUNNER*, which the machine interface sets; in a window it
+;;; runs them on a thread of its own, through a session on the window, as an agent's would be.
 
 (defconstant +inspector-width+ 300f0 "How wide the inspector's panel is.")
 
@@ -77,6 +97,11 @@
   "A function of the ui, a box and where the box is in the window, that returns what the semantic
 tree says of the box as a property list (:role, :name, :value, :state); set by the semantics, which
 are loaded after the inspector.")
+
+(defvar *inspector-runner* nil
+  "A function of the variant and a list of actions that does them after the frame, or NIL. An action
+is a property list: :op (:click or :set-value), :value for :set-value, and :id, :role and :name, which
+say which widget, as the machine interface's FIND-NODE takes them (the inspector gives the id).")
 
 (defstruct (inspector (:constructor make-inspector ()))
   (open nil)
@@ -90,7 +115,13 @@ are loaded after the inspector.")
   ;; as lists of x, y, width and height (NIL if there is none); and what is known of the picked one.
   (hover nil)
   (shown nil)
-  (facts nil))
+  (facts nil)
+  ;; What the panel's field holds, and the key of the box it was filled for; the actions noted and not
+  ;; yet handed on; and what went wrong with the last of them, if anything.
+  (draft "" :type string)
+  (draft-for 0 :type fixnum)
+  (pending '())
+  (message nil))
 
 (defun inspector-open-p (ui)
   (let ((inspector (ui-inspector ui)))
@@ -155,14 +186,14 @@ which opens and closes it, Escape while it picks, and the press that picks; then
 show of the frame before, whose boxes the ui still has. WINDOW-THEME is the theme of the window, and
 WIDTH how wide it is. Called on the first build of a frame."
   (let ((*ui* ui))
-    (when (shortcut #\i :command :option)
+    (when (take-shortcut #\i :command :option)
       (let ((inspector (or (ui-inspector ui) (setf (ui-inspector ui) (make-inspector)))))
         (setf (inspector-open inspector) (not (inspector-open inspector))
               (inspector-picking inspector) nil
               (inspector-theme inspector) window-theme)))
     (let ((inspector (ui-inspector ui)))
       (when (and inspector (inspector-open inspector))
-        (when (and (inspector-picking inspector) (shortcut #\Escape))
+        (when (and (inspector-picking inspector) (take-shortcut #\Escape))
           (setf (inspector-picking inspector) nil))
         (setf (inspector-hover inspector) nil)
         (when (inspector-picking inspector)
@@ -182,7 +213,91 @@ WIDTH how wide it is. Called on the first build of a frame."
                                            nil
                                            (box-by-key ui (inspector-picked inspector)))
           (setf (inspector-shown inspector) (and box (list x y (box-w box) (box-h box)))
-                (inspector-facts inspector) (and box (facts-of ui box x y))))))))
+                (inspector-facts inspector) (and box (facts-of ui box x y))))
+        ;; A new pick fills the field with its value, and forgets what went wrong before.
+        (unless (= (inspector-draft-for inspector) (inspector-picked inspector))
+          (setf (inspector-draft-for inspector) (inspector-picked inspector)
+                (inspector-draft inspector) (draft-of (getf (inspector-facts inspector) :value))
+                (inspector-message inspector) nil))))
+    ;; While the keyboard is in the panel, the app's shortcuts leave the keys to it.
+    (setf (ui-inspector-keyboard ui)
+          (and (inspector-open-p ui)
+               (loop :for i :below (ui-hit-count ui)
+                     :thereis (let ((hit (aref (ui-hits ui) i)))
+                                (and (= (hit-key hit) (ui-focus ui))
+                                     (= (hit-layer hit) +inspector-layer+))))))))
+
+(defun draft-of (value)
+  "VALUE as the panel's field shows it to be changed: a number as a person writes it."
+  (typecase value
+    (string value)
+    (real (format nil "~f" value))
+    (t "")))
+
+(defun number-in (string)
+  "The number STRING is, or NIL."
+  (let ((value (let ((*read-eval* nil))
+                 (ignore-errors (read-from-string string)))))
+    (and (realp value) value)))
+
+;;; --- what it changes ---
+
+(defun note-action (inspector op &rest value)
+  "Note that the picked widget is to have OP done to it (with VALUE, if given), after the frame. It
+is found again by its id, which every widget that can be changed has."
+  (setf (inspector-message inspector) nil
+        (inspector-pending inspector)
+        (append (inspector-pending inspector)
+                (list (append (list :op op) (and value (list :value (first value)))
+                              (list :id (getf (inspector-facts inspector) :id)))))))
+
+(defun run-inspector-actions (ui variant)
+  "Hand what the panel noted in this frame to *INSPECTOR-RUNNER*. Called after the frame."
+  (let ((inspector (ui-inspector ui)))
+    (when (and inspector (inspector-pending inspector))
+      (let ((actions (inspector-pending inspector)))
+        (setf (inspector-pending inspector) '())
+        (if *inspector-runner*
+            (funcall *inspector-runner* variant actions)
+            (setf (inspector-message inspector) "Nothing here does what the inspector asks."))))))
+
+(defun inspector-say (ui message)
+  "Show MESSAGE in the panel, as what happened to the last thing it asked for."
+  (let ((inspector (ui-inspector ui)))
+    (when inspector
+      (setf (inspector-message inspector) message))))
+
+(defun describe-changes (inspector)
+  "The panel's controls for changing the picked widget, by its role."
+  (let* ((facts (inspector-facts inspector))
+         (role (getf facts :role))
+         (state (getf facts :state)))
+    (when (member role '(:button :menu-button :checkbox :switch :pop-up-button))
+      (when (button "Press" :id :inspector-press)
+        (note-action inspector :click)))
+    (when (member role '(:text-field :combo-box :text-area :slider))
+      (row (:id :inspector-set-row :gap 8)
+        (setf (inspector-draft inspector)
+              (text-field (inspector-draft inspector) :id :inspector-draft :width 180))
+        (when (button "Set" :id :inspector-set)
+          (if (eq role :slider)
+              (let ((number (number-in (inspector-draft inspector))))
+                (if number
+                    (note-action inspector :set-value number)
+                    (setf (inspector-message inspector)
+                          (format nil "~s is not a number." (inspector-draft inspector)))))
+              (note-action inspector :set-value (inspector-draft inspector))))))
+    ;; A button for each of the options of a choice or a dropdown, or the items of a list.
+    (let ((options (or (getf state :options) (getf state :items))))
+      (when (member role '(:radio-group :pop-up-button :list))
+        (column (:id :inspector-options :gap 4)
+          (loop :for option :in options
+                :for i :from 0
+                :do (when (button (format nil "Choose ~a" option) :id i)
+                      ;; A dropdown is set by the words of its row, a choice or a list by the index.
+                      (note-action inspector :set-value (if (eq role :pop-up-button) option i)))))))
+    (when (inspector-message inspector)
+      (paragraph (inspector-message inspector) :id :inspector-message))))
 
 ;;; --- what it describes after the app ---
 
@@ -218,8 +333,11 @@ WIDTH how wide it is. Called on the first build of a frame."
                   (format nil "Size: ~d by ~d" (round w) (round h))
                   (if theme (format nil "Theme: ~a" (shown theme)) "Theme: one with no name")
                   (if enabled "Enabled" "Not enabled"))
+            ;; Not whether the pointer is over it or it has the keyboard, which the inspector's own
+            ;; pointer and keyboard change, and which would move what is under them.
             (loop :for (key value) :on state :by #'cddr
-                  :collect (format nil "~(~a~): ~a" key (shown value))))))
+                  :unless (member key '(:hovered :focused))
+                    :collect (format nil "~(~a~): ~a" key (shown value))))))
 
 (defun describe-inspector (ui)
   "Describe the inspector, if it is open: the outlines and the panel, above everything else. Called
@@ -238,6 +356,8 @@ after the app's function, the toasts and the tooltip."
                 (box-pad-right float) 16f0 (box-pad-bottom float) 16f0
                 (box-color float) (theme-panel *theme*)
                 (box-n1 float) 0f0)
+          ;; Taller than the window, it scrolls.
+          (scroll (:id :inspector-scroll)
           (column (:id :inspector-column :gap 10)
             (label "Inspector" :id :inspector-title :size 18)
             (when (button (if (inspector-picking inspector) "Stop picking" "Pick")
@@ -253,5 +373,6 @@ after the app's function, the toasts and the tooltip."
                    (column (:id :inspector-facts :gap 4)
                      (loop :for line :in (fact-lines (inspector-facts inspector))
                            :for i :from 0
-                           :do (paragraph line :id i))))))
+                           :do (paragraph line :id i)))
+                   (describe-changes inspector)))))
           (close-float ui open))))))

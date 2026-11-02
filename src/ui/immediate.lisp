@@ -105,6 +105,7 @@
                 #:hit-moves
                 #:hit-layer
                 #:ui-modal-layer
+                #:+inspector-layer+
                 #:begin-build
                 #:enqueue-event
                 #:begin-frame-input
@@ -118,7 +119,8 @@
                 #:inspector-open-p
                 #:inspector-take-input
                 #:describe-inspector
-                #:inspector-float-p)
+                #:inspector-float-p
+                #:run-inspector-actions)
   (:import-from #:almighty-bolt/ui/layout
                 #:layout-box)
   (:import-from #:almighty-bolt/ui/paint
@@ -259,7 +261,8 @@ key (RECT-OF, which a widget measures from) is the whole of it, wherever it is."
       ;; The floats after the screen, so that the pointer finds them first; each is at its place in
       ;; the window (its X and Y), with nothing over it.
       (loop :for float :across (ui-floats ui)
-            :do (walk float 0f0 0f0 -1f30 -1f30 1f30 1f30 (box-key float))
+            :do (walk float 0f0 0f0 -1f30 -1f30 1f30 1f30
+                      (if (inspector-float-p float) +inspector-layer+ (box-key float)))
                 (when (float-spec-modal (box-data float))
                   (setf (ui-modal-layer ui) (box-key float)))))
     (let ((saved (ui-saved-geometry ui)))
@@ -297,7 +300,8 @@ keyboard: it goes there when the dialog comes, and Tab goes round inside it."
     (when (or direction (/= modal 0))
       (loop :for i :below (ui-hit-count ui)
             :do (let ((hit (aref (ui-hits ui) i)))
-                  (when (and (hit-focusable hit) (or (zerop modal) (= (hit-layer hit) modal)))
+                  (when (and (hit-focusable hit) (or (zerop modal) (= (hit-layer hit) modal)
+                                                     (= (hit-layer hit) +inspector-layer+)))
                     (push (hit-key hit) keys))))
       (setf keys (nreverse keys)))
     ;; Text that can be selected has the keyboard from a press only (it is not in the order); in the
@@ -451,6 +455,7 @@ inspector is open), and the inspector's are in all of it."
          t)
         (t
          (lay-out-and-paint variant context list)
+         (run-inspector-actions ui variant)
          (setf (ui-started ui) t)
          (end-frame-input ui)
          (when (more-input variant)

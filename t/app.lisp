@@ -3243,3 +3243,172 @@ inspector's panel, which is 300."
     (click screen :inspector-pick)
     (click screen :heading)
     (assert-true (search "Name: Heading" (inspector-says screen)) (inspector-says screen))))
+
+;;; What the inspector asks for is done after the frame, by whatever *INSPECTOR-RUNNER* is: in a
+;;; window, a thread with a session on it; here, a note of what was asked, done by the test with a
+;;; session on the screen, as the window's would.
+
+(defvar *asked* '() "What the inspector asked to be done, not yet done.")
+
+(defmacro with-asking (&body body)
+  `(let ((*asked* '())
+         (almighty-bolt/ui/inspector:*inspector-runner*
+           (lambda (variant actions)
+             (declare (ignore variant))
+             (setf *asked* (append *asked* actions)))))
+     ,@body))
+
+(defun do-asked (screen)
+  "Do what the inspector asked for, and show in it what went wrong, as the window's runner does."
+  (let ((actions *asked*))
+    (setf *asked* '())
+    (let ((message (m:perform-actions (screen-session screen) actions)))
+      (when message
+        (almighty-bolt/ui/inspector:inspector-say
+         (almighty-bolt/ui/immediate:immediate-variant-ui (screen-variant screen)) message))
+      (draw screen))))
+
+(defun draft-of (screen)
+  "What the inspector's field holds. (Read from it, not from what is drawn: inside the panel's scroll,
+the field that has the keyboard is drawn again at the edges, clipped to its ring.)"
+  (almighty-bolt/ui/inspector::inspector-draft
+   (almighty-bolt/ui/ui:ui-inspector
+    (almighty-bolt/ui/immediate:immediate-variant-ui (screen-variant screen)))))
+
+(defun scroll-panel (screen)
+  "Turn the wheel over the inspector's panel, to the end of what is in it."
+  (core:handle-event (screen-variant screen)
+                     (core:make-wheel-event :timestamp 0 :x 600d0 :y 200d0 :dx 0d0 :dy -20d0
+                                            :precise-p nil :modifiers 0))
+  (dotimes (i 3) (draw screen)))
+
+(defun pick (screen id)
+  "Open the inspector if it is not, and pick the widget ID."
+  (unless (inspector-says screen)
+    (toggle-inspector screen))
+  (click screen :inspector-pick)
+  (click screen id))
+
+(define-test the-inspector-presses-a-button-as-a-hand-does-after-the-frame ()
+  (with-asking
+    (let ((screen (show-wide 'counter:make-counter)))
+      (pick screen :count-button)
+      (click screen :inspector-press)
+      ;; Asked for, by its id, once (another frame does not ask again), and not done inside the frame.
+      (draw screen)
+      (assert-equal '((:op :click :id :count-button)) *asked*)
+      (assert-equal "0" (text-in screen :count))
+      (do-asked screen)
+      (assert-equal "1" (text-in screen :count)))))
+
+(define-test the-inspector-types-what-it-is-given-into-a-field ()
+  (with-asking
+    (let ((screen (show-wide 'todo:make-todo)))
+      (pick screen :draft)
+      (click screen :inspector-draft)
+      (type-text screen "Milk")
+      ;; Typed into the inspector's field, not the app's.
+      (assert-equal "" (s:node-value (node-of screen :draft)))
+      (click screen :inspector-set)
+      (do-asked screen)
+      (assert-equal "Milk" (s:node-value (node-of screen :draft))))))
+
+(define-test the-inspector-sets-a-slider-and-says-when-what-it-was-given-is-not-a-number ()
+  (with-asking
+    (let ((screen (show-wide 'make-whole-slider)))
+      (pick screen :whole)
+      ;; The field has the slider's value to start with.
+      (assert-equal "5.0" (draft-of screen))
+      (click screen :inspector-draft)
+      (key screen #\a :command)
+      (type-text screen "lots")
+      (click screen :inspector-set)
+      (assert-true (search "\"lots\" is not a number." (inspector-says screen)))
+      (assert-eq '() *asked*)
+      ;; The press on Set took the keyboard from the field; a press gives it back.
+      (click screen :inspector-draft)
+      (key screen #\a :command)
+      (type-text screen "3")
+      (click screen :inspector-set)
+      (do-asked screen)
+      (assert-equal "3" (text-in screen :whole-value)))))
+
+(define-test the-inspector-says-why-what-it-asked-for-could-not-be-done ()
+  (with-asking
+    (let ((screen (show-wide 'make-locked)))
+      (pick screen :volume)
+      (click screen :inspector-draft)
+      (key screen #\a :command)
+      (type-text screen "50")
+      (click screen :inspector-set)
+      (do-asked screen)
+      (assert-true (search "is disabled" (inspector-says screen)) (inspector-says screen))
+      (assert-eql 10d0 (s:node-value (node-of screen :volume))))))
+
+(define-test the-inspector-chooses-an-option-of-a-choice ()
+  (with-asking
+    (let ((screen (show-wide 'make-settings)))
+      (pick screen :delivery)
+      ;; The options are below the bottom of the window; the wheel over the panel brings them up.
+      (assert-false (search "Choose Collect" (inspector-says screen)))
+      (scroll-panel screen)
+      (assert-true (search "Choose Collect" (inspector-says screen)))
+      (click screen 2)
+      (do-asked screen)
+      (assert-equal "Collect" (s:node-value (node-of screen :delivery))))))
+
+(defun make-asking-name ()
+  "A dialog that asks for a name."
+  (state-let ((name ""))
+    (lambda ()
+      (column (:gap 8)
+        (label name :id :said)
+        (dialog (:id :ask :open t :title "Your name?")
+          (setf name (text-field name :id :dialog-name)))))))
+
+(define-test the-keyboard-stays-in-the-inspector-over-a-dialog ()
+  (with-asking
+    (let ((screen (show-wide 'make-asking-name)))
+      (draw screen)
+      (pick screen :dialog-name)
+      (click screen :inspector-draft)
+      (type-text screen "Ada")
+      ;; The dialog, which keeps the keyboard in itself, does not take it from the inspector.
+      (assert-equal "Ada" (draft-of screen))
+      (assert-equal "" (s:node-value (node-of screen :dialog-name)))
+      (click screen :inspector-set)
+      (do-asked screen)
+      (assert-equal "Ada" (s:node-value (node-of screen :dialog-name))))))
+
+(defvar *command-as* 0)
+
+(defun make-command-a-counter ()
+  "An app that counts Command-A, and a field to pick."
+  (lambda ()
+    (column (:gap 8)
+      (when (shortcut #\a :command) (incf *command-as*))
+      (text-field "words" :id :words))))
+
+(define-test the-apps-shortcuts-leave-the-keys-to-the-inspector-while-it-has-the-keyboard ()
+  (with-asking
+    (let ((*command-as* 0)
+          (screen (show-wide 'make-command-a-counter)))
+      (key screen #\a :command)
+      (assert-eql 1 *command-as*)
+      (pick screen :words)
+      (click screen :inspector-draft)
+      (key screen #\a :command)
+      (assert-eql 1 *command-as*)
+      ;; Command-A was the field's: it selected what it holds, which typing replaces.
+      (type-text screen "new")
+      (assert-equal "new" (draft-of screen)))))
+
+(define-test the-inspector-chooses-a-row-of-a-dropdown-by-its-words ()
+  (with-asking
+    (let ((screen (show-wide 'make-picker)))
+      (pick screen :size)
+      (scroll-panel screen)
+      (click screen 2)
+      (assert-equal '((:op :set-value :value "Large" :id :size)) *asked*)
+      (do-asked screen)
+      (assert-equal "Large" (s:node-value (node-of screen :size))))))

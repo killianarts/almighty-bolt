@@ -16,7 +16,7 @@ are not listed.
 
 - `:cursor` on `canvas`: the shape the pointer has over it ([0.3](docs/releases/dev.md#input)).
 - `shortcut`, true in the frame a keyboard shortcut is pressed ([0.3](docs/releases/dev.md#input)).
-- The inspector: Command-Option-I in any app opens a panel that says what a picked widget is ([0.3](docs/releases/dev.md#the-inspector)).
+- The inspector: Command-Option-I in any app opens a panel that says what a picked widget is and changes its value ([0.3](docs/releases/dev.md#the-inspector)).
 - Spacing in a theme: `:spacing`, a scale that the paddings, gaps and heights of the controls are worked out from, and each of those sizes on its own; and a Spacing slider in the theme designer ([0.3](docs/releases/dev.md#spacing-in-a-theme)).
 
 ### Changed

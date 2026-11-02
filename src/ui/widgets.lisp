@@ -44,6 +44,7 @@
                 #:ui-hot
                 #:ui-hot-since
                 #:ui-toasts
+                #:ui-inspector-keyboard
                 #:ui-tooltip-dismissed
                 #:ui-active
                 #:ui-focus
@@ -208,6 +209,7 @@
            #:describe-toasts
            #:toast
            #:shortcut
+           #:take-shortcut
            #:+tooltip-delay-ns+
            #:text-area
            #:area-state
@@ -2140,7 +2142,12 @@ after the app's function, with the build's boxes made."
 MODIFIERS held: :command, :shift, :option and :control. The key is taken, so nothing described after
 this sees it. A widget described before it that has the keyboard takes the keys it uses first (a text
 field takes Command-A, -C, -V, -X and -Z). The menu bar's keys (Command-H, -M, -Q and -W) never
-reach the app."
+reach the app, nor does any key while the keyboard is in the inspector."
+  (and (not (ui-inspector-keyboard *ui*))
+       (apply #'take-shortcut key modifiers)))
+
+(defun take-shortcut (key &rest modifiers)
+  "SHORTCUT, whoever has the keyboard: for the inspector's own keys."
   (let ((ui *ui*)
         (want (loop :for modifier :in modifiers
                     :sum (ecase modifier
