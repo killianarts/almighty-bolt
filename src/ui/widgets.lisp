@@ -143,6 +143,7 @@
                 #:theme-font-size
                 #:theme-button-text
                 #:theme-dim-text
+                #:theme-color
                 #:theme-field-padding-x
                 #:theme-field-padding-y
                 #:theme-row-height)
@@ -377,7 +378,7 @@ the container's parent allows, which wins."
              (box-pad-top ,box) (float (or ,top ,all 0) 1f0)
              (box-pad-right ,box) (float (or ,right ,all 0) 1f0)
              (box-pad-bottom ,box) (float (or ,bottom ,all 0) 1f0)
-             (box-color ,box) ,color
+             (box-color ,box) (theme-color ,color)
              (box-n1 ,box) (float ,radius 1f0)
              (box-flex ,box) (float ,flex 1f0))
        ,@body)))
@@ -418,7 +419,7 @@ and true if it was clicked this frame."
           (box-pad-top box) (float top 1f0)
           (box-pad-right box) (float right 1f0)
           (box-pad-bottom box) (float bottom 1f0)
-          (box-color box) color
+          (box-color box) (theme-color color)
           (box-n1 box) (float radius 1f0)
           ;; 1 for the look of a button, 0 for a plain one.
           (box-n2 box) (if (eq look :button) 1f0 0f0)
@@ -760,7 +761,7 @@ A SELECTABLE label's text can be selected with the pointer and copied."
          (box (open-box ui :label :id id :tooltip tooltip)))
     (setf (box-text box) text
           (box-size box) (or size (theme-font-size *theme*))
-          (box-color box) (or color *foreground*)
+          (box-color box) (or (theme-color color) *foreground*)
           (box-flex box) (float flex 1f0)
           (box-n3 box) (if live 1 0))
     (when selectable
@@ -828,7 +829,7 @@ given). LIVE and SELECTABLE are as for a label."
          (state (state-of ui (box-key box) #'make-paragraph-state)))
     (setf (box-text box) text
           (box-size box) (or size (theme-font-size *theme*))
-          (box-color box) (or color *foreground*)
+          (box-color box) (or (theme-color color) *foreground*)
           (box-flex box) (float flex 1f0)
           (box-n3 box) (if live 1 0)
           (box-data box) state)

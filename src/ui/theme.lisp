@@ -19,6 +19,7 @@
            #:+theme-colors+
            #:+theme-sizes+
            #:theme-setting
+           #:theme-color
            #:theme-form
            #:theme-background
            #:theme-panel
@@ -465,6 +466,25 @@ out, with colours as \"#rrggbb\" strings."
   "The theme that what is described, laid out or drawn now is in: bound around a frame's
 description to the window's, by WITH-THEME to another, and to a box's own while it is laid out
 and drawn.")
+
+(defun theme-color (designator &optional (theme *theme*))
+  "The packed colour of DESIGNATOR in THEME (the one being described in, by default):
+  - a packed colour, or a string \"#rrggbb\" or \"#rrggbbaa\", which is itself;
+  - a colour setting of the theme, :accent, :dim-text, :panel ... (+THEME-COLORS+);
+  - (DESIGNATOR :alpha FRACTION), a colour with that much of it showing, 0 to 1;
+  - (:mix A B FRACTION), the colour FRACTION of the way from A to B, each a designator.
+NIL is NIL: the widget's own colour from the theme. A colour given as a setting follows the theme,
+so it suits a dark window and a light one, and what WITH-THEME draws."
+  (etypecase designator
+    (null nil)
+    ((or (unsigned-byte 32) string) (parse-color designator))
+    (keyword (theme-setting theme designator))
+    (cons (if (eq (first designator) :mix)
+              (destructuring-bind (a b fraction) (rest designator)
+                (mix-colors (theme-color a theme) (theme-color b theme) fraction))
+              (destructuring-bind (color &key (alpha 1)) designator
+                (with-alpha (theme-color color theme)
+                            (max 0 (min 255 (round (* 255 alpha))))))))))
 
 (defun spaced (size &optional (theme *theme*))
   "SIZE points (at a spacing of 1) in THEME's spacing, to the nearest whole point: for the room in

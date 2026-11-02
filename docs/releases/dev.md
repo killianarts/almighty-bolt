@@ -57,6 +57,8 @@ A theme that gives the spacing works out every size again, except those it gives
 
 #### Rendering
 
+- A `:color` can be a colour of the theme that the thing is drawn in, so that an app's tints suit a dark window and a light one without a colour for each: a setting (`:accent`, `:dim-text`, `:panel` ...), `(:accent :alpha 0.2)`, or `(:mix :accent :background 0.8)`. Labels, paragraphs, panels and pressables take them, and `"#rrggbb"` strings as well as packed colours. `(theme-color designator)` gives the packed colour.
+
 #### Text
 
 #### Layout

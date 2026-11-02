@@ -17,6 +17,7 @@ are not listed.
 - `:cursor` on `canvas`: the shape the pointer has over it ([0.3](docs/releases/dev.md#input)).
 - `shortcut`, true in the frame a keyboard shortcut is pressed ([0.3](docs/releases/dev.md#input)).
 - `:width`, `:height`, `:min-width`, `:min-height`, `:max-width` and `:max-height` on `column`, `row`, `stack`, `padding`, `panel` and `center` ([0.3](docs/releases/dev.md#layout)).
+- A `:color` can be a colour of the theme: `:accent`, `(:accent :alpha 0.2)`, `(:mix :accent :background 0.8)`; and `theme-color` ([0.3](docs/releases/dev.md#rendering)).
 - `pressable`, a container that is pressed as a button is, with the look of a button or a plain one, and a toggle's selected state ([0.3](docs/releases/dev.md#layout)).
 - `grid`, children in columns and rows, with equal or shared column widths and rows of their own height, all the tallest's, or a given one ([0.3](docs/releases/dev.md#layout)).
 - `spacer`, empty room that takes the free space of its row or column ([0.3](docs/releases/dev.md#layout)).

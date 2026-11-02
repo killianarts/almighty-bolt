@@ -96,6 +96,7 @@
                 #:theme-names
                 #:theme-name
                 #:theme-setting
+                #:theme-color
                 #:theme-form
                 #:+theme-settings+
                 #:+theme-seeds+
@@ -118,7 +119,7 @@
            #:progress #:canvas #:scrim
            #:column #:row #:stack #:padding #:panel #:center #:scroll #:lazy-list
            #:theme #:make-theme #:define-theme #:find-theme #:with-theme #:theme-names #:theme-name
-           #:theme-setting #:theme-form #:+theme-settings+ #:+theme-seeds+ #:+theme-colors+ #:+theme-sizes+
+           #:theme-setting #:theme-color #:theme-form #:+theme-settings+ #:+theme-seeds+ #:+theme-colors+ #:+theme-sizes+
            #:parse-color #:color-hex #:mix-colors #:contrast-ratio
            #:now #:ask-for-frame #:current-context
            #:pack-color #:push-rect #:push-rounded-rect #:push-clip #:push-unclip
