@@ -318,6 +318,16 @@ value is, press the option of a choice, pick the item of a list."
        (multiple-value-bind (x y) (middle node)
          (press-at session x y))
        (settle session)
+       ;; A long menu shows the rows that fit. As a person would, type the start of the one wanted,
+       ;; which brings it into view, and failing that go down and then up to it.
+       (flet ((row () (first (find-nodes (see session) :role :menu-item :name value))))
+         ;; Up to a space, which in a menu chooses the row it is on.
+         (when (and (null (row)) (stringp value))
+           (loop :for character :across (subseq value 0 (position #\Space value))
+                 :do (press-key session character)))
+         (let ((count (length (node-property node :options))))
+           (loop :repeat count :until (row) :do (press-key session :down))
+           (loop :repeat count :until (row) :do (press-key session :up))))
        (let ((row (find-node session :role :menu-item :name value)))
          (multiple-value-bind (x y) (middle row)
            (press-at session x y))))

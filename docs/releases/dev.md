@@ -73,6 +73,8 @@ A theme that gives the spacing works out every size again, except those it gives
 
 #### Input
 
+- A menu longer than the window shows as many rows as fit, with a bar that says where they are among them all, and scrolls: by the wheel, and by the arrow keys, which keep the highlighted row in view. `dropdown` and `menu-button` take `:max-rows`. Letters typed while a menu is open move the highlight to the first row they begin, as in a Mac pop-up button. Before, a dropdown of sixty countries opened a menu that ran past the bottom of the window. A row is highlighted by the pointer only when the pointer moves onto it, so a still pointer no longer takes the highlight back from the keys.
+
 - A `list-box` whose selected row is out of its window shows it: on its first frame, and when the app selects a row other than the one it selected before (say, from a search field beside it). While the selection stays the same, the list stays where the wheel put it. Before, a list opened at its top whatever was selected.
 
 - `(shortcut #\s :command)` is true in the frame its keys are pressed, for the app's own keyboard shortcuts: `(when (bolt:shortcut #\s :command) (save))`. It takes the key, and the modifiers held must be the ones given.

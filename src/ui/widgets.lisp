@@ -91,6 +91,7 @@
                 #:float-spec-min-width
                 #:float-spec-anchor)
   (:import-from #:almighty-bolt/internals
+                #:context-height
                 #:+cursors+
                 #:with-painting
                 #:context-font
@@ -146,7 +147,8 @@
                 #:theme-color
                 #:theme-field-padding-x
                 #:theme-field-padding-y
-                #:theme-row-height)
+                #:theme-row-height
+                #:theme-menu-padding)
   (:export #:missing-id
            #:missing-id-widget
            #:label
@@ -1525,83 +1527,157 @@ them out). Returns the index now and whether the person changed it this frame."
   (highlight -1 :type fixnum)
   ;; The point a menu opened at, for one that opens where the pointer is.
   (x 0f0 :type single-float)
-  (y 0f0 :type single-float))
+  (y 0f0 :type single-float)
+  ;; The first row shown of a menu with more rows than fit, or -1 to show the highlighted row.
+  (top -1 :type fixnum)
+  ;; What has been typed to find a row by its first letters, and when, in internal time.
+  (typed "" :type string)
+  (typed-at 0 :type integer))
 
 (defun open-menu (state highlight &optional (x 0f0) (y 0f0))
   (setf (menu-state-open state) t
+        (menu-state-top state) -1
+        (menu-state-typed state) ""
         (menu-state-highlight state) highlight
         (menu-state-x state) (float x 1f0)
         (menu-state-y state) (float y 1f0))
   (setf (ui-consumed *ui*) t))
 
-(defun menu (ui owner state items spec &key checked typing)
+(defun menu-rows-shown (ui count max-rows)
+  "How many of COUNT rows a menu shows: as many as fit in the window, and no more than MAX-ROWS."
+  (let* ((context (ui-context ui))
+         (height (if context (context-height context) 0f0))
+         (fit (max 3 (floor (- height (* 2 (theme-menu-padding *theme*)) 16f0)
+                            (theme-row-height *theme*)))))
+    (max 0 (min count fit (or max-rows count)))))
+
+(defun menu (ui owner state items spec &key checked typing max-rows)
   "Describe the open menu of the widget with the key OWNER, whose state is STATE: ITEMS (strings) in
 a float placed by SPEC, the one at CHECKED (an index) marked, over a catcher. Returns the index of the
 item chosen this frame, or NIL, and true if the menu closed this frame (an item was chosen, or the
-person pressed outside it or pressed Escape). With TYPING (a combo box's), the space bar is left to
-the field that is being typed in."
-  (let ((chosen nil)
-        (closed nil)
-        (count (length items))
-        (rows '()))
-    (multiple-value-bind (catcher open)
-        (open-float ui :catcher owner :catcher (make-float-spec :placement :fill))
-      (setf (box-interactive catcher) t)
-      (close-float ui open)
-      (when (= (ui-hot ui) (box-key catcher))
-        (when (ui-pressed ui)
-          (consume-press ui)
-          (setf closed t))
-        ;; Nothing under an open menu scrolls.
-        (consume-wheel ui)))
-    (multiple-value-bind (float open) (open-float ui :menu owner :menu spec)
-      ;; A press between the rows is the menu's, and not a press outside it.
-      (setf (box-interactive float) t)
-      (when (and (= (ui-hot ui) (box-key float)) (ui-pressed ui))
-        (consume-press ui))
-      (loop :for item :in items
-            :for i :from 0
-            :do (let* ((row (open-box ui :menu-item :id i))
-                       (key (box-key row)))
-                  (push row rows)
-                  (setf (box-text row) item
-                        (box-interactive row) t
-                        (box-moves row) t
-                        (box-n2 row) (if (eql i checked) 1f0 0f0))
-                  (when (= (ui-hot ui) key)
-                    (unless (= (menu-state-highlight state) i)
-                      (setf (menu-state-highlight state) i
-                            (ui-consumed ui) t))
-                    (when (ui-pressed ui)
-                      (consume-press ui)
-                      (setf (ui-active ui) key)))
-                  (when (and (= (ui-active ui) key) (ui-released ui))
-                    (consume-release ui)
-                    (setf (ui-active ui) 0)
-                    (when (= (ui-hot ui) key)
-                      (setf chosen i)))
-                  (close-box ui)))
-      (when (or (= (ui-hot ui) (box-key float))
-                (find (ui-hot ui) rows :key #'box-key))
-        (consume-wheel ui))
-      (close-float ui open))
-    (dolist (event (copy-list (ui-keys ui)))
-      (let ((k (key-event-logical-key event))
-            (highlight (menu-state-highlight state)))
-        (cond ((eql k +key-down+)
-               (consume-key ui event)
-               (setf (menu-state-highlight state) (if (< highlight 0) 0 (min (1- count) (1+ highlight)))))
-              ((eql k +key-up+)
-               (consume-key ui event)
-               (setf (menu-state-highlight state) (if (< highlight 0) (1- count) (max 0 (1- highlight)))))
-              ((and (member k '(#\Return #\Space))
-                    (not (and typing (eql k #\Space))))
-               (consume-key ui event)
-               (when (<= 0 highlight (1- count))
-                 (setf chosen highlight)))
-              ((eql k #\Escape)
-               (consume-key ui event)
-               (setf closed t)))))
+person pressed outside it or pressed Escape). With TYPING (a combo box's), the space bar and letters
+are left to the field that is being typed in.
+
+A menu with more rows than fit in the window (or than MAX-ROWS) shows as many as fit, from the row
+its state says, as a lazy list does: the wheel moves them, the highlighted row is kept in view, and
+letters typed move the highlight to the first row they begin."
+  (let* ((chosen nil)
+         (closed nil)
+         (count (length items))
+         (shown (menu-rows-shown ui count max-rows))
+         (rows '())
+         (highlight-before (menu-state-highlight state)))
+    (labels ((reveal (index)
+               ;; Move the first row shown as little as shows the row INDEX; a menu just opened shows
+               ;; it in the middle.
+               (let ((top (menu-state-top state)))
+                 (setf (menu-state-top state)
+                       (cond ((< index 0) (max 0 top))
+                             ((< top 0) (- index (floor shown 2)))
+                             ((< index top) index)
+                             ((>= index (+ top shown)) (1+ (- index shown)))
+                             (t top)))
+                 (clamp-top)))
+             (clamp-top ()
+               (setf (menu-state-top state)
+                     (max 0 (min (menu-state-top state) (- count shown))))))
+      (when (< (menu-state-top state) 0)
+        (reveal highlight-before))
+      (clamp-top)
+      (let ((top (menu-state-top state)))
+        (multiple-value-bind (catcher open)
+            (open-float ui :catcher owner :catcher (make-float-spec :placement :fill))
+          (setf (box-interactive catcher) t)
+          (close-float ui open)
+          (when (= (ui-hot ui) (box-key catcher))
+            (when (ui-pressed ui)
+              (consume-press ui)
+              (setf closed t))
+            ;; Nothing under an open menu scrolls.
+            (consume-wheel ui)))
+        (multiple-value-bind (float open) (open-float ui :menu owner :menu spec)
+          ;; A press between the rows is the menu's, and not a press outside it.
+          (setf (box-interactive float) t)
+          (when (and (= (ui-hot ui) (box-key float)) (ui-pressed ui))
+            (consume-press ui))
+          (loop :for item :in (nthcdr top items)
+                :for i :from top :below (+ top shown)
+                :do (let* ((row (open-box ui :menu-item :id i))
+                           (key (box-key row)))
+                      (push row rows)
+                      (setf (box-text row) item
+                            (box-interactive row) t
+                            (box-moves row) t
+                            (box-n2 row) (if (eql i checked) 1f0 0f0))
+                      (when (= (ui-hot ui) key)
+                        ;; The row the pointer moves onto; rows that the wheel or the keys move
+                        ;; under a pointer at rest do not take the highlight from the keys.
+                        (when (and (ui-moved ui) (/= (menu-state-highlight state) i))
+                          (setf (menu-state-highlight state) i
+                                (ui-consumed ui) t))
+                        (when (ui-pressed ui)
+                          (consume-press ui)
+                          (setf (ui-active ui) key)))
+                      (when (and (= (ui-active ui) key) (ui-released ui))
+                        (consume-release ui)
+                        (setf (ui-active ui) 0)
+                        (when (= (ui-hot ui) key)
+                          (setf chosen i)))
+                      (close-box ui)))
+          ;; The wheel over the menu moves its rows (and nothing under it).
+          (when (or (= (ui-hot ui) (box-key float))
+                    (find (ui-hot ui) rows :key #'box-key))
+            (multiple-value-bind (dx dy) (consume-wheel ui)
+              (declare (ignore dx))
+              (let ((whole (truncate (- dy))))
+                (unless (zerop whole)
+                  (setf (menu-state-top state) (+ top whole)
+                        (ui-consumed ui) t)
+                  (clamp-top)))))
+          ;; For the painter: where the rows shown are among them all.
+          (setf (box-n3 float) count
+                (box-n1 float) (float top 1f0)
+                (box-n2 float) (float shown 1f0))
+          (close-float ui open)))
+      (dolist (event (copy-list (ui-keys ui)))
+        (let ((k (key-event-logical-key event))
+              (highlight (menu-state-highlight state)))
+          (cond ((eql k +key-down+)
+                 (consume-key ui event)
+                 (setf (menu-state-highlight state)
+                       (if (< highlight 0) 0 (min (1- count) (1+ highlight)))))
+                ((eql k +key-up+)
+                 (consume-key ui event)
+                 (setf (menu-state-highlight state)
+                       (if (< highlight 0) (1- count) (max 0 (1- highlight)))))
+                ((and (member k '(#\Return #\Space))
+                      (not (and typing (eql k #\Space))))
+                 (consume-key ui event)
+                 (when (<= 0 highlight (1- count))
+                   (setf chosen highlight)))
+                ((eql k #\Escape)
+                 (consume-key ui event)
+                 (setf closed t))
+                ;; Letters find the first row that begins with what was typed in the last second.
+                ((and (not typing) (characterp k) (graphic-char-p k) (not (eql k #\Space)))
+                 (consume-key ui event)
+                 (let ((now (get-internal-real-time)))
+                   (when (> (- now (menu-state-typed-at state)) internal-time-units-per-second)
+                     (setf (menu-state-typed state) ""))
+                   (setf (menu-state-typed state)
+                         (concatenate 'string (menu-state-typed state) (string k))
+                         (menu-state-typed-at state) now))
+                 (let* ((typed (menu-state-typed state))
+                        (found (position-if (lambda (item)
+                                              (and (>= (length item) (length typed))
+                                                   (string-equal typed item :end2 (length typed))))
+                                            items)))
+                   (when found
+                     (setf (menu-state-highlight state) found)))))))
+      ;; A highlight the keys moved is kept in view, from the next frame.
+      (unless (= highlight-before (menu-state-highlight state))
+        (reveal (menu-state-highlight state))
+        (setf (ui-consumed ui) t)))
     (dolist (row rows)
       (setf (box-n3 row) (if (= (box-id row) (menu-state-highlight state)) 1 0)))
     (when chosen
@@ -1614,9 +1690,11 @@ the field that is being typed in."
 ;;; --- a dropdown ---
 
 (defun dropdown (options selected
-                 &key (id (required-id 'dropdown)) tooltip labelled-by width (enabled t) (flex 0))
+                 &key (id (required-id 'dropdown)) tooltip labelled-by width (enabled t) (flex 0)
+                   max-rows)
   "A button showing the SELECTED one (an index) of OPTIONS (strings), which a press opens into a menu
 of them all: a pop-up button. WIDTH is how wide it is (by default, as wide as the option it shows).
+Its menu shows as many options as fit in the window, or MAX-ROWS, and scrolls.
 Returns the index now and whether the person changed it this frame. With the keyboard on it, the
 space bar, Return and the arrows open the menu."
   (let* ((ui *ui*)
@@ -1650,7 +1728,7 @@ space bar, Return and the arrows open the menu."
                           (make-float-spec :anchor box :placement :below
                                            :min-width (let ((rect (rect-of ui key)))
                                                         (if rect (rect-w rect) 0f0)))
-                          :checked selected)))
+                          :checked selected :max-rows max-rows)))
         (when chosen
           (setf new chosen))))
     (setf (box-n3 box) (if (menu-state-open state) 1 0)
@@ -1659,7 +1737,8 @@ space bar, Return and the arrows open the menu."
 
 ;;; --- a button with a menu of commands ---
 
-(defun menu-button (text items &key (id (required-id 'menu-button)) tooltip (enabled t) (flex 0))
+(defun menu-button (text items &key (id (required-id 'menu-button)) tooltip (enabled t) (flex 0)
+                                     max-rows)
   "A button with TEXT that a press opens into a menu of ITEMS (strings): commands, of which none is
 chosen beforehand. Returns the item chosen, on the frame it is chosen, and otherwise NIL. With the
 keyboard on it, the space bar, Return and the arrows open the menu."
@@ -1690,7 +1769,8 @@ keyboard on it, the space bar, Return and the arrows open the menu."
       (let ((index (menu ui key state items
                          (make-float-spec :anchor box :placement :below
                                           :min-width (let ((rect (rect-of ui key)))
-                                                       (if rect (rect-w rect) 0f0))))))
+                                                       (if rect (rect-w rect) 0f0)))
+                         :max-rows max-rows)))
         (when index
           (setf chosen (nth index items)))))
     (setf (box-n3 box) (if (menu-state-open state) 1 0)

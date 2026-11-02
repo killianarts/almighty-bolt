@@ -514,6 +514,19 @@ behind it fading."
     (:spinner (draw-spinner box list x y))
     (:list-box (draw-list-box box context list x y))))
 
+(defun draw-menu-bar (box list x y)
+  "The bar at the right edge of a menu that shows some of its rows, which says where they are among
+them all: (BOX-N3 BOX) rows, (BOX-N2 BOX) shown from the row (BOX-N1 BOX)."
+  (let ((count (box-n3 box))
+        (shown (box-n2 box))
+        (top (box-n1 box)))
+    (when (< 0 shown count)
+      (let* ((track (- (box-h box) 8))
+             (bar (max 12f0 (* track (/ shown count))))
+             (position (* (- track bar) (/ top (max 1 (- count shown))))))
+        (push-rounded-rect list (+ x (box-w box) -6) (+ y 4 position) 3 bar 1.5
+                           (theme-field-border *theme*))))))
+
 (defun draw-scroll-bar (box list x y)
   "The bar at the right edge of the scroll container BOX that says how much of what is inside shows,
 and where: drawn only when not all of it does."
@@ -589,7 +602,8 @@ kept, and otherwise afresh, which is then kept."
          (push-rounded-rect list (- x 1) (- y 1) (+ (box-w box) 2) (+ (box-h box) 2) 7
                             (theme-field-border *theme*))
          (push-rounded-rect list x y (box-w box) (box-h box) 6 (theme-panel *theme*))
-         (paint-children ui box context list x y))
+         (paint-children ui box context list x y)
+         (draw-menu-bar box list x y))
         ((:scroll :lazy-list)
          (push-clip list x y (box-w box) (box-h box))
          (paint-children ui box context list x y)

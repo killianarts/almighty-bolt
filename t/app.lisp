@@ -3404,3 +3404,59 @@ released unless RELEASE."
                   (corner :mixed)))
     (assert-equal (list (theme:theme-dim-text light)) (glyph-colors-in screen :b))
     (assert-equal (list (theme:parse-color "#ff0000")) (glyph-colors-in screen :c))))
+
+;;; --- a menu longer than the window ---
+
+(defparameter +trees+
+  (loop :for i :below 60
+        :collect (format nil "~a ~2,'0d" (aref #("Ash" "Birch" "Cedar" "Elm" "Fir" "Oak") (floor i 10)) i)))
+
+(defun make-trees ()
+  (state-let ((chosen 0) (few 0))
+    (lambda ()
+      (column (:gap 4)
+        (multiple-value-bind (index changed) (dropdown +trees+ chosen :id :tree)
+          (when changed (setf chosen index)))
+        (label (nth chosen +trees+) :id :tree-chosen)
+        (multiple-value-bind (index changed) (dropdown +trees+ few :id :few :max-rows 5)
+          (when changed (setf few index)))))))
+
+(defun menu-rows-of (session)
+  (mapcar #'s:node-name (s:find-nodes (m:see session) :role :menu-item)))
+
+(define-test a-long-menu-shows-what-fits-and-the-keys-and-wheel-move-it ()
+  (let* ((screen (show 'make-trees))
+         (session (screen-session screen)))
+    (m:click session :id :tree)
+    (let ((rows (menu-rows-of session))
+          (menu (first (s:find-nodes (m:see session) :role :menu))))
+      ;; Some of the sixty, the first among them, in a menu inside the window.
+      (assert-true (< 3 (length rows) 60) (length rows))
+      (assert-equal "Ash 00" (first rows))
+      (assert-true (<= (+ (second (s:node-bounds menu)) (fourth (s:node-bounds menu))) 320)
+                   (s:node-bounds menu))
+      ;; The wheel moves the rows.
+      (m:scroll session :role :menu :dy -5)
+      (assert-false (equal "Ash 00" (first (menu-rows-of session)))))
+    ;; Down thirty times: the highlighted row is in view, and Return chooses it.
+    (dotimes (i 30) (m:press-key session :down))
+    (assert-true (member "Elm 30" (menu-rows-of session) :test #'equal) (menu-rows-of session))
+    (m:press-key session :return)
+    (assert-equal "Elm 30" (text-in screen :tree-chosen))
+    ;; Letters typed go to the first row that begins with them.
+    (m:click session :id :tree)
+    (m:press-key session #\o)
+    (m:press-key session #\a)
+    (m:press-key session :return)
+    (assert-equal "Oak 50" (text-in screen :tree-chosen))))
+
+(define-test a-menu-shows-no-more-rows-than-it-is-told-and-an-agent-reaches-any ()
+  (let* ((screen (show 'make-trees))
+         (session (screen-session screen)))
+    (m:click session :id :few)
+    (assert-eql 5 (length (menu-rows-of session)))
+    (m:press-key session :escape)
+    (m:set-value session "Fir 45" :id :tree)
+    (assert-equal "Fir 45" (text-in screen :tree-chosen))
+    (m:set-value session "Birch 12" :id :tree)
+    (assert-equal "Birch 12" (text-in screen :tree-chosen))))
