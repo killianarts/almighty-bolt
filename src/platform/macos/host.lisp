@@ -124,6 +124,7 @@
            #:host-wake
            #:host-idle-p
            #:wait-for-idle
+           #:wait-for-first-frame
            #:host-kept-state
            #:mac-context-pasteboard
            #:swap-variant
@@ -253,7 +254,10 @@ copied is kept in the context and the person's clipboard is never touched."
   ;; Callers of WAIT-FOR-IDLE, and the queue they wait on. A frame that ends with nothing more
   ;; wanted wakes them if there are any; with none it reads one number.
   (waiters 0 :type fixnum)
-  (idle-queue (sb-thread:make-waitqueue :name "host idle")))
+  (idle-queue (sb-thread:make-waitqueue :name "host idle"))
+  ;; True once a frame has been made: until then the window has no size, and a host that has
+  ;; done nothing yet is idle without having shown anything.
+  (drawn nil :type boolean))
 
 (defmethod print-object ((host host) stream)
   ;; What a REPL shows after (OPEN-APP ...), which returns the host: not its parts.
@@ -330,14 +334,17 @@ the window answers on the frames that follow."
   "End a frame. Returns true if a frame was requested while it was made and there is
 a way to ask for another."
   (sb-thread:with-mutex ((host-lock host))
-    (setf (host-drawing-p host) nil)
+    (setf (host-drawing-p host) nil
+          (host-drawn host) t)
     (let ((again (and (host-wake host)
                       (take-frame-request (host-context host)))))
-      (cond (again
-             ;; The caller wakes the view next, outside the lock.
-             (setf (host-draw-pending host) t))
-            ((plusp (host-waiters host))
-             (sb-thread:condition-broadcast (host-idle-queue host))))
+      (when again
+        ;; The caller wakes the view next, outside the lock.
+        (setf (host-draw-pending host) t))
+      ;; Every waiter is woken at the end of a frame, and looks again at what it waits for: idle, or
+      ;; (WAIT-FOR-FIRST-FRAME) a frame at all, which an animation that never rests also makes.
+      (when (plusp (host-waiters host))
+        (sb-thread:condition-broadcast (host-idle-queue host)))
       again)))
 
 (defun idle-p (host)
@@ -351,16 +358,15 @@ screen."
   (sb-thread:with-mutex ((host-lock host))
     (idle-p host)))
 
-(defun wait-for-idle (host &key (timeout 5))
-  "Wait until HOST-IDLE-P, at most TIMEOUT seconds. Returns true if it is idle. The frame that
-ends with nothing more wanted wakes the waiter; nothing polls, and a window that nobody waits for pays
-a read of one number a frame."
+(defun wait-until (host test timeout)
+  "Wait until TEST, called with HOST's lock held, is true, at most TIMEOUT seconds; the end of each
+frame wakes the waiter to look again. Returns what TEST last returned."
   (let ((deadline (+ (get-internal-real-time) (* timeout internal-time-units-per-second))))
     (sb-thread:with-mutex ((host-lock host))
       (incf (host-waiters host))
       (unwind-protect
            (loop
-             (when (idle-p host)
+             (when (funcall test)
                (return t))
              (let ((left (/ (- deadline (get-internal-real-time)) internal-time-units-per-second)))
                (when (<= left 0)
@@ -371,8 +377,19 @@ a read of one number a frame."
                  (unless (sb-thread:holding-mutex-p (host-lock host))
                    (sb-thread:grab-mutex (host-lock host)))
                  (unless woken
-                   (return (idle-p host))))))
+                   (return (funcall test))))))
         (decf (host-waiters host))))))
+
+(defun wait-for-first-frame (host &key (timeout 5))
+  "Wait until HOST has made a frame (and so the window has its size), at most TIMEOUT seconds.
+Returns true if it has."
+  (wait-until host (lambda () (host-drawn host)) timeout))
+
+(defun wait-for-idle (host &key (timeout 5))
+  "Wait until HOST-IDLE-P, at most TIMEOUT seconds. Returns true if it is idle. The frame that
+ends wakes the waiter; nothing polls, and a window that nobody waits for pays a read of one number a
+frame."
+  (wait-until host (lambda () (idle-p host)) timeout))
 
 (defun report-hot-reload (what condition)
   "Say on the error output that WHAT happened, and why. Printed without the pretty printer, which

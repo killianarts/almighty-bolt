@@ -285,6 +285,9 @@ them in the boxes, and return the width and height."
            (context-measure context (context-font context (theme-font-name *theme*) 13) (box-text box))
          (set-box box (constrain (+ (float width 1f0) (spaced 16)) min-w max-w)
                   (constrain (+ (float (+ ascent descent) 1f0) (spaced 8)) min-h max-h))))
+      (:spacer
+       ;; As small as it may be: a flex gives it its share as its least size.
+       (set-box box (constrain 0f0 min-w max-w) (constrain 0f0 min-h max-h)))
       (:catcher
        (set-box box (if (< max-w +unbounded+) max-w min-w) (if (< max-h +unbounded+) max-h min-h)))
       (:switch

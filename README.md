@@ -51,9 +51,9 @@ below lists them bare.
   own state doesn't mean you lose Lisp's typical hot-reloading. Compiling your
   app's UI function updates live, open apps.
 
-- **Seventeen widgets and eleven containers.** Label, paragraph, button, menu
+- **Eighteen widgets and eleven containers.** Label, paragraph, button, menu
   button, text field, combo box, text area, slider, choice, dropdown, check box, switch,
-  spinner, list box, progress bar, canvas and scrim; row, column, stack,
+  spinner, list box, progress bar, canvas, scrim and spacer; row, column, stack,
   padding, panel, center, scroll, lazy list, context menu, popover and dialog.
   Menus, popovers, dialogs, tooltips and toasts float above the screen, and the
   system's Open and Save panels choose files.
@@ -146,6 +146,7 @@ holds, and it gives you the new one:
 | `(list-box items selected &key id labelled-by rows width enabled flex)`      | the index now, whether it was changed                                       |
 | `(canvas width height painter &key id labelled-by focusable autofocus cursor flex)` | the events for the canvas, oldest first                                     |
 | `(scrim &key id)`                                                            | true when pressed: a translucent layer over what is before it in a `stack`  |
+| `(spacer &key flex)`                                                         | (empty room that takes the free space of its row or column; it needs no id) |
 
 Containers take their options in a list and their children after it:
 `(bolt:column (:gap 10 :cross-align :center) ...)`. They are `column`, `row`,

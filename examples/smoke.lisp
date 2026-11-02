@@ -228,6 +228,11 @@ that wants a pipe, through netcat."
 
 (defun checks (host)
   "Everything that is checked of the open window HOST."
+  ;; First of all, before anything has waited for the window: a session is not handed out before
+  ;; there is something to see.
+  (let ((size (png-size (m:screenshot (open-session)))))
+    (check "a screenshot taken the moment a session is opened is of the whole window"
+           (and size (= (first size) (* 2 360)) (= (second size) (* 2 160))) size))
   (wait-for (lambda () (plusp (frame-ring-total (host-ring host)))) 20)
   (sleep 1.0)
   (check "the window shows the example's button" (present-p host :count-button))

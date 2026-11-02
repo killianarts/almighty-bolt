@@ -16,10 +16,13 @@ are not listed.
 
 - `:cursor` on `canvas`: the shape the pointer has over it ([0.3](docs/releases/dev.md#input)).
 - `shortcut`, true in the frame a keyboard shortcut is pressed ([0.3](docs/releases/dev.md#input)).
+- `spacer`, empty room that takes the free space of its row or column ([0.3](docs/releases/dev.md#layout)).
 - `:within` on the machine interface's calls and the MCP server's tools: the container a thing is in, for an id used in more than one container ([0.3](docs/releases/dev.md#machine-interface)).
 - Spacing in a theme: `:spacing`, a scale that the paddings, gaps and heights of the controls are worked out from, and each of those sizes on its own; and a Spacing slider in the theme designer ([0.3](docs/releases/dev.md#spacing-in-a-theme)).
 
 ### Changed
+
+- A `list-box` scrolls to show the selected row on its first frame and when the app selects another ([0.3](docs/releases/dev.md#input)).
 
 ### Deprecated
 
@@ -32,6 +35,7 @@ are not listed.
 - The pointer is a text cursor over text that can be edited or selected ([0.3](docs/releases/dev.md#bug-fixes)).
 - The menu bar has the Edit and Window menus and the application menu's Hide, Hide Others and Show All ([0.3](docs/releases/dev.md#bug-fixes)).
 - A keyboard shortcut with Command and Option (`(shortcut #\i :command :option)`) is the key pressed, not what Option makes of it ([0.3](docs/releases/dev.md#bug-fixes)).
+- `open-session` returns once the window has made its first frame, so a screenshot taken at once is of the window and not one pixel ([0.3](docs/releases/dev.md#bug-fixes)).
 - A field's `:labelled-by` names the label nearest it, so two containers can each have a label and a field with the same ids ([0.3](docs/releases/dev.md#bug-fixes)).
 - A panel whose `:color` is transparent draws nothing behind what is in it, instead of the theme's panel colour ([0.3](docs/releases/dev.md#bug-fixes)).
 - A slider whose value the app rounds no longer warns that a frame did not settle while it is dragged ([0.3](docs/releases/dev.md#bug-fixes)).

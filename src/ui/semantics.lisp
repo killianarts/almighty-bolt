@@ -110,7 +110,7 @@
     (:dialog :dialog)
     (:toasts :group)
     (:toast :toast)
-    (:catcher :none)
+    ((:catcher :spacer) :none)
     (:list-box :list)
     (:canvas :canvas)
     (:scrim :overlay)
@@ -264,8 +264,10 @@ shows; one that is all out of sight is :hidden, with no width or height."
                        (loop :for child :across (box-children box)
                              :collect (node-of ui child x y shown-left shown-top
                                                (+ shown-left shown-w) (+ shown-top shown-h)))
+                       ;; A spacer is room and nothing more, and says nothing to anyone.
                        (loop :for child :across (box-children box)
-                             :collect (node-of ui child x y left top right bottom)))))
+                             :unless (eq (box-kind child) :spacer)
+                               :collect (node-of ui child x y left top right bottom)))))
     (append (and id (list :id id))
             (list :role (role-of box))
             (and name (list :name name))

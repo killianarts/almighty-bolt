@@ -208,6 +208,7 @@
            #:describe-toasts
            #:toast
            #:shortcut
+           #:spacer
            #:+tooltip-delay-ns+
            #:text-area
            #:area-state
@@ -351,6 +352,15 @@ the box a press began on), 3 disabled, and 4 more if it has the keyboard."
              (box-n1 ,box) (float ,radius 1f0)
              (box-flex ,box) (float ,flex 1f0))
        ,@body)))
+
+(defun spacer (&key (flex 1))
+  "Empty room that takes FLEX shares of the free space of the row or column it is in: in a row, what
+is after it goes to the right edge. It holds nothing, so it needs no id, and it is not in the semantic
+tree."
+  (let ((box (open-box *ui* :spacer)))
+    (setf (box-flex box) (float flex 1f0))
+    (close-box *ui*)
+    nil))
 
 (defmacro center ((&key id (flex 0)) &body body)
   "The child in the middle of all the room there is."
@@ -1918,7 +1928,9 @@ with a spinner showing is not at rest."
 
 (defstruct (list-state (:constructor make-list-state ()))
   (top 0 :type fixnum)
-  (remainder 0f0 :type single-float))
+  (remainder 0f0 :type single-float)
+  ;; The index the app last gave as the selected one, or :NONE before the first frame.
+  (given :none))
 
 (defun list-box (items selected
                  &key (id (required-id 'list-box)) tooltip labelled-by
@@ -1931,13 +1943,21 @@ NIL) marked. Returns the index now and whether the person changed it this frame.
          (state (state-of ui key #'make-list-state))
          (count (length items))
          (new selected))
-    (flet ((pick (index)
-             (when (and (<= 0 index) (< index count))
-               (setf new index)
-               ;; Scroll to show it.
+    (labels ((reveal (index)
+               ;; Scroll as little as shows the row INDEX.
                (cond ((< index (list-state-top state)) (setf (list-state-top state) index))
                      ((>= index (+ (list-state-top state) rows))
-                      (setf (list-state-top state) (1+ (- index rows))))))))
+                      (setf (list-state-top state) (1+ (- index rows))))))
+             (pick (index)
+               (when (and (<= 0 index) (< index count))
+                 (setf new index)
+                 (reveal index))))
+      ;; A selected row the app gives, on the first frame or changed since, is scrolled into
+      ;; view; one that stays the same is left where the wheel put it.
+      (unless (eql selected (list-state-given state))
+        (setf (list-state-given state) selected)
+        (when (and selected (< -1 selected count))
+          (reveal selected)))
       (setf (box-enabled box) enabled
             (box-interactive box) enabled
             (box-focusable box) enabled

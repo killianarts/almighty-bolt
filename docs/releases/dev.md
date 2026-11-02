@@ -61,7 +61,11 @@ A theme that gives the spacing works out every size again, except those it gives
 
 #### Layout
 
+- `(spacer)` is empty room that takes the free space of the row or column it is in, so that what comes after it goes to the far edge: `(row (:fill t) (label "Title" :id :title) (spacer) (button "Done" :id :done))`. `:flex` gives it more than one share. It needs no id, since it holds nothing, and it is not in the semantic tree. It replaces an empty `(row (:id :gap :flex 1))`.
+
 #### Input
+
+- A `list-box` whose selected row is out of its window shows it: on its first frame, and when the app selects a row other than the one it selected before (say, from a search field beside it). While the selection stays the same, the list stays where the wheel put it. Before, a list opened at its top whatever was selected.
 
 - `(shortcut #\s :command)` is true in the frame its keys are pressed, for the app's own keyboard shortcuts: `(when (bolt:shortcut #\s :command) (save))`. It takes the key, and the modifiers held must be the ones given.
 - `canvas` takes `:cursor`, the shape the pointer has over it: a crosshair to draw with, a pointing hand over something that can be pressed, a hand to drag with, arrows to resize. The app can give another each frame.
@@ -105,6 +109,7 @@ These features have reached the end of their deprecation cycle. See the
 - The pointer was an arrow everywhere. It is now a text cursor over text fields, text areas, combo boxes and selectable text, as in other Mac apps.
 - The menu bar had the application's menu with Quit only. It now has the menus every Mac app has: Hide, Hide Others and Show All beside Quit; Edit, with Undo, Redo, Cut, Copy, Paste and Select All, which do what their keys do in whatever has the keyboard; and Window, with Minimize, Zoom and Close.
 - A key pressed with Command and Option was what Option makes of the key (Option-I is the dead key of the circumflex, and types nothing), so a `shortcut` with `:option` never came. With Command held, the key is now the key itself.
+- A screenshot taken through a session opened as soon as a window was there (in `run-app`'s `:driver`, say) was a PNG one pixel square, since the window had not yet made a frame or been given its size. `open-session` now returns once it has.
 - `:labelled-by` named a field after the first widget in the window with that id, though ids need be unique only within a container: of two panels that each had a label `:title` and a field labelled by it, both fields were called by the first panel's label. A field is now named by the label nearest it: among what is in its own container first, then outward.
 - A panel given a transparent `:color` (`"#00000000"`, or `(pack-color 0 0 0 0)`) was drawn in the theme's panel colour, since 0 stood for "the theme's". It now draws nothing, and a panel with no `:color` is the theme's. The same holds for a label's or a paragraph's `:color`.
 - A slider whose value the app keeps rounded (a whole number, say) was moved again in every build of a frame while the pointer held it, so the frame did not settle and a warning was printed, every frame of a drag. It now slides only when the pointer has moved, and shows the value the app keeps. The theme designer's Size, Corners and Spacing sliders did this.

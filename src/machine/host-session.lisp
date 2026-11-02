@@ -22,7 +22,8 @@
                 #:host-renderer
                 #:host-display-list
                 #:host-deliver-event
-                #:wait-for-idle)
+                #:wait-for-idle
+                #:wait-for-first-frame)
   (:import-from #:almighty-bolt/render/metal/device
                 #:default-device)
   (:import-from #:almighty-bolt/render/metal/target
@@ -72,8 +73,11 @@ texture that nobody sees, between frames, on the main thread."
                 :screenshot (lambda () (host-screenshot host))))
 
 (defun open-session ()
-  "A session on the window that OPEN-APP or RUN-APP has open, or an error if there is none."
+  "A session on the window that OPEN-APP or RUN-APP has open, or an error if there is none. It is
+returned once the window has made its first frame, so that what is seen and photographed through it
+is the window and not the nothing before it."
   (let ((host (running-host)))
     (unless host
       (error 'cannot :message "There is no window open: call open-app or run-app first."))
+    (wait-for-first-frame host)
     (host-session host)))

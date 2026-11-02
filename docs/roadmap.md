@@ -29,6 +29,6 @@ What is planned after [0.1](releases/0.1.md). These are plans, not promises, and
   - An API for writing your own widgets, which says how a widget appears in the semantic tree.
   - A widget designer, to build new widgets.
   - A GUI designer, to build a screen by placing widgets instead of writing code.
-- **Widgets made with the widget designer.** These come after the designer and are built with it, to test it: a number stepper, a divider and a spacer, a collapsible section, a link, chips, badges and cards, and a toolbar, a sidebar and a status bar.
+- **Widgets made with the widget designer.** These come after the designer and are built with it, to test it: a number stepper, a divider, a collapsible section, a link, chips, badges and cards, and a toolbar, a sidebar and a status bar.
 - **Delivery.** An application bundle (`.app`) with an icon, and signing; and a helper for work that goes on in the background while the window stays alive.
 - **Platforms.** Windows and Linux. A Coalton library.

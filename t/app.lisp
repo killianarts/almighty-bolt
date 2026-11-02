@@ -3136,3 +3136,67 @@ released unless RELEASE."
                                               :modifiers core:+modifier-super+))
       (draw screen)
       (assert-eql 0 (color-at screen (+ x 4) (+ y 4))))))
+
+;;; --- a spacer ---
+
+(defun make-toolbar ()
+  (lambda ()
+    (column (:gap 8)
+      (row (:id :bar :fill t)
+        (button "Left" :id :left)
+        (spacer)
+        (button "Right" :id :right))
+      (row (:id :shares :fill t)
+        (label "a" :id :a)
+        (spacer)
+        (label "b" :id :b)
+        (spacer :flex 2)
+        (label "c" :id :c)))))
+
+(define-test a-spacer-takes-the-free-room-and-is-not-in-the-tree ()
+  (let* ((screen (show 'make-toolbar))
+         (tree (m:see (screen-session screen))))
+    (destructuring-bind (x y width height) (s:node-bounds (first (s:find-nodes tree :id :right)))
+      (declare (ignore y height))
+      ;; The button after the spacer is at the right edge of the window.
+      (assert-true (< (abs (- 360 (+ x width))) 0.5) (list x width)))
+    ;; The spacers say nothing: the rows hold only what was put in them besides.
+    (assert-equal '(:left :right)
+                  (mapcar #'s:node-id (s:node-children (first (s:find-nodes tree :id :bar)))))
+    ;; A spacer of flex 2 takes twice what one of flex 1 takes.
+    (flet ((left-of (id) (first (s:node-bounds (first (s:find-nodes tree :id id)))))
+           (right-of (id) (destructuring-bind (x y w h) (s:node-bounds (first (s:find-nodes tree :id id)))
+                            (declare (ignore y h))
+                            (+ x w))))
+      (let ((one (- (left-of :b) (right-of :a)))
+            (two (- (left-of :c) (right-of :b))))
+        (assert-true (< (abs (- two (* 2 one))) 1) (list one two))))))
+
+;;; --- a list that shows what is chosen ---
+
+(defun make-long-pick ()
+  (state-let ((chosen 40))
+    (lambda ()
+      (column (:gap 8)
+        (when (button "Five" :id :five) (setf chosen 5))
+        (multiple-value-bind (index changed)
+            (list-box (loop :for i :below 60 :collect (format nil "Item ~d" i)) chosen
+                      :id :items :rows 8)
+          (when changed (setf chosen index)))))))
+
+(define-test a-list-shows-the-row-the-app-chose-and-leaves-the-wheel-alone ()
+  (let* ((screen (show 'make-long-pick))
+         (session (screen-session screen)))
+    (flet ((first-visible () (s:node-property (node-of screen :items) :first-visible)))
+      ;; On its first frame, the chosen row shows.
+      (assert-true (<= (first-visible) 40 (+ (first-visible) 7)) (first-visible))
+      ;; The wheel moves it away, and while the choice is the same it stays where it was moved.
+      (m:scroll session :id :items :dy 20)
+      (let ((moved (first-visible)))
+        (assert-true (< moved 33) moved)
+        (draw screen)
+        (assert-eql moved (first-visible)))
+      ;; A row the app chooses is brought into view.
+      (m:scroll session :id :items :dy -100)
+      (click screen :five)
+      (assert-true (<= (first-visible) 5 (+ (first-visible) 7)) (first-visible)))))

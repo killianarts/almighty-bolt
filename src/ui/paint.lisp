@@ -576,7 +576,7 @@ kept, and otherwise afresh, which is then kept."
              (push-unclip list))))
         (:scrim
          (push-rect list x y (box-w box) (box-h box) (theme-scrim *theme*)))
-        (:catcher)
+        ((:catcher :spacer))
         (:toasts (paint-children ui box context list x y))
         ((:popover :dialog)
          (push-rounded-rect list (- x 1) (- y 1) (+ (box-w box) 2) (+ (box-h box) 2) 11
