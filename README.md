@@ -60,10 +60,6 @@ below lists them bare.
 
 - **Canvas.** For drawing non-widget elements.
 
-- **Inspector.** Command-Option-I in any app shows what the widget you pick
-  is (its kind, id, value, place, size and theme), changes its value, and
-  changes its theme while you look.
-
 - **MCP Server.** For our LLM friends.
   
 ## Getting it

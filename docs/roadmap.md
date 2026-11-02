@@ -4,12 +4,11 @@ What is planned after [0.1](releases/0.1.md). These are plans, not promises, and
 
 ## Next
 
-Nothing is next yet.
+- **Windows.** More than one window, control over a window's title, size limits and full screen, and an app's own menus in the menu bar. More than one window comes first: the designer and tester app (under Tools) is a window of its own.
 
 ## Later
 
 - **Images and icons.**
-- **Windows.** More than one window, control over a window's title, size limits and full screen, and an app's own menus in the menu bar.
 - **Text and layout.**
   - Bold, italic and a font for each widget; rich text.
   - Grid and wrapping layouts, minimum and maximum sizes, and splitters.
@@ -26,6 +25,7 @@ Nothing is next yet.
   - Animation helpers (easing and tweens).
   - Undo and redo of the app's own changes (text fields undo their own already).
 - **Tools.**
+  - A designer and tester app, in windows of its own beside the app being developed (in development only, never in the app that is delivered), which the tools below live in. Its first window is an inspector: click a widget in the running app to see what it is (its kind, id, value, place, size and theme), change its value as a hand would, and change its theme. (Needs more than one window, under Windows.)
   - An API for writing your own widgets, which says how a widget appears in the semantic tree.
   - A widget designer, to build new widgets.
   - A GUI designer, to build a screen by placing widgets instead of writing code.

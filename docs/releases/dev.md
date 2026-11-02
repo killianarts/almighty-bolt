@@ -49,18 +49,6 @@ The room in a toast and a tooltip follows the spacing too. What a mark is (a che
 
 A theme that gives the spacing works out every size again, except those it gives as well; a theme that does not give it keeps its base's. `theme-form` writes the spacing and the sizes down as numbers, and `+theme-sizes+` lists the sizes with what each is at a spacing of 1. The theme designer has a Spacing slider, from 50% to 200%.
 
-### The inspector
-
-Command-Option-I in any app opens the inspector: a panel down the right of the window, beside the app. Press Pick, then a widget, and the press picks it instead of pressing it; the panel says what it is, and an outline shows where.
-
-- Its kind and role, its id, its name and value, where it is and how big, and the theme it is drawn in.
-- Whether it is enabled, and what the semantic tree says of its state: whether a check box is checked, the items of a list, the options of a choice.
-- While it picks, the outline follows the pointer; Escape stops.
-- It changes the picked widget's value as a hand would: Press for a button or a check box, a field and Set for a text field or a slider, a button for each option of a choice, a dropdown or a list. The app stays in charge of what it holds, and the panel says why when something cannot be done (the widget is disabled).
-- It changes a setting of the theme the picked widget is drawn in (`accent`, `row-height`, `font-size`), which defines that theme again, and shows the theme's `define-theme` form to copy into the app's code.
-
-What it says is of the last frame drawn. The pick is kept while the widget is described in the same place, so it survives a hot reload. The inspector is above a dialog, which would otherwise keep the pointer from it, and it is not in the semantic tree, so an agent or a screen reader sees the app alone.
-
 ### Minor features
 
 #### Windowing
@@ -114,5 +102,5 @@ These features have reached the end of their deprecation cycle. See the
 - An app whose whole interface was a dialog (or anything else that floats), with nothing described under it, showed an empty window. It now shows the dialog over an empty screen.
 - The pointer was an arrow everywhere. It is now a text cursor over text fields, text areas, combo boxes and selectable text, as in other Mac apps.
 - The menu bar had the application's menu with Quit only. It now has the menus every Mac app has: Hide, Hide Others and Show All beside Quit; Edit, with Undo, Redo, Cut, Copy, Paste and Select All, which do what their keys do in whatever has the keyboard; and Window, with Minimize, Zoom and Close.
-- A key pressed with Command and Option was what Option makes of the key (Option-I is the dead key of the circumflex, and types nothing), so a `shortcut` with `:option` never came, and Command-Option-I did not open the inspector. With Command held, the key is now the key itself.
+- A key pressed with Command and Option was what Option makes of the key (Option-I is the dead key of the circumflex, and types nothing), so a `shortcut` with `:option` never came. With Command held, the key is now the key itself.
 - A slider whose value the app keeps rounded (a whole number, say) was moved again in every build of a frame while the pointer held it, so the frame did not settle and a warning was printed, every frame of a drag. It now slides only when the pointer has moved, and shows the value the app keeps. The theme designer's Size, Corners and Spacing sliders did this.

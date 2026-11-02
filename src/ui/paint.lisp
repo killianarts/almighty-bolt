@@ -594,14 +594,7 @@ kept, and otherwise afresh, which is then kept."
          (push-unclip list)
          (paint-ring-past-edges ui box context list x y)
          (draw-scroll-bar box list x y))
-        (:outline
-         ;; A frame two points wide, inside the edges.
-         (let ((w (box-w box)) (h (box-h box)) (color (box-color box)))
-           (push-rect list x y w 2 color)
-           (push-rect list x (+ y h -2) w 2 color)
-           (push-rect list x y 2 h color)
-           (push-rect list (+ x w -2) y 2 h color)))
-        ((:panel :inspector)
+        (:panel
          (push-rounded-rect list x y (box-w box) (box-h box) (box-n1 box)
                             (if (zerop (box-color box)) (theme-panel *theme*) (box-color box)))
          (paint-children ui box context list x y))

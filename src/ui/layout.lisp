@@ -395,9 +395,7 @@ them in the boxes, and return the width and height."
                      (< (* end row-height) (min content-h (+ offset h))))
              (request-frame context)))
          (set-box box w h)))
-      (:outline
-       (set-box box (constrain (box-pref-w box) min-w max-w) (constrain (box-pref-h box) min-h max-h)))
-      ((:padding :panel :inspector)
+      ((:padding :panel)
        (let ((children (box-children box)))
          (flet ((measure (a b c d)
                   (layout-box (aref children 0) context a b c d)))

@@ -56,7 +56,6 @@
            #:float-spec-y
            #:float-spec-min-width
            #:float-spec-modal
-           #:float-spec-inspector
            #:ui-parent
            #:ui-count
            #:ui-boxes
@@ -65,9 +64,6 @@
            #:ui-hot
            #:ui-hot-since
            #:ui-toasts
-           #:ui-inspector
-           #:ui-inspector-keyboard
-           #:+inspector-layer+
            #:ui-tooltip-dismissed
            #:ui-active
            #:ui-focus
@@ -213,10 +209,6 @@
   ;; The toasts showing, oldest first: (words . until), UNTIL a time in nanoseconds.
   (toasts '() :type list)
   (tooltip-dismissed nil)
-  ;; The inspector's state, if it has been opened (see inspector.lisp), and whether the keyboard is
-  ;; in it this frame, when the app's shortcuts leave the keys to it.
-  (inspector nil)
-  (inspector-keyboard nil)
   (active 0 :type fixnum)
   (focus 0 :type fixnum)
   ;; True once a frame has been laid out and drawn: the window has opened, and a canvas that asks
@@ -392,25 +384,17 @@ the same key are an error (DUPLICATE-ID): the ui could not tell them apart."
 ;;; and so on top. Its key comes from its owner's (the widget's) key, so that a dropdown in every row
 ;;; of a list has a menu of its own.
 
-(defconstant +inspector-layer+ -1
-  "The layer of what the pointer finds in the inspector's floats: not the app's, so that a dialog
-of the app, which keeps the keyboard in its own layer, leaves it in the inspector too.")
-
 (defstruct (float-spec (:constructor make-float-spec
-                           (&key anchor (placement :below) (x 0f0) (y 0f0) (min-width 0f0) modal
-                                 inspector)))
+                           (&key anchor (placement :below) (x 0f0) (y 0f0) (min-width 0f0) modal)))
   "Where a float goes. PLACEMENT is :below (or above, if there is no room below) or :right of the box
-ANCHOR, :at the point X, Y of the window, :center of the window, :fill the window, or (the inspector's
-panel) :side, MIN-WIDTH wide down the right of the window. MIN-WIDTH is the least it is as wide. A
-MODAL float is one the keyboard stays in. An INSPECTOR float is the inspector's: it is laid out
-against the whole window, and is not in the semantic tree."
+ANCHOR, :at the point X, Y of the window, :center of the window, or :fill the window. MIN-WIDTH is the
+least it is as wide. A MODAL float is one the keyboard stays in."
   (anchor nil)
   (placement :below :type keyword)
   (x 0f0 :type single-float)
   (y 0f0 :type single-float)
   (min-width 0f0 :type single-float)
-  (modal nil)
-  (inspector nil))
+  (modal nil))
 
 (defun open-float (ui kind owner id spec)
   "Start a float of KIND belonging to the box with the key OWNER, called ID among that box's floats

@@ -44,7 +44,6 @@
                 #:ui-hot
                 #:ui-hot-since
                 #:ui-toasts
-                #:ui-inspector-keyboard
                 #:ui-tooltip-dismissed
                 #:ui-active
                 #:ui-focus
@@ -209,7 +208,6 @@
            #:describe-toasts
            #:toast
            #:shortcut
-           #:take-shortcut
            #:+tooltip-delay-ns+
            #:text-area
            #:area-state
@@ -2142,12 +2140,7 @@ after the app's function, with the build's boxes made."
 MODIFIERS held: :command, :shift, :option and :control. The key is taken, so nothing described after
 this sees it. A widget described before it that has the keyboard takes the keys it uses first (a text
 field takes Command-A, -C, -V, -X and -Z). The menu bar's keys (Command-H, -M, -Q and -W) never
-reach the app, nor does any key while the keyboard is in the inspector."
-  (and (not (ui-inspector-keyboard *ui*))
-       (apply #'take-shortcut key modifiers)))
-
-(defun take-shortcut (key &rest modifiers)
-  "SHORTCUT, whoever has the keyboard: for the inspector's own keys."
+reach the app."
   (let ((ui *ui*)
         (want (loop :for modifier :in modifiers
                     :sum (ecase modifier
@@ -2224,7 +2217,7 @@ counting its children."
                    ;; A row of a lazy list is placed by its index.
                    (:column (mix layout (box-n3 box)))
                    ;; A float is put where its spec says (its anchor's place is the screen's).
-                   ((:menu :catcher :tooltip :popover :dialog :toasts :inspector :outline)
+                   ((:menu :catcher :tooltip :popover :dialog :toasts)
                     (let ((spec (box-data box)))
                       (hash-numbers layout (hash-of (float-spec-placement spec))
                                     (hash-of (float-spec-x spec)) (hash-of (float-spec-y spec))

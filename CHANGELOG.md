@@ -16,7 +16,6 @@ are not listed.
 
 - `:cursor` on `canvas`: the shape the pointer has over it ([0.3](docs/releases/dev.md#input)).
 - `shortcut`, true in the frame a keyboard shortcut is pressed ([0.3](docs/releases/dev.md#input)).
-- The inspector: Command-Option-I in any app opens a panel that says what a picked widget is and changes its value and its theme ([0.3](docs/releases/dev.md#the-inspector)).
 - Spacing in a theme: `:spacing`, a scale that the paddings, gaps and heights of the controls are worked out from, and each of those sizes on its own; and a Spacing slider in the theme designer ([0.3](docs/releases/dev.md#spacing-in-a-theme)).
 
 ### Changed
@@ -31,7 +30,7 @@ are not listed.
 - An app that is only a dialog, with nothing under it, shows the dialog instead of an empty window ([0.3](docs/releases/dev.md#bug-fixes)).
 - The pointer is a text cursor over text that can be edited or selected ([0.3](docs/releases/dev.md#bug-fixes)).
 - The menu bar has the Edit and Window menus and the application menu's Hide, Hide Others and Show All ([0.3](docs/releases/dev.md#bug-fixes)).
-- A keyboard shortcut with Command and Option (Command-Option-I, which opens the inspector, or `(shortcut #\i :command :option)`) is the key pressed, not what Option makes of it ([0.3](docs/releases/dev.md#bug-fixes)).
+- A keyboard shortcut with Command and Option (`(shortcut #\i :command :option)`) is the key pressed, not what Option makes of it ([0.3](docs/releases/dev.md#bug-fixes)).
 - A slider whose value the app rounds no longer warns that a frame did not settle while it is dragged ([0.3](docs/releases/dev.md#bug-fixes)).
 
 ### Security
