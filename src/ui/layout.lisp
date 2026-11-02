@@ -45,6 +45,8 @@
                 #:paragraph-state-lines
                 #:paragraph-state-wrapped-at
                 #:paragraph-state-theme-id
+                #:paragraph-state-font
+                #:box-text-font
                 #:set-paragraph-lines
                 #:scroll-state-offset
                 #:scroll-state-content-height
@@ -180,7 +182,7 @@ them in the boxes, and return the width and height."
   (let ((*theme* (box-theme box)))
     (ecase (box-kind box)
       (:label
-       (let ((font (context-font context (theme-font-name *theme*) (box-size box))))
+       (let ((font (box-text-font context box)))
          (multiple-value-bind (width ascent descent) (context-measure context font (box-text box))
            (set-box box
                     (constrain (float width 1f0) min-w max-w)
@@ -188,13 +190,15 @@ them in the boxes, and return the width and height."
       (:paragraph
        (let* ((state (box-data box))
               (text (box-text box))
-              (font (context-font context (theme-font-name *theme*) (box-size box)))
+              (font (box-text-font context box))
               (wrap (if (< max-w +unbounded+) max-w 100000f0)))
          ;; Broken again only if the text or the width is not what the lines were made for.
          (unless (and (= (paragraph-state-wrapped-at state) wrap)
                       (= (paragraph-state-theme-id state) (theme-id *theme*))
+                      (equal (paragraph-state-font state) font)
                       (string= (paragraph-state-text state) text))
-           (set-paragraph-lines state text wrap (context-break-lines context font text wrap)))
+           (set-paragraph-lines state text wrap (context-break-lines context font text wrap))
+           (setf (paragraph-state-font state) font))
          (multiple-value-bind (width ascent descent) (context-measure context font "Hg")
            (declare (ignore width))
            (let ((widest 0f0))

@@ -17,6 +17,7 @@ are not listed.
 - `:cursor` on `canvas`: the shape the pointer has over it ([0.3](docs/releases/dev.md#input)).
 - `shortcut`, true in the frame a keyboard shortcut is pressed ([0.3](docs/releases/dev.md#input)).
 - `:width`, `:height`, `:min-width`, `:min-height`, `:max-width` and `:max-height` on `column`, `row`, `stack`, `padding`, `panel` and `center` ([0.3](docs/releases/dev.md#layout)).
+- `:weight :bold` and `:font` on `label` and `paragraph` ([0.3](docs/releases/dev.md#text)).
 - `:style :segmented` on `choice`: joined segments, for switching between views ([0.3](docs/releases/dev.md#input)).
 - A `:color` can be a colour of the theme: `:accent`, `(:accent :alpha 0.2)`, `(:mix :accent :background 0.8)`; and `theme-color` ([0.3](docs/releases/dev.md#rendering)).
 - `pressable`, a container that is pressed as a button is, with the look of a button or a plain one, and a toggle's selected state ([0.3](docs/releases/dev.md#layout)).
@@ -27,6 +28,7 @@ are not listed.
 
 ### Changed
 
+- `context-font` takes an optional weight, so a method of it for a context of your own needs `&optional weight` ([0.3](docs/releases/dev.md#backwards-incompatible-changes-in-xy)).
 - A menu longer than the window shows the rows that fit and scrolls; `:max-rows` on `dropdown` and `menu-button`; letters typed in an open menu go to the row they begin ([0.3](docs/releases/dev.md#input)).
 - A `list-box` scrolls to show the selected row on its first frame and when the app selects another ([0.3](docs/releases/dev.md#input)).
 

@@ -3492,3 +3492,29 @@ released unless RELEASE."
                   (color-at screen (+ (first second) 10) (+ (second second) 10))))
     (m:set-value session "Readings" :id :view)
     (assert-equal "Readings" (text-in screen :view-shown))))
+
+;;; --- the weight of text ---
+
+(defun make-weighted ()
+  (state-let ((bold nil))
+    (lambda ()
+      (column (:gap 8)
+        (when (shortcut #\b :command) (setf bold t))
+        (label "Time" :id :time :weight :bold)
+        (label "Time" :id :plain-time)
+        (column (:id :narrow :max-width 90)
+          ;; 22 characters: two lines of 11 at 8 points, three of 10 at 9 points in bold.
+          (paragraph "Havdalah at nightfall." :id :note :weight (if bold :bold :regular)))))))
+
+(define-test bold-text-is-drawn-in-the-bold-font-and-laid-out-again ()
+  (let ((screen (show 'make-weighted)))
+    ;; The fake context draws bold characters a point wider.
+    (assert-eql 36f0 (third (bounds-of screen :time)))
+    (assert-eql 32f0 (third (bounds-of screen :plain-time)))
+    (let ((regular (fourth (bounds-of screen :note))))
+      (core:handle-event (screen-variant screen)
+                         (core:make-key-event :timestamp 0 :kind :down :logical-key #\b
+                                              :modifiers core:+modifier-super+))
+      (draw screen)
+      ;; Broken again in the bold font: a line more.
+      (assert-eql (* 1.5 regular) (fourth (bounds-of screen :note))))))

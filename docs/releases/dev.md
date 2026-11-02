@@ -61,6 +61,8 @@ A theme that gives the spacing works out every size again, except those it gives
 
 #### Text
 
+- `label` and `paragraph` take `:weight` (`:regular` or `:bold`) and `:font`, a font family: a time or a heading can be bold at the size of what is round it, and a number can be in `"Menlo"`. Bold is the family's bold face, made by Core Text; a family that has none is drawn regular. A paragraph is broken into lines again when its weight or font changes.
+
 #### Layout
 
 - `pressable` is a container that is pressed as a button is, so that a card, a calendar day or a row of two lines is one thing to press and not a button among labels. It returns true on the frame it is clicked, by the pointer anywhere on it or by Space or Return. It looks like a button (`:look :button`, with what is in it in the button's text colour) or like a panel that answers the pointer (`:look :plain`), and with `:selected` it is a toggle. A screen reader reads it as one button named by the words in it; a button or a field inside it is still pressed on its own.
@@ -87,6 +89,15 @@ A theme that gives the spacing works out every size again, except those it gives
 - Every call that names a thing (`find-node`, `click`, `set-value` and the rest) takes `:within`, the id of a container it is inside. Ids need be unique only within a container, so `(m:click session :id :show :within :gregorian-search)` presses the Show button of one panel of two that each have one. A name that fits more than one thing says to use it. The MCP server's tools take `within` as well.
 
 ## Backwards incompatible changes in X.Y
+
+### `context-font` takes a weight
+
+`context-font` is now `(context-font context name size &optional weight)`, where the weight is `:regular` (or NIL) or `:bold`. A method of it for a context of your own (a test double, say) must take the optional argument, or SBCL says its lambda list does not agree with the generic function's:
+
+```lisp
+(defmethod context-font ((context my-context) name size &optional weight)
+  (my-font name size (or weight :regular)))
+```
 
 ### Area
 

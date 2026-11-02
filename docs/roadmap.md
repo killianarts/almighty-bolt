@@ -10,7 +10,7 @@ What is planned after [0.1](releases/0.1.md). These are plans, not promises, and
 
 - **Images and icons.**
 - **Text and layout.**
-  - Bold, italic and a font for each widget; rich text.
+  - Italic, weights between regular and bold, a font for each widget besides labels and paragraphs (which have `:weight :bold` and `:font`); rich text.
   - Wrapping layouts and splitters.
   - Tabs, a tree view, a table, and date and colour pickers (a segmented `choice` switches between views until there are tabs).
 - **Effects.** Shadows, glows, blur, opacity and other filters.

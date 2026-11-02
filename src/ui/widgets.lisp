@@ -13,6 +13,8 @@
                 #:box-kind
                 #:box-text
                 #:box-size
+                #:box-weight
+                #:box-font
                 #:box-color
                 #:box-flex
                 #:box-gap
@@ -159,6 +161,7 @@
            #:paragraph-state-text
            #:paragraph-state-lines
            #:paragraph-state-theme-id
+           #:paragraph-state-font
            #:with-theme
            #:paragraph-state-wrapped-at
            #:paragraph-state-generation
@@ -220,6 +223,7 @@
            #:spacer
            #:grid
            #:pressable
+           #:box-text-font
            #:*foreground*
            #:+tooltip-delay-ns+
            #:text-area
@@ -703,9 +707,9 @@ CHARACTER): the selection goes from the press to there, by what the press select
   (state (make-text-state "") :type almighty-bolt/internals:text-state))
 
 (defun text-font (ui box)
-  "The font BOX's text is drawn in: the theme's, at the box's size."
+  "The font BOX's text is drawn in, in UI's context."
   (let ((context (ui-context ui)))
-    (and context (context-font context (theme-font-name *theme*) (box-size box)))))
+    (and context (box-text-font context box))))
 
 (defun select-text (ui box selection index-at)
   "Let the pointer select in the text of BOX, whose SELECTION it is, and Command-A and Command-C
@@ -755,8 +759,14 @@ text nearest them and the character they are over."
                                                    (text-state-selected-string state))))))))))
     (setf (box-look box) (look-of ui key t))))
 
-(defun label (text &key (id (required-id 'label)) tooltip size color (flex 0) live selectable)
-  "A line of TEXT, SIZE points high (the theme's size if not given). A LIVE label is read out by a screen reader whenever its text changes, wherever the
+(defun box-text-font (context box)
+  "The font of the label or paragraph BOX: its own family or the theme's, at its size and weight."
+  (context-font context (or (box-font box) (theme-font-name *theme*)) (box-size box) (box-weight box)))
+
+(defun label (text &key (id (required-id 'label)) tooltip size color (flex 0) live selectable
+                     (weight :regular) font)
+  "A line of TEXT, SIZE points high (the theme's size if not given), in WEIGHT (:regular or :bold)
+and the font family FONT (the theme's if not given). A LIVE label is read out by a screen reader whenever its text changes, wherever the
 reader is: for a result, a count or a status that a person should hear without going to look for it.
 A SELECTABLE label's text can be selected with the pointer and copied."
   (let* ((ui *ui*)
@@ -764,6 +774,8 @@ A SELECTABLE label's text can be selected with the pointer and copied."
     (setf (box-text box) text
           (box-size box) (or size (theme-font-size *theme*))
           (box-color box) (or (theme-color color) *foreground*)
+          (box-weight box) (progn (check-type weight (member :regular :bold)) weight)
+          (box-font box) font
           (box-flex box) (float flex 1f0)
           (box-n3 box) (if live 1 0))
     (when selectable
@@ -786,8 +798,9 @@ A SELECTABLE label's text can be selected with the pointer and copied."
   (text "" :type string)
   (wrapped-at -1f0 :type single-float)
   (lines '() :type list)
-  ;; The theme whose font the lines were made with.
+  ;; The theme whose font the lines were made with, and the font.
   (theme-id 0 :type fixnum)
+  (font nil)
   (generation 0 :type fixnum))
 
 (defun set-paragraph-lines (state text wrapped-at lines)
@@ -823,15 +836,17 @@ the lines it was drawn in."
                 (values (+ start index) (+ start character)))))))))
 
 (defun paragraph (text &key (id (required-id 'paragraph)) tooltip size color (flex 0) live
-                         selectable)
+                         selectable (weight :regular) font)
   "TEXT broken into lines to the width it is given, SIZE points high (the theme's size if not
-given). LIVE and SELECTABLE are as for a label."
+given). LIVE, SELECTABLE, WEIGHT and FONT are as for a label."
   (let* ((ui *ui*)
          (box (open-box ui :paragraph :id id :tooltip tooltip))
          (state (state-of ui (box-key box) #'make-paragraph-state)))
     (setf (box-text box) text
           (box-size box) (or size (theme-font-size *theme*))
           (box-color box) (or (theme-color color) *foreground*)
+          (box-weight box) (progn (check-type weight (member :regular :bold)) weight)
+          (box-font box) font
           (box-flex box) (float flex 1f0)
           (box-n3 box) (if live 1 0)
           (box-data box) state)
@@ -2429,7 +2444,8 @@ counting its children."
                                (hash-of (box-pad-right box)) (hash-of (box-pad-bottom box))
                                (hash-of (box-pref-w box)) (hash-of (box-pref-h box))
                                (hash-of (box-min-w box)) (hash-of (box-max-w box))
-                               (hash-of (box-min-h box)) (hash-of (box-max-h box))))
+                               (hash-of (box-min-h box)) (hash-of (box-max-h box))
+                               (hash-of (box-weight box)) (hash-of (box-font box))))
          (layout (case (box-kind box)
                    (:choice (mix layout (hash-options (car (box-data box)))))
                    ((:list-box :text-area) (mix layout (box-n3 box)))

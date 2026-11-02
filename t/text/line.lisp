@@ -291,3 +291,10 @@
       (let ((delta (- (sb-ext:get-bytes-consed) before)))
         ;; 400,000 lookups. A cons or a boxed float each would be megabytes.
         (assert-true (< delta 300000) delta)))))
+
+(define-test a-bold-font-is-another-font-and-wider ()
+  (with-fonts (helvetica menlo)
+    (let ((bold (font:make-font "Helvetica" 16 :bold)))
+      (assert-false (eql (font:font-ct-font helvetica) (font:font-ct-font bold)))
+      (assert-true (> (line:measure-text bold "Candle lighting 16:22")
+                      (line:measure-text helvetica "Candle lighting 16:22"))))))

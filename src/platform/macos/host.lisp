@@ -181,14 +181,16 @@ copied is kept in the context and the person's clipboard is never touched."
         (set-pasteboard-string pasteboard string)
         (call-next-method))))
 
-(defmethod context-font ((context mac-context) name size)
-  (let ((fonts (mac-context-fonts context)))
+(defmethod context-font ((context mac-context) name size &optional (weight :regular))
+  (let ((fonts (mac-context-fonts context))
+        (weight (or weight :regular)))
     (multiple-value-bind (entries present) (gethash name fonts)
-      (or (cdr (assoc size entries :test #'=))
-          (let ((font (make-font name size)))
+      (or (cdr (assoc-if (lambda (entry) (and (= (car entry) size) (eq (cdr entry) weight)))
+                         entries))
+          (let ((font (make-font name size weight)))
             ;; The caller's string may change later, so keep a copy as the key.
             (setf (gethash (if present name (copy-seq name)) fonts)
-                  (acons size font entries))
+                  (acons (cons size weight) font entries))
             font)))))
 
 (defmethod context-measure ((context mac-context) font string)

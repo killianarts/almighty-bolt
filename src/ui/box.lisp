@@ -11,6 +11,8 @@
            #:box-children
            #:box-text
            #:box-size
+           #:box-weight
+           #:box-font
            #:box-color
            #:box-flex
            #:box-gap
@@ -65,6 +67,9 @@
   ;; What it holds.
   (text "" :type string)
   (size 15 :type fixnum)
+  ;; The weight of its text, :regular or :bold, and the font's family, or NIL for the theme's.
+  (weight :regular :type keyword)
+  (font nil :type (or null string))
   ;; A packed colour, or NIL for the theme's (text for a label, the panel colour for a panel). NIL
   ;; and not 0, since 0 is a colour: black with nothing of it showing.
   (color nil :type (or null (unsigned-byte 32)))
@@ -133,6 +138,8 @@ made."
         (fill-pointer (box-children box)) 0
         (box-text box) ""
         (box-size box) 15
+        (box-weight box) :regular
+        (box-font box) nil
         (box-color box) nil
         (box-flex box) 0f0
         (box-gap box) 0f0

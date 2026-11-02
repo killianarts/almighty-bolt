@@ -47,6 +47,7 @@
   (:import-from #:almighty-bolt/ui/ui
                 #:ui-paint-cache)
   (:import-from #:almighty-bolt/ui/widgets
+                #:box-text-font
                 #:ui-font
                 #:paragraph-state-text
                 #:paragraph-state-lines
@@ -156,7 +157,7 @@ is when its selection shows."
                      (theme-selection *theme*)))))))
 
 (defun draw-label (box context list x y)
-  (let* ((font (context-font context (theme-font-name *theme*) (box-size box)))
+  (let* ((font (box-text-font context box))
          (text (box-text box))
          (selected (shown-selection box)))
     (multiple-value-bind (width ascent descent) (context-measure context font text)
@@ -170,7 +171,7 @@ is when its selection shows."
 (defun draw-paragraph (box context list x y)
   (let* ((state (box-data box))
          (text (paragraph-state-text state))
-         (font (context-font context (theme-font-name *theme*) (box-size box)))
+         (font (box-text-font context box))
          (selected (shown-selection box)))
     (multiple-value-bind (width ascent descent) (context-measure context font "Hg")
       (declare (ignore width))

@@ -46,13 +46,25 @@
               :descent (float (ccall "CTFontGetDescent" :double (:ulong ct-font)) 1f0)
               :leading (float (ccall "CTFontGetLeading" :double (:ulong ct-font)) 1f0)))
 
-(defun make-font (name size)
-  "The font called NAME (such as \"Helvetica\" or \"Menlo\") at SIZE points. If the
-system has no such font, the system font is used, as Core Text does."
+(defconstant +bold-trait+ 2 "kCTFontTraitBold, among a font's symbolic traits.")
+
+(defun make-font (name size &optional (weight :regular))
+  "The font called NAME (such as \"Helvetica\" or \"Menlo\") at SIZE points, of WEIGHT, :regular
+or :bold. If the system has no such font, the system font is used, as Core Text does; if it has no
+bold, the regular one."
+  (check-type weight (member nil :regular :bold))
   (let* ((cf-name (cf-string name))
          (ct-font (ccall "CTFontCreateWithName" :ulong
                          (:ulong cf-name) (:double (float size 1d0)) (:ulong 0))))
     (cf-release cf-name)
+    (when (eq weight :bold)
+      ;; The same family with the bold trait; zero if it has no bold face.
+      (let ((bold (ccall "CTFontCreateCopyWithSymbolicTraits" :ulong
+                         (:ulong ct-font) (:double 0d0) (:ulong 0)
+                         (:uint +bold-trait+) (:uint +bold-trait+))))
+        (unless (zerop bold)
+          (cf-release ct-font)
+          (setf ct-font bold))))
     (font-metrics-from name size ct-font)))
 
 (defun system-font (size)
