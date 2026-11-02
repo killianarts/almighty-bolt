@@ -137,9 +137,9 @@ holds, and it gives you the new one:
 | `(combo-box string suggestions &key id labelled-by width enabled flex)`     | as a text field, and whether a suggestion was taken                         |
 | `(text-area string &key id labelled-by width rows enabled flex)`             | the text now (lines end in a line feed), whether it was changed this frame  |
 | `(slider value minimum maximum &key id labelled-by width enabled flex)`      | the value now, whether it was changed                                       |
-| `(choice options selected &key id labelled-by direction enabled flex)`       | the index now, whether it was changed (`:direction :vertical`: radio buttons) |
-| `(menu-button text items &key id enabled flex)`                              | the item chosen from its menu, on the frame it is chosen                    |
-| `(dropdown options selected &key id labelled-by width enabled flex)`        | the index now, whether it was changed (its menu floats above the screen)    |
+| `(choice options selected &key id labelled-by direction style enabled flex)` | the index now, whether it was changed (`:direction :vertical`: radio buttons) |
+| `(menu-button text items &key id enabled flex max-rows)`                     | the item chosen from its menu, on the frame it is chosen                    |
+| `(dropdown options selected &key id labelled-by width enabled flex max-rows)` | the index now, whether it was changed (its menu floats above the screen)    |
 | `(checkbox label checked &key id enabled flex)`                              | the state now, whether it was changed                                       |
 | `(switch label on &key id enabled flex)`                                     | the state now, whether it was changed                                       |
 | `(spinner &key id labelled-by size flex)`                                    | (it goes round while it shows, and asks for the frames it needs)           |
@@ -150,12 +150,16 @@ holds, and it gives you the new one:
 
 Containers take their options in a list and their children after it:
 `(bolt:column (:gap 10 :cross-align :center) ...)`. They are `column`, `row`,
-`stack`, `padding`, `panel`, `center`, `scroll` (a window onto what is inside
+`stack`, `padding`, `panel`, `center`, `grid` (children in columns and rows:
+`(bolt:grid (:id :month :columns 7 :row-heights :uniform) ...)`), `pressable`
+(a container pressed as a button is, which returns true when clicked), `scroll` (a window onto what is inside
 it, moved by the wheel: `(bolt:scroll (:id :log :height 300) ...)`) and
 `lazy-list` (a scrolling list that describes only the rows that show:
 `(bolt:lazy-list (task tasks :id :tasks :key #'task-id) ...)`), and
 `context-menu` (a menu on a right-click anywhere in it, which returns the item
-chosen: `(bolt:context-menu (:id :menu :items '("Cut" "Copy")) ...)`). A still app draws nothing and costs no
+chosen: `(bolt:context-menu (:id :menu :items '("Cut" "Copy")) ...)`). Containers
+take `:width`, `:height` and `:min-`/`:max-` of each, and a `spacer` takes the free room of its
+row or column. A still app draws nothing and costs no
 CPU; an animation asks for its next frame with `(bolt:ask-for-frame)`, and
 `(when (bolt:shortcut #\s :command) (save))` is a keyboard shortcut. The
 options of each, `:flex` and `:labelled-by` are in

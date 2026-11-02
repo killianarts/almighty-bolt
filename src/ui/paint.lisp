@@ -669,13 +669,13 @@ kept, and otherwise afresh, which is then kept."
          (paint-contents ui box context list x y))))))
 
 (defun draw-pressable (box list x y)
-  "The background of a pressable: a button's colours for the look of a button, the theme's selected
-row for one that is on, or its own colour (the panel's if none), mixed toward the text colour under
+  "The background of a pressable: the theme's selected row for a toggle that is on, a button's colours
+for the look of a button, or its own colour (the panel's if none), mixed toward the text colour under
 the pointer and more so pressed; with the ring when it has the keyboard."
   (multiple-value-bind (state focused) (look-state box)
     (let* ((w (box-w box)) (h (box-h box)) (radius (box-n1 box))
-           (fill (cond ((= (box-n2 box) 1f0) (button-color *theme* state))
-                       ((= (box-n3 box) 2) (theme-row-selected *theme*))
+           (fill (cond ((= (box-n3 box) 2) (theme-row-selected *theme*))
+                       ((= (box-n2 box) 1f0) (button-color *theme* state))
                        (t (let ((base (or (box-color box) (theme-panel *theme*))))
                             (case state
                               (:hover (mix-colors base (theme-text *theme*) 0.08))

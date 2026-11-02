@@ -3348,7 +3348,11 @@ released unless RELEASE."
     (assert-equal '(:inner) (mapcar #'s:node-id (s:node-children toggle)))
     ;; Pressed on its words: at its middle is the button inside it, which takes that press.
     (click screen :words)
-    (assert-true (s:node-property (m:find-node session :id :toggle) :selected))))
+    (assert-true (s:node-property (m:find-node session :id :toggle) :selected))
+    ;; On, it is drawn in the selected row's colour, though it looks like a button.
+    (multiple-value-bind (x y) (core:lookup-target (screen-variant screen) :toggle)
+      (assert-eql (theme:theme-row-selected (theme:find-theme :dark))
+                  (color-at screen (+ x 2) (+ y 2))))))
 
 (define-test a-button-inside-a-pressable-takes-its-own-press ()
   (let ((screen (show 'make-days)))
@@ -3549,3 +3553,21 @@ released unless RELEASE."
                                               :modifiers core:+modifier-super+))
       (draw screen)
       (assert-equal (list (list 2f0 (theme:theme-text theme))) (strokes-at screen x y)))))
+
+(defun make-days-in-a-scroll ()
+  (lambda ()
+    (padding (:all 20)
+      (scroll (:id :days :height 100)
+        (dotimes (i 5)
+          (pressable (:id i :all 6)
+            (label (format nil "Day ~d" i) :id :day)))))))
+
+(define-test the-ring-of-a-pressable-with-the-keyboard-shows-past-the-edge-of-a-scroll ()
+  (let* ((screen (show 'make-days-in-a-scroll))
+         (session (screen-session screen))
+         (ring (theme:theme-ring (theme:find-theme :dark))))
+    (m:press-key session :tab)
+    (assert-true (s:node-property (m:find-node session :id 0) :focused))
+    ;; The first day is at the top of the scroll's window; its ring reaches above it.
+    (multiple-value-bind (x y) (core:lookup-target (screen-variant screen) :days)
+      (assert-eql ring (color-at screen (+ x 20) (- y 1))))))

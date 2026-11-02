@@ -30,6 +30,7 @@ are not listed.
 ### Changed
 
 - `context-font` takes an optional weight, so a method of it for a context of your own needs `&optional weight` ([0.3](docs/releases/dev.md#backwards-incompatible-changes-in-xy)).
+- The pointer highlights a row of a menu only when it moves onto it, so a pointer at rest no longer takes the highlight from the arrow keys ([0.3](docs/releases/dev.md#input)).
 - A menu longer than the window shows the rows that fit and scrolls; `:max-rows` on `dropdown` and `menu-button`; letters typed in an open menu go to the row they begin ([0.3](docs/releases/dev.md#input)).
 - A `list-box` scrolls to show the selected row on its first frame and when the app selects another ([0.3](docs/releases/dev.md#input)).
 
