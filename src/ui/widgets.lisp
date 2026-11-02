@@ -136,7 +136,10 @@
                 #:find-theme
                 #:theme-id
                 #:theme-font-name
-                #:theme-font-size)
+                #:theme-font-size
+                #:theme-field-padding-x
+                #:theme-field-padding-y
+                #:theme-row-height)
   (:export #:missing-id
            #:missing-id-widget
            #:label
@@ -174,8 +177,6 @@
            #:end-context-menu
            #:menu-state
            #:menu-state-open
-           #:+menu-row-height+
-           #:+menu-padding+
            #:+menu-check-width+
            #:switch
            #:spinner
@@ -218,7 +219,6 @@
            #:area-state-generation
            #:area-state-inner-width
            #:area-state-inner-height
-           #:+area-padding+
            #:field-state
            #:field-state-state
            #:field-state-view-start
@@ -232,12 +232,8 @@
            #:canvas-state
            #:canvas-state-fragment
            #:ui-font
-           #:+field-padding+
-           #:+row-height+
            #:+thumb-size+
            #:+dot-size+
-           #:+option-gap+
-           #:+option-row-gap+
            #:+switch-width+))
 
 (in-package #:almighty-bolt/ui/widgets)
@@ -249,13 +245,8 @@
 ;;; application holds (the text, the number, the choice) is passed in each time and is what
 ;;; the widget shows, so the application is in charge.
 
-(defconstant +field-padding+ 8f0)
-(defconstant +row-height+ 24f0)
 (defconstant +thumb-size+ 16f0)
 (defconstant +dot-size+ 16f0)
-(defconstant +option-gap+ 20f0)
-
-(defconstant +option-row-gap+ 6f0 "Between the options of a choice that goes down.")
 
 (defconstant +switch-width+ 32f0 "How wide the track of a switch is; it is half as tall.")
 
@@ -904,7 +895,7 @@ index of the character it is over."
                (start (field-state-view-start state)))
           (multiple-value-bind (index character)
               (index-at context (ui-font context) (subseq string start)
-                        (- x (rect-x rect) +field-padding+))
+                        (- x (rect-x rect) (theme-field-padding-x *theme*)))
             (values (+ start index) (+ start character))))
         (let ((caret (text-state-caret (field-state-state state))))
           (values caret caret)))))
@@ -916,7 +907,7 @@ index of the character it is over."
              (string (text-state-string (field-state-state state)))
              (caret (text-state-caret (field-state-state state)))
              (start (min (field-state-view-start state) caret))
-             (inner (- width (* 2 +field-padding+))))
+             (inner (- width (* 2 (theme-field-padding-x *theme*)))))
         (loop :while (and (< start caret)
                           (> (context-caret-x context font (subseq string start) (- caret start))
                              inner))
@@ -1006,8 +997,6 @@ application passes something else, that is what is shown."
 ;;; changes; the keys that go up and down and the pointer find their place by them. The area shows
 ;;; ROWS lines and scrolls itself to keep the caret in sight.
 
-(defconstant +area-padding+ 6f0 "Above and below the lines of a text area.")
-
 (defstruct (area-state (:include editable) (:constructor make-area-state ()))
   (state (make-text-state "") :type almighty-bolt/internals:text-state)
   ;; How far down the lines are scrolled, in points.
@@ -1069,7 +1058,7 @@ that a caret where a long line goes on is at the start of the next)."
 (defun area-inner-width (state width)
   (if (plusp (area-state-inner-width state))
       (area-state-inner-width state)
-      (- width (* 2 +field-padding+))))
+      (- width (* 2 (theme-field-padding-x *theme*)))))
 
 (defun area-index-at (ui key area x y)
   "Two values: the index in the text of the area KEY that the pointer at X, Y is nearest, and the
@@ -1083,12 +1072,12 @@ index of the character it is over."
         (let* ((lines (area-lines context area string (area-inner-width area (rect-w rect))))
                (height (area-line-height context))
                (row (max 0 (min (1- (length lines))
-                                (floor (+ (- y (rect-y rect) +area-padding+) (area-state-offset area))
+                                (floor (+ (- y (rect-y rect) (theme-field-padding-y *theme*)) (area-state-offset area))
                                        height))))
                (line (svref lines row)))
           (multiple-value-bind (index character)
               (index-at context (ui-font context) (subseq string (car line) (cdr line))
-                        (- x (rect-x rect) +field-padding+))
+                        (- x (rect-x rect) (theme-field-padding-x *theme*)))
             (values (+ (car line) index) (+ (car line) character)))))))
 
 (defun area-move-vertically (context area lines down extend)
@@ -1388,8 +1377,6 @@ them out). Returns the index now and whether the person changed it this frame."
 ;;; While a menu is open its keys are its own: Up and Down move the highlight, Return or the space
 ;;; bar choose, Escape closes. The pointer over a row moves the highlight to it.
 
-(defconstant +menu-row-height+ 24f0)
-(defconstant +menu-padding+ 4f0 "Round the rows of a menu.")
 (defconstant +menu-check-width+ 22f0 "Before the words of a row, where the mark of the chosen one goes.")
 
 (defstruct (menu-state (:constructor make-menu-state ()))
@@ -1952,7 +1939,7 @@ NIL) marked. Returns the index now and whether the person changed it this frame.
             (setf (ui-active ui) key)
             (when rect
               (let ((index (+ (list-state-top state)
-                              (floor (- (ui-pointer-y ui) (rect-y rect) 1) +row-height+))))
+                              (floor (- (ui-pointer-y ui) (rect-y rect) 1) (theme-row-height *theme*)))))
                 (when (and (< index count) (not (eql index selected)))
                   (pick index)))))
           (when (and (= (ui-active ui) key) (ui-released ui))

@@ -22,6 +22,7 @@
                 #:box-labelled-by
                 #:box-tooltip
                 #:box-main-align
+                #:box-theme
                 #:box-x
                 #:box-y
                 #:box-w
@@ -43,8 +44,9 @@
                 #:choice-state-option-height
                 #:list-state-top
                 #:scroll-state-offset
-                #:scroll-state-content-height
-                #:+row-height+)
+                #:scroll-state-content-height)
+  (:import-from #:almighty-bolt/ui/theme
+                #:theme-row-height)
   (:import-from #:almighty-bolt/ui/immediate
                 #:immediate-variant
                 #:immediate-variant-ui)
@@ -208,13 +210,13 @@
          (let* ((state (cdr (box-data box)))
                 (top (list-state-top state))
                 (rows (box-n3 box))
-                (count (length (car (box-data box)))))
+                (count (length (car (box-data box))))
+                (row-height (theme-row-height (box-theme box))))
            (note :first-visible top)
            (note :item-bounds
                  (loop :for index :from top :below (min count (+ top rows))
                        :for row :from 0
-                       :collect (list x (+ y 1 (* row +row-height+)) (box-w box)
-                                      +row-height+)))))))
+                       :collect (list x (+ y 1 (* row row-height)) (box-w box) row-height)))))))
     state))
 
 (defun node-of (ui box x y left top right bottom)

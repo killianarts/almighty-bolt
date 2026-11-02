@@ -2209,6 +2209,345 @@ and another live label that comes with the first press."
                  (*label-theme* :test-courier) (wide (width)))
             (assert-true (> wide (* 1.5 narrow)) narrow wide)))))))
 
+;;; --- spacing in a theme ---
+
+(define-test a-spacing-works-out-the-sizes-and-a-size-given-is-what-was-given ()
+  (let ((dark (find-theme :dark))
+        (roomy (make-theme :spacing 1.5))
+        (rows (make-theme :spacing 1.5 :row-height 30)))
+    ;; At 1, the sizes the widgets have always had.
+    (assert-eql 14f0 (theme-setting dark :button-padding-x))
+    (assert-eql 24f0 (theme-setting dark :row-height))
+    ;; Half as much again, to the nearest point: 7 is 10.5, which goes up.
+    (assert-eql 21f0 (theme-setting roomy :button-padding-x))
+    (assert-eql 11f0 (theme-setting roomy :button-padding-y))
+    (assert-eql 36f0 (theme-setting roomy :row-height))
+    ;; Given as well as the spacing, it is what was given; the others are still worked out.
+    (assert-eql 30f0 (theme-setting rows :row-height))
+    (assert-eql 21f0 (theme-setting rows :button-padding-x))
+    ;; A theme that does not give the spacing keeps its base's sizes, and its colours are no
+    ;; reason to work them out again.
+    (let ((sea (make-theme :base rows :accent "#20a090")))
+      (assert-eql 30f0 (theme-setting sea :row-height))
+      (assert-eql 21f0 (theme-setting sea :button-padding-x)))
+    ;; A size is a number of points, and the spacing more than nothing.
+    (assert-error 'error (make-theme :row-height "#ffffff"))
+    (assert-error 'error (make-theme :row-height -1))
+    (assert-error 'error (make-theme :spacing 0))))
+
+(define-test a-theme-with-spacing-written-down-defines-the-same-theme-again ()
+  (let* ((theme (make-theme :name :test-roomy-written :spacing 1.25 :row-height 28))
+         (form (theme-form theme)))
+    ;; (DEFINE-THEME name (:base base) settings...): the spacing and the size, as they were given.
+    (assert-eql 1.25 (getf (cdddr form) :spacing) form)
+    (assert-eql 28 (getf (cdddr form) :row-height) form)
+    (eval form)
+    (assert-true (same-theme-p theme (find-theme :test-roomy-written)))
+    (assert-false (same-theme-p theme (find-theme :dark)))))
+
+(defun make-two-buttons ()
+  "The same button, dropdown and menu button in the window's theme and in :test-roomy."
+  (lambda ()
+    (column (:gap 10)
+      (button "Same" :id :plain)
+      (dropdown '("Same") 0 :id :plain-drop)
+      (menu-button "Same" '("One") :id :plain-menu)
+      (with-theme (:test-roomy)
+        (column (:gap 10)
+          (button "Same" :id :roomy)
+          (dropdown '("Same") 0 :id :roomy-drop)
+          (menu-button "Same" '("One") :id :roomy-menu))))))
+
+(defun size-of (screen id)
+  (multiple-value-bind (x y width height) (core:lookup-target (screen-variant screen) id)
+    (declare (ignore x y))
+    (values width height)))
+
+(define-test a-button-in-a-roomier-theme-is-bigger-by-its-padding-and-the-one-beside-it-is-not ()
+  (define-theme :test-roomy () :spacing 1.5)
+  (let ((screen (show 'make-two-buttons)))
+    (loop :for (plain roomy) :in '((:plain :roomy) (:plain-drop :roomy-drop)
+                                   (:plain-menu :roomy-menu))
+          :do (multiple-value-bind (plain-w plain-h) (size-of screen plain)
+                (multiple-value-bind (roomy-w roomy-h) (size-of screen roomy)
+                  ;; The words are the same; the padding is 21 and 11 at the sides and top for 14
+                  ;; and 7.
+                  (assert-eql 14f0 (- roomy-w plain-w) roomy)
+                  (assert-eql 8f0 (- roomy-h plain-h) roomy))))
+    ;; Defined again with more room, it is laid out again, though the app described nothing new.
+    (define-theme :test-roomy () :spacing 2)
+    (draw screen)
+    (multiple-value-bind (plain-w) (size-of screen :plain)
+      (multiple-value-bind (roomy-w) (size-of screen :roomy)
+        (assert-eql 28f0 (- roomy-w plain-w))))))
+
+(defun make-two-fruit-lists ()
+  "The same list in the window's theme and, beside it, in :test-tall."
+  (state-let ((picked 0) (tall-picked 0))
+    (lambda ()
+      (row (:gap 10)
+        (multiple-value-bind (index changed)
+            (list-box '("Apple" "Banana" "Cherry" "Damson") picked :id :plain-fruit :rows 4
+                                                                   :width 120)
+          (when changed (setf picked index)))
+        (with-theme (:test-tall)
+          (multiple-value-bind (index changed)
+              (list-box '("Apple" "Banana" "Cherry" "Damson") tall-picked :id :tall-fruit
+                                                                          :rows 4 :width 120)
+            (when changed (setf tall-picked index))))))))
+
+(define-test a-list-with-taller-rows-picks-the-row-it-draws-where-it-draws-it ()
+  (define-theme :test-tall () :row-height 40)
+  (let ((screen (show 'make-two-fruit-lists)))
+    (multiple-value-bind (x y width height) (core:lookup-target (screen-variant screen) :tall-fruit)
+      ;; Four rows of 40, inside its edge; the list beside it has rows of 24.
+      (assert-eql (+ 2f0 (* 4 40f0)) height)
+      (assert-eql (+ 2f0 (* 4 24f0)) (nth-value 1 (size-of screen :plain-fruit)))
+      ;; A screen reader is told where the rows are.
+      (assert-equal (list x (+ y 1 40) width 40f0)
+                    (second (s:node-property (node-of screen :tall-fruit) :item-bounds)))
+      ;; A press in the middle of the third row picks Cherry, and draws its highlight there.
+      (let ((px (+ x (/ width 2))) (py (+ y 1 (* 2 40) 20)))
+        (pointer screen :move px py)
+        (pointer screen :down px py :button 0 :buttons 1)
+        (pointer screen :up px py :button 0)
+        (assert-equal "Cherry" (s:node-value (node-of screen :tall-fruit)))
+        (assert-eql (theme-setting (find-theme :test-tall) :row-selected)
+                    (color-at screen (+ x 20) (- py 15)))))))
+
+(defun make-roomy-fields ()
+  "A field and an area in the window's theme, and the same in :test-roomy-field."
+  (state-let ((text "abc") (notes "abcdefghijklmnopqrstuvwxyz"))
+    (lambda ()
+      (row (:gap 10)
+        (column (:gap 10)
+          (text-field "abc" :id :plain-field :width 120)
+          (text-area "abc" :id :plain-area :width 120 :rows 2))
+        (with-theme (:test-roomy-field)
+          (column (:gap 10)
+            (setf text (text-field text :id :roomy-field :width 120))
+            (setf notes (text-area notes :id :roomy-area :width 120 :rows 2))))))))
+
+(defun glyph-place (screen id)
+  "Where the first character drawn in the control ID is, from the top left of the control."
+  (multiple-value-bind (x y) (core:lookup-target (screen-variant screen) id)
+    (multiple-value-bind (gx gy) (glyph-point screen id 0 0)
+      (values (- gx x) (- gy y)))))
+
+(defun press-into (screen id n)
+  "A press a quarter of the way into the Nth character drawn in ID."
+  (multiple-value-bind (px py) (glyph-point screen id n 0.25)
+    (pointer screen :move px py)
+    (pointer screen :down px py :button 0 :buttons 1)
+    (pointer screen :up px py :button 0)))
+
+(define-test a-field-in-a-roomier-theme-has-its-words-further-in-and-a-press-finds-them ()
+  (define-theme :test-roomy-field () :spacing 2)
+  (let ((screen (show 'make-roomy-fields)))
+    (dolist (pair '((:plain-field :roomy-field) (:plain-area :roomy-area)))
+      (destructuring-bind (plain roomy) pair
+        (multiple-value-bind (plain-x plain-y) (glyph-place screen plain)
+          (multiple-value-bind (roomy-x roomy-y) (glyph-place screen roomy)
+            ;; 16 points in for 8 at the sides, and 12 for 6 at the top.
+            (assert-eql 8f0 (- roomy-x plain-x) roomy)
+            (assert-eql 6f0 (- roomy-y plain-y) roomy)))
+        ;; As tall as its lines and 12 above and below them, for 6.
+        (assert-eql 12f0 (- (nth-value 1 (size-of screen roomy)) (nth-value 1 (size-of screen plain)))
+                    roomy)))
+    ;; A press a quarter of the way into the b puts the caret before it.
+    (press-into screen :roomy-field 1)
+    (type-text screen "X")
+    (assert-equal "aXbc" (text-in screen :roomy-field))
+    ;; Typed on past its end (120 wide with 16 at each side: eleven characters of 8), the field
+    ;; shows the end, where the caret is.
+    (key screen core:+key-end+)
+    (type-text screen "defghijklmnopqrstu")
+    (let ((shown (text-in screen :roomy-field)))
+      (assert-eql 11 (length shown) shown)
+      (assert-equal "klmnopqrstu" shown))
+    ;; In the area, 120 wide with 16 at each side, eleven characters of 8 make a line, so the l
+    ;; begins the second line, as far in as the a.
+    (assert-eql (values (glyph-point screen :roomy-area 0 0))
+                (values (glyph-point screen :roomy-area 11 0)))
+    ;; A press a quarter of the way into the b, 2 points above the bottom of its line (14 points
+    ;; tall, 12 under the top of the area), puts the caret before it.
+    (let ((y (nth-value 1 (core:lookup-target (screen-variant screen) :roomy-area))))
+      (let ((px (glyph-point screen :roomy-area 1 0.25)) (py (+ y 12 14 -2)))
+        (pointer screen :move px py)
+        (pointer screen :down px py :button 0 :buttons 1)
+        (pointer screen :up px py :button 0)))
+    (type-text screen "Y")
+    (assert-true (search "aYbcdefghij" (text-in screen :roomy-area)) (text-in screen :roomy-area))
+    ;; Down to the third line: the two lines the area shows (28 points inside its padding) are the
+    ;; second and the third, scrolled one line of 14.
+    (key screen core:+key-down+)
+    (key screen core:+key-down+)
+    (assert-eql 14f0 (s:node-property (node-of screen :roomy-area) :offset))))
+
+(defun first-glyph-in (screen bounds words)
+  "Where the first character of WORDS is, from the top left of BOUNDS (x y width height): of the
+characters drawn inside them, the last as many as WORDS has (a tooltip is drawn over what is under
+it, after it)."
+  (destructuring-bind (left top width height) bounds
+    (let* ((list (screen-list screen))
+           (inside (loop :for index :below (core:display-list-count list)
+                         :for x = (core:display-list-x list index)
+                         :for y = (core:display-list-y list index)
+                         :when (and (= (core:display-list-kind list index) core:+command-glyph+)
+                                    (<= left x (+ left width -1)) (<= top y (+ top height -1)))
+                           :collect (cons x y)))
+           (first (nth (- (length inside) (length words)) inside)))
+      (values (- (car first) left) (- (cdr first) top)))))
+
+(defun toast-and-tooltip (spacing)
+  "The bounds of a toast and of a tooltip, where their words begin in them, the gap between two
+toasts and the bottom of the lower, with the dark theme at SPACING."
+  (let ((dark (find-theme :dark)))
+    (unwind-protect
+         (progn
+           (define-theme :dark (:base dark) :spacing spacing)
+           (with-clock (clock)
+             (let ((screen (show 'make-tips)))
+               (rest-on screen :save)
+               (core:advance-virtual-clock clock 600000000)
+               (draw screen)
+               (let* ((tip (s:node-bounds (tooltip-of screen)))
+                      (tip-words (multiple-value-list (first-glyph-in screen tip "Save the document"))))
+                 (let ((screen (show 'make-saver)))
+                   (click screen :save)
+                   (let ((toast (s:node-bounds (first (toasts-of screen)))))
+                     (core:advance-virtual-clock clock 100000000)
+                     (click screen :save)
+                     ;; Between the first toast and the second, under it.
+                     (destructuring-bind (first second) (mapcar #'s:node-bounds (toasts-of screen))
+                       (list toast (multiple-value-list (first-glyph-in screen toast "Saved 1"))
+                             tip tip-words
+                             (- (second second) (+ (second first) (fourth first)))
+                             ;; The bottom of the lower one.
+                             (+ (second second) (fourth second))))))))))
+      (setf (gethash :dark theme::*themes*) dark))))
+
+(define-test a-toast-and-a-tooltip-are-roomier-in-a-roomier-window ()
+  (destructuring-bind (toast toast-words tip tip-words gap bottom) (toast-and-tooltip 1)
+    (destructuring-bind (roomy-toast roomy-words roomy-tip roomy-tip-words roomy-gap roomy-bottom)
+        (toast-and-tooltip 2)
+      ;; 16 points between toasts for 8, and the lower one where it was, 24 above the bottom of the
+      ;; window.
+      (assert-eql 8f0 (- roomy-gap gap))
+      (assert-eql 296f0 bottom)
+      (assert-eql 296f0 roomy-bottom)
+      ;; 32 points at the sides of a toast's words for 16, and 20 above and below for 10.
+      (assert-eql 32f0 (- (third roomy-toast) (third toast)))
+      (assert-eql 20f0 (- (fourth roomy-toast) (fourth toast)))
+      (assert-eql 16f0 (- (first roomy-words) (first toast-words)))
+      (assert-eql 10f0 (- (second roomy-words) (second toast-words)))
+      ;; A tooltip's: 16 for 8, and 8 for 4.
+      (assert-eql 16f0 (- (third roomy-tip) (third tip)))
+      (assert-eql 8f0 (- (fourth roomy-tip) (fourth tip)))
+      (assert-eql 8f0 (- (first roomy-tip-words) (first tip-words)))
+      (assert-eql 4f0 (- (second roomy-tip-words) (second tip-words))))))
+
+(defparameter +odd-sizes+
+  '(:control-height 30 :slider-height 31 :progress-height 17 :field-padding-y 9 :option-gap 33
+    :option-row-gap 11 :popover-padding 13 :popover-gap 5 :dialog-padding 27 :dialog-gap 15
+    :menu-padding 7 :row-height 26)
+  "A size for each that is none of the sizes the widgets have otherwise, so that each one seen is
+the theme's.")
+
+(defun make-odd-controls ()
+  (lambda ()
+    (row (:gap 10)
+      (text-field "" :id :plain-field :width 60)
+      (with-theme (:test-odd)
+        (column (:gap 4)
+          (checkbox "C" nil :id :odd-check)
+          (switch "S" nil :id :odd-switch)
+          (slider 1 0 2 :id :odd-slider :width 60)
+          (progress 0.5 :id :odd-progress :width 60)
+          (text-field "" :id :odd-field :width 60)
+          (choice '("A" "B") 0 :id :odd-across)
+          (choice '("A" "B") 0 :id :odd-down :direction :vertical))))))
+
+(define-test the-controls-are-as-tall-and-as-far-apart-as-their-theme-says ()
+  (eval `(define-theme :test-odd () ,@+odd-sizes+))
+  (let ((screen (show 'make-odd-controls)))
+    (flet ((height (id) (nth-value 1 (size-of screen id)))
+           (options (id) (s:node-property (node-of screen id) :option-bounds)))
+      (assert-eql 30f0 (height :odd-check))
+      (assert-eql 30f0 (height :odd-switch))
+      (assert-eql 31f0 (height :odd-slider))
+      (assert-eql 17f0 (height :odd-progress))
+      ;; 9 above and below the line, for 6.
+      (assert-eql 6f0 (- (height :odd-field) (height :plain-field)))
+      ;; Each option as tall as a checkbox, 33 between them side by side and 11 one under another.
+      (destructuring-bind ((x1 y1 w1 h1) (x2 y2 w2 h2)) (options :odd-across)
+        (declare (ignore y1 y2))
+        (assert-eql 30f0 h1)
+        (assert-eql 30f0 h2)
+        (assert-eql 33f0 (- x2 (+ x1 w1)))
+        (assert-eql (- (+ x2 w2) x1) (size-of screen :odd-across)))
+      (destructuring-bind ((x1 y1 w1 h1) (x2 y2 w2 h2)) (options :odd-down)
+        (declare (ignore x1 x2 w1 w2))
+        (assert-eql 11f0 (- y2 (+ y1 h1)))
+        (assert-eql (- (+ y2 h2) y1) (nth-value 1 (size-of screen :odd-down)))))))
+
+(defun make-odd-popover ()
+  (lambda ()
+    (with-theme (:test-odd)
+      (column (:gap 8)
+        (label "Anchor" :id :odd-anchor)
+        (popover (:id :odd-popover :open t :anchor :odd-anchor)
+          (label "One" :id :pop-one)
+          (label "Two" :id :pop-two))))))
+
+(defun make-odd-menu ()
+  (state-let ((size 0))
+    (lambda ()
+      (with-theme (:test-odd)
+        (multiple-value-bind (index changed) (dropdown '("Small" "Large") size :id :odd-size)
+          (when changed (setf size index)))))))
+
+(defun make-odd-dialog ()
+  (lambda ()
+    (with-theme (:test-odd)
+      (dialog (:id :odd-dialog :open t :title "Sure?")
+        (label "One" :id :dialog-one)
+        (label "Two" :id :dialog-two)))))
+
+(defun bounds-of (screen id)
+  (multiple-value-list (core:lookup-target (screen-variant screen) id)))
+
+(define-test popovers-dialogs-and-menus-have-the-room-their-theme-says ()
+  (eval `(define-theme :test-odd () ,@+odd-sizes+))
+  (let ((screen (show 'make-odd-popover)))
+    (destructuring-bind (px py pw ph) (bounds-of screen :odd-popover)
+      (declare (ignore pw ph))
+      (destructuring-bind (x1 y1 w1 h1) (bounds-of screen :pop-one)
+        (declare (ignore w1))
+        (assert-eql 13f0 (- x1 px))
+        (assert-eql 13f0 (- y1 py))
+        (assert-eql 5f0 (- (second (bounds-of screen :pop-two)) (+ y1 h1))))))
+  (let* ((screen (show 'make-odd-menu))
+         (session (screen-session screen)))
+    ;; The menu of the dropdown: rows 26 tall, 7 inside its edge.
+    (m:click session :id :odd-size)
+    (destructuring-bind (mx my mw mh) (s:node-bounds (menu-of screen))
+      (declare (ignore mw))
+      (let ((rows (mapcar #'s:node-bounds (s:node-children (menu-of screen)))))
+        (assert-eql 7f0 (- (second (first rows)) my))
+        (assert-eql 7f0 (- (first (first rows)) mx))
+        (assert-eql 26f0 (fourth (first rows)))
+        (assert-eql 26f0 (- (second (second rows)) (second (first rows))))
+        (assert-eql (+ 7f0 26f0 26f0 7f0) mh))))
+  (let ((screen (show 'make-odd-dialog)))
+    (destructuring-bind (dx dy dw dh) (bounds-of screen :odd-dialog)
+      (declare (ignore dy dw dh))
+      (destructuring-bind (x1 y1 w1 h1) (bounds-of screen :dialog-one)
+        (declare (ignore w1 y1))
+        (assert-eql 27f0 (- x1 dx))
+        (assert-eql 15f0 (- (second (bounds-of screen :dialog-two))
+                            (+ (second (bounds-of screen :dialog-one)) h1)))))))
+
 ;;; --- the glyph atlas fills up ---
 
 (defparameter *typed-size* 15

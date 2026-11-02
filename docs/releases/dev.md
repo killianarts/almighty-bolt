@@ -23,16 +23,31 @@ See [Upgrading to X.Y](../upgrading.md) if you are moving from X.(Y-1).
 
 ## What's new in X.Y
 
-### Major feature name
+### Spacing in a theme
 
-What it lets you do, in a sentence or two, and the problem it replaces.
+A theme now says how much room there is in and round the controls, as it says their colours, font and corners. It is worked out from one number, `:spacing`, as the colours are worked out from three seeds, and any of the sizes can be given on its own as well.
 
 ```lisp
-(example)
+(define-theme :roomy (:base :light)
+  :spacing 1.25)        ; everything a quarter roomier
+
+(define-theme :dense (:base :dark)
+  :spacing 0.8
+  :row-height 20)       ; and the rows of lists and menus exactly 20 points
 ```
 
-What the example does or returns. List the new options if there are several.
-Links to reference documentation: [`symbol`](../reference/page.md#symbol).
+At a spacing of 1 every widget is the size it was before. Each size is its size at 1 times the spacing, to the nearest point. The sizes, in points:
+
+- `:button-padding-x` and `:button-padding-y` (14 and 7): round the words of a button, a menu button and a dropdown.
+- `:field-padding-x` and `:field-padding-y` (8 and 6): round the text of a text field, a combo box and a text area.
+- `:row-height` (24): a row of a list box or a menu. `:menu-padding` (4): round the rows of a menu.
+- `:popover-padding` and `:popover-gap` (12 and 8), and `:dialog-padding` and `:dialog-gap` (20 and 12): inside a popover and a dialog, and between what is in them.
+- `:option-gap` and `:option-row-gap` (20 and 6): between the options of a choice, side by side and one under another.
+- `:control-height` (22): a checkbox, a switch and an option of a choice. `:slider-height` (24) and `:progress-height` (14).
+
+The room in a toast and a tooltip follows the spacing too. What a mark is (a checkbox's box, a radio dot, a slider's thumb, a switch's track) stays its own size. The gaps between the parts of the app, which it gives with `:gap` and `padding`, are the app's.
+
+A theme that gives the spacing works out every size again, except those it gives as well; a theme that does not give it keeps its base's. `theme-form` writes the spacing and the sizes down as numbers, and `+theme-sizes+` lists the sizes with what each is at a spacing of 1. The theme designer has a Spacing slider, from 50% to 200%.
 
 ### Minor features
 

@@ -4,7 +4,7 @@ What is planned after [0.1](releases/0.1.md). These are plans, not promises, and
 
 ## Next
 
-- **Spacing in a theme.** Paddings, gaps, and the heights of rows and controls, set by a theme as its colours, font and corners are.
+Nothing is next yet.
 
 ## Later
 

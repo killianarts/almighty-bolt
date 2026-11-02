@@ -158,3 +158,14 @@
     (let ((copied (core:context-clipboard-text (screen-context screen))))
       (assert-equal (shown-text session :source) copied)
       (assert-true (search ":accent" copied)))))
+
+(define-test more-spacing-makes-the-preview-roomier-and-is-written-down ()
+  (multiple-value-bind (screen session) (open-designer)
+    (flet ((width (id) (nth-value 2 (core:lookup-target (screen-variant screen) id))))
+      (let ((before (width :sample-button)))
+        (m:set-value session 150 :id :spacing)
+        (assert-true (search "Spacing 150%" (shown-name session :spacing-label)))
+        (assert-eql 1.5 (getf (cdddr (read-from-string (shown-text session :source))) :spacing))
+        (assert-eql 1.5f0 (bolt:theme-setting (bolt:find-theme (defined session)) :spacing))
+        ;; The sample button's padding at the sides is 21 for 14.
+        (assert-eql 14f0 (- (width :sample-button) before))))))

@@ -16,6 +16,7 @@ are not listed.
 
 - `:cursor` on `canvas`: the shape the pointer has over it ([0.3](docs/releases/dev.md#input)).
 - `shortcut`, true in the frame a keyboard shortcut is pressed ([0.3](docs/releases/dev.md#input)).
+- Spacing in a theme: `:spacing`, a scale that the paddings, gaps and heights of the controls are worked out from, and each of those sizes on its own; and a Spacing slider in the theme designer ([0.3](docs/releases/dev.md#spacing-in-a-theme)).
 
 ### Changed
 

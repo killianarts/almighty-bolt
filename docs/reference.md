@@ -84,7 +84,7 @@ The items are a vector (a list works, but it is walked from the start to the fir
 
 ## Themes
 
-A theme is the colours of the widgets, their font and its size, and how round the corners of a control are. The window is drawn in `:dark` or `:light`, whichever the system shows (it changes when the system's setting does), unless the app draws in a theme of its own.
+A theme is the colours of the widgets, their font and its size, how round the corners of a control are, and how much room there is in and round the controls. The window is drawn in `:dark` or `:light`, whichever the system shows (it changes when the system's setting does), unless the app draws in a theme of its own.
 
 `(define-theme name (&key (base :dark)) &rest settings)` defines the theme called `name`, a keyword, like `base` with `settings`. Defining it again changes it, and an open window shows the change at once. `(make-theme &key name base &rest settings)` makes one without naming it.
 
@@ -95,8 +95,10 @@ The settings (`+theme-settings+`):
 - The seeds, `:background`, `:text` and `:accent` (the colour of a button, a chosen row and the selection). A theme that gives a seed works out the colours that come from it again, and keeps its base's others; a colour given as well as its seed is what was given.
 - The colours worked out from them: `:panel`, `:dim-text`, `:button-text` (the words on a button, and on the chosen row of a list or a menu), `:ring` (round what has the keyboard), `:field-border`, `:field-fill`, `:field-invalid`, `:field-disabled`, `:selection`, `:caret`, `:track`, `:thumb`, `:row-selected`, `:row-hover`, `:scrim`, `:tooltip`, `:tooltip-text`, `:button`, `:button-hover`, `:button-pressed` and `:button-disabled`.
 - `:font-name`, `:font-size` (what a `label` or `paragraph` is with no `:size`) and `:radius`.
+- `:spacing`, the seed of the sizes: 1 is the sizes the widgets have in `:dark` and `:light`, 1.25 a quarter more. A theme that gives it works out the sizes again, except those it gives too, each its size at 1 times the spacing, to the nearest point.
+- The sizes, in points (`+theme-sizes+`, with each at a spacing of 1): `:button-padding-x` and `:button-padding-y` (round the words of a button, a menu button and a dropdown), `:field-padding-x` and `:field-padding-y` (round the text of a field, a combo box and a text area), `:row-height` (a row of a list box or a menu), `:menu-padding`, `:popover-padding`, `:popover-gap`, `:dialog-padding`, `:dialog-gap`, `:option-gap` and `:option-row-gap` (between the options of a choice), and `:control-height` (a checkbox, a switch, an option), `:slider-height` and `:progress-height`. The room in a toast and a tooltip follows the spacing as well.
 
-A colour is `"#rrggbb"`, `"#rrggbbaa"`, or a packed colour (`pack-color`). `(find-theme name)` is the theme, `(theme-names)` the names there are, `(theme-setting theme setting)` one of its values, and `(theme-form theme)` the `define-theme` form that defines it again. The theme designer (`apps/theme-designer`, `(almighty-bolt-theme-designer:open-designer)`) makes a theme by eye and writes its `define-theme` form. `(contrast-ratio a b)` is the WCAG contrast of two colours (text is easy to read at 4.5 or more), `(mix-colors a b fraction)` a colour between two, `(parse-color designator)` a packed colour, and `(color-hex color)` its `"#rrggbb"`.
+A colour is `"#rrggbb"`, `"#rrggbbaa"`, or a packed colour (`pack-color`), and `+theme-colors+` lists the settings that are colours. `(find-theme name)` is the theme, `(theme-names)` the names there are, `(theme-setting theme setting)` one of its values, and `(theme-form theme)` the `define-theme` form that defines it again. The theme designer (`apps/theme-designer`, `(almighty-bolt-theme-designer:open-designer)`) makes a theme by eye and writes its `define-theme` form. `(contrast-ratio a b)` is the WCAG contrast of two colours (text is easy to read at 4.5 or more), `(mix-colors a b fraction)` a colour between two, `(parse-color designator)` a packed colour, and `(color-hex color)` its `"#rrggbb"`.
 
 ## Time
 

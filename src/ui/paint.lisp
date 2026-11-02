@@ -55,7 +55,6 @@
                 #:area-state-generation
                 #:area-state-lines
                 #:area-line-of
-                #:+area-padding+
                 #:field-state-state
                 #:field-state-view-start
                 #:choice-state-lefts
@@ -67,8 +66,6 @@
                 #:list-state-top
                 #:scroll-state-offset
                 #:scroll-state-content-height
-                #:+field-padding+
-                #:+row-height+
                 #:+thumb-size+
                 #:+dot-size+
                 #:+ring-reach+)
@@ -79,6 +76,7 @@
                 #:theme-field-invalid #:theme-field-disabled #:theme-selection #:theme-caret
                 #:theme-track #:theme-thumb #:theme-row-selected #:theme-scrim #:theme-tooltip
                 #:theme-tooltip-text #:theme-font-name #:theme-radius
+                #:theme-field-padding-x #:theme-field-padding-y #:theme-row-height #:spaced
                 #:button-color)
   (:export #:paint-box))
 
@@ -212,10 +210,12 @@ is when its selection shows."
                                ((plusp (box-n3 box)) (theme-field-invalid *theme*))
                                (t (theme-field-fill *theme*)))
                          focused)
-      (let* ((inner (- w (* 2 +field-padding+)))
+      (let* ((side (theme-field-padding-x *theme*))
+             (pad (theme-field-padding-y *theme*))
+             (inner (- w (* 2 side)))
              (shown (fit-text context font (subseq string start) inner))
              (end (+ start (length shown)))
-             (left (+ x +field-padding+)))
+             (left (+ x side)))
         (flet ((x-at (index)
                  (+ left (context-caret-x context font shown
                                           (max 0 (min (length shown) (- index start)))))))
@@ -223,13 +223,15 @@ is when its selection shows."
             (let ((from (max start (text-state-selection-start state)))
                   (to (min end (text-state-selection-end state))))
               (when (< from to)
-                (push-rect list (x-at from) (+ y 4) (- (x-at to) (x-at from)) (- h 8)
+                (push-rect list (x-at from) (+ y pad -2) (- (x-at to) (x-at from))
+                           (max 0f0 (- h (* 2 (- pad 2))))
                            (theme-selection *theme*)))))
-          (context-push-text context list font shown left (+ y 6 ascent)
+          (context-push-text context list font shown left (+ y pad ascent)
                              (if enabled (theme-text *theme*) (theme-dim-text *theme*)))
           (when (and focused (not (text-state-selection-p state))
                      (<= start (text-state-caret state) end))
-            (push-rect list (x-at (text-state-caret state)) (+ y 5) 1.5f0 (- h 10)
+            (push-rect list (x-at (text-state-caret state)) (+ y pad -1) 1.5f0
+                       (max 0f0 (- h (* 2 (- pad 1))))
                        (theme-caret *theme*))))))))
 
 (defun draw-text-area (box context list x y)
@@ -245,7 +247,8 @@ is when its selection shows."
          (selecting (and focused (text-state-selection-p state)))
          (from (text-state-selection-start state))
          (to (text-state-selection-end state))
-         (left (+ x +field-padding+)))
+         (left (+ x (theme-field-padding-x *theme*)))
+         (pad (theme-field-padding-y *theme*)))
     (multiple-value-bind (height ascent) (line-metrics context)
       (draw-outlined-box list x y w h
                          (if enabled (theme-field-fill *theme*) (theme-field-disabled *theme*))
@@ -253,7 +256,7 @@ is when its selection shows."
       (push-clip list (+ x 1) (+ y 1) (- w 2) (- h 2))
       (loop :for line :across lines
             :for row :from 0
-            :for top = (- (+ y +area-padding+ (* row height)) offset)
+            :for top = (- (+ y pad (* row height)) offset)
             :when (and (< top (+ y h)) (> (+ top height) y))
               :do (let* ((start (car line))
                          (end (cdr line))
@@ -275,7 +278,7 @@ is when its selection shows."
         (let* ((caret (text-state-caret state))
                (row (area-line-of lines caret))
                (line (svref lines row))
-               (top (- (+ y +area-padding+ (* row height)) offset)))
+               (top (- (+ y pad (* row height)) offset)))
           (push-rect list (+ left (context-caret-x context font (subseq string (car line) (cdr line))
                                                    (- caret (car line))))
                      (+ top 1) 1.5f0 (- height 2) (theme-caret *theme*))))
@@ -377,7 +380,7 @@ is when its selection shows."
     (push-rounded-rect list x y (box-w box) (box-h box) 4 (theme-tooltip *theme*))
     (multiple-value-bind (width ascent) (context-measure context font (box-text box))
       (declare (ignore width))
-      (context-push-text context list font (box-text box) (+ x 8) (+ y 4 ascent)
+      (context-push-text context list font (box-text box) (+ x (spaced 8)) (+ y (spaced 4) ascent)
                          (theme-tooltip-text *theme*)))))
 
 (defun draw-toast (box context list x y)
@@ -386,7 +389,7 @@ is when its selection shows."
     (push-rounded-rect list x y (box-w box) (box-h box) 10 (theme-tooltip *theme*))
     (multiple-value-bind (width ascent) (context-measure context font (box-text box))
       (declare (ignore width))
-      (context-push-text context list font (box-text box) (+ x 16) (+ y 10 ascent)
+      (context-push-text context list font (box-text box) (+ x (spaced 16)) (+ y (spaced 10) ascent)
                          (theme-tooltip-text *theme*)))))
 
 (defun draw-menu-item (box context list x y)
@@ -450,19 +453,20 @@ behind it fading."
          (top (list-state-top state))
          (rows (box-n3 box))
          (count (length items))
-         (selected (round (box-n2 box))))
+         (selected (round (box-n2 box)))
+         (row-height (theme-row-height *theme*)))
     (multiple-value-bind (height ascent) (line-metrics context)
       (declare (ignore height))
       (draw-outlined-box list x y w h (theme-field-fill *theme*) (nth-value 1 (look-state box)))
       (loop :for item :in (nthcdr top items)
             :for index :from top
             :for i :from 0 :below rows
-            :do (let ((row-y (+ y 1 (* i +row-height+))))
+            :do (let ((row-y (+ y 1 (* i row-height))))
                   (when (= index selected)
                     (push-rounded-rect list (+ x 3) row-y (- w 6 (if (> count rows) 8 0))
-                                       +row-height+ 4 (theme-row-selected *theme*)))
+                                       row-height 4 (theme-row-selected *theme*)))
                   (context-push-text context list font (fit-text context font item (- w 24))
-                                     (+ x 10) (+ row-y (/ (- +row-height+ (+ ascent 4)) 2) ascent)
+                                     (+ x 10) (+ row-y (/ (- row-height (+ ascent 4)) 2) ascent)
                                      ;; On the highlight, as a menu's highlighted row is.
                                      (if (= index selected)
                                          (theme-button-text *theme*)

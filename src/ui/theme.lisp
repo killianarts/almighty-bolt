@@ -16,6 +16,8 @@
            #:theme-names
            #:+theme-settings+
            #:+theme-seeds+
+           #:+theme-colors+
+           #:+theme-sizes+
            #:theme-setting
            #:theme-form
            #:theme-background
@@ -45,6 +47,23 @@
            #:theme-font-name
            #:theme-font-size
            #:theme-radius
+           #:theme-spacing
+           #:spaced
+           #:theme-button-padding-x
+           #:theme-button-padding-y
+           #:theme-field-padding-x
+           #:theme-field-padding-y
+           #:theme-row-height
+           #:theme-menu-padding
+           #:theme-popover-padding
+           #:theme-popover-gap
+           #:theme-dialog-padding
+           #:theme-dialog-gap
+           #:theme-option-gap
+           #:theme-option-row-gap
+           #:theme-control-height
+           #:theme-slider-height
+           #:theme-progress-height
            #:button-color
            #:parse-color
            #:color-hex
@@ -55,9 +74,10 @@
 
 (in-package #:almighty-bolt/ui/theme)
 
-;;; How the widgets look. A theme is a value: its colours, the font and its size, and how round the
-;;; corners of a control are. A theme is made from a few seeds (the background, the text and the
-;;; accent), from which the other colours are worked out, and any of those can be given as well.
+;;; How the widgets look. A theme is a value: its colours, the font and its size, how round the
+;;; corners of a control are, and how much room there is in and round the controls. A theme is made
+;;; from a few seeds (the background, the text and the accent), from which the other colours are
+;;; worked out, and one more (the spacing) from which the sizes are; any of those can be given as well.
 ;;; Themes have names, and a part of a screen is drawn in the theme it was described in. A theme
 ;;; has an id, a hash of everything in it, worked out when it is made, so that what was drawn in
 ;;; one theme is not kept for another.
@@ -125,9 +145,33 @@ is easy to read at 4.5 and above, and large text at 3."
     :panel :dim-text :button-text :ring :field-border :field-fill :field-invalid :field-disabled
     :selection :caret :track :thumb :row-selected :row-hover :scrim :tooltip :tooltip-text
     :button :button-hover :button-pressed :button-disabled
-    :font-name :font-size :radius)
-  "Everything a theme sets, in order: the seeds, the colours worked out from them, then the font, its
-size and the corner radius.")
+    :font-name :font-size :radius
+    :spacing
+    :button-padding-x :button-padding-y :field-padding-x :field-padding-y :row-height :menu-padding
+    :popover-padding :popover-gap :dialog-padding :dialog-gap :option-gap :option-row-gap
+    :control-height :slider-height :progress-height)
+  "Everything a theme sets, in order: the seeds, the colours worked out from them, the font, its
+size and the corner radius, then the spacing and the sizes worked out from it.")
+
+(defparameter +theme-colors+
+  (subseq +theme-settings+ 0 (position :font-name +theme-settings+))
+  "The settings that are colours: the seeds and the colours worked out from them.")
+
+(defparameter +theme-sizes+
+  '((:button-padding-x 14) (:button-padding-y 7) (:field-padding-x 8) (:field-padding-y 6)
+    (:row-height 24) (:menu-padding 4) (:popover-padding 12) (:popover-gap 8)
+    (:dialog-padding 20) (:dialog-gap 12) (:option-gap 20) (:option-row-gap 6)
+    (:control-height 22) (:slider-height 24) (:progress-height 14))
+  "The sizes a theme works out from its spacing, in points, and what each is at a spacing of 1:
+- the padding of a button, a menu button and a dropdown, at the sides and at the top and bottom;
+- the padding of a text field, a combo box and a text area, at the sides and at the top and bottom;
+- the height of a row of a list box or a menu, and the padding round the rows of a menu;
+- the padding inside a popover and a dialog, and the gap between what is in them;
+- the gap between the options of a choice, side by side and one under another;
+- the height of a checkbox, a switch and an option of a choice, of a slider, and of a progress bar.")
+
+(defparameter +theme-defaults+ '(:font-name "Helvetica" :font-size 15 :radius 6 :spacing 1)
+  "What a theme with no base is if it does not give these.")
 
 (defstruct (theme (:constructor %make-theme) (:copier nil))
   (name nil :type symbol :read-only t)
@@ -161,6 +205,23 @@ size and the corner radius.")
   (font-name "Helvetica" :type simple-string :read-only t)
   (font-size 15 :type (integer 1 200) :read-only t)
   (radius 6 :type (integer 0 100) :read-only t)
+  ;; The seed of the sizes, and the sizes worked out from it (+THEME-SIZES+), in points.
+  (spacing 1f0 :type single-float :read-only t)
+  (button-padding-x 0f0 :type single-float :read-only t)
+  (button-padding-y 0f0 :type single-float :read-only t)
+  (field-padding-x 0f0 :type single-float :read-only t)
+  (field-padding-y 0f0 :type single-float :read-only t)
+  (row-height 0f0 :type single-float :read-only t)
+  (menu-padding 0f0 :type single-float :read-only t)
+  (popover-padding 0f0 :type single-float :read-only t)
+  (popover-gap 0f0 :type single-float :read-only t)
+  (dialog-padding 0f0 :type single-float :read-only t)
+  (dialog-gap 0f0 :type single-float :read-only t)
+  (option-gap 0f0 :type single-float :read-only t)
+  (option-row-gap 0f0 :type single-float :read-only t)
+  (control-height 0f0 :type single-float :read-only t)
+  (slider-height 0f0 :type single-float :read-only t)
+  (progress-height 0f0 :type single-float :read-only t)
   ;; What was given rather than worked out, for writing the theme down again (THEME-FORM).
   (given '() :type list :read-only t)
   ;; A hash of everything above, for the hashes of the boxes drawn in it.
@@ -185,7 +246,19 @@ size and the corner radius.")
     (:tooltip-text (theme-tooltip-text theme)) (:button (theme-button theme))
     (:button-hover (theme-button-hover theme)) (:button-pressed (theme-button-pressed theme))
     (:button-disabled (theme-button-disabled theme)) (:font-name (theme-font-name theme))
-    (:font-size (theme-font-size theme)) (:radius (theme-radius theme))))
+    (:font-size (theme-font-size theme)) (:radius (theme-radius theme))
+    (:spacing (theme-spacing theme))
+    (:button-padding-x (theme-button-padding-x theme))
+    (:button-padding-y (theme-button-padding-y theme))
+    (:field-padding-x (theme-field-padding-x theme))
+    (:field-padding-y (theme-field-padding-y theme))
+    (:row-height (theme-row-height theme)) (:menu-padding (theme-menu-padding theme))
+    (:popover-padding (theme-popover-padding theme)) (:popover-gap (theme-popover-gap theme))
+    (:dialog-padding (theme-dialog-padding theme)) (:dialog-gap (theme-dialog-gap theme))
+    (:option-gap (theme-option-gap theme)) (:option-row-gap (theme-option-row-gap theme))
+    (:control-height (theme-control-height theme))
+    (:slider-height (theme-slider-height theme))
+    (:progress-height (theme-progress-height theme))))
 
 (defparameter +derived-from+
   '((:panel :background :text) (:dim-text :background :text) (:button-text :accent)
@@ -226,6 +299,19 @@ the theme is dark, which some depend on, is from the background and the text.)"
           :button-pressed (mix-colors accent +black+ 0.18)
           :button-disabled (mix-colors background text (if dark 0.15 0.08)))))
 
+(defun derive-sizes (spacing)
+  "The sizes worked out from SPACING, as a property list: each of +THEME-SIZES+ times SPACING, to
+the nearest whole point (a half up)."
+  (loop :for (key size) :in +theme-sizes+
+        :collect key :collect (float (floor (+ (* spacing size) 1/2)) 1f0)))
+
+(defun size-value (key value)
+  "VALUE, given as the setting KEY (the spacing or a size), as a theme keeps it."
+  (unless (and (realp value) (if (eq key :spacing) (plusp value) (not (minusp value))))
+    (error "~s is ~s, and it must be a number~:[ of points, 0 or more~; more than 0~]." key value
+           (eq key :spacing)))
+  (float value 1f0))
+
 (defun theme-hash (values name)
   (let ((hash (mix +seed+ (hash-of name))))
     (dolist (value values hash)
@@ -249,9 +335,10 @@ define a theme, so it is synchronized.")
 
 (defun make-theme (&rest settings &key name (base :dark) &allow-other-keys)
   "A theme like BASE (a theme or its name; :dark if not given) with SETTINGS, which are any of
-+THEME-SETTINGS+ (colours as packed colours or \"#rrggbb\" strings). If a seed (the background, the
-text or the accent) is given, the colours that are worked out from it are worked out again (see
-+DERIVED-FROM+), except those given too; the others are BASE's."
++THEME-SETTINGS+ (colours as packed colours or \"#rrggbb\" strings, sizes as numbers of points). If
+a seed (the background, the text or the accent) is given, the colours that are worked out from it
+are worked out again (see +DERIVED-FROM+), except those given too; if the spacing is given, so are
+the sizes (+THEME-SIZES+), except those given too. The others are BASE's."
   (let* ((base (and base (find-theme base)))
          (given (loop :for (key value) :on settings :by #'cddr
                       :unless (member key '(:name :base))
@@ -264,17 +351,29 @@ text or the accent) is given, the colours that are worked out from it are worked
              (let ((value (getf given key)))
                (cond (value (parse-color value))
                      (base (theme-setting base key))
-                     (t (error "A theme with no base needs ~s." key))))))
+                     (t (error "A theme with no base needs ~s." key)))))
+           (plain (key)
+             (let ((value (getf given key)))
+               (cond (value value)
+                     (base (theme-setting base key))
+                     (t (getf +theme-defaults+ key))))))
       (let* ((background (seed :background)) (text (seed :text)) (accent (seed :accent))
              (derived (derive background text accent))
+             (spacing (size-value :spacing (plain :spacing)))
+             (sizes (derive-sizes spacing))
              (values
                (loop :for key :in +theme-settings+
                      :collect (let ((value (getf given key)))
                                 (cond ((member key +theme-seeds+) (seed key))
-                                      ((member key '(:font-name :font-size :radius))
-                                       (or value (if base (theme-setting base key)
-                                                     (ecase key (:font-name "Helvetica")
-                                                       (:font-size 15) (:radius 6)))))
+                                      ((eq key :font-name) (coerce (plain key) 'simple-string))
+                                      ((member key '(:font-size :radius)) (plain key))
+                                      ((eq key :spacing) spacing)
+                                      ((assoc key +theme-sizes+)
+                                       (cond (value (size-value key value))
+                                             ;; Worked out again if the spacing is given.
+                                             ((or (null base) (getf given :spacing))
+                                              (getf sizes key))
+                                             (t (theme-setting base key))))
                                       (value (parse-color value))
                                       ;; Worked out again if a seed it comes from is given.
                                       ((or (null base)
@@ -282,24 +381,13 @@ text or the accent) is given, the colours that are worked out from it are worked
                                                          (rest (assoc key +derived-from+))))
                                        (getf derived key))
                                       (t (theme-setting base key)))))))
-        (destructuring-bind (background text accent panel dim-text button-text ring field-border
-                             field-fill field-invalid field-disabled selection caret track thumb
-                             row-selected row-hover scrim tooltip tooltip-text button button-hover
-                             button-pressed button-disabled font-name font-size radius)
-            values
-          (%make-theme :name name :background background :text text :accent accent :panel panel
-                       :dim-text dim-text :button-text button-text :ring ring
-                       :field-border field-border :field-fill field-fill
-                       :field-invalid field-invalid :field-disabled field-disabled
-                       :selection selection :caret caret :track track :thumb thumb
-                       :row-selected row-selected :row-hover row-hover :scrim scrim
-                       :tooltip tooltip :tooltip-text tooltip-text :button button
-                       :button-hover button-hover :button-pressed button-pressed
-                       :button-disabled button-disabled
-                       :font-name (coerce font-name 'simple-string) :font-size font-size
-                       :radius radius
-                       :given (append (and base (list :base (theme-name base))) given)
-                       :id (theme-hash values name)))))))
+        (apply #'%make-theme
+               :name name
+               :given (append (and base (list :base (theme-name base))) given)
+               :id (theme-hash values name)
+               (loop :for key :in +theme-settings+
+                     :for value :in values
+                     :collect key :collect value))))))
 
 (defvar *theme-defined-hook* nil
   "A function called with no arguments after DEFINE-THEME has defined a theme, or NIL: the host sets
@@ -323,9 +411,9 @@ out, with colours as \"#rrggbb\" strings."
        ,@(loop :for (key value) :on given :by #'cddr
                :unless (eq key :base)
                  :collect key
-                 :and :collect (if (member key '(:font-name :font-size :radius))
-                                   value
-                                   (color-hex (parse-color value)))))))
+                 :and :collect (if (member key +theme-colors+)
+                                   (color-hex (parse-color value))
+                                   value)))))
 
 (defun button-color (theme state)
   "The colour of a button of THEME that is STATE (:normal, :hover, :pressed or :disabled)."
@@ -377,3 +465,8 @@ out, with colours as \"#rrggbb\" strings."
   "The theme that what is described, laid out or drawn now is in: bound around a frame's
 description to the window's, by WITH-THEME to another, and to a box's own while it is laid out
 and drawn.")
+
+(defun spaced (size &optional (theme *theme*))
+  "SIZE points (at a spacing of 1) in THEME's spacing, to the nearest whole point: for the room in
+and round what has no size of its own in a theme, such as a toast or a tooltip."
+  (float (floor (+ (* (theme-spacing theme) size) 1/2)) 1f0))

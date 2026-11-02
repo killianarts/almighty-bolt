@@ -52,10 +52,7 @@
 (defparameter +bases+ '(:dark :light))
 
 (defparameter +derived-settings+
-  (remove-if (lambda (setting)
-               (or (member setting bolt:+theme-seeds+)
-                   (member setting '(:font-name :font-size :radius))))
-             bolt:+theme-settings+)
+  (remove-if (lambda (setting) (member setting bolt:+theme-seeds+)) bolt:+theme-colors+)
   "The colours a theme works out from its seeds, which can be given instead.")
 
 (defparameter +readability+
@@ -101,9 +98,10 @@ so that a grey does not lose its hue), and what its field says, which can be a c
                                                (string-downcase name)))))
     (intern (string-upcase (if (string= clean "") "my-theme" clean)) :keyword)))
 
-(defun design-theme (name base editors changed font-name font-size radius overrides)
-  "The theme the design describes: BASE, with the seeds in CHANGED, the font, its size and the
-radius where they are not BASE's, and the OVERRIDES (a property list of colours)."
+(defun design-theme (name base editors changed font-name font-size radius spacing overrides)
+  "The theme the design describes: BASE, with the seeds in CHANGED, the font, its size, the radius
+and the SPACING (a percentage) where they are not BASE's, and the OVERRIDES (a property list of
+colours)."
   (let ((base-theme (bolt:find-theme base)))
     (apply #'bolt:make-theme
            :name (theme-keyword name) :base base
@@ -117,7 +115,13 @@ radius where they are not BASE's, and the OVERRIDES (a property list of colours)
                      (list :font-size font-size))
                    (unless (= radius (bolt:theme-setting base-theme :radius))
                      (list :radius radius))
+                   (unless (= spacing (spacing-percent base-theme))
+                     (list :spacing (/ spacing 100f0)))
                    overrides))))
+
+(defun spacing-percent (theme)
+  "THEME's spacing as a percentage, a whole number."
+  (round (* 100 (bolt:theme-setting theme :spacing))))
 
 (defun theme-source (theme)
   "THEME written down as the DEFINE-THEME form that defines it again, as text that reads back in any
@@ -243,6 +247,7 @@ package: a setting to a line."
                    (font-name "Helvetica")
                    (font-size 15)
                    (radius 6)
+                   (spacing 100)
                    (overrides '())
                    (picked 0)
                    (override-hex "")
@@ -256,7 +261,7 @@ package: a setting to a line."
       (lambda ()
         (unless theme
           (setf theme (design-theme name (nth base +bases+) editors changed font-name font-size
-                                    radius overrides)))
+                                    radius spacing overrides)))
         (let ((dirty nil))
           (bolt:row (:id :designer :fill t :cross-align :stretch)
             (bolt:scroll (:id :settings)
@@ -281,13 +286,14 @@ package: a setting to a line."
                                   font-name (bolt:theme-setting theme :font-name)
                                   font-size (bolt:theme-setting theme :font-size)
                                   radius (bolt:theme-setting theme :radius)
+                                  spacing (spacing-percent theme)
                                   dirty t))))))
                   (section ("Colours" :colours)
                     (dolist (editor editors)
                       (when (seed-section editor)
                         (pushnew (seed-editor-seed editor) changed)
                         (setf dirty t))))
-                  (section ("Font and corners" :font)
+                  (section ("Font, corners and spacing" :font)
                     (bolt:row (:gap 8 :cross-align :center)
                       (bolt:label "Font" :id :font-label)
                       (multiple-value-bind (text edited) (bolt:text-field font-name :id :font-name)
@@ -299,7 +305,12 @@ package: a setting to a line."
                     (bolt:row (:gap 8 :cross-align :center)
                       (bolt:label (format nil "Corners ~d" radius) :id :radius-label)
                       (multiple-value-bind (value moved) (bolt:slider radius 0 14 :id :radius)
-                        (when moved (setf radius (round value) dirty t)))))
+                        (when moved (setf radius (round value) dirty t))))
+                    ;; How much room there is in and round the controls, in steps of 5%.
+                    (bolt:row (:gap 8 :cross-align :center)
+                      (bolt:label (format nil "Spacing ~d%" spacing) :id :spacing-label)
+                      (multiple-value-bind (value moved) (bolt:slider spacing 50 200 :id :spacing)
+                        (when moved (setf spacing (* 5 (round value 5)) dirty t)))))
                   (section ("Other colours" :others)
                     (bolt:paragraph "Each is worked out from the colours above. Give one to use it instead."
                                     :id :others-note)
