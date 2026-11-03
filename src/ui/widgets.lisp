@@ -505,8 +505,16 @@ tree."
 ;;; window onto it, moved by the wheel. How far down the window is (the offset, in points) is kept by
 ;;; the container's id, and is part of what decides the layout: the children are placed above the
 ;;; window by it. The wheel goes first to what is inside (a list inside scrolls its rows), and what is
-;;; left of it, while the pointer is over the container or anything in it, moves the window. When the
-;;; keyboard comes to something inside that is out of the window, the window moves to show it.
+;;; left of it, while the pointer is over the container or anything in it, moves the window. What
+;;; scrolls takes the wheel only if it can move the way the wheel goes: a list at its top leaves a
+;;; wheel going up to the container it is in, as does a container at its top to the one it is in.
+;;; When the keyboard comes to something inside that is out of the window, the window moves to show it.
+
+(defun wheel-can-move-p (dy offset most)
+  "True if a wheel of DY lines can move what is at OFFSET, which goes from 0 to MOST: a positive DY
+moves it toward 0, and a negative one toward MOST."
+  (or (and (plusp dy) (plusp offset))
+      (and (minusp dy) (< offset most))))
 
 (defconstant +ring-reach+ 2f0
   "How far outside a widget the ring round it, when it has the keyboard, is drawn.")
@@ -550,8 +558,9 @@ container, and is not inside.)"
          (state (box-data box))
          (rect (rect-of ui key))
          (offset (scroll-state-offset state))
-         (viewport (scroll-state-viewport-height state)))
-    (when (and rect (/= (ui-wheel-dy ui) 0f0)
+         (viewport (scroll-state-viewport-height state))
+         (most (max 0f0 (- (scroll-state-content-height state) viewport))))
+    (when (and rect (wheel-can-move-p (ui-wheel-dy ui) offset most)
                (or (= (ui-hot ui) key) (inside-scroll-p ui box (ui-hot ui))))
       (multiple-value-bind (dx dy) (consume-wheel ui)
         (declare (ignore dx))
@@ -569,7 +578,7 @@ container, and is not inside.)"
                     ((> (+ bottom +ring-reach+) (+ offset viewport))
                      (setf offset (- (+ bottom +ring-reach+) viewport))))))))
       (setf (scroll-state-last-focus state) focus))
-    (setf offset (max 0f0 (min offset (max 0f0 (- (scroll-state-content-height state) viewport)))))
+    (setf offset (max 0f0 (min offset most)))
     (setf (scroll-state-offset state) offset
           (box-n1 box) offset)
     (close-box ui)
@@ -1289,6 +1298,19 @@ key was one for the area."
                (values pasted t)
                (edit-text state event))))))))
 
+(defun area-most-offset (ui area width rows)
+  "How far down the lines of the text AREA can be scrolled, in points, or NIL if UI has no context to
+lay the lines out with."
+  (let ((context (ui-context ui)))
+    (when context
+      (let ((lines (area-lines context area (text-state-string (area-state-state area))
+                               (area-inner-width area width)))
+            (height (area-line-height context))
+            (inner (if (plusp (area-state-inner-height area))
+                       (area-state-inner-height area)
+                       (* rows (area-line-height context)))))
+        (max 0f0 (- (* (length lines) height) inner))))))
+
 (defun keep-area-caret-visible (ui area width rows)
   (let ((context (ui-context ui)))
     (when context
@@ -1356,7 +1378,12 @@ else, that is what is shown."
         (when (and (= (ui-active ui) key) (ui-released ui))
           (consume-release ui)
           (setf (ui-active ui) 0))
-        (when (= (ui-hot ui) key)
+        ;; The wheel moves the lines if they can go its way, and is otherwise left for what the text
+        ;; area is in (with no context to know how far they go, it is taken).
+        (when (and (= (ui-hot ui) key)
+                   (let ((most (area-most-offset ui area width rows)))
+                     (or (null most)
+                         (wheel-can-move-p (ui-wheel-dy ui) (area-state-offset area) most))))
           (multiple-value-bind (dx dy) (consume-wheel ui)
             (declare (ignore dx))
             (when (/= dy 0f0)
@@ -1381,17 +1408,9 @@ else, that is what is shown."
     (if moved
         (keep-area-caret-visible ui area width rows)
         ;; Only kept inside the lines; the wheel may leave the caret out of sight.
-        (let ((context (ui-context ui)))
-          (when context
-            (let* ((lines (area-lines context area (text-state-string (area-state-state area))
-                                      (area-inner-width area width)))
-                   (height (area-line-height context))
-                   (inner (if (plusp (area-state-inner-height area))
-                              (area-state-inner-height area)
-                              (* rows height))))
-              (setf (area-state-offset area)
-                    (max 0f0 (min (area-state-offset area)
-                                  (max 0f0 (- (* (length lines) height) inner)))))))))
+        (let ((most (area-most-offset ui area width rows)))
+          (when most
+            (setf (area-state-offset area) (max 0f0 (min (area-state-offset area) most))))))
     (setf (box-look box) (look-of ui key enabled)
           (box-text box) (text-state-string (area-state-state area))
           (box-n1 box) (area-state-offset area))
@@ -2200,14 +2219,20 @@ NIL) marked. Returns the index now and whether the person changed it this frame.
           (when (and (= (ui-active ui) key) (ui-released ui))
             (consume-release ui)
             (setf (ui-active ui) 0)))
-        (when (= (ui-hot ui) key)
+        ;; The wheel moves the rows if they can go its way, and is otherwise left for what the list
+        ;; is in.
+        (when (and (= (ui-hot ui) key)
+                   (wheel-can-move-p (ui-wheel-dy ui) (list-state-top state) (max 0 (- count rows))))
           (multiple-value-bind (dx dy) (consume-wheel ui)
             (declare (ignore dx))
-            (let ((amount (+ (list-state-remainder state) (- dy))))
-              (let ((whole (truncate amount)))
-                (setf (list-state-remainder state) (- amount whole))
-                (setf (list-state-top state)
-                      (max 0 (min (max 0 (- count rows)) (+ (list-state-top state) whole))))))))
+            (let* ((amount (+ (list-state-remainder state) (- dy)))
+                   (whole (truncate amount))
+                   (most (max 0 (- count rows)))
+                   (top (+ (list-state-top state) whole)))
+              ;; What is left of a line is kept for the next turn, but not past an end, where it
+              ;; would hold back the first turn of the wheel the other way.
+              (setf (list-state-remainder state) (if (<= 0 top most) (- amount whole) 0f0)
+                    (list-state-top state) (max 0 (min most top))))))
         (when (= (ui-focus ui) key)
           (dolist (event (copy-list (ui-keys ui)))
             (let ((k (key-event-logical-key event)))

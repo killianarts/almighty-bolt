@@ -50,6 +50,7 @@ are not listed.
 - A field's `:labelled-by` names the label nearest it, so two containers can each have a label and a field with the same ids ([0.3](docs/releases/dev.md#bug-fixes)).
 - A panel whose `:color` is transparent draws nothing behind what is in it, instead of the theme's panel colour ([0.3](docs/releases/dev.md#bug-fixes)).
 - A slider whose value the app rounds no longer warns that a frame did not settle while it is dragged ([0.3](docs/releases/dev.md#bug-fixes)).
+- The wheel over a list, a scroll container or a text area that cannot move any further that way scrolls the container it is in ([0.3](docs/releases/dev.md#bug-fixes)).
 
 ### Security
 

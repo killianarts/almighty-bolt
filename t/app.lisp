@@ -1092,6 +1092,63 @@ that leaves two of them. Each button counts its presses."
     (assert-eql 24f0 (offset-of screen :outer))
     (assert-eql 2 (s:node-property (node-of screen :inner) :first-visible))))
 
+(define-test the-wheel-over-a-list-at-an-end-moves-the-container-it-is-in ()
+  (let* ((screen (show 'make-nested-scroll))
+         (session (screen-session screen)))
+    (m:scroll session :id 0 :dy -1)
+    (assert-eql 24f0 (offset-of screen :outer))
+    ;; Up over the list at its top: the container goes up.
+    (m:scroll session :id :inner :dy 1)
+    (assert-eql 0f0 (offset-of screen :outer))
+    (assert-eql 0 (s:node-property (node-of screen :inner) :first-visible))
+    ;; Down over the list at its bottom: the container goes down.
+    (m:scroll session :id :inner :dy -3)
+    (assert-eql 3 (s:node-property (node-of screen :inner) :first-visible))
+    (assert-eql 0f0 (offset-of screen :outer))
+    (m:scroll session :id :inner :dy -1)
+    (assert-eql 24f0 (offset-of screen :outer))
+    (assert-eql 3 (s:node-property (node-of screen :inner) :first-visible))))
+
+(defun make-scroll-in-a-scroll ()
+  (lambda ()
+    (scroll (:id :page :height 100)
+      (scroll (:id :box :height 50)
+        (dotimes (i 3)
+          (button (format nil "In ~d" i) :id (+ 100 i))))
+      (dotimes (i 6)
+        (button (format nil "B~d" i) :id i)))))
+
+(define-test the-wheel-over-a-scroll-container-at-an-end-moves-the-one-it-is-in ()
+  (let* ((screen (show 'make-scroll-in-a-scroll))
+         (session (screen-session screen)))
+    (m:scroll session :id :box :dy -100)
+    (assert-true (plusp (offset-of screen :box)))
+    (assert-eql 0f0 (offset-of screen :page))
+    (let ((bottom (offset-of screen :box)))
+      (m:scroll session :id :box :dy -1)
+      (assert-eql 24f0 (offset-of screen :page))
+      (assert-eql bottom (offset-of screen :box))
+      ;; Back up over the inner one, which can go up: it does, and the outer one stays.
+      (m:scroll session :id :box :dy 1)
+      (assert-true (< (offset-of screen :box) bottom))
+      (assert-eql 24f0 (offset-of screen :page)))))
+
+(defun make-text-area-in-a-scroll ()
+  (state-let ((notes "Short"))
+    (lambda ()
+      (scroll (:id :page :height 80)
+        (multiple-value-bind (new changed) (text-area notes :id :notes :width 200 :rows 2)
+          (when changed (setf notes new)))
+        (dotimes (i 4)
+          (button (format nil "B~d" i) :id i))))))
+
+(define-test the-wheel-over-a-text-area-whose-lines-all-show-moves-the-container-it-is-in ()
+  (let* ((screen (show 'make-text-area-in-a-scroll))
+         (session (screen-session screen)))
+    (m:scroll session :id :notes :dy -1)
+    (assert-eql 24f0 (offset-of screen :page))
+    (assert-eql 0f0 (offset-of screen :notes))))
+
 ;;; --- a list that builds only the rows that show ---
 
 (defstruct (entry (:constructor make-entry (id text))) id text (presses 0) (note ""))
