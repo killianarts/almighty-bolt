@@ -61,7 +61,7 @@ builds its tables in the first frame of its first play."
          (task (getf (core:script-header script) :app)))
     (with-masked-float-traps
       (with-autorelease-pool
-        (let* ((host (make-host (make-instance 'core:variant) (default-device)
+        (let* ((host (make-host (make-instance 'core:app-instance) (default-device)
                                 +pixel-format-bgra8-unorm+ :capacity 1024 :scale 2))
                (context (host-context host)))
           (flet ((once (measure)

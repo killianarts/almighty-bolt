@@ -29,7 +29,7 @@
 
 ;;; The text editor, immediate. The canvas is given a function that draws the document every frame
 ;;; and returns what happened to it, which is handled where it is described. The canvas draws in its
-;;; own coordinates, caret included; the variant puts the caret where the canvas is in the window.
+;;; own coordinates, caret included; the app puts the caret where the canvas is in the window.
 
 (defun make-editor-app ()
   (state-let ((document (make-sample-document)))

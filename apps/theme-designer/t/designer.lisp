@@ -14,23 +14,23 @@
 ;;; window that is tall enough for all of it to show. What it draws is read back from the display
 ;;; list; what it writes down is read and evaluated, and must be the theme it shows.
 
-(defstruct (screen (:constructor %make-screen (variant context list)))
-  variant context list)
+(defstruct (screen (:constructor %make-screen (app context list)))
+  app context list)
 
 (defun draw (screen)
-  (core:settle-frame (screen-variant screen) (screen-context screen) (screen-list screen)))
+  (core:settle-frame (screen-app screen) (screen-context screen) (screen-list screen)))
 
 (defun open-designer ()
   "The designer and a machine session on it."
-  (let* ((variant (core:with-kept-state ((core:make-kept-state))
+  (let* ((instance (core:with-kept-state ((core:make-kept-state))
                     (app:make-app-instance 'designer:make-designer)))
-         (screen (%make-screen variant (fake:make-fake-context :width 1200f0 :height 3000f0)
+         (screen (%make-screen instance (fake:make-fake-context :width 1200f0 :height 3000f0)
                                (core:make-display-list :capacity 65536))))
     (draw screen)
     (values screen
-            (m:make-session :variant (lambda () (screen-variant screen))
+            (m:make-session :app (lambda () (screen-app screen))
                             :deliver (lambda (event)
-                                       (core:handle-event (screen-variant screen) event)
+                                       (core:handle-event (screen-app screen) event)
                                        (draw screen))
                             :settle (lambda () (dotimes (i 4) (draw screen)))
                             :on-main #'funcall))))
@@ -51,12 +51,12 @@
                  (setf color (core:display-list-color list index)))))))))
 
 (defun middle-color (screen id)
-  (multiple-value-bind (x y width height) (core:lookup-target (screen-variant screen) id)
+  (multiple-value-bind (x y width height) (core:lookup-target (screen-app screen) id)
     (color-at screen (+ x (/ width 2)) (+ y (/ height 2)))))
 
 (defun corner-color (screen id)
   "The colour just inside the top left of the control ID (a panel's background)."
-  (multiple-value-bind (x y) (core:lookup-target (screen-variant screen) id)
+  (multiple-value-bind (x y) (core:lookup-target (screen-app screen) id)
     (color-at screen (+ x 2) (+ y 2))))
 
 (defun shown-text (session id)
@@ -161,7 +161,7 @@
 
 (define-test more-spacing-makes-the-preview-roomier-and-is-written-down ()
   (multiple-value-bind (screen session) (open-designer)
-    (flet ((width (id) (nth-value 2 (core:lookup-target (screen-variant screen) id))))
+    (flet ((width (id) (nth-value 2 (core:lookup-target (screen-app screen) id))))
       (let ((before (width :sample-button)))
         (m:set-value session 150 :id :spacing)
         (assert-true (search "Spacing 150%" (shown-name session :spacing-label)))

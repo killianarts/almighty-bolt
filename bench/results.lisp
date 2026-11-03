@@ -8,7 +8,7 @@
   (:import-from #:almighty-bolt/platform/macos/host
                 #:make-host
                 #:host-context
-                #:host-variant
+                #:host-app
                 #:host-ring
                 #:host-display-list
                 #:host-acquire
@@ -20,7 +20,7 @@
                 #:make-offscreen-target
                 #:offscreen-target-descriptor)
   (:import-from #:almighty-bolt-bench-null/null
-                #:make-null-variant)
+                #:make-null-app)
   (:export #:main
            #:overhead-main
            #:report
@@ -113,7 +113,7 @@ different frames."
   (subseq vector 1))
 
 (defun summary (runs)
-  "What the repetitions say. The first frame of a run is a cold one (a new variant builds its
+  "What the repetitions say. The first frame of a run is a cold one (a new app builds its
 tables in it) and is summarized apart; the rest are the frames that are measured: their build
 times, the median of each repetition and how far those spread, the builds in a frame, and the
 bytes consed in a frame. :build-ns and :bytes-per-frame are of the build only, as they were in
@@ -177,7 +177,7 @@ ring, one for each frame (see +RING-COLUMNS+)."
          (context (host-context host))
          (ring (host-ring host))
          (object (registry:make-app-object (registry:find-app task))))
-    (setf (host-variant host) object
+    (setf (host-app host) object
           (host-acquire host) (lambda () (values pass 0))
           (core:context-scale context) (float scale 1f0))
     (core:clear-frame-ring ring)
@@ -286,7 +286,7 @@ is not set, those of the 7GUIs tasks and of the stress apps."
   "The build of every app on its scripts, with the real text engine and no renderer."
   (with-masked-float-traps
     (with-autorelease-pool
-      (let* ((host (make-host (make-instance 'core:variant) (default-device)
+      (let* ((host (make-host (make-instance 'core:app-instance) (default-device)
                               +pixel-format-bgra8-unorm+ :capacity 1024 :scale 2))
              (context (host-context host)))
         (format t "~&Headless: ~d repetitions after ~d warm-ups; the time is of the app's build of a frame~%"
@@ -312,7 +312,7 @@ is not set, those of the 7GUIs tasks and of the stress apps."
 instrumentation on."
   (with-masked-float-traps
     (with-autorelease-pool
-      (let ((host (make-host (make-instance 'core:variant) (default-device)
+      (let ((host (make-host (make-instance 'core:app-instance) (default-device)
                              +pixel-format-bgra8-unorm+ :capacity 65536 :ring-capacity 65536
                                                         :scale 2 :phases t)))
         (format t "~&Host: ~d repetitions after ~d warm-ups; frames through the host into an off-screen texture (no vsync, no drawable): not a window's numbers~%"
@@ -384,10 +384,10 @@ on, in rounds that do one and then the other (the other first in every second ro
                   rows)))))))
 
 (defun overhead-null (repetitions frames)
-  "The null variant through the host, off-screen, with the instrumentation off and on: the
-median over repetitions of a run's median frame time and build time. The null variant does
+  "The null app through the host, off-screen, with the instrumentation off and on: the
+median over repetitions of a run's median frame time and build time. The null app does
 nothing in a build, so the difference is the instrumentation's own."
-  (let* ((host (make-host (make-null-variant)
+  (let* ((host (make-host (make-null-app)
                           (default-device) +pixel-format-bgra8-unorm+
                           :capacity 4096 :ring-capacity (+ frames 16) :scale 2))
          (context (host-context host))
@@ -423,7 +423,7 @@ nothing in a build, so the difference is the instrumentation's own."
          (date (timestamp)) (source (source-state)) (machine (machine-profile)))
     (with-masked-float-traps
       (with-autorelease-pool
-        (let* ((context (host-context (make-host (make-instance 'core:variant) (default-device)
+        (let* ((context (host-context (make-host (make-instance 'core:app-instance) (default-device)
                                                  +pixel-format-bgra8-unorm+ :capacity 1024 :scale 2)))
                (headless (overhead-headless (script-paths) repetitions context))
                (null (overhead-null repetitions 1000)))
@@ -433,7 +433,7 @@ nothing in a build, so the difference is the instrumentation's own."
                     (getf row :app) (getf row :script-name)
                     (/ (getf row :off-ns) 1000.0) (/ (getf row :on-ns) 1000.0)
                     (/ (getf row :added-ns) 1000.0) (* 100 (getf row :added-share))))
-          (format t "~&  null variant through the host (~d frames a run): frame ~,1f us off, ~,1f us on; build ~,3f us off, ~,3f us on~%"
+          (format t "~&  null app through the host (~d frames a run): frame ~,1f us off, ~,1f us on; build ~,3f us off, ~,3f us on~%"
                   (getf null :frames-per-run) (/ (getf null :frame-off-ns) 1000.0)
                   (/ (getf null :frame-on-ns) 1000.0) (/ (getf null :build-off-ns) 1000.0)
                   (/ (getf null :build-on-ns) 1000.0))
@@ -475,7 +475,7 @@ host ones."
                 (/ (getf row :off-ns) 1000.0) (/ (getf row :on-ns) 1000.0)
                 (/ (getf row :added-ns) 1000.0) (* 100 (getf row :added-share))))
       (let ((null (getf record :null)))
-        (format t "~&  null variant through the host: frame ~,1f us off, ~,1f us on~%"
+        (format t "~&  null app through the host: frame ~,1f us off, ~,1f us on~%"
                 (/ (getf null :frame-off-ns) 1000.0) (/ (getf null :frame-on-ns) 1000.0))))
     (dolist (mode '(:headless :host))
       (let ((of-mode (remove-if-not (lambda (record) (eq (or (getf record :mode) :headless) mode))

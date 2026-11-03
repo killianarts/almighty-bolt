@@ -77,7 +77,7 @@ not counting sleep, which is the base of the core clock."
 
 (defun logical-key (text)
   "The logical key of a key event whose characters are TEXT: its first character, or
-NIL if it has none. A few keys are not what AppKit calls them, and a variant should
+NIL if it has none. A few keys are not what AppKit calls them, and an app should
 not need to know AppKit's names: Shift-Tab is U+0019, its back-tab character, and is
 the Tab key with the shift modifier; the Delete key, which deletes backwards, is
 U+007F and is #\Backspace; and the Enter key of the keypad is U+0003 and is Return."

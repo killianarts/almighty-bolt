@@ -1,6 +1,6 @@
 (defpackage #:almighty-bolt/ui/inspector
   (:use #:cl)
-  (:import-from #:almighty-bolt/variant
+  (:import-from #:almighty-bolt/app-instance
                 #:request-frame)
   (:import-from #:almighty-bolt/ui/box
                 #:box-key
@@ -39,7 +39,7 @@
   (:import-from #:almighty-bolt/ui/inspection
                 #:box-by-key)
   (:import-from #:almighty-bolt/ui/immediate
-                #:immediate-variant-ui
+                #:immediate-app-ui
                 #:current-context)
   (:import-from #:almighty-bolt/ui/semantics
                 #:box-facts)
@@ -53,7 +53,7 @@
 ;;; in the app's window, and outlines what was picked); the inspector says what the picked one is,
 ;;; changes its value as a hand would, and changes the theme it is drawn in. It is an app like any
 ;;; other, made by MAKE-INSPECTOR, and what it looks at is given to it: a function that returns the
-;;; app's variant (which compiling code replaces; the ui, which holds the pick, goes to the new one),
+;;; app's instance (which compiling code replaces; the ui, which holds the pick, goes to the new one),
 ;;; and one that does what it asks.
 ;;;
 ;;; It changes a widget as a person would, by the machine interface's actions (a click, SET-VALUE),
@@ -65,9 +65,9 @@
 ;;; It is drawn in the theme its window had when it was opened, so that changing that theme in it
 ;;; changes the app and not the inspector under the pointer.
 
-(defstruct (inspector (:constructor make-inspector-state (variant act)))
-  ;; A function of no arguments that returns the app's variant, or NIL if its window has closed.
-  (variant nil :type function)
+(defstruct (inspector (:constructor make-inspector-state (app act)))
+  ;; A function of no arguments that returns the app's instance, or NIL if its window has closed.
+  (app nil :type function)
   ;; A function of an action (see MACHINE:PERFORM) and of REPORT, a function of what went wrong.
   (act nil :type function)
   ;; What it asked of the app's window (made at the first frame, in the theme of then).
@@ -84,12 +84,12 @@
   (setting-draft "" :type string)
   (setting-value-draft "" :type string))
 
-(defun make-inspector (variant act)
-  "The function that describes the inspector's window, for the app whose variant VARIANT (a function
+(defun make-inspector (target act)
+  "The function that describes the inspector's window, for the app whose instance TARGET (a function
 of no arguments) returns. ACT is called with an action that the inspector asks for (a property list
 that MACHINE:PERFORM takes) and a function to call with what went wrong, if anything; it should do
 the action after the frame, not in it."
-  (let ((inspector (make-inspector-state variant act)))
+  (let ((inspector (make-inspector-state target act)))
     (lambda () (describe-inspector inspector))))
 
 ;;; --- what it knows of the picked widget ---
@@ -270,8 +270,8 @@ known of the picked widget from the app's last frame."
     (setf (inspector-theme inspector) *theme*
           (inspector-inspection inspector) (make-inspection *theme*)))
   (let* ((inspection (inspector-inspection inspector))
-         (variant (funcall (inspector-variant inspector)))
-         (ui (and variant (immediate-variant-ui variant))))
+         (instance (funcall (inspector-app inspector)))
+         (ui (and instance (immediate-app-ui instance))))
     (when ui
       (look-at-app inspector ui)
       (when (and (inspection-picking inspection) (shortcut #\Escape))

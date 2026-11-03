@@ -46,7 +46,7 @@
   ;; The NSView whose children the elements are, or 0.
   (view 0 :type (unsigned-byte 64))
   ;; Returns the node (a property list) of the whole window, or NIL if there is none. It is asked
-  ;; each time, so that a new variant (the app made again) is read from then on.
+  ;; each time, so that a new app (the app made again) is read from then on.
   (tree (lambda () nil) :type function)
   ;; Called with the x and y, in points from the top left of the view, of where a person's hand would
   ;; press, to press there. It does what a click does, through the events the window gets.

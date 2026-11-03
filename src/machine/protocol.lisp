@@ -31,7 +31,7 @@
                 #:find-nodes)
   (:export #:session
            #:make-session
-           #:session-variant
+           #:session-app
            #:session-deliver
            #:session-settle
            #:session-on-main
@@ -69,13 +69,13 @@
 ;;; SESSION is what these need of a place where an app runs: a window (HOST-SESSION), or a
 ;;; test's stand-in for one.
 
-(defstruct (session (:constructor make-session (&key variant deliver settle on-main screenshot)))
-  "VARIANT is a function of no arguments that returns what is running. DELIVER takes an event and
+(defstruct (session (:constructor make-session (&key app deliver settle on-main screenshot)))
+  "APP is a function of no arguments that returns the app instance that is running. DELIVER takes an event and
 offers it to the app as the window would. SETTLE returns when the app has answered everything
 delivered so far. ON-MAIN takes a function and calls it on the thread that owns the ui, between
 frames, and returns its values. SCREENSHOT is a function of no arguments that returns the screen as
 a PNG in a vector of bytes, or NIL if it cannot."
-  variant deliver settle on-main screenshot)
+  app deliver settle on-main screenshot)
 
 (define-condition machine-error (error)
   ((message :initarg :message :reader machine-error-message))
@@ -95,7 +95,7 @@ a PNG in a vector of bytes, or NIL if it cannot."
 (defun see (session)
   "The semantic tree of the screen as it is now (see ALMIGHTY-BOLT/UI/SEMANTICS)."
   (funcall (session-on-main session)
-           (lambda () (accessibility-tree (funcall (session-variant session))))))
+           (lambda () (accessibility-tree (funcall (session-app session))))))
 
 (defun describe-node (node)
   (format nil "~(~a~)~@[ ~s~]~@[ with the id ~s~]" (node-role node) (node-name node) (node-id node)))

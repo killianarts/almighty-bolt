@@ -57,7 +57,7 @@
 ;;; events are told that it picks.)
 
 (defvar *inspector-opener* nil
-  "A function of the variant, called when Command-Option-I is pressed in a window that may have an
+  "A function of the app, called when Command-Option-I is pressed in a window that may have an
 inspector, which opens the inspector's window or closes it; set by the app (see app.lisp). NIL
 where there are no windows to open, and then the keys are the app's.")
 
@@ -104,18 +104,18 @@ the innermost, and a float before the screen under it), and where it is: three v
 
 ;;; --- what it takes before the app ---
 
-(defun inspection-take-input (ui variant)
+(defun inspection-take-input (ui instance)
   "Take from the frame's input, before the app's function, what is the inspector's: Command-Option-I,
-which calls *INSPECTOR-OPENER* with VARIANT (if VARIANT is not NIL: the app may have tools), and
+which calls *INSPECTOR-OPENER* with INSTANCE (if INSTANCE is not NIL: the app may have tools), and
 while it picks, Escape and the press that picks; then note where the outlines go, from the frame
 before, whose boxes the ui still has. Called on the first build of a frame. Returns true if it took
 any of the frame's input: then the frame builds again, and the other windows (the inspector's) are
 drawn after it, as after any frame that took input."
   (let ((*ui* ui)
         (taken nil))
-    (when (and variant *inspector-opener* (shortcut #\i :command :option))
+    (when (and instance *inspector-opener* (shortcut #\i :command :option))
       (setf taken t)
-      (funcall *inspector-opener* variant))
+      (funcall *inspector-opener* instance))
     (let ((inspection (ui-inspection ui)))
       (when inspection
         (when (and (inspection-picking inspection) (shortcut #\Escape))

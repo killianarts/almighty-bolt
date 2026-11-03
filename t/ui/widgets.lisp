@@ -15,10 +15,10 @@
 
 (defun frame-of (view &key (capacity 4096))
   "Build the first frame of an app whose screen is described by VIEW, a function."
-  (let ((variant (i:make-immediate-variant view))
+  (let ((instance (i:make-immediate-app view))
         (context (fake:make-fake-context :width 300f0 :height 200f0))
         (list (core:make-display-list :capacity capacity)))
-    (core:settle-frame variant context list)
+    (core:settle-frame instance context list)
     list))
 
 (defun widget-missing-its-id (view)
@@ -156,7 +156,7 @@
     (assert-true (search "one thing" (princ-to-string condition)))))
 
 (define-test the-same-ids-in-the-next-frame-are-not-a-duplicate ()
-  (let ((variant (i:make-immediate-variant
+  (let ((instance (i:make-immediate-app
                   (lambda ()
                     (w:column ()
                       (w:button "A" :id :a)
@@ -164,7 +164,7 @@
         (context (fake:make-fake-context :width 300f0 :height 200f0))
         (list (core:make-display-list :capacity 4096)))
     (dotimes (frame 5)
-      (core:settle-frame variant context list))
+      (core:settle-frame instance context list))
     (assert-true (plusp (core:display-list-count list)))))
 
 (define-test a-screen-with-thousands-of-things-is-checked-too ()

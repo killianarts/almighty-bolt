@@ -19,7 +19,7 @@
 ;;; alignment, and across it by the cross alignment.
 ;;;
 ;;; The function knows nothing of its children. MEASURE and PLACE are called with a
-;;; child's index, so a variant keeps its children wherever it likes.
+;;; child's index, so an app keeps its children wherever it likes.
 ;;;
 ;;; Between measuring and placing, a flex has to keep the size of each child, and it
 ;;; keeps them in a buffer that it reuses from one call to the next. The buffer is a

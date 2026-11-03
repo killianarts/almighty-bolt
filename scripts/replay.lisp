@@ -29,7 +29,7 @@
   (let ((object (registry:make-app-object (registry:find-app task))))
     (with-masked-float-traps
       (with-autorelease-pool
-        (let* ((host (make-host (make-instance 'core:variant) (default-device)
+        (let* ((host (make-host (make-instance 'core:app-instance) (default-device)
                                 +pixel-format-bgra8-unorm+ :capacity 1024 :scale 2))
                (context (host-context host)))
           (core:replay script object context))))))

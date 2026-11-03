@@ -17,7 +17,7 @@
                 #:call-on-main)
   (:import-from #:almighty-bolt/platform/macos/host
                 #:running-host
-                #:host-variant
+                #:host-app
                 #:host-context
                 #:host-renderer
                 #:host-display-list
@@ -65,7 +65,7 @@ texture that nobody sees, between frames, on the main thread."
 
 (defun host-session (host)
   "A session on the window of HOST (the machine interface's operations work on one)."
-  (make-session :variant (lambda () (host-variant host))
+  (make-session :app (lambda () (host-app host))
                 :deliver (lambda (event)
                            (call-on-main (lambda () (host-deliver-event host event))))
                 :settle (lambda () (wait-for-idle host))

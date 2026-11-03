@@ -18,7 +18,7 @@
 ;;; inside it. MEASURE takes the minimum and maximum width and height the child may
 ;;; have and returns the child's width and height. It is called once, and a NIL
 ;;; MEASURE means there is no child. The functions know nothing about what the child
-;;; is: a variant measures a node of its own, or a text run, or another layout.
+;;; is: an app measures a node of its own, or a text run, or another layout.
 
 (defun layout-padding (min-w max-w min-h max-h measure
                        &key (left 0f0) (top 0f0) (right 0f0) (bottom 0f0))

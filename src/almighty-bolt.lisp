@@ -138,5 +138,5 @@
 ;;; The public face of the library: what a program that uses almighty-bolt writes, and nothing
 ;;; else. It defines nothing; every symbol is one that a file under src/ defines, imported and
 ;;; exported again, so that the library's insides can be moved without anyone's program changing.
-;;; The variant contract, the host and the display list's internals are not here (they are in
+;;; The app contract, the host and the display list's internals are not here (they are in
 ;;; almighty-bolt/internals, for the apps' tests and the benchmarks, and are not promised).

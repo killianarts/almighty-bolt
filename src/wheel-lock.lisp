@@ -39,7 +39,7 @@
 (defun lock-wheel (lock event)
   "The scroll of the wheel EVENT in lines, as two values, across and down, with a trackpad's
 (precise, in points) movement kept to the axis its gesture is locked to, and the other
-given as zero. LOCK remembers the gesture between calls and belongs to one variant."
+given as zero. LOCK remembers the gesture between calls and belongs to one app."
   (if (not (wheel-event-precise-p event))
       (wheel-event-lines event)
       (let ((ns (event-timestamp event))

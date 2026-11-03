@@ -1,9 +1,9 @@
 (defpackage #:almighty-bolt-bench-null/measure
   (:use #:cl)
   (:import-from #:almighty-bolt-bench-null/null
-                #:make-null-variant
-                #:null-variant-events-seen
-                #:null-variant-animate-frames)
+                #:make-null-app
+                #:null-app-events-seen
+                #:null-app-animate-frames)
   (:import-from #:almighty-bolt/internals
                 #:now-ns
                 #:request-frame
@@ -17,8 +17,8 @@
                 #:frame-bytes-consed
                 #:display-list-count)
   (:import-from #:almighty-bolt/platform/macos/host
-                #:run-variant
-                #:host-variant
+                #:run-host
+                #:host-app
                 #:host-context
                 #:host-ring
                 #:host-renderer
@@ -32,7 +32,7 @@
 
 (in-package #:almighty-bolt-bench-null/measure)
 
-;;; The null variant in a window: what a frame costs when the variant does nothing,
+;;; The null app in a window: what a frame costs when the app does nothing,
 ;;; which is what the core costs. Run it from a terminal of your own and leave the
 ;;; window alone, so that the stillness check means something.
 ;;;
@@ -89,7 +89,7 @@ not wrapped, so a record's index is its order."
   "Draw FRAMES frames one at a time, leave the window alone for two seconds, ask for
 ANIMATION-FRAMES frames from inside the draws, and print what it saw."
   (let* ((context (host-context host))
-         (variant (host-variant host))
+         (instance (host-app host))
          (begin (draws host))
          (latencies '())
          (timeouts 0))
@@ -108,10 +108,10 @@ ANIMATION-FRAMES frames from inside the draws, and print what it saw."
             (animation-before (draws host))
             (animation-consed-before (sb-ext:get-bytes-consed))
             (animation-start (now-ns)))
-        ;; Frames asked for from inside the draws: the variant requests the next
+        ;; Frames asked for from inside the draws: the app requests the next
         ;; frame while a frame is being drawn, a request the host keeps until the
         ;; frame is presented.
-        (setf (null-variant-animate-frames variant) animation-frames)
+        (setf (null-app-animate-frames instance) animation-frames)
         (request-frame context)
         (let* ((honoured (wait-until (lambda ()
                                        (>= (draws host)
@@ -123,7 +123,7 @@ ANIMATION-FRAMES frames from inside the draws, and print what it saw."
           (wait-for-last-frame (host-renderer host))
           (multiple-value-bind (means maxes slow rebuilt capped consed)
               (summarize host begin finish)
-            (format t "~&~%--- The null variant: the core's own cost ---~%")
+            (format t "~&~%--- The null app: the core's own cost ---~%")
             (line "frames requested:" "~d (drawn ~d, timeouts ~d)"
                   frames (- finish begin) timeouts)
             (line "request-to-draw latency:" "mean ~,2f ms, max ~,2f ms"
@@ -153,14 +153,14 @@ ANIMATION-FRAMES frames from inside the draws, and print what it saw."
                   (/ animation-ns 1000000.0 (max 1 animation-draws)))
             (line "bytes consed while animating:" "~:d (the whole process, so the driver counts too)"
                   animation-consed)
-            (line "events the variant saw:" "~d (move the mouse over the window to see this rise)"
-                  (null-variant-events-seen variant))))))
+            (line "events the app saw:" "~d (move the mouse over the window to see this rise)"
+                  (null-app-events-seen instance))))))
     (finish-output)))
 
 (defun main (&key (frames 300) (animation-frames 100))
-  "Open a window, run the null variant in it, print the report and quit."
-  (run-variant (make-null-variant)
-               :title "The null variant"
+  "Open a window, run the null app in it, print the report and quit."
+  (run-host (make-null-app)
+               :title "The null app"
                :width 800 :height 600
                :driver (lambda (host)
                          (sleep 0.5)            ; let the window appear and settle

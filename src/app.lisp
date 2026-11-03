@@ -5,12 +5,12 @@
                 #:with-kept-state
                 #:kept-value)
   (:import-from #:almighty-bolt/platform/macos/host
-                #:run-variant
-                #:open-variant
-                #:close-variant
+                #:run-host
+                #:open-host
+                #:close-host
                 #:close-host-window
                 #:host-open-p
-                #:host-variant
+                #:host-app
                 #:host-on-close
                 #:open-hosts
                 #:request-host-frame
@@ -20,9 +20,9 @@
   (:import-from #:almighty-bolt/ui/theme
                 #:*theme-defined-hook*)
   (:import-from #:almighty-bolt/ui/immediate
-                #:make-immediate-variant
-                #:immediate-variant-ui
-                #:immediate-variant-tools)
+                #:make-immediate-app
+                #:immediate-app-ui
+                #:immediate-app-tools)
   (:import-from #:almighty-bolt/ui/ui
                 #:ui-inspection)
   (:import-from #:almighty-bolt/ui/inspection
@@ -68,9 +68,9 @@ the tools for developing it can be opened. Never true in an app that is delivere
   "Call CONSTRUCTOR, a function or the name of one, and make what the host runs from the function
 that describes the screen that it returns. While the app is developed (*DEVELOPMENT*), its window can
 open the inspector."
-  (let ((variant (make-immediate-variant (funcall constructor))))
-    (setf (immediate-variant-tools variant) *development*)
-    variant))
+  (let ((instance (make-immediate-app (funcall constructor))))
+    (setf (immediate-app-tools instance) *development*)
+    instance))
 
 (defun placement (top left bottom right beside side gap)
   "The placement (see PLACE-WINDOW in the platform's window) that the keyword arguments give."
@@ -93,10 +93,10 @@ smoke checks and the benchmarks use a window). TOP, LEFT, BOTTOM and RIGHT say w
 opens, as for OPEN-APP."
   (setf *development* (and (or hot watch-systems) t))
   (let* ((state (make-kept-state))
-         (variant (with-kept-state (state) (make-app-instance constructor)))
+         (instance (with-kept-state (state) (make-app-instance constructor)))
          (watcher (and watch-systems (watch-sources watch-systems))))
     (unwind-protect
-         (run-variant variant :title title :width width :height height
+         (run-host instance :title title :width width :height height
                               :kept-state state :driver driver
                               :placement (placement top left bottom right nil nil nil)
                               :rebuild (and (or hot watch-systems)
@@ -127,7 +127,7 @@ the others below and to the right of the last one opened. Wherever it goes, it i
 screen."
   (let ((state (make-kept-state)))
     (setf *development* t)
-    (open-variant (with-kept-state (state) (make-app-instance constructor))
+    (open-host (with-kept-state (state) (make-app-instance constructor))
                   :title title :width width :height height
                   :kept-state state
                   :placement (placement top left bottom right beside side gap)
@@ -136,7 +136,7 @@ screen."
 (defun close-app ()
   "Close the window that OPEN-APP opened. Returns its host, or NIL if there was none. The other
 windows stay open."
-  (close-variant))
+  (close-host))
 
 (defun open-window (constructor &key (title "almighty-bolt") (width 800) (height 600)
                                   top left bottom right beside (side :right) (gap 12))
@@ -155,7 +155,7 @@ stays open when the app's window closes, and closing the last window stops the w
 Where it opens is as for OPEN-APP: BESIDE the window that OPEN-APP returned, say, or at a corner of
 the screen with TOP and RIGHT."
   (let ((state (make-kept-state)))
-    (open-variant (with-kept-state (state) (make-app-instance constructor))
+    (open-host (with-kept-state (state) (make-app-instance constructor))
                   :title title :width width :height height
                   :kept-state state
                   :main nil
@@ -199,22 +199,22 @@ thread of its own, through a session on the window, and report what went wrong o
            (run-on-main (lambda () (funcall report message))))))
      :name "inspector action")))
 
-(defun toggle-inspector (variant)
-  "Open the inspector of the window whose app is VARIANT, or close it if it is open. Called on the
+(defun toggle-inspector (instance)
+  "Open the inspector of the window whose app is INSTANCE, or close it if it is open. Called on the
 main thread, in that window's frame."
   (setf *inspectors* (remove-if-not (lambda (pair) (host-open-p (cdr pair))) *inspectors*))
-  (let ((host (find variant (open-hosts) :key #'host-variant)))
+  (let ((host (find instance (open-hosts) :key #'host-app)))
     (when host
       (let ((open (cdr (assoc host *inspectors*))))
         (if open
             (close-host-window open)
             (let* ((closed nil)
                    (inspector
-                    (open-variant (make-immediate-variant
+                    (open-host (make-immediate-app
                                    ;; A frame of the inspector's window may come after it has
                                    ;; closed; it must not put its pick in the app's ui again.
                                    (make-inspector (lambda () (and (not closed) (host-open-p host)
-                                                                   (host-variant host)))
+                                                                   (host-app host)))
                                                    (act-on host)))
                                   :title "Inspector" :width 360 :height 600 :main nil :owner host
                                   :placement (list :beside host :side :right))))
@@ -222,7 +222,7 @@ main thread, in that window's frame."
                     (lambda ()
                       (setf closed t)
                       (when (host-open-p host)
-                        (setf (ui-inspection (immediate-variant-ui (host-variant host))) nil)
+                        (setf (ui-inspection (immediate-app-ui (host-app host))) nil)
                         (request-host-frame host))))
               (push (cons host inspector) *inspectors*)))))))
 

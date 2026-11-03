@@ -72,7 +72,7 @@
 ;;; measured from the top left of the window's content.
 ;;;
 ;;; The platform layer creates events outside the frame, when the operating
-;;; system delivers them, so their allocation is not charged to a variant.
+;;; system delivers them, so their allocation is not charged to an app.
 
 (defun required (name)
   (error "~s is required." name))
@@ -80,7 +80,7 @@
 ;;; Keys that make no character have no character of their own, so a key event names
 ;;; them with the characters that AppKit gives them, which are in the Unicode private
 ;;; use area (NSUpArrowFunctionKey and the rest), and a port gives the same ones. The
-;;; other keys a variant needs have characters: #\Backspace, #\Tab, #\Return, #\Escape
+;;; other keys an app needs have characters: #\Backspace, #\Tab, #\Return, #\Escape
 ;;; and #\Space.
 
 (defconstant +key-up+ (code-char #xF700))
@@ -137,7 +137,7 @@ deltas (trackpads) and false for line deltas (wheels)."
 (defconstant +points-per-line+ 24d0
   "How many points a line of the scroll wheel is worth: the height of a row of a list
 or a grid. A wheel gives its deltas in lines and a trackpad in points (the event's
-PRECISE-P says which), and a variant that scrolls by rows reads both in lines.")
+PRECISE-P says which), and an app that scrolls by rows reads both in lines.")
 
 (defun wheel-event-lines (event)
   "The scroll of the wheel EVENT as two values, across and down, in lines: a wheel's

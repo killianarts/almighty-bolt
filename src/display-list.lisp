@@ -35,8 +35,8 @@
 
 (in-package #:almighty-bolt/display-list)
 
-;;; The boundary between a variant and the renderer: a flat list of drawing
-;;; commands that the variant appends to and the renderer reads. It is
+;;; The boundary between an app and the renderer: a flat list of drawing
+;;; commands that the app appends to and the renderer reads. It is
 ;;; preallocated and reused every frame, so building one allocates nothing.
 ;;; The commands are stored as parallel arrays (one per field): an array of one
 ;;; numeric type is a block of raw numbers, so filling it allocates nothing.

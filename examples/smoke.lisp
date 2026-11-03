@@ -26,7 +26,7 @@
   (:import-from #:almighty-bolt/platform/macos/main-queue
                 #:call-on-main)
   (:import-from #:almighty-bolt/platform/macos/host
-                #:host-variant
+                #:host-app
                 #:host-ring
                 #:host-deliver-event
                 #:host-idle-p
@@ -51,7 +51,7 @@
       (sleep 0.01))))
 
 (defun present-p (host id)
-  (and (lookup-target (host-variant host) id) t))
+  (and (lookup-target (host-app host) id) t))
 
 (defun deliver (host event)
   ;; No pause after it: the events of a click arrive within a millisecond of each other, and the
@@ -59,7 +59,7 @@
   (call-on-main (lambda () (host-deliver-event host event))))
 
 (defun click (host id)
-  (multiple-value-bind (x y w h) (lookup-target (host-variant host) id)
+  (multiple-value-bind (x y w h) (lookup-target (host-app host) id)
     (let ((px (float (+ x (/ w 2)) 1d0)) (py (float (+ y (/ h 2)) 1d0)))
       (deliver host (make-pointer-event :timestamp 0 :kind :move :x px :y py :button nil
                                         :buttons 0 :click-count 0))
@@ -249,11 +249,11 @@ that wants a pipe, through netcat."
            (format nil "~,3f s" took)))
   (check "two clicks count two" (eql 2 (the-count host)) (the-count host))
   (check "and a window at rest is idle" (host-idle-p host))
-  (let ((before (host-variant host)))
+  (let ((before (host-app host)))
     (edited-counter)
     (check "compiling the function again changes the window"
            (wait-for (lambda () (present-p host :probe)) 20))
-    (check "the app was made again" (not (eq before (host-variant host))))
+    (check "the app was made again" (not (eq before (host-app host))))
     (check "and the count is still 2" (eql 2 (the-count host)) (the-count host))
     (click host :count-button)
     (wait-for-idle host)

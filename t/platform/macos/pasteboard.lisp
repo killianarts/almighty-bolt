@@ -32,15 +32,15 @@
 (defun todo-on-host (host)
   "A machine session on the to-do example, built by HOST's context as a window's frames are."
   (let* ((context (host:host-context host))
-         (variant (core:with-kept-state ((core:make-kept-state))
+         (instance (core:with-kept-state ((core:make-kept-state))
                     (app:make-app-instance (quote todo:make-todo))))
          (list (core:make-display-list :capacity 16384)))
     (setf (core:context-width context) 360f0
           (core:context-height context) 320f0)
-    (flet ((draw () (core:settle-frame variant context list)))
+    (flet ((draw () (core:settle-frame instance context list)))
       (draw)
-      (m:make-session :variant (lambda () variant)
-                      :deliver (lambda (event) (core:handle-event variant event) (draw))
+      (m:make-session :app (lambda () instance)
+                      :deliver (lambda (event) (core:handle-event instance event) (draw))
                       :settle (lambda () (dotimes (i 4) (draw)))
                       :on-main #'funcall))))
 
@@ -52,7 +52,7 @@
 
 (define-test a-field-in-a-host-with-a-pasteboard-copies-to-it-and-pastes-from-it ()
   (with-private-pasteboard (pasteboard)
-    (let* ((host (host:make-host (make-instance 'core:variant) (default-device)
+    (let* ((host (host:make-host (make-instance 'core:app-instance) (default-device)
                                  +pixel-format-bgra8-unorm+ :capacity 1024 :scale 2))
            (session (progn (setf (host:mac-context-pasteboard (host:host-context host)) pasteboard)
                            (todo-on-host host))))
@@ -70,7 +70,7 @@
     (objc:with-autorelease-pool
       (let* ((general (pb:general-pasteboard))
              (before (change-count general))
-             (host (host:make-host (make-instance 'core:variant) (default-device)
+             (host (host:make-host (make-instance 'core:app-instance) (default-device)
                                    +pixel-format-bgra8-unorm+ :capacity 1024 :scale 2))
              (session (todo-on-host host)))
         (m:type-text session "Feed the cat" :id :draft)

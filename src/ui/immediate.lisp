@@ -3,7 +3,7 @@
   (:import-from #:almighty-bolt/internals
                 #:context-appearance
                 #:context-cursor
-                #:variant
+                #:app-instance
                 #:frame
                 #:handle-event
                 #:hit-target
@@ -120,17 +120,17 @@
                 #:layout-box)
   (:import-from #:almighty-bolt/ui/paint
                 #:paint-box)
-  (:export #:immediate-variant
-           #:make-immediate-variant
-           #:immediate-variant-ui
-           #:immediate-variant-tools
+  (:export #:immediate-app
+           #:make-immediate-app
+           #:immediate-app-ui
+           #:immediate-app-tools
            #:now
            #:current-context
            #:ask-for-frame))
 
 (in-package #:almighty-bolt/ui/immediate)
 
-;;; The immediate variant. Every build of every frame calls the application's function, which
+;;; The immediate app. Every build of every frame calls the application's function, which
 ;;; describes the whole interface again with the widgets, taking from the frame's input what
 ;;; is for them. Then the boxes it made are given hashes, and if the hash of what decides the
 ;;; layout is what it was in the last frame presented, the places of the boxes are taken from
@@ -139,18 +139,18 @@
 ;;; that took anything from the input is followed by another, because it may have changed
 ;;; what the application holds, and only the last build is laid out and drawn.
 
-(defclass immediate-variant (variant)
-  ((ui :initform (make-ui) :accessor immediate-variant-ui)
+(defclass immediate-app (app-instance)
+  ((ui :initform (make-ui) :accessor immediate-app-ui)
    (app :initarg :app :reader app)
    ;; True if events were left in the queue by the last frame.
    (more-input :initform nil :accessor more-input)
    ;; True if the tools for developing the app (the inspector) can be opened from its window.
-   (tools :initform nil :accessor immediate-variant-tools))
-  (:documentation "A variant whose interface is a function that is called every frame."))
+   (tools :initform nil :accessor immediate-app-tools))
+  (:documentation "An app whose interface is a function that is called every frame."))
 
-(defun make-immediate-variant (app)
-  "A variant that shows what APP, a function of no arguments that calls the widgets, describes."
-  (make-instance 'immediate-variant :app app))
+(defun make-immediate-app (app)
+  "An app that shows what APP, a function of no arguments that calls the widgets, describes."
+  (make-instance 'immediate-app :app app))
 
 (defun now ()
   "The time in nanoseconds, for an interface that changes as time passes."
@@ -369,8 +369,8 @@ menu), turned to the other side or moved in where it would go out of the window.
 
 ;;; --- a frame ---
 
-(defun lay-out-and-paint (variant context list)
-  (let* ((ui (immediate-variant-ui variant))
+(defun lay-out-and-paint (instance context list)
+  (let* ((ui (immediate-app-ui instance))
          (root (ui-root ui))
          (width (context-width context))
          (height (context-height context))
@@ -413,13 +413,13 @@ menu), turned to the other side or moved in where it would go out of the window.
   "The theme of a window whose app gives none: dark or light, as the system is."
   (find-theme (context-appearance context)))
 
-(defmethod frame ((variant immediate-variant) context list)
-  (let ((ui (immediate-variant-ui variant))
+(defmethod frame ((instance immediate-app) context list)
+  (let ((ui (immediate-app-ui instance))
         (inspected nil))
     (when (<= (almighty-bolt/internals:context-build-number context) 1)
-      (setf (more-input variant) (begin-frame-input ui))
+      (setf (more-input instance) (begin-frame-input ui))
       (move-focus ui)
-      (setf inspected (inspection-take-input ui (and (immediate-variant-tools variant) variant))))
+      (setf inspected (inspection-take-input ui (and (immediate-app-tools instance) instance))))
     (with-phase (context +phase-update+)
       (begin-build ui context)
       ;; What the inspector took before the build is input this frame took (BEGIN-BUILD forgets it).
@@ -427,7 +427,7 @@ menu), turned to the other side or moved in where it would go out of the window.
         (setf (ui-consumed ui) t))
       (let ((*ui* ui)
             (*theme* (window-theme context)))
-        (funcall (app variant))
+        (funcall (app instance))
         ;; An app that describes only what floats (a dialog, and nothing under it) has an empty
         ;; screen under it, so that the floats are laid out, painted and in the tree.
         (unless (ui-root ui)
@@ -446,36 +446,36 @@ menu), turned to the other side or moved in where it would go out of the window.
          ;; it again before laying anything out.
          t)
         (t
-         (lay-out-and-paint variant context list)
+         (lay-out-and-paint instance context list)
          (setf (ui-started ui) t)
          (end-frame-input ui)
-         (when (more-input variant)
+         (when (more-input instance)
            (request-frame context))
          consumed)))))
 
 ;;; --- an app made again ---
 
-(defmethod inherit-state ((new immediate-variant) (old immediate-variant))
-  "The new variant takes the old one's UI whole: the keyboard focus, the state of each widget by its key
+(defmethod inherit-state ((new immediate-app) (old immediate-app))
+  "The new app takes the old one's UI whole: the keyboard focus, the state of each widget by its key
 (a field's caret and selection and where it is scrolled to, a list's scroll), and the input not yet
 looked at. The widgets are given what they show by the app each frame, so none of it is the app's.
 What was laid out and painted is forgotten, so that the first frame does both again, whatever the
 hashes say: the code that changed may be the library's, which the hashes do not describe."
-  (let ((ui (immediate-variant-ui old)))
+  (let ((ui (immediate-app-ui old)))
     (setf (ui-last-layout-hash ui) -1)
     (forget-painting old)
-    (setf (immediate-variant-ui new) ui)))
+    (setf (immediate-app-ui new) ui)))
 
-(defmethod forget-painting ((variant immediate-variant))
+(defmethod forget-painting ((instance immediate-app))
   "Every leaf is painted afresh in the next frame, and nothing is copied from the frame before."
-  (let ((ui (immediate-variant-ui variant)))
+  (let ((ui (immediate-app-ui instance)))
     (setf (ui-last-paint-hash ui) -1)
     (clrhash (ui-paint-cache ui))))
 
 ;;; --- asking where things are ---
 
-(defmethod hit-target ((variant immediate-variant) x y)
-  (let ((ui (immediate-variant-ui variant)))
+(defmethod hit-target ((instance immediate-app) x y)
+  (let ((ui (immediate-app-ui instance)))
     (loop :for i :from (1- (ui-hit-count ui)) :downto 0
           :do (let ((hit (aref (ui-hits ui) i)))
                 (when (and (hit-id hit)
@@ -483,10 +483,10 @@ hashes say: the code that changed may be the library's, which the hashes do not 
                            (<= (hit-y hit) y) (< y (+ (hit-y hit) (hit-h hit))))
                   (return (hit-id hit)))))))
 
-(defmethod lookup-target ((variant immediate-variant) id)
-  (let ((rect (gethash id (ui-id-rects (immediate-variant-ui variant)))))
+(defmethod lookup-target ((instance immediate-app) id)
+  (let ((rect (gethash id (ui-id-rects (immediate-app-ui instance)))))
     (when rect
       (values (rect-x rect) (rect-y rect) (rect-w rect) (rect-h rect)))))
 
-(defmethod handle-event ((variant immediate-variant) event)
-  (enqueue-event (immediate-variant-ui variant) event))
+(defmethod handle-event ((instance immediate-app) event)
+  (enqueue-event (immediate-app-ui instance) event))

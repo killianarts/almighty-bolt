@@ -11,7 +11,7 @@
                 #:make-key-event
                 #:now-ns)
   (:import-from #:almighty-bolt/platform/macos/host
-                #:host-variant
+                #:host-app
                 #:make-host
                 #:host-acquire
                 #:host-renderer
@@ -39,23 +39,23 @@
 
 (in-package #:almighty-bolt-snapshot/snapshot)
 
-;;; Draw a variant into an off-screen texture with the real renderer and real text, and
+;;; Draw an app into an off-screen texture with the real renderer and real text, and
 ;;; write what it drew as a PNG that can be looked at. The same host as the window's, so
 ;;; a snapshot is what a window would show (without the window's chrome). Events can be
-;;; delivered to the variant between frames, to see it hovered, pressed or typed into.
+;;; delivered to the app between frames, to see it hovered, pressed or typed into.
 
 (defvar *size* '(400 300 2)
   "The width and height in points and the scale of the host being drawn.")
 
-(defmacro with-snapshot-host ((host target variant &key (width 400) (height 300) (scale 2)
+(defmacro with-snapshot-host ((host target instance &key (width 400) (height 300) (scale 2)
                                                          (capacity 65536))
                               &body body)
-  "Run BODY with HOST, a host for VARIANT, drawing into TARGET, an off-screen texture of
+  "Run BODY with HOST, a host for INSTANCE, drawing into TARGET, an off-screen texture of
 WIDTH by HEIGHT points at SCALE pixels a point."
   `(with-masked-float-traps
      (with-autorelease-pool
        (let* ((device (default-device))
-              (,host (make-host ,variant device +pixel-format-bgra8-unorm+
+              (,host (make-host ,instance device +pixel-format-bgra8-unorm+
                                 :capacity ,capacity :scale ,scale))
               (,target (make-offscreen-target device (* ,width ,scale) (* ,height ,scale))))
          (let ((pass (offscreen-target-descriptor ,target)))
@@ -77,13 +77,13 @@ WIDTH by HEIGHT points at SCALE pixels a point."
     (write-png path (offscreen-target-width target) (offscreen-target-height target) pixels)))
 
 (defun deliver (host event)
-  "Offer EVENT to the host's variant, as the window would."
+  "Offer EVENT to the host's app, as the window would."
   (host-deliver-event host event))
 
 (defun click-control (host id &key (fx 0.5) (fy 0.5))
-  "Click the control ID of HOST's variant, at the fraction FX, FY across and down it, and
+  "Click the control ID of HOST's app, at the fraction FX, FY across and down it, and
 draw the frame that follows."
-  (multiple-value-bind (x y width height) (lookup-target (host-variant host) id)
+  (multiple-value-bind (x y width height) (lookup-target (host-app host) id)
     (unless x (error "The app shows no control ~s." id))
     (let ((px (float (+ x (* fx width)) 1d0))
           (py (float (+ y (* fy height)) 1d0)))

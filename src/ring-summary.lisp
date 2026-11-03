@@ -32,10 +32,10 @@
 (defun summarize-ring (ring &key (skip 0))
   "A plist for the frames of RING after the first SKIP of them (the first frame is cold):
 :frames, and the summary (see SUMMARIZE) in nanoseconds of :duration, :build, :wait, :encode,
-:update, :layout, :paint, :gpu and :events (the variant's handling of the events delivered since
+:update, :layout, :paint, :gpu and :events (the app's handling of the events delivered since
 the frame before; :events-per-frame is their number, a mean); :builds with :mean, :max, :histogram (a list of (builds .
 frames)) and :cap-hits; :settle with :extra-build-ns (a summary over the frames, of what the
-builds after the first took, from the time of all the variant's builds), :frames-with-extra-builds
+builds after the first took, from the time of all the app's builds), :frames-with-extra-builds
 and :share-of-build (the part of the time of all the builds that was in extra builds); :gc-ns (the sum) and :bytes-per-frame."
   (let* ((count (max 0 (- (frame-ring-count ring) skip)))
          (indices (loop :for i :from skip :below (frame-ring-count ring) :collect i)))

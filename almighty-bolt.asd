@@ -23,7 +23,7 @@
                (:file "wheel-lock")
                (:file "text-edit")
                (:file "display-list")
-               (:file "variant")
+               (:file "app-instance")
                (:file "settle")
                (:file "redefinition")
                (:file "kept")

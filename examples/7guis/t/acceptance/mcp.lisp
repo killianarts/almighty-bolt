@@ -180,7 +180,7 @@ element of an array."
                   :session-function
                   (lambda ()
                     (let ((session (d:driver-session driver)))
-                      (m:make-session :variant (m:session-variant session)
+                      (m:make-session :app (m:session-app session)
                                       :deliver (lambda (event)
                                                  (push event events)
                                                  (funcall (m:session-deliver session) event))
@@ -230,7 +230,7 @@ element of an array."
                   :session-function
                   (lambda ()
                     (let ((session (d:driver-session driver)))
-                      (m:make-session :variant (m:session-variant session)
+                      (m:make-session :app (m:session-app session)
                                       :deliver (m:session-deliver session)
                                       :settle (m:session-settle session)
                                       :on-main (m:session-on-main session)

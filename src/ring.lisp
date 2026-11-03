@@ -45,9 +45,9 @@
 ;;; share a word). A recorder that does not time phases leaves them zero. Eight more words,
 ;;; filled in by RECORD-FRAME-DETAILS, hold what the instrumentation adds: the time
 ;;; spent in garbage collection, the time of the first build (the rest of the build time is
-;;; the cost of settling), the time the variant spent in its update, layout and paint phases,
+;;; the cost of settling), the time the app spent in its update, layout and paint phases,
 ;;; the GPU's time for the frame before, the time of all the builds (the host's build time also
-;;; has what the settle loop itself costs), and the events: the time the variant spent handling
+;;; has what the settle loop itself costs), and the events: the time the app spent handling
 ;;; the events delivered since the frame before and how many there were (they share a word, the
 ;;; time in its low 40 bits, 18 minutes, and the count above). When the ring is full the oldest
 ;;; record is overwritten.
@@ -98,7 +98,7 @@
                        (builds 0) capped)
   "Append a record to RING, overwriting the oldest if it is full. Does not allocate.
 BUILD-NS, DRAWABLE-WAIT-NS and ENCODE-NS are the time of the frame's phases, BUILDS
-how many times the variant built it, and CAPPED whether the settle cap was hit."
+how many times the app built it, and CAPPED whether the settle cap was hit."
   (declare (type frame-ring ring)
            (type u64 start-ns end-ns consed-before consed-after
                  build-ns drawable-wait-ns encode-ns)
@@ -131,7 +131,7 @@ how many times the variant built it, and CAPPED whether the settle cap was hit."
                                     (paint-ns 0) (gpu-ns 0) (all-builds-ns 0) (events-ns 0)
                                     (events 0))
   "Set the words after the first eight of the record that RECORD-FRAME wrote last. EVENTS-NS and
-EVENTS are the time the variant spent handling the events delivered since the frame before, and
+EVENTS are the time the app spent handling the events delivered since the frame before, and
 how many there were; a time past 18 minutes or a count past 16 million is kept as that. Does
 not allocate."
   (declare (type frame-ring ring)
@@ -191,7 +191,7 @@ ran in RING. Returns the values of BODY."
   (record-word ring index 3))
 
 (defun frame-build-ns (ring index)
-  "Nanoseconds the INDEXth frame spent building (the variant's FRAME, as many times
+  "Nanoseconds the INDEXth frame spent building (the app's FRAME, as many times
 as it ran), or zero if the recorder did not time it."
   (record-word ring index 4))
 
@@ -205,7 +205,7 @@ frame's GPU work to finish, and then for its drawable."
   (record-word ring index 6))
 
 (defun frame-builds (ring index)
-  "How many times the variant built the INDEXth frame (zero if not recorded)."
+  "How many times the app built the INDEXth frame (zero if not recorded)."
   (ldb (byte 32 0) (record-word ring index 7)))
 
 (defun frame-capped-p (ring index)
@@ -222,15 +222,15 @@ that is the cost of settling."
   (record-word ring index 9))
 
 (defun frame-update-ns (ring index)
-  "Nanoseconds the variant spent in its update phase in the INDEXth frame."
+  "Nanoseconds the app spent in its update phase in the INDEXth frame."
   (record-word ring index 10))
 
 (defun frame-layout-ns (ring index)
-  "Nanoseconds the variant spent working out sizes and places in the INDEXth frame."
+  "Nanoseconds the app spent working out sizes and places in the INDEXth frame."
   (record-word ring index 11))
 
 (defun frame-paint-ns (ring index)
-  "Nanoseconds the variant spent making the display list in the INDEXth frame."
+  "Nanoseconds the app spent making the display list in the INDEXth frame."
   (record-word ring index 12))
 
 (defun frame-gpu-ns (ring index)
@@ -238,12 +238,12 @@ that is the cost of settling."
   (record-word ring index 13))
 
 (defun frame-all-builds-ns (ring index)
-  "Nanoseconds the INDEXth frame spent in the variant's FRAME, in all its builds. What it spent
+  "Nanoseconds the INDEXth frame spent in the app's FRAME, in all its builds. What it spent
 beyond the first build is the cost of settling."
   (record-word ring index 14))
 
 (defun frame-events-ns (ring index)
-  "Nanoseconds the variant spent handling the events delivered between the frame before the
+  "Nanoseconds the app spent handling the events delivered between the frame before the
 INDEXth and it (zero if the instrumentation was off)."
   (ldb (byte +events-ns-bits+ 0) (record-word ring index 15)))
 

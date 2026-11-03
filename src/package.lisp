@@ -1,6 +1,6 @@
-;;;; The public face of the core: the seams a variant and a host share, gathered in one
+;;;; The public face of the core: the seams an app and a host share, gathered in one
 ;;;; package. It re-exports the portable modules (clock, frame ring, events, display
-;;;; list, the variant contract and layout) and is never imported by them. A variant imports
+;;;; list, the app contract and layout) and is never imported by them. An app imports
 ;;;; only this package; the platform, text and renderer modules stay under their own
 ;;;; packages.
 
@@ -178,15 +178,15 @@
                 #:display-list-radius
                 #:display-list-color
                 #:display-list-hash)
-  (:import-from #:almighty-bolt/variant
-                #:variant
+  (:import-from #:almighty-bolt/app-instance
+                #:app-instance
                 #:handle-event
                 #:frame
                 #:hit-target
                 #:lookup-target
                 #:accessibility-tree
                 #:inherit-state
-                #:retire-variant
+                #:retire-app
            #:forget-painting
                 #:forget-painting
                 #:context
@@ -478,14 +478,14 @@
            #:display-list-radius
            #:display-list-color
            #:display-list-hash
-           #:variant
+           #:app-instance
            #:handle-event
            #:frame
            #:hit-target
            #:lookup-target
            #:accessibility-tree
            #:inherit-state
-           #:retire-variant
+           #:retire-app
            #:context
            #:make-context
            #:context-width

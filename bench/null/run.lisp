@@ -1,4 +1,4 @@
-;;;; The null variant's measurements. From the repository root:  make bench-null
+;;;; The null app's measurements. From the repository root:  make bench-null
 ;;;; Run it from a terminal of your own, and leave the window alone while it runs.
 
 (defpackage #:almighty-bolt-bench-null/run

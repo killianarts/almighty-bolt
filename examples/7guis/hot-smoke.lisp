@@ -28,7 +28,7 @@
                 #:call-on-main)
   (:import-from #:almighty-bolt/platform/macos/host
                 #:running-host
-                #:host-variant
+                #:host-app
                 #:host-ring
                 #:host-deliver-event
                 #:host-kept-state
@@ -64,7 +64,7 @@
       (sleep 0.01))))
 
 (defun present-p (host id)
-  (and (lookup-target (host-variant host) id) t))
+  (and (lookup-target (host-app host) id) t))
 
 (defun symbol-in (package name)
   (or (find-symbol name package) (error "No ~a in ~a." name package)))
@@ -74,7 +74,7 @@
   (sleep 0.05))
 
 (defun click (host id)
-  (multiple-value-bind (x y w h) (lookup-target (host-variant host) id)
+  (multiple-value-bind (x y w h) (lookup-target (host-app host) id)
     (let ((px (float (+ x (/ w 2)) 1d0)) (py (float (+ y (/ h 2)) 1d0)))
       (deliver host (make-pointer-event :timestamp 0 :kind :move :x px :y py :button nil
                                         :buttons 0 :click-count 0))
@@ -99,8 +99,8 @@
   "What has the keyboard and where its caret is: the key of the focused widget, the caret's index
 and the text of its field, as a list, or (NIL) if no field has the keyboard."
   (sleep 0.2)
-  (let* ((ui (funcall (symbol-in "ALMIGHTY-BOLT/UI/IMMEDIATE" "IMMEDIATE-VARIANT-UI")
-                      (host-variant host)))
+  (let* ((ui (funcall (symbol-in "ALMIGHTY-BOLT/UI/IMMEDIATE" "IMMEDIATE-APP-UI")
+                      (host-app host)))
          (key (funcall (symbol-in "ALMIGHTY-BOLT/UI/UI" "UI-FOCUS") ui))
          (field (gethash key (funcall (symbol-in "ALMIGHTY-BOLT/UI/UI" "UI-STATES")
                                       ui))))
@@ -127,7 +127,7 @@ and the text of its field, as a list, or (NIL) if no field has the keyboard."
 (defun what-saving-does (host)
   (let ((before-entries (entries host))
         (before-caret (caret host))
-        (before-variant (host-variant host)))
+        (before-app (host-app host)))
     (check "the person was added" (= 4 (length before-entries)) (format nil "~s" before-entries))
     (check "the keyboard is in the name field, after Zed!"
            (and (first before-caret) (equal "Zed!" (third before-caret)))
@@ -135,7 +135,7 @@ and the text of its field, as a list, or (NIL) if no field has the keyboard."
     (save-with *labelled*)
     (let ((took (wait-for (lambda () (present-p host :probe)) 90)))
       (check "the saved file changed the app" took (and took (format nil "~,2f s" took))))
-    (check "the app was made again" (not (eq before-variant (host-variant host))))
+    (check "the app was made again" (not (eq before-app (host-app host))))
     (sleep 1)
     (let ((after-entries (entries host))
           (after-caret (caret host)))
@@ -157,23 +157,23 @@ and the text of its field, as a list, or (NIL) if no field has the keyboard."
     (check "and the entries are still there" (equal before-entries (entries host)))))
 
 (defun what-a-bad-save-does (host)
-  (let ((variant (host-variant host))
+  (let ((instance (host-app host))
         (entries (entries host)))
     ;; A file that does not read: the parenthesis is not closed.
     (save-with "(label \"Filter prefix:\" :id :filter-label")
     (sleep 3)
     (check "a file that does not read changes nothing"
-           (and (eq variant (host-variant host)) (present-p host :name)))
+           (and (eq instance (host-app host)) (present-p host :name)))
     ;; Code that compiles and fails when the app runs: the new app is made, fails in its first
     ;; frame, and the old one is put back.
     (save-with "(label (error \"broken on purpose\") :id :filter-label)")
     (sleep 4)
     (check "an edit that fails when the app runs leaves the old app"
-           (and (eq variant (host-variant host)) (present-p host :name)))
+           (and (eq instance (host-app host)) (present-p host :name)))
     (check "and the entries are still there" (equal entries (entries host)))
     ;; The file put back: the app is made again, from code that works.
     (write-file *original*)
-    (let ((took (wait-for (lambda () (not (eq variant (host-variant host)))) 90)))
+    (let ((took (wait-for (lambda () (not (eq instance (host-app host)))) 90)))
       (check "the file put back is made into the app again" took
              (and took (format nil "~,2f s" took))))
     (sleep 1)

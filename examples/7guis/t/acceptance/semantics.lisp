@@ -12,7 +12,7 @@
 ;;; the widget really is.
 
 (defun tree (driver)
-  (core:accessibility-tree (d:driver-variant driver)))
+  (core:accessibility-tree (d:driver-app driver)))
 
 (defun the-node (driver &rest criteria)
   (let ((found (apply #'s:find-nodes (tree driver) criteria)))

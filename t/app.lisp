@@ -29,8 +29,8 @@
 ;;; out (the text is read back from the display list, in which the fake context draws a character as
 ;;; a command whose parameter is its code).
 
-(defstruct (screen (:constructor %make-screen (variant context list state)))
-  variant context list state
+(defstruct (screen (:constructor %make-screen (app context list state)))
+  app context list state
   ;; What the host does after it has presented a frame (tell a screen reader), if anything.
   (after-draw nil))
 
@@ -38,28 +38,28 @@
   "Make the app of CONSTRUCTOR with a store for its state, as OPEN-APP does, and draw its first
 frame."
   (let* ((state (core:make-kept-state))
-         (variant (core:with-kept-state (state) (app:make-app-instance constructor)))
-         (screen (%make-screen variant (fake:make-fake-context :width 360f0 :height 320f0)
+         (instance (core:with-kept-state (state) (app:make-app-instance constructor)))
+         (screen (%make-screen instance (fake:make-fake-context :width 360f0 :height 320f0)
                                (core:make-display-list :capacity 8192) state)))
     (draw screen)
     screen))
 
 (defun draw (screen)
-  (core:settle-frame (screen-variant screen) (screen-context screen) (screen-list screen))
+  (core:settle-frame (screen-app screen) (screen-context screen) (screen-list screen))
   (when (screen-after-draw screen)
     (funcall (screen-after-draw screen))))
 
 (defun pointer (screen kind x y &key button (buttons 0) (clicks 1))
   "An event of the pointer at X, Y; CLICKS is which press in a row a press is (2 for the second of a
 double-click)."
-  (core:handle-event (screen-variant screen)
+  (core:handle-event (screen-app screen)
                      (core:make-pointer-event :timestamp 0 :kind kind :x (float x 1d0)
                                               :y (float y 1d0) :button button :buttons buttons
                                               :click-count (if (eq kind :move) 0 clicks)))
   (draw screen))
 
 (defun click (screen id)
-  (multiple-value-bind (x y width height) (core:lookup-target (screen-variant screen) id)
+  (multiple-value-bind (x y width height) (core:lookup-target (screen-app screen) id)
     (assert-true x id)
     (let ((px (+ x (/ width 2))) (py (+ y (/ height 2))))
       (pointer screen :move px py)
@@ -68,14 +68,14 @@ double-click)."
 
 (defun type-text (screen string)
   (loop :for character :across string
-        :do (core:handle-event (screen-variant screen)
+        :do (core:handle-event (screen-app screen)
                                (core:make-key-event :timestamp 0 :kind :down
                                                     :logical-key character :modifiers 0))
             (draw screen)))
 
 (defun text-in (screen id)
   "The characters drawn inside the rectangle of the control ID."
-  (multiple-value-bind (left top width height) (core:lookup-target (screen-variant screen) id)
+  (multiple-value-bind (left top width height) (core:lookup-target (screen-app screen) id)
     (let ((list (screen-list screen)))
       (coerce (loop :for index :below (core:display-list-count list)
                     :when (and (= (core:display-list-kind list index) core:+command-glyph+)
@@ -98,8 +98,8 @@ double-click)."
     (click screen :count-button)
     (let ((new (core:with-kept-state ((screen-state screen))
                  (app:make-app-instance 'counter:make-counter))))
-      (core:inherit-state new (screen-variant screen))
-      (setf (screen-variant screen) new)
+      (core:inherit-state new (screen-app screen))
+      (setf (screen-app screen) new)
       (draw screen)
       (assert-equal "3" (text-in screen :count)))))
 
@@ -130,9 +130,9 @@ double-click)."
 
 (defun screen-session (screen)
   "The machine interface's session on SCREEN, a stand-in for a window."
-  (m:make-session :variant (lambda () (screen-variant screen))
+  (m:make-session :app (lambda () (screen-app screen))
                   :deliver (lambda (event)
-                             (core:handle-event (screen-variant screen) event)
+                             (core:handle-event (screen-app screen) event)
                              (draw screen))
                   :settle (lambda () (dotimes (i 4) (draw screen)))
                   :on-main #'funcall))
@@ -203,7 +203,7 @@ double-click)."
 
 (defun spinner-colors (screen)
   "The colours of what is drawn in the spinner's place, in order."
-  (multiple-value-bind (left top width height) (core:lookup-target (screen-variant screen) :working)
+  (multiple-value-bind (left top width height) (core:lookup-target (screen-app screen) :working)
     (let ((list (screen-list screen)))
       (loop :for index :below (core:display-list-count list)
             :when (and (<= left (core:display-list-x list index) (+ left width))
@@ -242,7 +242,7 @@ double-click)."
           (when changed (setf size index)))))))
 
 (defun menu-of (screen)
-  (first (s:find-nodes (core:accessibility-tree (screen-variant screen)) :role :menu)))
+  (first (s:find-nodes (core:accessibility-tree (screen-app screen)) :role :menu)))
 
 (defun menu-rows (screen)
   (let ((menu (menu-of screen)))
@@ -354,7 +354,7 @@ double-click)."
 (define-test dropdowns-with-one-id-in-different-rows-each-have-their-own-menu ()
   (let* ((screen (show 'make-pickers-in-rows))
          (session (screen-session screen))
-         (dropdowns (s:find-nodes (core:accessibility-tree (screen-variant screen)) :role :pop-up-button)))
+         (dropdowns (s:find-nodes (core:accessibility-tree (screen-app screen)) :role :pop-up-button)))
     (multiple-value-bind (x y) (destructuring-bind (x y w h) (s:node-bounds (second dropdowns))
                                  (values (+ x (/ w 2)) (+ y (/ h 2))))
       (pointer screen :move x y)
@@ -363,7 +363,7 @@ double-click)."
     (m:click session :role :menu-item :name "Large")
     (assert-equal '("Small" "Large" "Small")
                   (mapcar #'s:node-value
-                          (s:find-nodes (core:accessibility-tree (screen-variant screen))
+                          (s:find-nodes (core:accessibility-tree (screen-app screen))
                                         :role :pop-up-button)))))
 
 ;;; --- a menu button and a context menu ---
@@ -418,7 +418,7 @@ its presses, a label outside the area, and what was chosen last."
       (let ((px (+ x (/ w 2))) (py (+ y (/ h 2))))
         (pointer screen :move px py)
         (dolist (kind '(:down :up))
-          (core:handle-event (screen-variant screen)
+          (core:handle-event (screen-app screen)
                              (core:make-pointer-event :timestamp 0 :kind kind :x (float px 1d0)
                                                       :y (float py 1d0) :button 0
                                                       :buttons (if (eq kind :down) 1 0)
@@ -442,7 +442,7 @@ its presses, a label outside the area, and what was chosen last."
         (label (format nil "~d saves" saves) :id :saves)))))
 
 (defun tooltip-of (screen)
-  (first (s:find-nodes (core:accessibility-tree (screen-variant screen)) :role :tooltip)))
+  (first (s:find-nodes (core:accessibility-tree (screen-app screen)) :role :tooltip)))
 
 (defun rest-on (screen id)
   "Move the pointer to the middle of ID."
@@ -532,7 +532,7 @@ at the start, and a button under where the popovers' catchers are that counts it
             (setf info nil)))))))
 
 (defun popover-ids (screen)
-  (mapcar #'s:node-id (s:find-nodes (core:accessibility-tree (screen-variant screen))
+  (mapcar #'s:node-id (s:find-nodes (core:accessibility-tree (screen-app screen))
                                     :role :popover)))
 
 (define-test two-popovers-can-be-open-at-once-and-each-is-dismissed-by-itself ()
@@ -612,7 +612,7 @@ at the start, and a button under where the popovers' catchers are that counts it
   (let* ((screen (show 'make-confirm))
          (session (screen-session screen)))
     (draw screen)
-    (let ((dialog (first (s:find-nodes (core:accessibility-tree (screen-variant screen))
+    (let ((dialog (first (s:find-nodes (core:accessibility-tree (screen-app screen))
                                        :role :dialog))))
       (assert-equal "Delete the file?" (s:node-name dialog))
       ;; In the middle of the window (360 by 320).
@@ -630,7 +630,7 @@ at the start, and a button under where the popovers' catchers are that counts it
     (assert-equal "none, 0 behind" (s:node-name (node-of screen :answer)))
     (m:click session :id :delete)
     (assert-equal "delete, 0 behind" (s:node-name (node-of screen :answer)))
-    (assert-eq nil (s:find-nodes (core:accessibility-tree (screen-variant screen)) :role :dialog))))
+    (assert-eq nil (s:find-nodes (core:accessibility-tree (screen-app screen)) :role :dialog))))
 
 (define-test escape-dismisses-a-dialog ()
   (let* ((screen (show 'make-confirm))
@@ -764,7 +764,7 @@ at the start, and a button under where the popovers' catchers are that counts it
           (toast (format nil "Saved ~d" saves)))))))
 
 (defun toasts-of (screen)
-  (s:find-nodes (core:accessibility-tree (screen-variant screen)) :role :toast))
+  (s:find-nodes (core:accessibility-tree (screen-app screen)) :role :toast))
 
 (define-test a-toast-shows-at-the-bottom-for-a-while-and-goes ()
   (with-clock (clock)
@@ -817,7 +817,7 @@ at the start, and a button under where the popovers' catchers are that counts it
 (defun roles-in (screen)
   (let ((roles '()))
     (s:walk-nodes (lambda (node) (pushnew (s:node-role node) roles))
-                  (core:accessibility-tree (screen-variant screen)))
+                  (core:accessibility-tree (screen-app screen)))
     roles))
 
 (defun scroll-into-sight (session screen container id)
@@ -884,7 +884,7 @@ mean nothing was given (the id that is required, and a pressable that is not a t
                     (let ((name (s:node-name node)))
                       (when (and (stringp name) (eql 0 (search "(bolt:" name)))
                         (push name shown))))
-                  (core:accessibility-tree (screen-variant screen)))
+                  (core:accessibility-tree (screen-app screen)))
     (dolist (operator +every-call+)
       (assert-eql 1 (count (format nil "(~a)" (call-of operator)) shown :test #'string=)
                   operator))
@@ -962,16 +962,16 @@ never touches the person's."
 
 (define-test the-list-is-a-tree-of-check-boxes-named-by-what-is-to-be-done ()
   (let* ((screen (show 'todo:make-todo))
-         (boxes (s:find-nodes (core:accessibility-tree (screen-variant screen)) :role :checkbox)))
+         (boxes (s:find-nodes (core:accessibility-tree (screen-app screen)) :role :checkbox)))
     (assert-equal '("Read the README" "Open a window from the REPL" "Change a label and compile it")
                   (mapcar #'s:node-name boxes))
     (assert-equal '(t nil nil) (mapcar #'s:node-value boxes))
     (click screen 2)
     (assert-equal '(t t nil)
                   (mapcar #'s:node-value
-                          (s:find-nodes (core:accessibility-tree (screen-variant screen))
+                          (s:find-nodes (core:accessibility-tree (screen-app screen))
                                         :role :checkbox)))
-    (let ((field (first (s:find-nodes (core:accessibility-tree (screen-variant screen))
+    (let ((field (first (s:find-nodes (core:accessibility-tree (screen-app screen))
                                       :role :text-field))))
       (assert-eq :draft (s:node-id field))
       (assert-equal "" (s:node-value field)))))
@@ -1001,7 +1001,7 @@ that leaves two of them. Each button counts its presses."
           (setf count 2))))))
 
 (defun node-of (screen id)
-  (first (s:find-nodes (core:accessibility-tree (screen-variant screen)) :id id)))
+  (first (s:find-nodes (core:accessibility-tree (screen-app screen)) :id id)))
 
 (defun offset-of (screen id)
   (s:node-property (node-of screen id) :offset))
@@ -1014,7 +1014,7 @@ that leaves two of them. Each button counts its presses."
     (assert-eql 360f0 (third (s:node-bounds (node-of screen :shelf))))
     (assert-eql 0f0 (offset-of screen :shelf))
     (assert-true (s:node-property (node-of screen 5) :hidden))
-    (assert-eq nil (core:lookup-target (screen-variant screen) 5))
+    (assert-eq nil (core:lookup-target (screen-app screen) 5))
     ;; Three lines down, 24 points each: the sixth button, 140 points into the shelf, now shows.
     (m:scroll session :id :shelf :dy -3)
     (assert-eql 72f0 (offset-of screen :shelf))
@@ -1366,7 +1366,7 @@ and three lines of 14 tall, and a count of its lines."
 
 (define-test a-press-puts-the-caret-on-the-line-it-is-on ()
   (let ((screen (show (lambda () (make-notes (format nil "abcdef~%ab~%abcdef"))))))
-    (multiple-value-bind (x y) (core:lookup-target (screen-variant screen) :notes)
+    (multiple-value-bind (x y) (core:lookup-target (screen-app screen) :notes)
       ;; The second line is 6 + 14 points down; a character in from the padding of 8.
       (let ((px (+ x 8 8)) (py (+ y 6 14 7)))
         (pointer screen :move px py)
@@ -1424,12 +1424,12 @@ notes what it is asked to post. After each frame the reader's bridge is told, as
       (let* ((bridge nil)
              (view (view:make-metal-view
                     :width 360 :height 320
-                    :accessibility-tree (lambda () (core:accessibility-tree (screen-variant screen)))
+                    :accessibility-tree (lambda () (core:accessibility-tree (screen-app screen)))
                     :accessibility-press (lambda (x y)
                                            (dolist (spec '((:move nil 0 0) (:down 0 1 1) (:up 0 0 1)))
                                              (destructuring-bind (kind button buttons clicks) spec
                                                (core:handle-event
-                                                (screen-variant screen)
+                                                (screen-app screen)
                                                 (core:make-pointer-event
                                                  :timestamp 0 :kind kind :x (float x 1d0)
                                                  :y (float y 1d0) :button button :buttons buttons
@@ -1559,7 +1559,7 @@ notes what it is asked to post. After each frame the reader's bridge is told, as
               (dolist (id '(:count :count-button))
                 (destructuring-bind (x y width height)
                     (s:node-bounds (first (s:find-nodes
-                                           (core:accessibility-tree (screen-variant screen))
+                                           (core:accessibility-tree (screen-app screen))
                                            :id id)))
                   (multiple-value-bind (ex ey ew eh)
                       (objc:msg-send :rect (element-named reader id) "accessibilityFrame")
@@ -1590,8 +1590,8 @@ notes what it is asked to post. After each frame the reader's bridge is told, as
         ;; The app is made again, as compiling it does.
         (let ((new (core:with-kept-state ((screen-state screen))
                      (app:make-app-instance 'counter:make-counter))))
-          (core:inherit-state new (screen-variant screen))
-          (setf (screen-variant screen) new)
+          (core:inherit-state new (screen-app screen))
+          (setf (screen-app screen) new)
           (draw screen))
         (assert-eql count (element-named reader :count))
         (assert-equal "1" (says count :value))
@@ -1816,7 +1816,7 @@ screen reader was given are taken away and their places are used again."
         (assert-equal "1" (text-in screen :count))
         (assert-true (search "the tree is broken" complaint)))
       (setf (a11y:bridge-tree (reader-bridge reader))
-            (lambda () (core:accessibility-tree (screen-variant screen))))
+            (lambda () (core:accessibility-tree (screen-app screen))))
       (click screen :count-button)
       (assert-equal "2" (says (element-named reader :count) :value)))))
 
@@ -2057,7 +2057,7 @@ screen reader was given are taken away and their places are used again."
                                               (setf warned t)
                                               (muffle-warning warning))))
       (let ((screen (show 'make-whole-slider)))
-        (multiple-value-bind (x y width height) (core:lookup-target (screen-variant screen) :whole)
+        (multiple-value-bind (x y width height) (core:lookup-target (screen-app screen) :whole)
           ;; The thumb's middle travels the width less the thumb, 16: a press at 7.3 of the 10.
           (let ((px (+ x 8 (* 0.73 (- width 16)))) (py (+ y (/ height 2))))
             (pointer screen :move px py)
@@ -2222,7 +2222,7 @@ and another live label that comes with the first press."
 
 (defun middle-color (screen id)
   "The colour drawn at the middle of the control ID (the colour of a button, under its words)."
-  (multiple-value-bind (x y width height) (core:lookup-target (screen-variant screen) id)
+  (multiple-value-bind (x y width height) (core:lookup-target (screen-app screen) id)
     (color-at screen (+ x (/ width 2)) (+ y (/ height 2)))))
 
 (defun same-theme-p (a b)
@@ -2262,7 +2262,7 @@ and another live label that comes with the first press."
 
 ;;; The colours the words in the control ID are drawn in, top to bottom, each run of one colour once.
 (defun word-colors (screen id)
-  (multiple-value-bind (left top width height) (core:lookup-target (screen-variant screen) id)
+  (multiple-value-bind (left top width height) (core:lookup-target (screen-app screen) id)
     (let* ((list (screen-list screen))
            (glyphs (loop :for index :below (core:display-list-count list)
                          :when (and (= (core:display-list-kind list index) core:+command-glyph+)
@@ -2332,10 +2332,10 @@ and another live label that comes with the first press."
   (define-theme :test-courier () :font-name "Courier")
   (objc:with-masked-float-traps
     (objc:with-autorelease-pool
-      (let* ((host (host:make-host (make-instance 'core:variant) (device:default-device)
+      (let* ((host (host:make-host (make-instance 'core:app-instance) (device:default-device)
                                    target:+pixel-format-bgra8-unorm+ :capacity 1024 :scale 2))
              (context (host:host-context host))
-             (variant (core:with-kept-state ((core:make-kept-state))
+             (instance (core:with-kept-state ((core:make-kept-state))
                         (app:make-app-instance
                          (lambda ()
                            (lambda ()
@@ -2345,8 +2345,8 @@ and another live label that comes with the first press."
         (setf (core:context-width context) 360f0
               (core:context-height context) 320f0)
         (flet ((width ()
-                 (core:settle-frame variant context list)
-                 (nth-value 2 (core:lookup-target variant :word))))
+                 (core:settle-frame instance context list)
+                 (nth-value 2 (core:lookup-target instance :word))))
           (let* ((*label-theme* :dark) (narrow (width))
                  (*label-theme* :test-courier) (wide (width)))
             (assert-true (> wide (* 1.5 narrow)) narrow wide)))))))
@@ -2401,7 +2401,7 @@ and another live label that comes with the first press."
           (menu-button "Same" '("One") :id :roomy-menu))))))
 
 (defun size-of (screen id)
-  (multiple-value-bind (x y width height) (core:lookup-target (screen-variant screen) id)
+  (multiple-value-bind (x y width height) (core:lookup-target (screen-app screen) id)
     (declare (ignore x y))
     (values width height)))
 
@@ -2441,7 +2441,7 @@ and another live label that comes with the first press."
 (define-test a-list-with-taller-rows-picks-the-row-it-draws-where-it-draws-it ()
   (define-theme :test-tall () :row-height 40)
   (let ((screen (show 'make-two-fruit-lists)))
-    (multiple-value-bind (x y width height) (core:lookup-target (screen-variant screen) :tall-fruit)
+    (multiple-value-bind (x y width height) (core:lookup-target (screen-app screen) :tall-fruit)
       ;; Four rows of 40, inside its edge; the list beside it has rows of 24.
       (assert-eql (+ 2f0 (* 4 40f0)) height)
       (assert-eql (+ 2f0 (* 4 24f0)) (nth-value 1 (size-of screen :plain-fruit)))
@@ -2472,7 +2472,7 @@ and another live label that comes with the first press."
 
 (defun glyph-place (screen id)
   "Where the first character drawn in the control ID is, from the top left of the control."
-  (multiple-value-bind (x y) (core:lookup-target (screen-variant screen) id)
+  (multiple-value-bind (x y) (core:lookup-target (screen-app screen) id)
     (multiple-value-bind (gx gy) (glyph-point screen id 0 0)
       (values (- gx x) (- gy y)))))
 
@@ -2513,7 +2513,7 @@ and another live label that comes with the first press."
                 (values (glyph-point screen :roomy-area 11 0)))
     ;; A press a quarter of the way into the b, 2 points above the bottom of its line (14 points
     ;; tall, 12 under the top of the area), puts the caret before it.
-    (let ((y (nth-value 1 (core:lookup-target (screen-variant screen) :roomy-area))))
+    (let ((y (nth-value 1 (core:lookup-target (screen-app screen) :roomy-area))))
       (let ((px (glyph-point screen :roomy-area 1 0.25)) (py (+ y 12 14 -2)))
         (pointer screen :move px py)
         (pointer screen :down px py :button 0 :buttons 1)
@@ -2657,7 +2657,7 @@ the theme's.")
         (label "Two" :id :dialog-two)))))
 
 (defun bounds-of (screen id)
-  (multiple-value-list (core:lookup-target (screen-variant screen) id)))
+  (multiple-value-list (core:lookup-target (screen-app screen) id)))
 
 (define-test popovers-dialogs-and-menus-have-the-room-their-theme-says ()
   (eval `(define-theme :test-odd () ,@+odd-sizes+))
@@ -2703,14 +2703,14 @@ the theme's.")
       (with-theme ((make-theme :font-size *typed-size*))
         (paragraph "The quick brown fox jumps over the lazy dog, 0123456789." :id :typed)))))
 
-(defun draw-on-host (host variant)
-  "Build a frame of VARIANT on HOST and draw it into a texture of its own; its pixels."
+(defun draw-on-host (host instance)
+  "Build a frame of INSTANCE on HOST and draw it into a texture of its own; its pixels."
   (let ((context (host:host-context host))
         (list (host:host-display-list host)))
     (setf (core:context-width context) 360f0
           (core:context-height context) 240f0
           (core:context-scale context) 2f0)
-    (core:settle-frame variant context list)
+    (core:settle-frame instance context list)
     (let ((target (target:make-offscreen-target (device:default-device) 720 480)))
       (renderer:render-display-list (host:host-renderer host) list
                                     (target:offscreen-target-descriptor target) 0 360f0 240f0 2f0)
@@ -2726,24 +2726,24 @@ the theme's.")
                (core:with-kept-state ((core:make-kept-state))
                  (app:make-app-instance 'make-many-sizes)))
              (host (atlas-size)
-               (host:make-host (make-instance 'core:variant) (device:default-device)
+               (host:make-host (make-instance 'core:app-instance) (device:default-device)
                                target:+pixel-format-bgra8-unorm+ :capacity 8192 :scale 2
                                                                  :atlas-size atlas-size)))
         (let* ((small (host 384))
                (glyphs (renderer:renderer-atlas (host:host-renderer small)))
-               (variant (app))
+               (instance (app))
                (emptied 0))
           (loop :for size :from 8 :to 26
                 :do (let ((before (atlas:glyph-atlas-count glyphs))
                           (*typed-size* size))
-                      (draw-on-host small variant)
+                      (draw-on-host small instance)
                       (when (< (atlas:glyph-atlas-count glyphs) before)
                         (incf emptied))))
           ;; It filled up and started again, more than once; the steady words, painted in the first
           ;; frame and kept, were painted again each time, with the glyphs as they are now.
           (assert-true (>= emptied 2) emptied)
           (let ((*typed-size* 18))
-            (let ((after (draw-on-host small variant))
+            (let ((after (draw-on-host small instance))
                   (fresh (draw-on-host (host 1024) (app))))
               (assert-true (some #'plusp after))
               (assert-true (equalp fresh after)))))))))
@@ -2762,7 +2762,7 @@ the theme's.")
 
 (defun glyph-point (screen id n &optional (across 0.5))
   "A point over the Nth character drawn in the control ID, ACROSS of the way from its left edge."
-  (multiple-value-bind (left top width height) (core:lookup-target (screen-variant screen) id)
+  (multiple-value-bind (left top width height) (core:lookup-target (screen-app screen) id)
     (let ((list (screen-list screen)) (seen 0))
       (dotimes (index (core:display-list-count list) (error "No glyph ~d in ~s." n id))
         (when (and (= (core:display-list-kind list index) core:+command-glyph+)
@@ -2786,7 +2786,7 @@ released unless RELEASE."
 
 (defun copied (screen)
   "Command-C, and what is on the clipboard then."
-  (core:handle-event (screen-variant screen)
+  (core:handle-event (screen-app screen)
                      (core:make-key-event :timestamp 0 :kind :down :logical-key #\c
                                           :modifiers core:+modifier-super+))
   (draw screen)
@@ -2850,7 +2850,7 @@ released unless RELEASE."
 
 (defun selection-shown-p (screen id)
   "True if the colour of a selection is drawn in the control ID."
-  (multiple-value-bind (left top width height) (core:lookup-target (screen-variant screen) id)
+  (multiple-value-bind (left top width height) (core:lookup-target (screen-app screen) id)
     (let ((list (screen-list screen))
           (color (theme-setting (find-theme :dark) :selection)))
       (loop :for index :below (core:display-list-count list)
@@ -2860,7 +2860,7 @@ released unless RELEASE."
 
 (defun selection-left (screen id)
   "The left of the colour of a selection drawn highest in the control ID (on its first line)."
-  (multiple-value-bind (left top width height) (core:lookup-target (screen-variant screen) id)
+  (multiple-value-bind (left top width height) (core:lookup-target (screen-app screen) id)
     (let ((list (screen-list screen))
           (color (theme-setting (find-theme :dark) :selection))
           (best nil))
@@ -2897,7 +2897,7 @@ released unless RELEASE."
     (assert-equal (format nil "line~%second") (copied screen))
     (assert-eql (values (glyph-point screen :notes 6 0)) (selection-left screen :notes))
     ;; Command-A selects all, and it is shown so, from the first character.
-    (core:handle-event (screen-variant screen)
+    (core:handle-event (screen-app screen)
                        (core:make-key-event :timestamp 0 :kind :down :logical-key #\a
                                             :modifiers core:+modifier-super+))
     (draw screen)
@@ -2906,13 +2906,13 @@ released unless RELEASE."
     ;; A drag to the right of the end of the first line stops at its end, before the line feed.
     (multiple-value-bind (x y) (glyph-point screen :notes 0 0.1)
       (presses screen x y 1 :release nil)
-      (multiple-value-bind (left top width) (core:lookup-target (screen-variant screen) :notes)
+      (multiple-value-bind (left top width) (core:lookup-target (screen-app screen) :notes)
         (declare (ignore left top))
         (pointer screen :move (+ x width -2) y :buttons 1)
         (pointer screen :up (+ x width -2) y :button 0)))
     (assert-equal "first line" (copied screen))
     ;; Text that is selected only takes the keyboard from a press: Tab goes past it.
-    (core:handle-event (screen-variant screen)
+    (core:handle-event (screen-app screen)
                        (core:make-key-event :timestamp 0 :kind :down :logical-key #\Tab
                                             :modifiers 0))
     (draw screen)
@@ -2936,7 +2936,7 @@ released unless RELEASE."
 
 (defun key (screen key &rest modifiers)
   "Press KEY (a character or a key code) with MODIFIERS (:command, :shift)."
-  (core:handle-event (screen-variant screen)
+  (core:handle-event (screen-app screen)
                      (core:make-key-event :timestamp 0 :kind :down :logical-key key
                                           :modifiers (logior (if (member :command modifiers)
                                                                  core:+modifier-super+ 0)
@@ -3047,7 +3047,7 @@ released unless RELEASE."
 
 (defun cursor-over (screen id)
   "The shape of the pointer with it over the middle of the control ID."
-  (multiple-value-bind (x y width height) (core:lookup-target (screen-variant screen) id)
+  (multiple-value-bind (x y width height) (core:lookup-target (screen-app screen) id)
     (pointer screen :move (+ x (/ width 2)) (+ y (/ height 2)))
     (core:context-cursor (screen-context screen))))
 
@@ -3062,9 +3062,9 @@ released unless RELEASE."
     (assert-eq :crosshair (cursor-over screen :sketch))
     ;; A selection dragged out of a field keeps the text cursor until the button comes up.
     (cursor-over screen :field)
-    (multiple-value-bind (x y) (core:lookup-target (screen-variant screen) :field)
+    (multiple-value-bind (x y) (core:lookup-target (screen-app screen) :field)
       (pointer screen :down (+ x 4) (+ y 4) :button 0 :buttons 1))
-    (multiple-value-bind (x y width height) (core:lookup-target (screen-variant screen) :press)
+    (multiple-value-bind (x y width height) (core:lookup-target (screen-app screen) :press)
       (pointer screen :move (+ x (/ width 2)) (+ y (/ height 2)) :buttons 1)
       (assert-eq :text (core:context-cursor (screen-context screen)))
       (pointer screen :up (+ x (/ width 2)) (+ y (/ height 2)) :button 0))
@@ -3231,12 +3231,12 @@ released unless RELEASE."
 
 (define-test a-panel-whose-colour-is-transparent-draws-no-background ()
   (let ((screen (show 'make-clear-panel)))
-    (multiple-value-bind (x y) (core:lookup-target (screen-variant screen) :pane)
+    (multiple-value-bind (x y) (core:lookup-target (screen-app screen) :pane)
       ;; Without a colour, the theme's panel colour.
       (assert-eql (theme:theme-panel (theme:find-theme :dark)) (color-at screen (+ x 4) (+ y 4)))
       ;; Black with nothing of it showing, and not the theme's colour again, from the frame it is
       ;; given.
-      (core:handle-event (screen-variant screen)
+      (core:handle-event (screen-app screen)
                          (core:make-key-event :timestamp 0 :kind :down :logical-key #\k
                                               :modifiers core:+modifier-super+))
       (draw screen)
@@ -3346,7 +3346,7 @@ released unless RELEASE."
       (assert-eql 40f0 height)
       (assert-equal (list width height) (clip-of screen x y)))
     ;; Given another height, it is that height from the next frame.
-    (core:handle-event (screen-variant screen)
+    (core:handle-event (screen-app screen)
                        (core:make-key-event :timestamp 0 :kind :down :logical-key #\t
                                             :modifiers core:+modifier-super+))
     (draw screen)
@@ -3391,7 +3391,7 @@ released unless RELEASE."
       (assert-eql 2 (s:node-property (cell 2) :column))
       ;; Rows of their own heights, from the next frame: the first row is shorter than the second,
       ;; and the cells of a row are still one height.
-      (core:handle-event (screen-variant screen)
+      (core:handle-event (screen-app screen)
                          (core:make-key-event :timestamp 0 :kind :down :logical-key #\u
                                               :modifiers core:+modifier-super+))
       (draw screen)
@@ -3422,7 +3422,7 @@ released unless RELEASE."
 
 (defun glyph-colors-in (screen id)
   "The colours of the characters drawn inside the control ID."
-  (multiple-value-bind (left top width height) (core:lookup-target (screen-variant screen) id)
+  (multiple-value-bind (left top width height) (core:lookup-target (screen-app screen) id)
     (let ((list (screen-list screen)))
       (remove-duplicates
        (loop :for index :below (core:display-list-count list)
@@ -3455,7 +3455,7 @@ released unless RELEASE."
     (click screen :words)
     (assert-true (s:node-property (m:find-node session :id :toggle) :selected))
     ;; On, it is drawn in the selected row's colour, though it looks like a button.
-    (multiple-value-bind (x y) (core:lookup-target (screen-variant screen) :toggle)
+    (multiple-value-bind (x y) (core:lookup-target (screen-app screen) :toggle)
       (assert-eql (theme:theme-row-selected (theme:find-theme :dark))
                   (color-at screen (+ x 2) (+ y 2))))))
 
@@ -3476,12 +3476,12 @@ released unless RELEASE."
 (define-test a-pressable-answers-the-pointer-and-looks-like-a-button-when-asked ()
   (let* ((screen (show 'make-days))
          (theme (theme:find-theme :dark)))
-    (multiple-value-bind (x y) (core:lookup-target (screen-variant screen) :day)
+    (multiple-value-bind (x y) (core:lookup-target (screen-app screen) :day)
       (assert-eql (theme:theme-panel theme) (color-at screen (+ x 2) (+ y 2)))
       (pointer screen :move (+ x 2) (+ y 2))
       (assert-false (eql (theme:theme-panel theme) (color-at screen (+ x 2) (+ y 2)))))
     ;; The look of a button: its colour, and the words in it in the button's text colour.
-    (multiple-value-bind (x y) (core:lookup-target (screen-variant screen) :toggle)
+    (multiple-value-bind (x y) (core:lookup-target (screen-app screen) :toggle)
       (assert-eql (theme:theme-button theme) (color-at screen (+ x 2) (+ y 2))))
     (assert-equal (list (theme:theme-button-text theme)) (glyph-colors-in screen :words))
     (assert-equal (list (theme:theme-text theme)) (glyph-colors-in screen :date))))
@@ -3504,7 +3504,7 @@ released unless RELEASE."
         (dark (theme:find-theme :dark))
         (light (theme:find-theme :light)))
     (flet ((corner (id)
-             (multiple-value-bind (x y) (core:lookup-target (screen-variant screen) id)
+             (multiple-value-bind (x y) (core:lookup-target (screen-app screen) id)
                (color-at screen (+ x 3) (+ y 3)))))
       (assert-eql (dpb 64 (byte 8 0) (theme:theme-accent dark)) (corner :dark-tint))
       (assert-eql (dpb 64 (byte 8 0) (theme:theme-accent light)) (corner :light-tint))
@@ -3621,7 +3621,7 @@ released unless RELEASE."
     (assert-eql 36f0 (third (bounds-of screen :time)))
     (assert-eql 32f0 (third (bounds-of screen :plain-time)))
     (let ((regular (fourth (bounds-of screen :note))))
-      (core:handle-event (screen-variant screen)
+      (core:handle-event (screen-app screen)
                          (core:make-key-event :timestamp 0 :kind :down :logical-key #\b
                                               :modifiers core:+modifier-super+))
       (draw screen)
@@ -3650,10 +3650,10 @@ released unless RELEASE."
 (define-test a-panel-can-have-an-edge-of-its-own ()
   (let ((screen (show 'make-outlined))
         (theme (theme:find-theme :dark)))
-    (multiple-value-bind (x y) (core:lookup-target (screen-variant screen) :today)
+    (multiple-value-bind (x y) (core:lookup-target (screen-app screen) :today)
       (assert-equal (list (list 2f0 (theme:theme-accent theme))) (strokes-at screen x y))
       ;; Its colour changed, and nothing else: drawn again in the new one.
-      (core:handle-event (screen-variant screen)
+      (core:handle-event (screen-app screen)
                          (core:make-key-event :timestamp 0 :kind :down :logical-key #\m
                                               :modifiers core:+modifier-super+))
       (draw screen)
@@ -3674,13 +3674,13 @@ released unless RELEASE."
     (m:press-key session :tab)
     (assert-true (s:node-property (m:find-node session :id 0) :focused))
     ;; The first day is at the top of the scroll's window; its ring reaches above it.
-    (multiple-value-bind (x y) (core:lookup-target (screen-variant screen) :days)
+    (multiple-value-bind (x y) (core:lookup-target (screen-app screen) :days)
       (assert-eql ring (color-at screen (+ x 20) (- y 1))))))
 
 ;;; --- the inspector ---
 ;;;
 ;;; The inspector is a window of its own. Here it is a second screen whose app looks at the first's
-;;; variant, as the window's does; a press in one is followed by a frame of the other, as a window
+;;; app, as the window's does; a press in one is followed by a frame of the other, as a window
 ;;; that took input draws the others. What it asks to be done is noted, and done by the test with a
 ;;; session on the app's screen, as the window's thread does with a session on the app's window.
 
@@ -3691,12 +3691,12 @@ released unless RELEASE."
 (defun inspect-app (app)
   "An inspector's screen, 700 points tall, looking at the screen APP."
   (let* ((state (core:make-kept-state))
-         (variant (almighty-bolt/ui/immediate:make-immediate-variant
+         (instance (almighty-bolt/ui/immediate:make-immediate-app
                    (almighty-bolt/ui/inspector:make-inspector
-                    (lambda () (screen-variant app))
+                    (lambda () (screen-app app))
                     (lambda (action report)
                       (setf *asked* (append *asked* (list (cons action report))))))))
-         (panel (%make-screen variant (fake:make-fake-context :width 360f0 :height 700f0)
+         (panel (%make-screen instance (fake:make-fake-context :width 360f0 :height 700f0)
                               (core:make-display-list :capacity 16384) state)))
     (draw panel)
     (draw app)
@@ -3744,7 +3744,7 @@ the others."
   (s:node-value (node-of (panel-of inspecting) :inspector-draft)))
 
 (defun command-option-i (screen)
-  (core:handle-event (screen-variant screen)
+  (core:handle-event (screen-app screen)
                      (core:make-key-event :timestamp 0 :kind :down :logical-key #\i
                                           :modifiers (logior core:+modifier-super+
                                                              core:+modifier-alt+)))
@@ -3760,7 +3760,7 @@ the others."
 
 (define-test command-option-i-opens-the-inspector-only-while-the-app-is-developed ()
   (let* ((opened '())
-         (almighty-bolt/ui/inspection:*inspector-opener* (lambda (variant) (push variant opened)))
+         (almighty-bolt/ui/inspection:*inspector-opener* (lambda (instance) (push instance opened)))
          (*own-i* 0))
     ;; An app that is delivered: the keys are its own. (OPEN-APP, run from a REPL before the tests,
     ;; leaves *DEVELOPMENT* true.)
@@ -3773,7 +3773,7 @@ the others."
     (let* ((screen (let ((app:*development* t)) (show 'make-own-i))))
       (command-option-i screen)
       (assert-eql 1 *own-i*)
-      (assert-equal (list (screen-variant screen)) opened))))
+      (assert-equal (list (screen-app screen)) opened))))
 
 (define-test the-inspector-picks-a-widget-instead-of-pressing-it-and-says-what-it-is ()
   (let ((*asked* '())
@@ -3789,7 +3789,7 @@ the others."
                       "Theme: :dark" "Enabled"))
         (assert-true (search line says) line says)))
     (let ((app (app-of both)))
-      (multiple-value-bind (x y width height) (core:lookup-target (screen-variant app) :count-button)
+      (multiple-value-bind (x y width height) (core:lookup-target (screen-app app) :count-button)
         (assert-true (search (format nil "At: ~d, ~d" (round x) (round y)) (inspector-says both)))
         (assert-true (search (format nil "Size: ~d by ~d" (round width) (round height))
                              (inspector-says both)))
@@ -3800,7 +3800,7 @@ the others."
           (assert-eql ring (color-at app (+ x 1) (+ y (/ height 2))))
           (assert-eql ring (color-at app (+ x width -1) (+ y (/ height 2)))))))
     ;; An agent or a screen reader sees the app, and nothing of the outline.
-    (let ((tree (core:accessibility-tree (screen-variant (app-of both)))))
+    (let ((tree (core:accessibility-tree (screen-app (app-of both)))))
       (assert-true (s:find-nodes tree :id :count-button))
       (assert-false (s:find-nodes tree :id :inspector-picked)))
     ;; The pick is done: the next press is the app's.
@@ -3814,13 +3814,13 @@ the others."
          (both (inspecting 'counter:make-counter))
          (app (app-of both)))
     (in-panel both #'click :inspector-pick)
-    (multiple-value-bind (x y w h) (core:lookup-target (screen-variant app) :count-button)
+    (multiple-value-bind (x y w h) (core:lookup-target (screen-app app) :count-button)
       (pointer app :move (+ x (/ w 2)) (+ y (/ h 2)))
-      (core:handle-event (screen-variant app)
+      (core:handle-event (screen-app app)
                          (core:make-pointer-event :timestamp 0 :kind :down :x (float (+ x (/ w 2)) 1d0)
                                                   :y (float (+ y (/ h 2)) 1d0) :button 0 :buttons 1
                                                   :click-count 1))
-      (assert-true (> (core:settle-frame (screen-variant app) (screen-context app) (screen-list app))
+      (assert-true (> (core:settle-frame (screen-app app) (screen-context app) (screen-list app))
                       1)))
     (draw (panel-of both))
     (assert-true (search "Id: :count-button" (inspector-says both)))))
@@ -3839,15 +3839,15 @@ the others."
   (let* ((*asked* '())
          (both (inspecting 'make-two-labels))
          (app (app-of both))
-         (variant (screen-variant app)))
+         (instance (screen-app app)))
     (flet ((move-to (id)
-             (multiple-value-bind (x y w h) (core:lookup-target variant id)
-               (core:handle-event variant (core:make-pointer-event
+             (multiple-value-bind (x y w h) (core:lookup-target instance id)
+               (core:handle-event instance (core:make-pointer-event
                                            :timestamp 0 :kind :move :x (float (+ x (/ w 2)) 1d0)
                                            :y (float (+ y (/ h 2)) 1d0) :button nil :buttons 0
                                            :click-count 0))))
            (leave ()
-             (core:handle-event variant (core:make-pointer-event :timestamp 0 :kind :leave :x 0d0
+             (core:handle-event instance (core:make-pointer-event :timestamp 0 :kind :leave :x 0d0
                                                                  :y 0d0 :button nil :buttons 0
                                                                  :click-count 0))))
       (move-to :upper)
@@ -3859,12 +3859,12 @@ the others."
       (draw app)
       (assert-true (move-to :lower))
       (draw app)
-      (multiple-value-bind (x y) (core:lookup-target variant :lower)
+      (multiple-value-bind (x y) (core:lookup-target instance :lower)
         (assert-eql (theme-setting (find-theme :dark) :ring) (color-at app (+ x 1) (+ y 1))))
       (assert-true (leave))
       (draw app)
       ;; Gone with the pointer.
-      (multiple-value-bind (x y) (core:lookup-target variant :lower)
+      (multiple-value-bind (x y) (core:lookup-target instance :lower)
         (assert-false (eql (theme-setting (find-theme :dark) :ring) (color-at app (+ x 1) (+ y 1))))))))
 
 (define-test escape-stops-the-inspector-picking-in-either-window ()
@@ -3896,8 +3896,8 @@ the others."
     (let* ((app (app-of both))
            (new (core:with-kept-state ((screen-state app))
                   (app:make-app-instance 'counter:make-counter))))
-      (core:inherit-state new (screen-variant app))
-      (setf (screen-variant app) new)
+      (core:inherit-state new (screen-app app))
+      (setf (screen-app app) new)
       (draw app)
       (draw (panel-of both))
       (assert-true (search "Id: :count-button" (inspector-says both)) (inspector-says both)))))
@@ -3917,7 +3917,7 @@ the others."
     (in-panel both #'click :inspector-pick)
     ;; While it picks, the outline is on what the pointer is over, and goes with it.
     (flet ((over (id)
-             (multiple-value-bind (x y w h) (core:lookup-target (screen-variant app) id)
+             (multiple-value-bind (x y w h) (core:lookup-target (screen-app app) id)
                (pointer app :move (+ x (/ w 2)) (+ y (/ h 2)))
                (values x y)))
            (outlined-p (x y) (eql ring (color-at app (+ x 1) (+ y 1)))))
@@ -3925,14 +3925,14 @@ the others."
         (assert-true (outlined-p x y)))
       (multiple-value-bind (x y) (over :two)
         (assert-true (outlined-p x y)))
-      (multiple-value-bind (x y) (core:lookup-target (screen-variant app) :one)
+      (multiple-value-bind (x y) (core:lookup-target (screen-app app) :one)
         (assert-false (outlined-p x y))))
     (in-app both #'click :one)
     (pick both :two)
     (assert-true (search "Id: :two" (inspector-says both)))
-    (multiple-value-bind (x y) (core:lookup-target (screen-variant app) :two)
+    (multiple-value-bind (x y) (core:lookup-target (screen-app app) :two)
       (assert-eql ring (color-at app (+ x 1) (+ y 1))))
-    (multiple-value-bind (x y) (core:lookup-target (screen-variant app) :one)
+    (multiple-value-bind (x y) (core:lookup-target (screen-app app) :one)
       (assert-false (eql ring (color-at app (+ x 1) (+ y 1)))))))
 
 (defun make-heading-over-lines ()
@@ -4083,7 +4083,7 @@ the others."
         (both (inspecting 'make-inked)))
     (pick both :nameless)
     (assert-true (search "a theme with no name" (inspector-says both)))
-    (assert-false (core:lookup-target (screen-variant (panel-of both)) :inspector-change-theme))))
+    (assert-false (core:lookup-target (screen-app (panel-of both)) :inspector-change-theme))))
 
 (define-test the-inspector-is-drawn-in-the-theme-it-was-opened-in-when-that-theme-changes ()
   (let ((dark (find-theme :dark)))

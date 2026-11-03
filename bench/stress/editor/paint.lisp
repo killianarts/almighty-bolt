@@ -57,7 +57,7 @@
 
 (defun paint-editor (context list x y width height document)
   "Append the commands that draw DOCUMENT in the area X, Y, WIDTH by HEIGHT, and say where the
-caret is in the area, which is what the input method needs and the canvas's variant puts in the
+caret is in the area, which is what the input method needs and the canvas's app puts in the
 window."
   (declare (ignore width height))
   (let* ((font (context-font context +font-name+ +font-size+))

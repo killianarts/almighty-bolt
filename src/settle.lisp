@@ -4,7 +4,7 @@
                 #:clear-display-list)
   (:import-from #:almighty-bolt/clock
                 #:real-time-source)
-  (:import-from #:almighty-bolt/variant
+  (:import-from #:almighty-bolt/app-instance
                 #:frame
                 #:forget-painting
                 #:glyphs-full
@@ -25,7 +25,7 @@
 
 ;;; The settle step of the frame sequence: build until the
 ;;; frame settles. A frame is settled when its build changed no app state. A
-;;; variant may change state while it builds (an immediate-mode button that returns
+;;; app may change state while it builds (an immediate-mode button that returns
 ;;; true when clicked does), so widgets built before the change show old state. The
 ;;; core builds again, up to a cap, and only the settled build is presented.
 
@@ -38,10 +38,10 @@
              (format stream "Frame ~d did not settle in ~d builds; presenting the last."
                      (settle-cap-reached-frame-number condition) +max-builds+)))
   (:documentation "A frame whose build changed state every time. That is a defect
-in the variant or the app, such as a view that changes state on every build."))
+in the app or the library, such as a view that changes state on every build."))
 
-(defun settle-frame (variant context display-list)
-  "Call VARIANT's FRAME on an empty DISPLAY-LIST until it returns false, at most
+(defun settle-frame (instance context display-list)
+  "Call INSTANCE's FRAME on an empty DISPLAY-LIST until it returns false, at most
 +MAX-BUILDS+ times. The list is cleared before each build, so it holds the last
 build when this returns. Sets the context's build number (from 1) for each build.
 A frame that reaches the cap signals a SETTLE-CAP-REACHED warning, which the
@@ -50,7 +50,7 @@ context's instrumentation on, the real time of the first build and of all the bu
 is added to the context's phase times, so that the cost of settling shows apart. When
 the builds are done, a caret that a canvas gave in its own coordinates is put in the
 window, where the canvas now is (PLACE-TEXT-INPUT-CARET). If the context has no room for another
-glyph (GLYPHS-FULL), it forgets them all, the variant forgets what it painted, and the frame is
+glyph (GLYPHS-FULL), it forgets them all, the app forgets what it painted, and the frame is
 built again."
   (flet ((settle ()
            (let ((builds 0)
@@ -62,14 +62,14 @@ built again."
                (clear-display-list display-list)
                (unless (if timed
                            (let* ((start (real-time-source))
-                                  (again (frame variant context display-list))
+                                  (again (frame instance context display-list))
                                   (took (- (real-time-source) start))
                                   (slots (context-phase-ns context)))
                              (when (= builds 1)
                                (incf (aref slots +phase-first-build+) took))
                              (incf (aref slots +phase-all-builds+) took)
                              again)
-                           (frame variant context display-list))
+                           (frame instance context display-list))
                  (return (values builds nil)))
                (when (>= builds +max-builds+)
                  (warn 'settle-cap-reached :frame-number (context-frame-number context))
@@ -81,6 +81,6 @@ built again."
         (handler-case (settle)
           (glyphs-full ()
             (context-forget-glyphs context)
-            (forget-painting variant)
+            (forget-painting instance)
             (settle)))
-      (place-text-input-caret variant context))))
+      (place-text-input-caret instance context))))

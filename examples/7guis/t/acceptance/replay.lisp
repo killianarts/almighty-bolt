@@ -49,14 +49,14 @@ and a context for it, as two values."
                   :collect (code-char (round (core:display-list-parameter list index))))
           'string))
 
-(defun text-in (variant result id)
-  (multiple-value-bind (x y width height) (core:lookup-target variant id)
+(defun text-in (instance result id)
+  (multiple-value-bind (x y width height) (core:lookup-target instance id)
     (glyph-string (core:replay-result-list result) x y width height)))
 
 (defun run (script new)
-  "Replay SCRIPT into a new variant. Returns the variant and the result."
-  (multiple-value-bind (variant context) (funcall new)
-    (values variant (core:replay script variant context))))
+  "Replay SCRIPT into a new app. Returns the app and the result."
+  (multiple-value-bind (instance context) (funcall new)
+    (values instance (core:replay script instance context))))
 
 (defun hashes (result)
   (map 'list #'cdr (core:replay-result-hashes result)))
@@ -70,8 +70,8 @@ and a context for it, as two values."
                   :append (click :count-button :at (* i 100000000)))))
 
 (define-replay-test one-script-clicks-the-counter :counter (new)
-  (multiple-value-bind (variant result) (run (counter-script) #'new)
-    (assert-equal "3" (text-in variant result :count))
+  (multiple-value-bind (instance result) (run (counter-script) #'new)
+    (assert-equal "3" (text-in instance result :count))
     (assert-true (core:replay-ok-p result))))
 
 (define-replay-test a-script-replays-to-the-same-frames-every-time :counter (new)
@@ -91,8 +91,8 @@ and a context for it, as two values."
                     :entries '((2500000000 (:checkpoint :name "2.5 s")))))
 
 (define-replay-test the-timer-shows-the-time-of-the-script-not-the-time-it-took :timer (new)
-  (multiple-value-bind (variant result) (run (timer-script) #'new)
-    (assert-equal "2.5s" (text-in variant result :elapsed))))
+  (multiple-value-bind (instance result) (run (timer-script) #'new)
+    (assert-equal "2.5s" (text-in instance result :elapsed))))
 
 (define-replay-test the-timer-replays-to-the-same-frames-every-time :timer (new)
   (assert-equal (hashes (nth-value 1 (run (timer-script) #'new)))
@@ -115,10 +115,10 @@ and a context for it, as two values."
                       (keys (string #\Return) 210000000)))))
 
 (define-replay-test a-script-types-and-double-clicks-in-the-cells :cells (new)
-  (multiple-value-bind (variant result) (run (cells-script) #'new)
-    (multiple-value-bind (x y) (core:lookup-target variant :grid)
+  (multiple-value-bind (instance result) (run (cells-script) #'new)
+    (multiple-value-bind (x y) (core:lookup-target instance :grid)
       (assert-equal "abcd" (glyph-string (core:replay-result-list result)
                                          (+ x (g:cell-left 0 0)) (+ y (g:cell-top 0 0))
                                          g:+cell-width+ g:+cell-height+)))
     ;; Return after the second edit selects the cell below.
-    (assert-equal "A1" (text-in variant result :cell-name))))
+    (assert-equal "A1" (text-in instance result :cell-name))))

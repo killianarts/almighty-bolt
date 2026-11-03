@@ -76,7 +76,7 @@ binds one twice), and true if there is one; for looking at what an app keeps fro
 (defun kept-in-use-p ()
   "True if a STATE-LET has run in the app that is being made, with a store: the app keeps state, and
 what it shows can be carried to the next time it is made without showing what its variables do not
-hold. A variant asks as it is made."
+hold. The library asks as an app is made."
   (and *kept-state* (plusp (hash-table-count (kept-state-seen *kept-state*)))))
 
 (defun kept-cell (name form thunk)

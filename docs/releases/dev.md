@@ -110,6 +110,7 @@ A theme that gives the spacing works out every size again, except those it gives
 
 #### Machine interface
 
+- `make-session` takes `:app`, a function that returns the app instance the window runs, where it took `:variant`, and `session-app` is what `session-variant` was. The library's internal names follow: what a window runs is an app instance (`almighty-bolt/app-instance`, `immediate-app`, `host-app`), not a variant.
 - Every call that names a thing (`find-node`, `click`, `set-value` and the rest) takes `:within`, the id of a container it is inside. Ids need be unique only within a container, so `(m:click session :id :show :within :gregorian-search)` presses the Show button of one panel of two that each have one. A name that fits more than one thing says to use it. The MCP server's tools take `within` as well.
 
 #### Examples

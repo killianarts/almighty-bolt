@@ -24,9 +24,9 @@
 ;;; The frame ring as Chrome trace event JSON, to look at individual frames in Perfetto
 ;;; (ui.perfetto.dev) or chrome://tracing. A frame is a slice with the slices of its parts
 ;;; inside it: the build, the wait for the display and the encoding, one after another, and
-;;; in the build the variant's update, layout and paint. The ring holds how long each part
+;;; in the build the app's update, layout and paint. The ring holds how long each part
 ;;; took and not when it began, so the parts are placed one after another from where the frame
-;;; or the build began; the order inside a build is the order a variant does them in, but
+;;; or the build began; the order inside a build is the order an app does them in, but
 ;;; the gaps between them (a layout that is skipped, say) do not show.
 
 (defun microseconds (ns)

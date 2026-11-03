@@ -257,7 +257,7 @@
 
 (in-package #:almighty-bolt/ui/widgets)
 
-;;; The widgets of the immediate variant, which are functions the interface calls, in order,
+;;; The widgets of the immediate app, which are functions the interface calls, in order,
 ;;; every build. A widget that can be used returns what happened to it (a button, whether it
 ;;; was clicked; a field, its text and whether the person changed it), and holds nothing but
 ;;; the little that must outlive a frame (a caret), which is kept by its key. What the

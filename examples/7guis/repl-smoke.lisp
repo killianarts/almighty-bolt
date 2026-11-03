@@ -59,11 +59,11 @@
     (check "the window draws" (wait-until (lambda () (plusp (frames host)))))
     ;; What compiling a definition does. Any function does: the app is made again when code
     ;; changes, not when a particular function does.
-    (let ((app (host-call "HOST-VARIANT" host))
+    (let ((app (host-call "HOST-APP" host))
           (before (frames host)))
       (eval '(defun almighty-bolt-7guis/repl-smoke::compiled-in-the-editor () 1))
       (check "compiling a definition makes the app again, in the same window"
-             (wait-until (lambda () (not (eq app (host-call "HOST-VARIANT" host))))))
+             (wait-until (lambda () (not (eq app (host-call "HOST-APP" host))))))
       (check "and the window draws it" (wait-until (lambda () (> (frames host) before)))))
     (check "closing the window leaves the Lisp running" (eq host (call "ALMIGHTY-BOLT-7GUIS/LAUNCHER" "CLOSE-TASK")))
     (check "and no window is open" (null (host-call "RUNNING-HOST")))

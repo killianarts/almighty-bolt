@@ -38,7 +38,7 @@ smoke:
 	$(MAKE) windows-smoke
 	$(MAKE) accessibility-smoke
 
-# The null variant in a window: the core's own cost. Run it from a terminal of your
+# The null app in a window: the core's own cost. Run it from a terminal of your
 # own and leave the window alone while it runs.
 bench-null:
 	$(SBCL_APP) $(REGISTRY) --load bench/null/run.lisp
@@ -50,7 +50,7 @@ bench-run:
 	WHICH=results $(SBCL) $(REGISTRY) --load bench/run.lisp
 
 # What the instrumentation costs: the phases and build timing on and off, on the example scripts
-# and on the null variant through the host. Written to results/ as a record.
+# and on the null app through the host. Written to results/ as a record.
 bench-overhead:
 	WHICH=overhead $(SBCL) $(REGISTRY) --load bench/run.lisp
 

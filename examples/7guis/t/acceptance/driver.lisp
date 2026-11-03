@@ -5,7 +5,7 @@
                     (#:fake #:almighty-bolt/test-support/fake-context)
                     (#:registry #:almighty-bolt-7guis/common/registry))
   (:export #:driver
-           #:driver-variant
+           #:driver-app
            #:driver-list
            #:resize
            #:define-acceptance
@@ -47,8 +47,8 @@
 ;;; deliver them, and reads what the app shows from the display list, which with the fake
 ;;; context draws a character as a command whose parameter is its code.
 
-(defstruct (driver (:constructor %make-driver (variant context clock list)))
-  variant
+(defstruct (driver (:constructor %make-driver (app context clock list)))
+  app
   context
   clock
   list
@@ -78,7 +78,7 @@ is a virtual one, which ADVANCE-TIME moves."
          (driver (%make-driver nil context clock (core:make-display-list :capacity 65536))))
     (setf (driver-constructor driver) (lambda () (registry:make-app-object app)))
     (let ((core:*time-source* (core:virtual-clock-source clock)))
-      (setf (driver-variant driver)
+      (setf (driver-app driver)
             (core:with-kept-state ((driver-kept-state driver))
               (funcall (driver-constructor driver)))))
     (redraw driver)
@@ -93,23 +93,23 @@ is a virtual one, which ADVANCE-TIME moves."
 frame's list. A frame that changed state is built again, up to the limit."
   (with-clock (driver)
     (dotimes (i frames)
-      (core:settle-frame (driver-variant driver) (driver-context driver) (driver-list driver)))
+      (core:settle-frame (driver-app driver) (driver-context driver) (driver-list driver)))
     (driver-list driver)))
 
 (defun reload (driver &optional (constructor (driver-constructor driver)))
   "Make the app again, as the host does when its code was compiled: the
 app is made by CONSTRUCTOR (the one that makes it, unless a test gives another, which stands
-for edited code) with the state it keeps, the new variant takes what the old one held, and a
+for edited code) with the state it keeps, the new app takes what the old one held, and a
 frame is drawn with it. The old one is then retired."
-  (let ((old (driver-variant driver))
+  (let ((old (driver-app driver))
         (new nil))
     (with-clock (driver)
       (setf new (core:with-kept-state ((driver-kept-state driver))
                   (funcall constructor))))
     (core:inherit-state new old)
-    (setf (driver-variant driver) new)
+    (setf (driver-app driver) new)
     (redraw driver)
-    (core:retire-variant old)
+    (core:retire-app old)
     driver))
 
 (defun resize (driver width height)
@@ -131,16 +131,16 @@ has nothing going on does not."
 (defun rectangle (driver id)
   "The rectangle of the control ID as a list x, y, width, height, or an error."
   (multiple-value-bind (x y width height)
-      (core:lookup-target (driver-variant driver) id)
+      (core:lookup-target (driver-app driver) id)
     (unless x (error "The app shows no control ~s." id))
     (list x y width height)))
 
 (defun found-p (driver id)
-  (and (core:lookup-target (driver-variant driver) id) t))
+  (and (core:lookup-target (driver-app driver) id) t))
 
 (defun deliver (driver event)
   (with-clock (driver)
-    (core:handle-event (driver-variant driver) event))
+    (core:handle-event (driver-app driver) event))
   ;; The host would draw a frame if one was wanted; a test always does, which also
   ;; shows what an event that asked for nothing left on the screen.
   (redraw driver))
@@ -176,9 +176,9 @@ something is from the semantic tree and not from an id."
 events go in as the window's do, each followed by a frame, and the app has answered when the
 frames that its queue needs have been made."
   (machine:make-session
-   :variant (lambda () (driver-variant driver))
+   :app (lambda () (driver-app driver))
    :deliver (lambda (event)
-              (core:handle-event (driver-variant driver) event)
+              (core:handle-event (driver-app driver) event)
               (redraw driver))
    :settle (lambda () (redraw driver 4))
    :on-main #'funcall))

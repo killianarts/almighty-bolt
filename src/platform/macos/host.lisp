@@ -14,9 +14,9 @@
   (:import-from #:almighty-bolt/kept
                 #:make-kept-state
                 #:with-kept-state)
-  (:import-from #:almighty-bolt/variant
+  (:import-from #:almighty-bolt/app-instance
                 #:inherit-state
-                #:retire-variant
+                #:retire-app
                 #:context
                 #:context-width
                 #:context-height
@@ -115,7 +115,7 @@
                 #:clear-glyph-atlas)
   (:export #:host
            #:make-host
-           #:host-variant
+           #:host-app
            #:host-context
            #:host-display-list
            #:host-renderer
@@ -129,7 +129,7 @@
            #:wait-for-first-frame
            #:host-kept-state
            #:mac-context-pasteboard
-           #:swap-variant
+           #:swap-app
            #:reload-host
            #:running-host
            #:request-host-frame
@@ -137,9 +137,9 @@
            #:host-deliver-event
            #:close-host-window
            #:host-keyboard-state
-           #:run-variant
-           #:open-variant
-           #:close-variant
+           #:run-host
+           #:open-host
+           #:close-host
            #:open-hosts
            #:host-open-p
            #:host-owner
@@ -149,7 +149,7 @@
 (in-package #:almighty-bolt/platform/macos/host)
 
 ;;; The macOS host: it owns the window, the view, the
-;;; renderer and the display list, gives a variant its context, delivers events to
+;;; renderer and the display list, gives an app its context, delivers events to
 ;;; it, and builds and draws a frame whenever the view draws.
 
 ;;; --- the context, with text from Core Text and the glyph atlas ---
@@ -228,14 +228,14 @@ copied is kept in the context and the person's clipboard is never touched."
 ;;; --- the host ---
 
 (defstruct (host (:constructor %make-host))
-  ;; The variant the host builds. A replay that draws sets it for each run, so that one host's
+  ;; The app the host builds. A replay that draws sets it for each run, so that one host's
   ;; renderer and glyph atlas stay warm from run to run.
-  (variant nil)
-  ;; The variant that SWAP-VARIANT replaced, until the one that replaced it has made a frame
+  (app nil)
+  ;; The app that SWAP-APP replaced, until the one that replaced it has made a frame
   ;; without an error. If that frame fails, this is the one that is put back.
   (previous nil)
   ;; What the app keeps between the times it is made (STATE-LET), which is bound while the app is
-  ;; made again and so outlives the variant.
+  ;; made again and so outlives the app.
   (kept-state (make-kept-state) :read-only t)
   (context nil :read-only t)
   (display-list nil :read-only t)
@@ -292,23 +292,23 @@ flag set."
             (view (setf (host-draw-pending host) t) (request-draw view))
             (t (setf (context-frame-requested (host-context host)) t))))))
 
-(defun make-host (variant device pixel-format
+(defun make-host (instance device pixel-format
                   &key (capacity 65536) (ring-capacity 4096) (scale 2) (atlas-size 1024) phases
                     (kept-state (make-kept-state)))
-  "A host for VARIANT drawing with DEVICE into targets of PIXEL-FORMAT, with no
+  "A host for INSTANCE drawing with DEVICE into targets of PIXEL-FORMAT, with no
 window yet. CAPACITY is the most commands a frame may hold. SCALE is the pixels a
 point that the glyph atlas is rasterized at, which is the scale text must be drawn
-at, and ATLAS-SIZE the pixels square the atlas is. With PHASES, the instrumentation is on: the variant's update, layout and paint
+at, and ATLAS-SIZE the pixels square the atlas is. With PHASES, the instrumentation is on: the app's update, layout and paint
 times, the first build, garbage collection and the GPU's time go into the ring as well
 (see WITH-PHASE). KEPT-STATE is what the app keeps when it is made again (STATE-LET); the one that
-made VARIANT had it bound. RUN-VARIANT makes one with a window; tests make one and call RUN-FRAME."
+made INSTANCE had it bound. RUN-HOST makes one with a window; tests make one and call RUN-FRAME."
   (let* ((renderer (make-renderer device pixel-format :capacity capacity :scale scale
                                              :atlas-size atlas-size))
          (context (let ((context (make-mac-context :width 0f0 :height 0f0 :scale 1f0
                                                     :renderer renderer)))
                     (setf (context-phases-p context) (and phases t))
                     context))
-         (host (%make-host :variant variant
+         (host (%make-host :app instance
                            :kept-state kept-state
                            :context context
                            :renderer renderer
@@ -321,10 +321,10 @@ made VARIANT had it bound. RUN-VARIANT makes one with a window; tests make one a
     host))
 
 (defun host-deliver-event (host event)
-  "Offer EVENT to the host's variant, requesting a frame if it wants one. Called on
+  "Offer EVENT to the host's app, requesting a frame if it wants one. Called on
 the main thread, once for each event, in order."
   (when host
-    (deliver-event (host-variant host) (host-context host) event)))
+    (deliver-event (host-app host) (host-context host) event)))
 
 (defun click-at (host x y)
   "Press and release the primary button at X, Y (points from the top left of the window), the
@@ -412,47 +412,47 @@ breaks the lines of an error's text at a narrow margin."
     (format *error-output* "~&Hot reload: ~a: ~a~%" what condition))
   (finish-output *error-output*))
 
-(defun retire (variant)
-  "RETIRE-VARIANT, for a variant that is no longer used. A failure to let go of it is reported and
+(defun retire (instance)
+  "RETIRE-APP, for an app that is no longer used. A failure to let go of it is reported and
 does not stop what is going on."
-  (handler-case (retire-variant variant)
+  (handler-case (retire-app instance)
     (error (condition)
       (report-hot-reload "an app that is no longer used could not be let go of" condition))))
 
-(defun swap-variant (host variant)
-  "Make HOST run VARIANT from the next frame, in place of the one it runs. The window, the
-renderer and the glyph atlas stay, and the new variant is given what the old one kept that is not
+(defun swap-app (host instance)
+  "Make HOST run INSTANCE from the next frame, in place of the one it runs. The window, the
+renderer and the glyph atlas stay, and the new app is given what the old one kept that is not
 the app's own (INHERIT-STATE): the focus, the carets, the scrolls. If that signals an error, the
-old one stays and the error is signalled again. If the new variant's first frame signals an error,
+old one stays and the error is signalled again. If the new app's first frame signals an error,
 the old one is put back and the error is reported (SETTLE-HOST), so that code that does not work
 yet does not take the window with it. Call it on the thread that draws, the main thread, and ask
 for a frame after (RELOAD-HOST does both)."
-  (let ((old (or (host-previous host) (host-variant host))))
-    (handler-case (inherit-state variant old)
+  (let ((old (or (host-previous host) (host-app host))))
+    (handler-case (inherit-state instance old)
       (error (condition)
-        (retire variant)
+        (retire instance)
         (error condition)))
-    ;; A variant that was swapped in and has not drawn yet is replaced by this one, and goes.
+    ;; An app that was swapped in and has not drawn yet is replaced by this one, and goes.
     (when (host-previous host)
-      (retire (host-variant host)))
+      (retire (host-app host)))
     (setf (host-previous host) old
-          (host-variant host) variant))
-  variant)
+          (host-app host) instance))
+  instance)
 
 (defun settle-host (host context)
-  "SETTLE-FRAME with HOST's variant. A variant that SWAP-VARIANT has just put in has its first
+  "SETTLE-FRAME with HOST's app. An app that SWAP-APP has just put in has its first
 frame made with the old one ready: if it signals an error, the old one is put back, the
 error is reported, and the frame is made again with that one. Whichever of the two is not used
 after that is retired."
   (let ((previous (host-previous host))
         (display-list (host-display-list host)))
     (cond ((null previous)
-           (settle-frame (host-variant host) context display-list))
+           (settle-frame (host-app host) context display-list))
           (t
            (setf (host-previous host) nil)
            (let ((builds nil) (capped nil) (failure nil))
              (handler-case (multiple-value-setq (builds capped)
-                             (settle-frame (host-variant host) context display-list))
+                             (settle-frame (host-app host) context display-list))
                (error (condition)
                  (setf failure condition)))
              (cond ((null failure)
@@ -461,20 +461,20 @@ after that is retired."
                    (t
                     (report-hot-reload "the new app failed in its first frame, so the old one is back"
                                        failure)
-                    (let ((failed (host-variant host)))
-                      (setf (host-variant host) previous)
+                    (let ((failed (host-app host)))
+                      (setf (host-app host) previous)
                       (retire failed))
                     (settle-frame previous context display-list))))))))
 
 (defun run-frame (host width height scale)
-  "Make and draw one frame: the size and scale go into the context, the variant
+  "Make and draw one frame: the size and scale go into the context, the app
 builds until the frame settles, the drawable is asked for, and the frame is
 encoded, committed and presented. The time of each part goes into the ring: the
 build, the wait for the display (the GPU finishing the frame before, and then
 getting the drawable) and the encoding. A frame requested while this one was made
 is asked for after it is presented, with the host's wake function, which does not
 allocate. WIDTH and HEIGHT are in points. Does nothing past the build if there is
-no drawable. Must run inside an autorelease pool. Returns how many times the variant built the
+no drawable. Must run inside an autorelease pool. Returns how many times the app built the
 frame: more than once if what it was given (a press, a key) changed what the app holds."
   (declare (type single-float width height scale))
   (let ((context (host-context host))
@@ -626,7 +626,7 @@ the other windows for one (see above)."
 (defun host-keyboard-state (host)
   "Where a key would go, as three values that are true or false: whether the host's view is the
 first responder of its window, whether the window is the key window, and whether the application
-is the active one. A person can type into the variant only when all three are true. Safe from any
+is the active one. A person can type into the app only when all three are true. Safe from any
 thread."
   (call-on-main
    (lambda ()
@@ -638,23 +638,23 @@ thread."
                (and (msg-send :bool app "isActive") t))))))
 
 (defvar *running-host* nil
-  "The host of the app's window that RUN-VARIANT or OPEN-VARIANT opened, while it is open.")
+  "The host of the app's window that RUN-HOST or OPEN-HOST opened, while it is open.")
 
 (defun running-host ()
-  "The host of the app's window that RUN-VARIANT or OPEN-VARIANT opened (the first, not one that the
+  "The host of the app's window that RUN-HOST or OPEN-HOST opened (the first, not one that the
 app or a tool opened beside it), or NIL. It is what a REPL has to ask for a frame with, or to make
 the app again with (RELOAD-HOST), while the window is open."
   *running-host*)
 
 (defun reload-host (host rebuild)
-  "Call REBUILD, a function of no arguments that returns a variant, and put what it returns in
-place of the variant HOST runs (SWAP-VARIANT), and ask for a frame. It is done on the main
+  "Call REBUILD, a function of no arguments that returns an app, and put what it returns in
+place of the app HOST runs (SWAP-APP), and ask for a frame. It is done on the main
 thread, so this is safe from any thread, and from any other thread it returns at once. If
-REBUILD signals an error the error is reported and the old variant stays."
+REBUILD signals an error the error is reported and the old app stays."
   (run-on-main
    (lambda ()
      (handler-case
-         (progn (swap-variant host (with-kept-state ((host-kept-state host))
+         (progn (swap-app host (with-kept-state ((host-kept-state host))
                                      (funcall rebuild)))
                 (request-host-frame host)
                 (format t "~&Hot reload: made the app again.~%")
@@ -694,15 +694,15 @@ reader go, and take it from the windows that are open."
   (loop :for (k v) :on plist :by #'cddr
         :unless (eq k key) :append (list k v)))
 
-(defun make-variant-window (variant title width height capacity rebuild driver kept-state
+(defun make-app-window (instance title width height capacity rebuild driver kept-state
                             &key owner main (show t) placement)
-  "Make the window for VARIANT and return its host, shown at once with SHOW, or else after what
+  "Make the window for INSTANCE and return its host, shown at once with SHOW, or else after what
 the main thread is doing now (a frame, in which the window is asked for). Called inside the
 application, on the main thread. OWNER is the host the window belongs to and closes with, and with
 MAIN it is the app's window (RUNNING-HOST). PLACEMENT says where it opens (see PLACE-WINDOW; a host
 given as :BESIDE stands for its window); with none, it opens below and to the right of the last
 window opened, or in the middle of the screen if it is the first. The other arguments are
-RUN-VARIANT's."
+RUN-HOST's."
   (let* ((host nil)
          (device (default-device))
          (window (make-window :title title :width width :height height
@@ -710,10 +710,10 @@ RUN-VARIANT's."
                                                (host-deliver-event host event))
                               :on-close (lambda () (window-closing host))))
          (view (make-metal-view :device device :width width :height height
-                                ;; Read when asked, from the variant the host has then: the app
+                                ;; Read when asked, from the app the host has then: the app
                                 ;; may have been made again.
                                 :accessibility-tree (lambda ()
-                                                      (accessibility-tree (host-variant host)))
+                                                      (accessibility-tree (host-app host)))
                                 :accessibility-press (lambda (x y) (click-at host x y))
                                 :on-draw (lambda (view) (draw-view host view))
                                 ;; The system went dark or light: the window's theme follows.
@@ -732,7 +732,7 @@ RUN-VARIANT's."
                                                         (float (aref rect 2) 1d0)
                                                         (float (aref rect 3) 1d0))))))
          (object (metal-view-object view)))
-    (setf host (make-host variant device (msg-send :ulong object "colorPixelFormat")
+    (setf host (make-host instance device (msg-send :ulong object "colorPixelFormat")
                           :capacity capacity
                           :scale (window-scale-factor window)
                           :kept-state (or kept-state (make-kept-state))))
@@ -774,7 +774,7 @@ RUN-VARIANT's."
              (format t "~&The driver failed: ~a~%" condition)
              (finish-output)
              (sb-ext:exit :code 1 :abort t))))
-       :name "variant driver"))
+       :name "app driver"))
     host))
 
 (defun loop-ended ()
@@ -785,37 +785,37 @@ RUN-VARIANT's."
     (setf *loop* nil
           *pending-opens* 0)))
 
-(defun run-variant (variant &key (title "almighty-bolt") (width 800) (height 600)
+(defun run-host (instance &key (title "almighty-bolt") (width 800) (height 600)
                               driver (capacity 65536) rebuild kept-state placement)
-  "Open a window of WIDTH by HEIGHT points, run VARIANT in it, and return only when
+  "Open a window of WIDTH by HEIGHT points, run INSTANCE in it, and return only when
 the application quits. This thread must be the main thread, and it is the windows' until the
 last of them closes, which ends the process: it is for a program that is only its windows (make
-7guis). For a REPL, which must be free, see OPEN-VARIANT. DRIVER, if given, is called on a new thread
+7guis). For a REPL, which must be free, see OPEN-HOST. DRIVER, if given, is called on a new thread
 with the host once the window is up; a driver that finishes should close the window.
 
-REBUILD, if given, is a function of no arguments that returns a variant. It is called again,
+REBUILD, if given, is a function of no arguments that returns an app. It is called again,
 on the main thread, whenever functions are defined or redefined and the definitions have
 stopped for a moment (WATCH-REDEFINITIONS), and what it returns takes the place of the
-variant that runs (RELOAD-HOST). So code that is compiled in a running
+app that runs (RELOAD-HOST). So code that is compiled in a running
 image, from an editor or from a file, changes the window with nothing else done. The new
-variant starts from nothing; if its first frame fails the old one is put back."
+app starts from nothing; if its first frame fails the old one is put back."
   (sb-thread:with-mutex (*hosts-lock*)
     (when *loop*
-      (error "The application is running already; open another window with OPEN-VARIANT."))
+      (error "The application is running already; open another window with OPEN-HOST."))
     (setf *loop* :starting))
   (unwind-protect
        (run-application
         (lambda ()
           (sb-thread:with-mutex (*hosts-lock*)
             (setf *loop* :running))
-          (make-variant-window variant title width height capacity rebuild driver kept-state
+          (make-app-window instance title width height capacity rebuild driver kept-state
                                :main t :placement placement)))
     (loop-ended)))
 
-(defun open-variant (variant &key (title "almighty-bolt") (width 800) (height 600)
+(defun open-host (instance &key (title "almighty-bolt") (width 800) (height 600)
                                (capacity 65536) rebuild kept-state (timeout 10) owner (main t)
                                placement)
-  "Open a window of WIDTH by HEIGHT points that runs VARIANT, and return its host. With MAIN it is
+  "Open a window of WIDTH by HEIGHT points that runs INSTANCE, and return its host. With MAIN it is
 the app's window (RUNNING-HOST), of which there is one at a time; without it, another window beside
 it, which closes with OWNER if one is given. PLACEMENT says where it opens (see PLACE-WINDOW).
 
@@ -825,10 +825,10 @@ thread has to be doing nothing that cannot be interrupted (a REPL in an editor t
 itself leaves it waiting for input, as one does when it is the standard input), so the first window
 is opened from another thread, as a REPL's forms are in Slynk or SLIME with threads. A window opened
 while the loop runs (from the REPL, or from an app's frame, on the main thread) joins it. Closing the
-last window, with its button, Command-W, Command-Q (which closes them all) or CLOSE-VARIANT, stops the
-loop and leaves the Lisp running; OPEN-VARIANT can then be called again.
+last window, with its button, Command-W, Command-Q (which closes them all) or CLOSE-HOST, stops the
+loop and leaves the Lisp running; OPEN-HOST can then be called again.
 
-REBUILD is as for RUN-VARIANT, which is what compiling a definition in the editor needs: with
+REBUILD is as for RUN-HOST, which is what compiling a definition in the editor needs: with
 it the window changes when code is compiled. What it prints, and what the window's callbacks
 print when they fail, goes to the output of the thread that started the loop.
 
@@ -836,7 +836,7 @@ Signals an error if MAIN and the app's window is open, if the loop has to be sta
 main thread, if the window could not be made, or if the main thread had not made it in TIMEOUT
 seconds."
   (when (and main *running-host*)
-    (error "A window is already open. Close it first with CLOSE-VARIANT."))
+    (error "A window is already open. Close it first with CLOSE-HOST."))
   (let ((deadline (+ (get-internal-real-time) (* timeout internal-time-units-per-second)))
         (state nil))
     ;; A loop that is starting or stopping is waited for: then it runs, or it has stopped.
@@ -854,7 +854,7 @@ seconds."
     (if (eq state :running)
         (flet ((make (show)
                  (unwind-protect
-                      (make-variant-window variant title width height capacity rebuild nil
+                      (make-app-window instance title width height capacity rebuild nil
                                            kept-state :owner owner :main main :show show
                                            :placement placement)
                    (sb-thread:with-mutex (*hosts-lock*)
@@ -862,22 +862,22 @@ seconds."
           (if (on-main-thread-p)
               (make nil)
               (call-on-main (lambda () (make t)))))
-        (start-loop variant title width height capacity rebuild kept-state timeout main
+        (start-loop instance title width height capacity rebuild kept-state timeout main
                     placement))))
 
-(defun start-loop (variant title width height capacity rebuild kept-state timeout main placement)
-  "Start the application's event loop on the main thread, with a window for VARIANT, and return its
-host (see OPEN-VARIANT, which has said that the loop is :STARTING)."
+(defun start-loop (instance title width height capacity rebuild kept-state timeout main placement)
+  "Start the application's event loop on the main thread, with a window for INSTANCE, and return its
+host (see OPEN-HOST, which has said that the loop is :STARTING)."
   (when (on-main-thread-p)
     (sb-thread:with-mutex (*hosts-lock*)
       (setf *loop* nil))
-    (error "OPEN-VARIANT is called from the main thread, which it needs for the window's event ~
+    (error "OPEN-HOST is called from the main thread, which it needs for the window's event ~
             loop and which would then never come back. Call it from another thread (a REPL in an ~
-            editor is on one), or use RUN-VARIANT to give this thread to the window."))
+            editor is on one), or use RUN-HOST to give this thread to the window."))
   (let ((out *standard-output*)
         (err *error-output*)
         (ready (sb-thread:make-semaphore))
-        (lock (sb-thread:make-mutex :name "open-variant"))
+        (lock (sb-thread:make-mutex :name "open-host"))
         (host nil)
         (failure nil)
         (cancelled nil))
@@ -898,7 +898,7 @@ host (see OPEN-VARIANT, which has said that the loop is :STARTING)."
                     (lambda ()
                       (sb-thread:with-mutex (*hosts-lock*)
                         (setf *loop* :running))
-                      (setf host (make-variant-window variant title width height capacity
+                      (setf host (make-app-window instance title width height capacity
                                                       rebuild nil kept-state :main main
                                                       :placement placement))
                       (sb-thread:signal-semaphore ready))
@@ -921,8 +921,8 @@ host (see OPEN-VARIANT, which has said that the loop is :STARTING)."
       (error "The window could not be opened: ~a" failure))
     host))
 
-(defun close-variant (&key (host *running-host*) (timeout 5))
-  "Close HOST's window (the app's window that OPEN-VARIANT opened, if not given), as its close button
+(defun close-host (&key (host *running-host*) (timeout 5))
+  "Close HOST's window (the app's window that OPEN-HOST opened, if not given), as its close button
 would, and return the host once it has closed, or NIL if it was not open. Safe from any thread but
 the main one."
   (when (and host (host-open-p host))

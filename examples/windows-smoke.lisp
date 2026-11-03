@@ -27,7 +27,7 @@
                 #:msg-send
                 #:objc-class)
   (:import-from #:almighty-bolt/platform/macos/host
-                #:host-variant
+                #:host-app
                 #:host-ring
                 #:host-idle-p
                 #:host-owner
@@ -36,8 +36,8 @@
                 #:open-hosts
                 #:host-open-p
                 #:running-host
-                #:open-variant
-                #:close-variant))
+                #:open-host
+                #:close-host))
 
 (in-package #:almighty-bolt-examples/windows-smoke)
 
@@ -132,7 +132,7 @@
   "What the inspector's window shows, as the names of what is in it."
   (let ((names '()))
     (s:walk-nodes (lambda (node) (let ((name (s:node-name node))) (when name (push name names))))
-                  (almighty-bolt/internals:accessibility-tree (host-variant window)))
+                  (almighty-bolt/internals:accessibility-tree (host-app window)))
     (format nil "~{~a~^ | ~}" (nreverse names))))
 
 (defun inspector-checks (first)
@@ -165,8 +165,8 @@
     (check "the keys again close it" (wait-for (lambda () (not (host-open-p inspector)))))
     (check "and what it asked of the app's window goes with it"
            (wait-for (lambda () (null (almighty-bolt/ui/ui:ui-inspection
-                                       (almighty-bolt/ui/immediate:immediate-variant-ui
-                                        (host-variant first)))))))))
+                                       (almighty-bolt/ui/immediate:immediate-app-ui
+                                        (host-app first)))))))))
 
 (defun checks ()
   (let ((first (bolt:open-app 'make-first :title "First" :width 320 :height 200)))
@@ -210,16 +210,16 @@
       (bolt:close-window third)
       (check "closing it again does nothing" (= 2 (length (open-hosts)))))
     ;; Compiling code makes every window's app again.
-    (let ((one (host-variant first))
-          (two (host-variant *second*)))
+    (let ((one (host-app first))
+          (two (host-app *second*)))
       (eval '(defun almighty-bolt-examples/windows-smoke::compiled-in-the-editor () 1))
       (check "compiling a definition makes both apps again"
-             (wait-for (lambda () (and (not (eq one (host-variant first)))
-                                       (not (eq two (host-variant *second*)))))))
+             (wait-for (lambda () (and (not (eq one (host-app first)))
+                                       (not (eq two (host-app *second*)))))))
       (check "and each window still shows the count"
              (equal (princ-to-string *count*) (count-in *second*)) (count-in *second*)))
     ;; A window that belongs to another (as a tool's belongs to the app it looks at).
-    (let ((tool (open-variant (almighty-bolt/app:make-app-instance 'make-third) :title "Tool" :width 200
+    (let ((tool (open-host (almighty-bolt/app:make-app-instance 'make-third) :title "Tool" :width 200
                                                                     :height 80
                                                                     :main nil :owner *second*)))
       (wait-for (lambda () (plusp (frames tool))))
@@ -241,7 +241,7 @@
       (let ((again (bolt:open-app 'make-first :title "First" :width 320 :height 200)))
         (check "open-app beside it opens the app's window"
                (and (wait-for (lambda () (plusp (frames again)))) (eq again (running-host))))
-        (close-variant)
+        (close-host)
         (check "close-app closes the app's window only"
                (and (not (host-open-p again)) (host-open-p alone))))
       (bolt:close-window alone)

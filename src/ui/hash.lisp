@@ -6,7 +6,7 @@
 
 (in-package #:almighty-bolt/ui/hash)
 
-;;; The hashes the immediate variant compares to tell whether what it described this frame is
+;;; The hashes the immediate app compares to tell whether what it described this frame is
 ;;; what it described last frame: each box has one for what decides its size and one for what
 ;;; decides how it looks, folded together with those of its children. A hash is 62 bits and
 ;;; made with arithmetic that does not allocate.

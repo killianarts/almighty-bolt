@@ -3,7 +3,7 @@
   (:import-from #:almighty-bolt/platform/macos/objc
                 #:msg-send
                 #:objc-class)
-  (:import-from #:almighty-bolt/variant
+  (:import-from #:almighty-bolt/app-instance
                 #:glyphs-full)
   (:import-from #:almighty-bolt/text/glyph-raster
                 #:rasterize-glyph

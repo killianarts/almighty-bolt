@@ -1,7 +1,7 @@
 (defpackage #:almighty-bolt-bench-null/null
   (:use #:cl)
   (:import-from #:almighty-bolt/internals
-                #:variant
+                #:app-instance
                 #:frame
                 #:handle-event
                 #:request-frame
@@ -14,15 +14,15 @@
                 #:replace-display-list
                 #:push-rounded-rect
                 #:pack-color)
-  (:export #:null-variant
-           #:make-null-variant
-           #:null-variant-scene
-           #:null-variant-events-seen
-           #:null-variant-animate-frames))
+  (:export #:null-app
+           #:make-null-app
+           #:null-app-scene
+           #:null-app-events-seen
+           #:null-app-animate-frames))
 
 (in-package #:almighty-bolt-bench-null/null)
 
-;;; The baseline variant: it replays a fixed, precomputed display
+;;; The baseline app: it replays a fixed, precomputed display
 ;;; list and does nothing else, so that what a frame costs with it is what the host and
 ;;; the renderer cost. What the ui costs can be read against it.
 ;;;
@@ -35,17 +35,17 @@
 (defparameter +paragraph+
   "Text is shaped by Core Text, drawn by Core Graphics into a texture atlas, and put on screen by the Metal renderer. A paragraph breaks into lines that fit its width, and every line is shaped once and kept.")
 
-(defclass null-variant (variant)
-  ((scene :initform nil :accessor null-variant-scene)
-   (events-seen :initform 0 :type fixnum :accessor null-variant-events-seen)
+(defclass null-app (app-instance)
+  ((scene :initform nil :accessor null-app-scene)
+   (events-seen :initform 0 :type fixnum :accessor null-app-events-seen)
    ;; How many more frames to ask for, one after each frame, to test that a request
    ;; made while a frame is being drawn is honoured.
    (animate-frames :initarg :animate-frames :initform 0 :type fixnum
-                   :accessor null-variant-animate-frames))
+                   :accessor null-app-animate-frames))
   (:documentation "Replays a fixed display list."))
 
-(defun make-null-variant (&key (animate-frames 0))
-  (make-instance 'null-variant :animate-frames animate-frames))
+(defun make-null-app (&key (animate-frames 0))
+  (make-instance 'null-app :animate-frames animate-frames))
 
 (defun build-scene (context)
   "The fixed list: a panel, a heading, a row of rounded rectangles, a paragraph
@@ -75,16 +75,16 @@ broken to the width of the drawing area, and a line of code."
                          24 (+ y 12) green))
     list))
 
-(defmethod frame ((variant null-variant) context list)
-  (unless (null-variant-scene variant)
-    (setf (null-variant-scene variant) (build-scene context)))
-  (replace-display-list list (null-variant-scene variant))
-  (when (plusp (null-variant-animate-frames variant))
-    (decf (null-variant-animate-frames variant))
+(defmethod frame ((instance null-app) context list)
+  (unless (null-app-scene instance)
+    (setf (null-app-scene instance) (build-scene context)))
+  (replace-display-list list (null-app-scene instance))
+  (when (plusp (null-app-animate-frames instance))
+    (decf (null-app-animate-frames instance))
     (request-frame context))
   nil)
 
-(defmethod handle-event ((variant null-variant) event)
+(defmethod handle-event ((instance null-app) event)
   (declare (ignore event))
-  (incf (null-variant-events-seen variant))
+  (incf (null-app-events-seen instance))
   nil)

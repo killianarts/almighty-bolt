@@ -2,7 +2,7 @@
   (:use #:cl)
   (:import-from #:almighty-bolt/event
                 #:event-timestamp)
-  (:import-from #:almighty-bolt/variant
+  (:import-from #:almighty-bolt/app-instance
                 #:hit-target
                 #:lookup-target)
   (:import-from #:almighty-bolt/replay/script
@@ -15,11 +15,11 @@
 
 (in-package #:almighty-bolt/replay/recorder)
 
-;;; Write a script from a live session: each event the variant is given is noted with its time
+;;; Write a script from a live session: each event the app is given is noted with its time
 ;;; since the first event, and a pointer or wheel event over a control that has an id is
-;;; written as a place in that control, so that the script can be replayed in a variant whose
-;;; layout is a few pixels different. Call RECORD-EVENT before the variant handles the event,
-;;; so that the control found is the one the variant will find. Checkpoints are made afterwards,
+;;; written as a place in that control, so that the script can be replayed in an app whose
+;;; layout is a few pixels different. Call RECORD-EVENT before the app handles the event,
+;;; so that the control found is the one the app will find. Checkpoints are made afterwards,
 ;;; from a replay (SCRIPT-WITH-CHECKPOINTS, FREEZE-CHECKPOINTS), because a hash taken in a live
 ;;; session depends on when the display happened to ask for frames.
 
@@ -34,7 +34,7 @@
         :unless (member key keys)
           :append (list key value)))
 
-(defun retarget (form variant)
+(defun retarget (form instance)
   "FORM, a pointer or wheel form with :X and :Y, with the control under it as :TARGET, :FX and
 :FY if there is one that has an id and a place."
   (if (not (member (first form) '(:pointer :wheel)))
@@ -42,23 +42,23 @@
       (let* ((options (rest form))
              (x (getf options :x))
              (y (getf options :y))
-             (id (hit-target variant (float x 1f0) (float y 1f0))))
+             (id (hit-target instance (float x 1f0) (float y 1f0))))
         (if (null id)
             form
-            (multiple-value-bind (left top width height) (lookup-target variant id)
+            (multiple-value-bind (left top width height) (lookup-target instance id)
               (if (and left (plusp width) (plusp height))
                   (list* (first form)
                          :target id :fx (/ (- x left) width) :fy (/ (- y top) height)
                          (remove-keys options :x :y))
                   form))))))
 
-(defun record-event (recorder variant event)
-  "Note EVENT, about to be given to VARIANT. Returns the form that was written."
+(defun record-event (recorder instance event)
+  "Note EVENT, about to be given to INSTANCE. Returns the form that was written."
   (let* ((timestamp (event-timestamp event))
          (start (or (recorder-start recorder)
                     (setf (recorder-start recorder) timestamp)))
          (time (max (recorder-last recorder) (- timestamp start)))
-         (form (retarget (event-form event) variant)))
+         (form (retarget (event-form event) instance)))
     (setf (recorder-last recorder) time)
     (push (list time form) (recorder-entries recorder))
     form))

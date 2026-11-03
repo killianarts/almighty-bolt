@@ -50,8 +50,8 @@
   (:import-from #:almighty-bolt/ui/theme
                 #:theme-row-height)
   (:import-from #:almighty-bolt/ui/immediate
-                #:immediate-variant
-                #:immediate-variant-ui)
+                #:immediate-app
+                #:immediate-app-ui)
   (:export #:node-id
            #:node-role
            #:node-name
@@ -320,10 +320,10 @@ shows; one that is all out of sight is :hidden, with no width or height."
                               (list shown-left shown-top shown-w shown-h)))
             (and children (list :children children)))))
 
-(defmethod accessibility-tree ((variant immediate-variant))
+(defmethod accessibility-tree ((instance immediate-app))
   "The semantic tree of the frame last built, a node (see above) for the whole window, or NIL if
 no frame has been built."
-  (let* ((ui (immediate-variant-ui variant))
+  (let* ((ui (immediate-app-ui instance))
          (root (ui-root ui)))
     (and root
          (let ((node (node-of ui root 0f0 0f0 -1f30 -1f30 1f30 1f30))

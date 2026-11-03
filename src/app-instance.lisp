@@ -1,16 +1,16 @@
-(defpackage #:almighty-bolt/variant
+(defpackage #:almighty-bolt/app-instance
   (:use #:cl)
   (:import-from #:almighty-bolt/clock
                 #:now-ns
                 #:real-time-source)
-  (:export #:variant
+  (:export #:app-instance
            #:handle-event
            #:frame
            #:hit-target
            #:lookup-target
            #:accessibility-tree
            #:inherit-state
-           #:retire-variant
+           #:retire-app
            #:forget-painting
            #:context
            #:make-context
@@ -63,56 +63,61 @@
            #:context-cursor
            #:+cursors+))
 
-(in-package #:almighty-bolt/variant)
+(in-package #:almighty-bolt/app-instance)
 
-;;; The variant contract: what the core asks of a variant,
-;;; and what it gives a variant to work with. Nothing here touches a window, the GPU
-;;; or the operating system's text engine; the host supplies those behind the
-;;; context.
+;;; The contract between a window's host and the app it runs: what the host asks of an app
+;;; instance, and what it gives one to work with. Nothing here touches a window, the GPU or the
+;;; operating system's text engine; the host supplies those behind the context.
+;;;
+;;; An app instance is what a window runs. The library's is IMMEDIATE-APP, which calls an app's
+;;; function every frame and keeps its ui (src/ui/immediate.lisp); MAKE-APP-INSTANCE makes one
+;;; from an app's constructor, and compiling code makes another, which takes the old one's ui. The
+;;; benchmarks have NULL-APP, which replays a fixed display list. (Until 0.3 this was the "variant"
+;;; contract, from when the project compared three kinds of ui.)
 
-;;; --- what a variant implements ---
+;;; --- what an app instance implements ---
 
-(defclass variant () ()
-  (:documentation "The base class of variants. A variant is a subclass that
-implements FRAME, and whichever of the other operations it needs."))
+(defclass app-instance () ()
+  (:documentation "The base class of what a window runs. A subclass implements FRAME, and whichever
+of the other operations it needs."))
 
-(defgeneric handle-event (variant event)
-  (:documentation "Offer EVENT to VARIANT. Called on the main thread, once for each
+(defgeneric handle-event (instance event)
+  (:documentation "Offer EVENT to INSTANCE. Called on the main thread, once for each
 event, in the order the platform delivered them. Returns true if a frame is
-wanted. A variant that acts on events does so here; one that rebuilds its widgets
+wanted. An app that acts on events does so here; one that rebuilds its widgets
 every frame keeps the event in a list of its own for FRAME to read.")
-  (:method ((variant variant) event)
-    (declare (ignore variant event))
+  (:method ((instance app-instance) event)
+    (declare (ignore instance event))
     nil))
 
-(defgeneric frame (variant context display-list)
+(defgeneric frame (instance context display-list)
   (:documentation "Build a frame: lay out and append drawing commands to
 DISPLAY-LIST, which is empty. Returns true if app state changed during the build,
-in which case the core builds again (see SETTLE-FRAME). A variant must provide it.")
-  (:method ((variant variant) context display-list)
+in which case the core builds again (see SETTLE-FRAME). An app must provide it.")
+  (:method ((instance app-instance) context display-list)
     (declare (ignore context display-list))
-    (error "~s does not implement FRAME." variant)))
+    (error "~s does not implement FRAME." instance)))
 
-(defgeneric hit-target (variant x y)
+(defgeneric hit-target (instance x y)
   (:documentation "The stable id (anything comparable with EQL) of the target under
 the point X, Y (single floats, in points from the top left), or NIL. Answers for the
 last frame that was presented.")
-  (:method ((variant variant) x y)
-    (declare (ignore variant x y))
+  (:method ((instance app-instance) x y)
+    (declare (ignore instance x y))
     nil))
 
-(defgeneric lookup-target (variant test-id)
+(defgeneric lookup-target (instance test-id)
   (:documentation "The rectangle of the target with id TEST-ID, as four values (x, y,
 width, height), or NIL if there is none. Replay uses it to find where to click.")
-  (:method ((variant variant) test-id)
-    (declare (ignore variant test-id))
+  (:method ((instance app-instance) test-id)
+    (declare (ignore instance test-id))
     nil))
 
-(defgeneric accessibility-tree (variant)
+(defgeneric accessibility-tree (instance)
   (:documentation "The accessibility tree of the last settled frame. A stub that
 returns NIL until the machine interface (H3) needs it.")
-  (:method ((variant variant))
-    (declare (ignore variant))
+  (:method ((instance app-instance))
+    (declare (ignore instance))
     nil))
 
 (defgeneric inherit-state (new old)
@@ -124,33 +129,33 @@ thread before NEW draws. If it signals an error, OLD stays and NEW is retired.")
     (declare (ignore new old))
     nil))
 
-(defgeneric forget-painting (variant)
-  (:documentation "Forget every drawing command VARIANT kept from frames before, so that the next
+(defgeneric forget-painting (instance)
+  (:documentation "Forget every drawing command INSTANCE kept from frames before, so that the next
 frame paints everything afresh. Called when the glyphs those commands name have been forgotten
 (CONTEXT-FORGET-GLYPHS).")
-  (:method (variant)
-    (declare (ignore variant))
+  (:method (instance)
+    (declare (ignore instance))
     nil))
 
-(defgeneric retire-variant (variant)
-  (:documentation "VARIANT is not used any more: it was replaced by one that has drawn, or it was
+(defgeneric retire-app (instance)
+  (:documentation "INSTANCE is not used any more: it was replaced by one that has drawn, or it was
 the replacement and its first frame failed. Let go of what it holds outside itself. Called on the
 main thread.")
-  (:method (variant)
-    (declare (ignore variant))
+  (:method (instance)
+    (declare (ignore instance))
     nil))
 
-;;; --- what the core gives a variant ---
+;;; --- what the core gives an app ---
 
 (defconstant +phase-update+ 0
-  "The phase of a build that brings the variant up to date with the application: for the
+  "The phase of a build that brings the app up to date with the application: for the
 immediate ui, calling the interface function of the app.")
 (defconstant +phase-layout+ 1 "The phase in which sizes and places are worked out.")
 (defconstant +phase-paint+ 2 "The phase in which the display list is made.")
 (defconstant +phase-first-build+ 3
-  "Not a phase of a variant: the time of the first build of a frame, set by SETTLE-FRAME.")
+  "Not a phase of an app: the time of the first build of a frame, set by SETTLE-FRAME.")
 (defconstant +phase-all-builds+ 4
-  "Not a phase of a variant: the time of all the builds of a frame, set by SETTLE-FRAME.")
+  "Not a phase of an app: the time of all the builds of a frame, set by SETTLE-FRAME.")
 (defconstant +phase-slots+ 5)
 
 (defparameter +cursors+
@@ -161,7 +166,7 @@ hand, a crosshair, an open and a closed hand, a circle with a line through it, a
 resize sideways and up and down.")
 
 (defstruct (context (:constructor make-context (&key width height scale requester)))
-  "What a variant can see of the host, made once and updated in place by the host.
+  "What an app can see of the host, made once and updated in place by the host.
 WIDTH and HEIGHT are the size of the drawing area in points and SCALE the pixels
 per point. FRAME-NUMBER counts frames and BUILD-NUMBER (from 1) counts the builds
 within the frame. REQUESTER is what REQUEST-FRAME calls; the host replaces it."
@@ -190,9 +195,9 @@ within the frame. REQUESTER is what REQUEST-FRAME calls; the host replaces it."
    :type (simple-array single-float (4)) :read-only t)
   (text-input-canvas nil)
   (painting nil)
-  ;; The cost of events, when PHASES-P: the time DELIVER-EVENT spent in the variant's HANDLE-EVENT
+  ;; The cost of events, when PHASES-P: the time DELIVER-EVENT spent in the app's HANDLE-EVENT
   ;; and the number of events since TAKE-EVENTS (the host takes them with each frame, so that the
-  ;; frame and the events that came before it are one cost, whichever variant does the work in
+  ;; frame and the events that came before it are one cost, whichever app does the work in
   ;; HANDLE-EVENT and whichever in FRAME).
   (events-ns 0 :type (unsigned-byte 62))
   (events 0 :type (unsigned-byte 62))
@@ -230,7 +235,7 @@ the window. Does not allocate."
 
 (defmacro with-painting ((context id) &body body)
   "Run BODY, the painter of the canvas with the id ID, so that SET-TEXT-INPUT-CARET knows which
-canvas its caret is in. A variant wraps each call of an app's canvas painter in it."
+canvas its caret is in. The ui wraps each call of an app's canvas painter in it."
   (let ((c (gensym "CONTEXT"))
         (before (gensym "BEFORE")))
     `(let* ((,c ,context)
@@ -239,13 +244,13 @@ canvas its caret is in. A variant wraps each call of an app's canvas painter in 
        (unwind-protect (progn ,@body)
          (setf (context-painting ,c) ,before)))))
 
-(defun place-text-input-caret (variant context)
-  "Put the caret that SET-TEXT-INPUT-CARET was given in the window: add the place that VARIANT
+(defun place-text-input-caret (instance context)
+  "Put the caret that SET-TEXT-INPUT-CARET was given in the window: add the place that INSTANCE
 now has for the canvas that said it. Called by SETTLE-FRAME after the last build of a frame; it
 does nothing unless a canvas with an id takes text input."
   (let ((canvas (context-text-input-canvas context)))
     (when (and canvas (context-text-input-p context))
-      (multiple-value-bind (x y) (lookup-target variant canvas)
+      (multiple-value-bind (x y) (lookup-target instance canvas)
         (when x
           (let ((local (context-text-input-local context))
                 (rect (context-text-input-rect context)))
@@ -280,7 +285,7 @@ core clock, which replay makes virtual) to PHASE (+PHASE-UPDATE+, +PHASE-LAYOUT+
   (setf (context-frame-requested context) t))
 
 (defun request-frame (context)
-  "Ask for a frame. Many requests before a frame make one frame. A variant never
+  "Ask for a frame. Many requests before a frame make one frame. An app never
 runs its own loop; this is how it asks for the next frame of an animation."
   (funcall (context-requester context) context)
   nil)
@@ -296,16 +301,16 @@ runs its own loop; this is how it asks for the next frame of an animation."
   (declare (ignore context))
   (now-ns))
 
-(defun deliver-event (variant context event)
-  "Offer EVENT to VARIANT and, if it wants a frame, request one. Returns true if a
+(defun deliver-event (instance context event)
+  "Offer EVENT to INSTANCE and, if it wants a frame, request one. Returns true if a
 frame was requested. With the context's instrumentation on, the real time that
 HANDLE-EVENT took is added to the context's events (see TAKE-EVENTS)."
   (when (if (context-phases-p context)
             (let ((start (real-time-source)))
-              (multiple-value-prog1 (handle-event variant event)
+              (multiple-value-prog1 (handle-event instance event)
                 (incf (context-events-ns context) (- (real-time-source) start))
                 (incf (context-events context))))
-            (handle-event variant event))
+            (handle-event instance event))
     (request-frame context)
     t))
 
@@ -322,7 +327,7 @@ while the context's instrumentation is on. Does not allocate."
 ;;; --- text, which the host supplies ---
 ;;;
 ;;; The text engine and the glyph atlas belong to the host's platform and renderer,
-;;; so a variant reaches them through the context. A font is an opaque value that
+;;; so an app reaches them through the context. A font is an opaque value that
 ;;; only CONTEXT-FONT makes. These are the measurement operations
 ;;; and one operation to draw a line of text. A context made without a host has none
 ;;; of them.
