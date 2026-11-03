@@ -17,7 +17,10 @@
   (:import-from #:almighty-bolt/machine/host-session
                 #:open-session)
   (:import-from #:almighty-bolt/internals
-                #:frame-ring-total)
+                #:frame-ring-total
+                #:make-key-event
+                #:+modifier-super+
+                #:+modifier-alt+)
   (:import-from #:almighty-bolt/platform/macos/main-queue
                 #:call-on-main)
   (:import-from #:almighty-bolt/platform/macos/objc
@@ -27,6 +30,8 @@
                 #:host-variant
                 #:host-ring
                 #:host-idle-p
+                #:host-owner
+                #:host-deliver-event
                 #:wait-for-idle
                 #:open-hosts
                 #:host-open-p
@@ -97,6 +102,48 @@
                   (msg-send :void (msg-send :id (objc-class "NSApplication") "sharedApplication")
                             "terminate:" (:id 0)))))
 
+(defun command-option-i (host)
+  (call-on-main (lambda ()
+                  (host-deliver-event host (make-key-event :timestamp 0 :kind :down :logical-key #\i
+                                                           :modifiers (logior +modifier-super+
+                                                                              +modifier-alt+))))))
+
+(defun the-inspector-of (host)
+  (find host (open-hosts) :key #'host-owner))
+
+(defun says (window)
+  "What the inspector's window shows, as the names of what is in it."
+  (let ((names '()))
+    (s:walk-nodes (lambda (node) (let ((name (s:node-name node))) (when name (push name names))))
+                  (almighty-bolt/internals:accessibility-tree (host-variant window)))
+    (format nil "~{~a~^ | ~}" (nreverse names))))
+
+(defun inspector-checks (first)
+  "The inspector, in a window of its own beside the app's FIRST."
+  (command-option-i first)
+  (let ((inspector (and (wait-for (lambda () (the-inspector-of first))) (the-inspector-of first))))
+    (check "Command-Option-I in the app's window opens the inspector's, which belongs to it"
+           (and inspector (wait-for (lambda () (plusp (frames inspector))))))
+    ;; A window that has just come up is told where the real pointer is, which would come between
+    ;; the events of a click made here; as the run-app check does, let that pass first.
+    (wait-for-idle inspector)
+    (sleep 1)
+    (let ((before *count*))
+      (m:click (open-session inspector) :id :inspector-pick)
+      (m:click (open-session first) :id :add)
+      (wait-for-idle inspector)
+      (check "Pick, then a press in the app's window, picks and does not press"
+             (and (= before *count*) (search "Id: :add" (says inspector))) (says inspector))
+      (m:click (open-session inspector) :id :inspector-press)
+      (check "Press in the inspector presses it in the app, after the frame, on a thread of its own"
+             (wait-for (lambda () (= *count* (1+ before)))) *count*))
+    (command-option-i first)
+    (check "the keys again close it" (wait-for (lambda () (not (host-open-p inspector)))))
+    (check "and what it asked of the app's window goes with it"
+           (wait-for (lambda () (null (almighty-bolt/ui/ui:ui-inspection
+                                       (almighty-bolt/ui/immediate:immediate-variant-ui
+                                        (host-variant first)))))))))
+
 (defun checks ()
   (let ((first (bolt:open-app 'make-first :title "First" :width 320 :height 200)))
     (check "the app's window opens" (wait-for (lambda () (plusp (frames first)))))
@@ -115,6 +162,7 @@
     (check "and a press in the second draws the first"
            (equal "11" (count-in first)) (count-in first))
     (check "then both rest: neither keeps waking the other" (at-rest-p (list first *second*)))
+    (inspector-checks first)
     ;; Another, from the REPL, closed again.
     (let ((third (bolt:open-window 'make-third :title "Third" :width 200 :height 80)))
       (check "a window opened from the REPL draws" (wait-for (lambda () (plusp (frames third)))))
@@ -130,7 +178,8 @@
       (check "compiling a definition makes both apps again"
              (wait-for (lambda () (and (not (eq one (host-variant first)))
                                        (not (eq two (host-variant *second*)))))))
-      (check "and each window still shows the count" (equal "11" (count-in *second*))))
+      (check "and each window still shows the count"
+             (equal (princ-to-string *count*) (count-in *second*)) (count-in *second*)))
     ;; A window that belongs to another (as a tool's belongs to the app it looks at).
     (let ((tool (open-variant (almighty-bolt/app:make-app-instance 'make-third) :title "Tool" :width 200
                                                                     :height 80

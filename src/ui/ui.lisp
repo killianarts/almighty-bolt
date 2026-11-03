@@ -56,6 +56,8 @@
            #:float-spec-y
            #:float-spec-min-width
            #:float-spec-modal
+           #:float-spec-tool
+           #:ui-inspection
            #:ui-parent
            #:ui-count
            #:ui-boxes
@@ -209,6 +211,9 @@
   ;; The toasts showing, oldest first: (words . until), UNTIL a time in nanoseconds.
   (toasts '() :type list)
   (tooltip-dismissed nil)
+  ;; What the inspector, in a window of its own, has asked of this window (see inspection.lisp), or
+  ;; NIL while no inspector looks at it.
+  (inspection nil)
   (active 0 :type fixnum)
   (focus 0 :type fixnum)
   ;; True once a frame has been laid out and drawn: the window has opened, and a canvas that asks
@@ -385,16 +390,19 @@ the same key are an error (DUPLICATE-ID): the ui could not tell them apart."
 ;;; of a list has a menu of its own.
 
 (defstruct (float-spec (:constructor make-float-spec
-                           (&key anchor (placement :below) (x 0f0) (y 0f0) (min-width 0f0) modal)))
+                           (&key anchor (placement :below) (x 0f0) (y 0f0) (min-width 0f0) modal
+                                 tool)))
   "Where a float goes. PLACEMENT is :below (or above, if there is no room below) or :right of the box
 ANCHOR, :at the point X, Y of the window, :center of the window, or :fill the window. MIN-WIDTH is the
-least it is as wide. A MODAL float is one the keyboard stays in."
+least it is as wide. A MODAL float is one the keyboard stays in. A TOOL float is the library's (the
+inspector's outlines), not the app's: it is not in the semantic tree."
   (anchor nil)
   (placement :below :type keyword)
   (x 0f0 :type single-float)
   (y 0f0 :type single-float)
   (min-width 0f0 :type single-float)
-  (modal nil))
+  (modal nil)
+  (tool nil))
 
 (defun open-float (ui kind owner id spec)
   "Start a float of KIND belonging to the box with the key OWNER, called ID among that box's floats

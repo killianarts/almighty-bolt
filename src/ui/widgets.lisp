@@ -2489,7 +2489,7 @@ counting its children."
                    (:grid (hash-numbers layout (box-n3 box) (hash-of (box-n1 box))
                                         (hash-of (car (box-data box))) (hash-of (cdr (box-data box)))))
                    ;; A float is put where its spec says (its anchor's place is the screen's).
-                   ((:menu :catcher :tooltip :popover :dialog :toasts)
+                   ((:menu :catcher :tooltip :popover :dialog :toasts :outline)
                     (let ((spec (box-data box)))
                       (hash-numbers layout (hash-of (float-spec-placement spec))
                                     (hash-of (float-spec-x spec)) (hash-of (float-spec-y spec))

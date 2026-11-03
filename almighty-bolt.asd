@@ -95,10 +95,12 @@
                  (:file "box")
                  (:file "ui")
                  (:file "widgets")
+                 (:file "inspection")
                  (:file "layout")
                  (:file "paint")
                  (:file "immediate")
-                 (:file "semantics")))
+                 (:file "semantics")
+                 (:file "inspector")))
                ;; How a program or an agent looks at an app and works it.
                (:module "machine"
                 :serial t

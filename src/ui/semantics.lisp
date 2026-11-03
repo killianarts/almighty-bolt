@@ -62,7 +62,8 @@
            #:node-help
            #:node-property
            #:find-nodes
-           #:walk-nodes))
+           #:walk-nodes
+           #:box-facts))
 
 (in-package #:almighty-bolt/ui/semantics)
 
@@ -111,7 +112,7 @@
     (:dialog :dialog)
     (:toasts :group)
     (:toast :toast)
-    ((:catcher :spacer) :none)
+    ((:catcher :spacer :outline) :none)
     (:list-box :list)
     (:canvas :canvas)
     (:scrim :overlay)
@@ -327,9 +328,11 @@ no frame has been built."
     (and root
          (let ((node (node-of ui root 0f0 0f0 -1f30 -1f30 1f30 1f30))
                ;; What floats above the screen (a menu) is in the window too, after the rest; the
-               ;; catcher under a menu, which shows nothing, is not.
+               ;; catcher under a menu, which shows nothing, is not, nor the inspector's outlines, which
+               ;; are the library's and not the app's.
                (floats (loop :for float :across (ui-floats ui)
-                             :unless (eq (box-kind float) :catcher)
+                             :unless (or (eq (box-kind float) :catcher)
+                                         (eq (box-kind float) :outline))
                                :collect (node-of ui float 0f0 0f0 -1f30 -1f30 1f30 1f30))))
            (if floats
                (append (loop :for (key value) :on node :by #'cddr
@@ -353,3 +356,13 @@ no frame has been built."
                     (push node found)))
                 tree)
     (nreverse found)))
+
+(defun box-facts (ui box x y)
+  "What the semantic tree says of BOX, a box of UI's last frame at X, Y in the window, as a property
+list (:role, :name, :value, :state): what the inspector shows of a widget it picked."
+  (let ((name (name-of ui box))
+        (value (value-of box)))
+    (append (list :role (role-of box))
+            (and name (list :name name))
+            (and (or value (member (box-kind box) '(:checkbox :switch))) (list :value value))
+            (list :state (state-of ui box x y nil)))))

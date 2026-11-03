@@ -21,6 +21,7 @@
            #:theme-setting
            #:theme-color
            #:theme-form
+           #:change-theme-setting
            #:theme-background
            #:theme-panel
            #:theme-text
@@ -403,6 +404,17 @@ it so that an open window shows a theme changed in the editor.")
   "Define the theme called NAME (a keyword), like BASE (:dark if not given) with SETTINGS, as
 MAKE-THEME takes them. Defining it again changes it, and a window that shows it shows the change."
   `(register-theme (make-theme :name ,name :base ,base ,@settings)))
+
+(defun change-theme-setting (name key value)
+  "Define the theme called NAME again as it was given, on its own base, with the setting KEY (one of
++THEME-SETTINGS+) given as VALUE: what the inspector does. Returns NAME. A seed given anew works out
+again what comes from it, as DEFINE-THEME does."
+  (let* ((given (theme-given (find-theme name)))
+         (base (getf given :base))
+         (settings (loop :for (k v) :on given :by #'cddr
+                         :unless (or (eq k :base) (eq k key))
+                           :append (list k v))))
+    (register-theme (apply #'make-theme :name name :base base (append settings (list key value))))))
 
 (defun theme-form (theme)
   "A DEFINE-THEME form that defines THEME again: its base and what was given rather than worked

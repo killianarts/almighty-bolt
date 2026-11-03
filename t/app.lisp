@@ -3676,3 +3676,380 @@ released unless RELEASE."
     ;; The first day is at the top of the scroll's window; its ring reaches above it.
     (multiple-value-bind (x y) (core:lookup-target (screen-variant screen) :days)
       (assert-eql ring (color-at screen (+ x 20) (- y 1))))))
+
+;;; --- the inspector ---
+;;;
+;;; The inspector is a window of its own. Here it is a second screen whose app looks at the first's
+;;; variant, as the window's does; a press in one is followed by a frame of the other, as a window
+;;; that took input draws the others. What it asks to be done is noted, and done by the test with a
+;;; session on the app's screen, as the window's thread does with a session on the app's window.
+
+(defvar *asked* '() "What the inspector asked to be done and has not been, with its report function.")
+
+(defstruct (inspecting (:constructor %make-inspecting (app panel))) app panel)
+
+(defun inspect-app (app)
+  "An inspector's screen, 700 points tall, looking at the screen APP."
+  (let* ((state (core:make-kept-state))
+         (variant (almighty-bolt/ui/immediate:make-immediate-variant
+                   (almighty-bolt/ui/inspector:make-inspector
+                    (lambda () (screen-variant app))
+                    (lambda (action report)
+                      (setf *asked* (append *asked* (list (cons action report))))))))
+         (panel (%make-screen variant (fake:make-fake-context :width 360f0 :height 700f0)
+                              (core:make-display-list :capacity 16384) state)))
+    (draw panel)
+    (draw app)
+    (%make-inspecting app panel)))
+
+(defun inspecting (constructor)
+  "The app of CONSTRUCTOR, shown, and an inspector looking at it."
+  (inspect-app (show constructor)))
+
+(defun app-of (inspecting) (inspecting-app inspecting))
+(defun panel-of (inspecting) (inspecting-panel inspecting))
+
+(defun in-panel (inspecting function &rest arguments)
+  "Do FUNCTION to the inspector's screen, and then draw the app's, as a window that took input draws
+the others."
+  (apply function (panel-of inspecting) arguments)
+  (draw (app-of inspecting))
+  (draw (panel-of inspecting)))
+
+(defun in-app (inspecting function &rest arguments)
+  (apply function (app-of inspecting) arguments)
+  (draw (panel-of inspecting))
+  (draw (app-of inspecting)))
+
+(defun inspector-says (inspecting)
+  (text-in (panel-of inspecting) :inspector))
+
+(defun pick (inspecting id)
+  "Pick the widget ID, and take the pointer from the app's window to the inspector's, as a hand does."
+  (in-panel inspecting #'click :inspector-pick)
+  (in-app inspecting #'click id)
+  (in-app inspecting #'pointer :leave 0 0))
+
+(defun do-asked (inspecting)
+  "Do what the inspector asked for, and tell it what went wrong, as the window's thread does."
+  (let ((asked *asked*))
+    (setf *asked* '())
+    (loop :for (action . report) :in asked
+          :do (let ((message (m:perform-actions (screen-session (app-of inspecting)) (list action))))
+                (when message (funcall report message))))
+    (draw (app-of inspecting))
+    (draw (panel-of inspecting))))
+
+(defun draft-of (inspecting)
+  (s:node-value (node-of (panel-of inspecting) :inspector-draft)))
+
+(defun command-option-i (screen)
+  (core:handle-event (screen-variant screen)
+                     (core:make-key-event :timestamp 0 :kind :down :logical-key #\i
+                                          :modifiers (logior core:+modifier-super+
+                                                             core:+modifier-alt+)))
+  (draw screen))
+
+(defvar *own-i* 0)
+
+(defun make-own-i ()
+  "An app whose own shortcut is Command-Option-I."
+  (lambda ()
+    (when (shortcut #\i :command :option) (incf *own-i*))
+    (label "I" :id :i)))
+
+(define-test command-option-i-opens-the-inspector-only-while-the-app-is-developed ()
+  (let* ((opened '())
+         (almighty-bolt/ui/inspection:*inspector-opener* (lambda (variant) (push variant opened)))
+         (*own-i* 0))
+    ;; An app that is delivered: the keys are its own.
+    (let ((screen (show 'make-own-i)))
+      (command-option-i screen)
+      (assert-eql 1 *own-i*)
+      (assert-eq '() opened))
+    ;; One that is developed: they open (or close) the inspector of its window, and the app does not
+    ;; see them.
+    (let* ((screen (let ((app:*development* t)) (show 'make-own-i))))
+      (command-option-i screen)
+      (assert-eql 1 *own-i*)
+      (assert-equal (list (screen-variant screen)) opened))))
+
+(define-test the-inspector-picks-a-widget-instead-of-pressing-it-and-says-what-it-is ()
+  (let ((*asked* '())
+        (both (inspecting 'counter:make-counter)))
+    (assert-true (search "Press Pick" (inspector-says both)))
+    (in-panel both #'click :inspector-pick)
+    (assert-true (search "Press a widget" (inspector-says both)))
+    (in-app both #'click :count-button)
+    ;; Picked, and not pressed.
+    (assert-equal "0" (text-in (app-of both) :count))
+    (let ((says (inspector-says both)))
+      (dolist (line '("Kind: button" "Role: button" "Id: :count-button" "Name: Count"
+                      "Theme: :dark" "Enabled"))
+        (assert-true (search line says) line says)))
+    (let ((app (app-of both)))
+      (multiple-value-bind (x y width height) (core:lookup-target (screen-variant app) :count-button)
+        (assert-true (search (format nil "At: ~d, ~d" (round x) (round y)) (inspector-says both)))
+        (assert-true (search (format nil "Size: ~d by ~d" (round width) (round height))
+                             (inspector-says both)))
+        ;; Outlined in the app's window, in the inspector's ring colour, just inside each edge.
+        (let ((ring (theme-setting (find-theme :dark) :ring)))
+          (assert-eql ring (color-at app (+ x (/ width 2)) (+ y 1)))
+          (assert-eql ring (color-at app (+ x (/ width 2)) (+ y height -1)))
+          (assert-eql ring (color-at app (+ x 1) (+ y (/ height 2))))
+          (assert-eql ring (color-at app (+ x width -1) (+ y (/ height 2)))))))
+    ;; An agent or a screen reader sees the app, and nothing of the outline.
+    (let ((tree (core:accessibility-tree (screen-variant (app-of both)))))
+      (assert-true (s:find-nodes tree :id :count-button))
+      (assert-false (s:find-nodes tree :id :inspector-picked)))
+    ;; The pick is done: the next press is the app's.
+    (in-app both #'click :count-button)
+    (assert-equal "1" (text-in (app-of both) :count))))
+
+(define-test a-pick-is-input-its-frame-took-so-the-inspector-is-drawn-after-it ()
+  ;; A window draws the others after a frame that built again because it took input; the press
+  ;; that picks is taken before the app's function, and must count as that too.
+  (let* ((*asked* '())
+         (both (inspecting 'counter:make-counter))
+         (app (app-of both)))
+    (in-panel both #'click :inspector-pick)
+    (multiple-value-bind (x y w h) (core:lookup-target (screen-variant app) :count-button)
+      (pointer app :move (+ x (/ w 2)) (+ y (/ h 2)))
+      (core:handle-event (screen-variant app)
+                         (core:make-pointer-event :timestamp 0 :kind :down :x (float (+ x (/ w 2)) 1d0)
+                                                  :y (float (+ y (/ h 2)) 1d0) :button 0 :buttons 1
+                                                  :click-count 1))
+      (assert-true (> (core:settle-frame (screen-variant app) (screen-context app) (screen-list app))
+                      1)))
+    (draw (panel-of both))
+    (assert-true (search "Id: :count-button" (inspector-says both)))))
+
+(define-test escape-stops-the-inspector-picking-in-either-window ()
+  (let ((*asked* '())
+        (both (inspecting 'counter:make-counter)))
+    (in-panel both #'click :inspector-pick)
+    (in-app both #'key #\Escape)
+    (assert-true (search "Press Pick" (inspector-says both)))
+    (in-app both #'click :count-button)
+    (assert-equal "1" (text-in (app-of both) :count))
+    (in-panel both #'click :inspector-pick)
+    (in-panel both #'key #\Escape)
+    (assert-true (search "Press Pick" (inspector-says both)))
+    (in-app both #'click :count-button)
+    (assert-equal "2" (text-in (app-of both) :count))))
+
+(define-test the-inspector-picks-in-a-dialog ()
+  (let ((*asked* '())
+        (both (inspecting 'make-confirm)))
+    (draw (app-of both))
+    (pick both :delete)
+    (assert-equal "none, 0 behind" (text-in (app-of both) :answer))
+    (assert-true (search "Name: Delete" (inspector-says both)))))
+
+(define-test what-the-inspector-picked-is-picked-still-when-the-app-is-made-again ()
+  (let ((*asked* '())
+        (both (inspecting 'counter:make-counter)))
+    (pick both :count-button)
+    (let* ((app (app-of both))
+           (new (core:with-kept-state ((screen-state app))
+                  (app:make-app-instance 'counter:make-counter))))
+      (core:inherit-state new (screen-variant app))
+      (setf (screen-variant app) new)
+      (draw app)
+      (draw (panel-of both))
+      (assert-true (search "Id: :count-button" (inspector-says both)) (inspector-says both)))))
+
+(defun make-twins ()
+  "Two buttons the same size, one under the other."
+  (lambda ()
+    (column (:gap 20)
+      (button "One" :id :one)
+      (button "Two" :id :two))))
+
+(define-test picked-again-the-outline-goes-to-the-new-one ()
+  (let* ((*asked* '())
+         (both (inspecting 'make-twins))
+         (app (app-of both))
+         (ring (theme-setting (find-theme :dark) :ring)))
+    (in-panel both #'click :inspector-pick)
+    ;; While it picks, the outline is on what the pointer is over, and goes with it.
+    (flet ((over (id)
+             (multiple-value-bind (x y w h) (core:lookup-target (screen-variant app) id)
+               (pointer app :move (+ x (/ w 2)) (+ y (/ h 2)))
+               (values x y)))
+           (outlined-p (x y) (eql ring (color-at app (+ x 1) (+ y 1)))))
+      (multiple-value-bind (x y) (over :one)
+        (assert-true (outlined-p x y)))
+      (multiple-value-bind (x y) (over :two)
+        (assert-true (outlined-p x y)))
+      (multiple-value-bind (x y) (core:lookup-target (screen-variant app) :one)
+        (assert-false (outlined-p x y))))
+    (in-app both #'click :one)
+    (pick both :two)
+    (assert-true (search "Id: :two" (inspector-says both)))
+    (multiple-value-bind (x y) (core:lookup-target (screen-variant app) :two)
+      (assert-eql ring (color-at app (+ x 1) (+ y 1))))
+    (multiple-value-bind (x y) (core:lookup-target (screen-variant app) :one)
+      (assert-false (eql ring (color-at app (+ x 1) (+ y 1)))))))
+
+(defun make-heading-over-lines ()
+  "A heading over a scroll container of many lines."
+  (lambda ()
+    (column (:gap 0)
+      (label "Heading" :id :heading)
+      (scroll (:id :lines :height 100)
+        (column (:gap 0)
+          (dotimes (i 40) (label (format nil "Line ~d" i) :id i)))))))
+
+(define-test the-inspector-picks-what-shows-not-what-is-scrolled-out-of-sight-under-it ()
+  (let* ((*asked* '())
+         (both (inspecting 'make-heading-over-lines)))
+    ;; Scrolled down, the first lines are above the container's window, where the heading is.
+    (m:scroll (screen-session (app-of both)) :id :lines :dy -5)
+    (assert-true (plusp (offset-of (app-of both) :lines)))
+    (pick both :heading)
+    (assert-true (search "Name: Heading" (inspector-says both)) (inspector-says both))))
+
+(define-test the-inspector-presses-a-button-as-a-hand-does-after-the-frame ()
+  (let ((*asked* '())
+        (both (inspecting 'counter:make-counter)))
+    (pick both :count-button)
+    (in-panel both #'click :inspector-press)
+    ;; Asked for, by its id, once (another frame does not ask again), and not done in the frame.
+    (draw (panel-of both))
+    (assert-equal '((:op :click :id :count-button)) (mapcar #'car *asked*))
+    (assert-equal "0" (text-in (app-of both) :count))
+    (do-asked both)
+    (assert-equal "1" (text-in (app-of both) :count))))
+
+(define-test the-inspector-types-what-it-is-given-into-a-field ()
+  (let ((*asked* '())
+        (both (inspecting 'todo:make-todo)))
+    (pick both :draft)
+    (in-panel both #'click :inspector-draft)
+    (in-panel both #'type-text "Milk")
+    ;; Typed into the inspector's field, not the app's.
+    (assert-equal "" (s:node-value (node-of (app-of both) :draft)))
+    (in-panel both #'click :inspector-set)
+    (do-asked both)
+    (assert-equal "Milk" (s:node-value (node-of (app-of both) :draft)))))
+
+(define-test the-inspector-sets-a-slider-and-says-when-what-it-was-given-is-not-a-number ()
+  (let ((*asked* '())
+        (both (inspecting 'make-whole-slider)))
+    (pick both :whole)
+    ;; The field has the slider's value to start with.
+    (assert-equal "5.0" (draft-of both))
+    (in-panel both #'click :inspector-draft)
+    (in-panel both #'key #\a :command)
+    (in-panel both #'type-text "lots")
+    (in-panel both #'click :inspector-set)
+    (assert-true (search "\"lots\" is not a number." (inspector-says both)))
+    (assert-eq '() *asked*)
+    (in-panel both #'click :inspector-draft)
+    (in-panel both #'key #\a :command)
+    (in-panel both #'type-text "3")
+    (in-panel both #'click :inspector-set)
+    (do-asked both)
+    (assert-equal "3" (text-in (app-of both) :whole-value))))
+
+(define-test the-inspector-says-why-what-it-asked-for-could-not-be-done ()
+  (let ((*asked* '())
+        (both (inspecting 'make-locked)))
+    (pick both :volume)
+    (in-panel both #'click :inspector-draft)
+    (in-panel both #'key #\a :command)
+    (in-panel both #'type-text "50")
+    (in-panel both #'click :inspector-set)
+    (do-asked both)
+    (assert-true (search "is disabled" (inspector-says both)) (inspector-says both))
+    (assert-eql 10d0 (s:node-value (node-of (app-of both) :volume)))))
+
+(define-test the-inspector-chooses-an-option-of-a-choice ()
+  (let ((*asked* '())
+        (both (inspecting 'make-settings)))
+    (pick both :delivery)
+    (in-panel both #'click '(:inspector-option 2))
+    (do-asked both)
+    (assert-equal "Collect" (s:node-value (node-of (app-of both) :delivery)))))
+
+(define-test the-inspector-chooses-a-row-of-a-dropdown-by-its-words ()
+  (let ((*asked* '())
+        (both (inspecting 'make-picker)))
+    (pick both :size)
+    (in-panel both #'click '(:inspector-option 2))
+    (assert-equal '((:op :set-value :value "Large" :id :size)) (mapcar #'car *asked*))
+    (do-asked both)
+    (assert-equal "Large" (s:node-value (node-of (app-of both) :size)))))
+
+(defun make-inked ()
+  "A button in the window's theme, one in the theme :test-ink, and one in a theme with no name."
+  (lambda ()
+    (column (:gap 10)
+      (button "Plain" :id :plain-ink)
+      (with-theme (:test-ink)
+        (button "Inked" :id :inked))
+      (with-theme ((make-theme :accent "#808020"))
+        (button "Nameless" :id :nameless)))))
+
+(defun type-into (inspecting id text)
+  (in-panel inspecting #'click id)
+  (in-panel inspecting #'key #\a :command)
+  (in-panel inspecting #'type-text text))
+
+(defun change-theme (inspecting setting value)
+  (type-into inspecting :inspector-setting setting)
+  (type-into inspecting :inspector-setting-value value)
+  (in-panel inspecting #'click :inspector-change-theme))
+
+(define-test the-inspector-changes-a-setting-of-the-theme-a-widget-is-drawn-in ()
+  (define-theme :test-ink (:base :light) :accent "#20a090")
+  (let* ((*asked* '())
+         (both (inspecting 'make-inked))
+         (plain (middle-color (show 'make-inked) :plain-ink)))
+    (pick both :inked)
+    (type-into both :inspector-setting "accent")
+    (assert-true (search ":accent is #20a090 now." (inspector-says both)) (inspector-says both))
+    (type-into both :inspector-setting-value "#c06030")
+    (in-panel both #'click :inspector-change-theme)
+    ;; The theme is defined again, and what is drawn in it is drawn so; the rest is not.
+    (assert-eql (parse-color "#c06030") (middle-color (app-of both) :inked))
+    (assert-eql plain (middle-color (app-of both) :plain-ink))
+    ;; On its own base, with what it was given otherwise, written down as so.
+    (let ((form (theme-form (find-theme :test-ink))))
+      (assert-equal '(:base :light) (third form))
+      (assert-equal "#c06030" (getf (cdddr form) :accent)))
+    (assert-true (search "\"#c06030\"" (text-in (panel-of both) :inspector-theme-form)))))
+
+(define-test the-inspector-says-what-is-wrong-with-a-change-to-a-theme ()
+  (define-theme :test-ink (:base :light) :accent "#20a090")
+  (let ((*asked* '())
+        (both (inspecting 'make-inked)))
+    (pick both :inked)
+    (change-theme both "acent" "#c06030")
+    (assert-true (search "no setting called \"acent\"" (inspector-says both)))
+    (change-theme both "accent" "nope")
+    (assert-true (search "is not a colour" (inspector-says both)))
+    (change-theme both "row-height" "tall")
+    (assert-true (search "takes a number" (inspector-says both)))
+    (assert-eql (parse-color "#20a090") (theme-setting (find-theme :test-ink) :accent))))
+
+(define-test a-theme-with-no-name-cannot-be-changed-in-the-inspector ()
+  (define-theme :test-ink (:base :light) :accent "#20a090")
+  (let ((*asked* '())
+        (both (inspecting 'make-inked)))
+    (pick both :nameless)
+    (assert-true (search "a theme with no name" (inspector-says both)))
+    (assert-false (core:lookup-target (screen-variant (panel-of both)) :inspector-change-theme))))
+
+(define-test the-inspector-is-drawn-in-the-theme-it-was-opened-in-when-that-theme-changes ()
+  (let ((dark (find-theme :dark)))
+    (unwind-protect
+         (let ((*asked* '())
+               (both (inspecting 'make-inked)))
+           (pick both :plain-ink)
+           (change-theme both "button" "#ff0000")
+           ;; The app's button, in the window's theme, changes; the inspector's does not.
+           (assert-eql (parse-color "#ff0000") (middle-color (app-of both) :plain-ink))
+           (assert-eql (theme-setting dark :button) (middle-color (panel-of both) :inspector-pick)))
+      (setf (gethash :dark theme::*themes*) dark))))

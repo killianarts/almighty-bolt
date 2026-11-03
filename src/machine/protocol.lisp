@@ -55,7 +55,9 @@
            #:scroll
            #:wait
            #:screenshot
-           #:key-character))
+           #:key-character
+           #:perform
+           #:perform-actions))
 
 (in-package #:almighty-bolt/machine)
 
@@ -289,6 +291,22 @@ keyboard."
               (describe-node node) options value))
     (multiple-value-bind (x y) (bounds-point (nth index (node-property node :option-bounds)))
       (press-at session x y))))
+
+(defun perform (session action)
+  "Do ACTION, a property list that the inspector notes: :op (:click or :set-value), the :value of a
+:set-value, and the :id, :role, :name and :within of the widget."
+  (destructuring-bind (&key op (value nil) id role name within) action
+    (ecase op
+      (:click (click session :id id :role role :name name :within within))
+      (:set-value (set-value session value :id id :role role :name name :within within)))))
+
+(defun perform-actions (session actions)
+  "Do ACTIONS (see PERFORM) in order. Stop at the first that cannot be done, and return what it says
+went wrong; NIL if they were all done."
+  (dolist (action actions nil)
+    (handler-case (perform session action)
+      (machine-error (condition)
+        (return (machine-error-message condition))))))
 
 (defun set-value (session value &key id role name within)
   "Make the thing have VALUE, by what a person would do to it: type it into a text field (after

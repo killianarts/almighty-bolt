@@ -143,6 +143,7 @@
            #:open-hosts
            #:host-open-p
            #:host-owner
+           #:host-on-close
            #:request-all-frames))
 
 (in-package #:almighty-bolt/platform/macos/host)
@@ -268,7 +269,9 @@ copied is kept in the context and the person's clipboard is never touched."
   (drawn nil :type boolean)
   ;; The host whose window this one's belongs to (a tool's window belongs to the app's it looks at),
   ;; which it closes with; or NIL.
-  (owner nil))
+  (owner nil)
+  ;; Called with no arguments, on the main thread, when the window closes, or NIL.
+  (on-close nil))
 
 (defmethod print-object ((host host) stream)
   ;; What a REPL shows after (OPEN-APP ...), which returns the host: not its parts.
@@ -682,7 +685,10 @@ reader go, and take it from the windows that are open."
   (dolist (other (open-hosts))
     (when (eq (host-owner other) host)
       (msg-send :void (window-object (host-window other)) "close")))
-  (forget-host host))
+  (forget-host host)
+  (let ((on-close (host-on-close host)))
+    (when on-close
+      (funcall on-close))))
 
 (defun make-variant-window (variant title width height capacity rebuild driver kept-state
                             &key owner main (show t))

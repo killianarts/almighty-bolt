@@ -10,13 +10,31 @@
                 #:close-variant
                 #:close-host-window
                 #:host-open-p
+                #:host-variant
+                #:host-on-close
+                #:open-hosts
+                #:request-host-frame
                 #:running-host
                 #:request-all-frames
                 #:host-kept-state)
   (:import-from #:almighty-bolt/ui/theme
                 #:*theme-defined-hook*)
   (:import-from #:almighty-bolt/ui/immediate
-                #:make-immediate-variant)
+                #:make-immediate-variant
+                #:immediate-variant-ui
+                #:immediate-variant-tools)
+  (:import-from #:almighty-bolt/ui/ui
+                #:ui-inspection)
+  (:import-from #:almighty-bolt/ui/inspection
+                #:*inspector-opener*)
+  (:import-from #:almighty-bolt/ui/inspector
+                #:make-inspector)
+  (:import-from #:almighty-bolt/machine
+                #:perform-actions)
+  (:import-from #:almighty-bolt/machine/host-session
+                #:host-session)
+  (:import-from #:almighty-bolt/platform/macos/main-queue
+                #:run-on-main)
   (:import-from #:almighty-bolt/sources
                 #:watch-sources
                 #:stop-watching-files)
@@ -48,8 +66,11 @@ the tools for developing it can be opened. Never true in an app that is delivere
 
 (defun make-app-instance (constructor)
   "Call CONSTRUCTOR, a function or the name of one, and make what the host runs from the function
-that describes the screen that it returns."
-  (make-immediate-variant (funcall constructor)))
+that describes the screen that it returns. While the app is developed (*DEVELOPMENT*), its window can
+open the inspector."
+  (let ((variant (make-immediate-variant (funcall constructor))))
+    (setf (immediate-variant-tools variant) *development*)
+    variant))
 
 (defun run-app (constructor &key (title "almighty-bolt") (width 800) (height 600)
                               hot watch-systems driver)
@@ -63,10 +84,10 @@ WATCH-SYSTEMS, a list of system names, the systems are also loaded again when on
 saved, which is for editing in a program that does not compile into the running image.
 DRIVER, if given, is called with the host on a new thread once the window is up (it is how the
 smoke checks and the benchmarks use a window)."
+  (setf *development* (and (or hot watch-systems) t))
   (let* ((state (make-kept-state))
          (variant (with-kept-state (state) (make-app-instance constructor)))
          (watcher (and watch-systems (watch-sources watch-systems))))
-    (setf *development* (and (or hot watch-systems) t))
     (unwind-protect
          (run-variant variant :title title :width width :height height
                               :kept-state state :driver driver
@@ -130,3 +151,49 @@ read in) of the app that is open, for looking at it from the REPL. NIL if there 
 app keeps no such variable."
   (let ((host (running-host)))
     (and host (kept-value (host-kept-state host) name))))
+
+;;; --- the inspector ---
+;;;
+;;; Command-Option-I in the window of an app that is developed opens the inspector (inspector.lisp)
+;;; in a window of its own, which belongs to the app's window and closes with it; the keys again, in
+;;; the app's window, close it. What it asks to be done to the app is done on a thread of its own,
+;;; through a session on the app's window, as an agent's would be. When it closes, what it asked of
+;;; the app's window (a pick, an outline) goes with it.
+
+(defvar *inspectors* '()
+  "The inspectors' hosts that are open, each with the host of the window it looks at: (app . inspector).")
+
+(defun act-on (host)
+  "What the inspector of HOST's window does with an action it asks for: do it after the frame, on a
+thread of its own, through a session on the window, and report what went wrong on the main thread."
+  (lambda (action report)
+    (sb-thread:make-thread
+     (lambda ()
+       (let ((message (handler-case (perform-actions (host-session host) (list action))
+                        (error (condition) (princ-to-string condition)))))
+         (when message
+           (run-on-main (lambda () (funcall report message))))))
+     :name "inspector action")))
+
+(defun toggle-inspector (variant)
+  "Open the inspector of the window whose app is VARIANT, or close it if it is open. Called on the
+main thread, in that window's frame."
+  (setf *inspectors* (remove-if-not (lambda (pair) (host-open-p (cdr pair))) *inspectors*))
+  (let ((host (find variant (open-hosts) :key #'host-variant)))
+    (when host
+      (let ((open (cdr (assoc host *inspectors*))))
+        (if open
+            (close-host-window open)
+            (let ((inspector
+                    (open-variant (make-immediate-variant
+                                   (make-inspector (lambda () (and (host-open-p host) (host-variant host)))
+                                                   (act-on host)))
+                                  :title "Inspector" :width 360 :height 600 :main nil :owner host)))
+              (setf (host-on-close inspector)
+                    (lambda ()
+                      (when (host-open-p host)
+                        (setf (ui-inspection (immediate-variant-ui (host-variant host))) nil)
+                        (request-host-frame host))))
+              (push (cons host inspector) *inspectors*)))))))
+
+(setf *inspector-opener* #'toggle-inspector)

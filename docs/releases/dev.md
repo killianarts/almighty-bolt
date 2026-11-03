@@ -23,6 +23,17 @@ See [Upgrading to X.Y](../upgrading.md) if you are moving from X.(Y-1).
 
 ## What's new in X.Y
 
+### The inspector
+
+While you develop an app (`open-app`, or `run-app` with `:hot`), Command-Option-I in its window opens the inspector in a window of its own beside it. Press Pick, then a widget in the app's window, and the press picks it instead of pressing it; the inspector says what it is, and an outline in the app's window shows where.
+
+- Its kind and role, its id, its name and value, where it is and how big, and the theme it is drawn in.
+- Whether it is enabled, and what the semantic tree says of its state: whether a check box is checked, the items of a list, the options of a choice.
+- While it picks, the outline follows the pointer; Escape, in either window, stops.
+- It changes the picked widget's value as a hand would: Press for a button or a check box, a field and Set for a text field or a slider, a button for each option of a choice, a dropdown or a list. The app stays in charge of what it holds, and the inspector says why when something cannot be done (the widget is disabled).
+- It changes a setting of the theme the picked widget is drawn in (`accent`, `row-height`, `font-size`), which defines that theme again, and shows the theme's `define-theme` form to copy into the app's code.
+- It is there only while the app is developed: in an app that is delivered, Command-Option-I is the app's. It closes with the app's window, and the app's semantic tree has nothing of it.
+
 ### More than one window
 
 An app can open more windows: `(bolt:open-window 'make-preferences :title "Preferences" :width 400 :height 300)`, called where a button says it was pressed (the window opens after the frame) or from the REPL, opens a window that shows the app `make-preferences` makes, and returns it for `(bolt:close-window window)`.

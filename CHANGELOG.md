@@ -14,6 +14,7 @@ are not listed.
 
 ### Added
 
+- The inspector: while an app is developed, Command-Option-I opens a window beside it that says what a picked widget is and changes its value and its theme ([0.3](docs/releases/dev.md#the-inspector)).
 - `open-window` and `close-window`: more than one window, each with an app of its own, from a button or the REPL ([0.3](docs/releases/dev.md#more-than-one-window)).
 - `:cursor` on `canvas`: the shape the pointer has over it ([0.3](docs/releases/dev.md#input)).
 - `shortcut`, true in the frame a keyboard shortcut is pressed ([0.3](docs/releases/dev.md#input)).

@@ -113,6 +113,9 @@
                 #:own-hashes
                 #:describe-tooltip
                 #:describe-toasts)
+  (:import-from #:almighty-bolt/ui/inspection
+                #:inspection-take-input
+                #:describe-outlines)
   (:import-from #:almighty-bolt/ui/layout
                 #:layout-box)
   (:import-from #:almighty-bolt/ui/paint
@@ -120,6 +123,7 @@
   (:export #:immediate-variant
            #:make-immediate-variant
            #:immediate-variant-ui
+           #:immediate-variant-tools
            #:now
            #:current-context
            #:ask-for-frame))
@@ -139,7 +143,9 @@
   ((ui :initform (make-ui) :accessor immediate-variant-ui)
    (app :initarg :app :reader app)
    ;; True if events were left in the queue by the last frame.
-   (more-input :initform nil :accessor more-input))
+   (more-input :initform nil :accessor more-input)
+   ;; True if the tools for developing the app (the inspector) can be opened from its window.
+   (tools :initform nil :accessor immediate-variant-tools))
   (:documentation "A variant whose interface is a function that is called every frame."))
 
 (defun make-immediate-variant (app)
@@ -408,12 +414,17 @@ menu), turned to the other side or moved in where it would go out of the window.
   (find-theme (context-appearance context)))
 
 (defmethod frame ((variant immediate-variant) context list)
-  (let ((ui (immediate-variant-ui variant)))
+  (let ((ui (immediate-variant-ui variant))
+        (inspected nil))
     (when (<= (almighty-bolt/internals:context-build-number context) 1)
       (setf (more-input variant) (begin-frame-input ui))
-      (move-focus ui))
+      (move-focus ui)
+      (setf inspected (inspection-take-input ui (and (immediate-variant-tools variant) variant))))
     (with-phase (context +phase-update+)
       (begin-build ui context)
+      ;; What the inspector took before the build is input this frame took (BEGIN-BUILD forgets it).
+      (when inspected
+        (setf (ui-consumed ui) t))
       (let ((*ui* ui)
             (*theme* (window-theme context)))
         (funcall (app variant))
@@ -424,6 +435,7 @@ menu), turned to the other side or moved in where it would go out of the window.
           (close-box ui))
         (describe-toasts ui)
         (describe-tooltip ui)
+        (describe-outlines ui)
         (setf (context-cursor context) (ui-cursor ui)))
       (compute-hashes ui))
     (let ((consumed (ui-consumed ui))
