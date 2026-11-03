@@ -1,6 +1,6 @@
 (defpackage #:almighty-bolt-stress/editor/paint
   (:use #:cl)
-  (:import-from #:almighty-bolt/internals
+  (:import-from #:almighty-bolt
                 #:context-font
                 #:context-measure
                 #:context-caret-x

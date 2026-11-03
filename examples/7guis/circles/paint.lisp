@@ -1,6 +1,6 @@
 (defpackage #:almighty-bolt-7guis/circles/paint
   (:use #:cl)
-  (:import-from #:almighty-bolt/internals
+  (:import-from #:almighty-bolt
                 #:push-rect
                 #:push-rounded-rect
                 #:pack-color)

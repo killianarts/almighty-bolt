@@ -21,13 +21,13 @@
 
 (in-package #:almighty-bolt/platform/macos/ns-event)
 
-;;; Turn AppKit's NSEvent into the core's plain event structures. Positions are
+;;; Turn AppKit's NSEvent into the library's plain event structures. Positions are
 ;;; reported from the top left of the view, which the view arranges by claiming
 ;;; to be flipped.
 
 (declaim (inline modifiers-from-flags))
 (defun modifiers-from-flags (flags)
-  "Map NSEventModifierFlags onto the core's modifier bit set."
+  "Map NSEventModifierFlags onto the library's modifier bit set."
   (logior (if (logtest flags (ash 1 17)) +modifier-shift+ 0)
           (if (logtest flags (ash 1 18)) +modifier-control+ 0)
           (if (logtest flags (ash 1 19)) +modifier-alt+ 0)
@@ -35,8 +35,8 @@
 
 (declaim (inline event-time-ns))
 (defun event-time-ns (ns-event)
-  "The time of NS-EVENT on the core clock. NSEvent counts seconds since boot,
-not counting sleep, which is the base of the core clock."
+  "The time of NS-EVENT on the library's clock. NSEvent counts seconds since boot,
+not counting sleep, which is the base of the library's clock."
   (let ((seconds (msg-send :double ns-event "timestamp")))
     (declare (type (double-float 0d0 1d12) seconds))
     (values (round (* seconds 1d9)))))

@@ -68,7 +68,7 @@
 
 ;;; Events are plain, immutable structures: numbers, keywords and strings, so a
 ;;; script of them can be written with PRIN1 and read back. Every event carries
-;;; the core clock's time in nanoseconds. Positions are in logical pixels,
+;;; the library clock's time in nanoseconds. Positions are in logical pixels,
 ;;; measured from the top left of the window's content.
 ;;;
 ;;; The platform layer creates events outside the frame, when the operating

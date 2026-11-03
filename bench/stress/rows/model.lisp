@@ -1,6 +1,6 @@
 (defpackage #:almighty-bolt-stress/rows/model
   (:use #:cl)
-  (:import-from #:almighty-bolt/internals
+  (:import-from #:almighty-bolt
                 #:+points-per-line+
                 #:+key-up+
                 #:+key-down+

@@ -14,7 +14,7 @@
 ;;; Saving a file is enough to change an open window. A thread looks at
 ;;; the source files of the loaded systems; when one has changed it loads the systems again,
 ;;; which compiles what changed, and the definitions that come from that are what tell the window
-;;; to make the app again (WATCH-REDEFINITIONS in the core). This is for someone who edits in
+;;; to make the app again (WATCH-REDEFINITIONS in src/redefinition.lisp). This is for someone who edits in
 ;;; a program that does not compile into the running image; one that does gets the same result
 ;;; without it.
 

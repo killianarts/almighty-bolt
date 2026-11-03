@@ -153,7 +153,7 @@ the next of these."
 
 (defun measure-driver (host)
   "For a measurement from outside (bench/app-metrics.lisp): print the end time of the first frame
-on the core clock, the one an outside process can read too, and then once a second the frames
+on the library's clock, the one an outside process can read too, and then once a second the frames
 drawn so far and the bytes in use in the Lisp heap, until the process is killed. Everything is a
 line of words and numbers."
   (let ((ring (host-ring host)))
@@ -188,7 +188,7 @@ have been defined again since the window opened. With LOG it logs."
 RECORD, a pathname, the events are written to it as a replay script as they come. With MEASURE
 the process reports to whoever started it and runs until it is killed. With HOT, the app is made
 again, in the same window, whenever the code that makes it is compiled, and a source file that is
-saved is compiled and loaded (decisions 0030 and 0031); the state that the app keeps, and that its
+saved is compiled and loaded; the state that the app keeps, and that its
 widgets hold, is kept."
   (let ((app (task-app task))
         (recorder nil)

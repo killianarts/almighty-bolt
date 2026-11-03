@@ -34,7 +34,7 @@
 
 ;;; A window and its delegate. The delegate turns what AppKit tells it about the
 ;;; window (resized, moved to a screen with another scale, gained or lost focus,
-;;; closing) into core events and calls, all on the main thread.
+;;; closing) into the library's events and calls, all on the main thread.
 
 (defstruct (window (:constructor %make-window))
   (object 0 :type (unsigned-byte 64))

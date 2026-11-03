@@ -1,6 +1,6 @@
 (defpackage #:almighty-bolt-stress/dashboard/paint
   (:use #:cl)
-  (:import-from #:almighty-bolt/internals
+  (:import-from #:almighty-bolt
                 #:push-rect
                 #:pack-color)
   (:import-from #:almighty-bolt-stress/dashboard/model

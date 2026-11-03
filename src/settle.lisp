@@ -27,7 +27,7 @@
 ;;; frame settles. A frame is settled when its build changed no app state. A
 ;;; app may change state while it builds (an immediate-mode button that returns
 ;;; true when clicked does), so widgets built before the change show old state. The
-;;; core builds again, up to a cap, and only the settled build is presented.
+;;; host builds again, up to a cap, and only the settled build is presented.
 
 (defconstant +max-builds+ 3
   "The most times FRAME is called for one frame.")

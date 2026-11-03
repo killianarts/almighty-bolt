@@ -93,7 +93,7 @@ every frame keeps the event in a list of its own for FRAME to read.")
 (defgeneric frame (instance context display-list)
   (:documentation "Build a frame: lay out and append drawing commands to
 DISPLAY-LIST, which is empty. Returns true if app state changed during the build,
-in which case the core builds again (see SETTLE-FRAME). An app must provide it.")
+in which case the host builds again (see SETTLE-FRAME). An app must provide it.")
   (:method ((instance app-instance) context display-list)
     (declare (ignore context display-list))
     (error "~s does not implement FRAME." instance)))
@@ -114,8 +114,8 @@ width, height), or NIL if there is none. Replay uses it to find where to click."
     nil))
 
 (defgeneric accessibility-tree (instance)
-  (:documentation "The accessibility tree of the last settled frame. A stub that
-returns NIL until the machine interface (H3) needs it.")
+  (:documentation "The accessibility tree of the last settled frame, or NIL if there is none. The
+immediate app's is its semantic tree (see the ui's semantics); the default is NIL.")
   (:method ((instance app-instance))
     (declare (ignore instance))
     nil))
@@ -145,7 +145,7 @@ main thread.")
     (declare (ignore instance))
     nil))
 
-;;; --- what the core gives an app ---
+;;; --- what the host gives an app ---
 
 (defconstant +phase-update+ 0
   "The phase of a build that brings the app up to date with the application: for the
@@ -183,7 +183,7 @@ within the frame. REQUESTER is what REQUEST-FRAME calls; the host replaces it."
   ;; Text input (the input method of the operating system): a canvas that has something the
   ;; person is typing into says so, and where the caret is, in points from the top left of the
   ;; canvas, as x, y, width and height (TEXT-INPUT-LOCAL), by painting with SET-TEXT-INPUT-CARET.
-  ;; After each build the core adds the canvas's place (PLACE-TEXT-INPUT-CARET), and the sum, in
+  ;; After each build the host adds the canvas's place (PLACE-TEXT-INPUT-CARET), and the sum, in
   ;; the window, is TEXT-INPUT-RECT, which the host gives the input method to put its candidates
   ;; by. The host sends text and composition events only while TEXT-INPUT-P. PAINTING is the id
   ;; of the canvas whose painter is running (see WITH-PAINTING) and TEXT-INPUT-CANVAS the id of
@@ -265,7 +265,7 @@ does nothing unless a canvas with an id takes text input."
 
 (defmacro with-phase ((context phase) &body body)
   "Run BODY and, if CONTEXT's instrumentation is on, add the real time it took (not the
-core clock, which replay makes virtual) to PHASE (+PHASE-UPDATE+, +PHASE-LAYOUT+ or
+library's clock, which replay makes virtual) to PHASE (+PHASE-UPDATE+, +PHASE-LAYOUT+ or
 +PHASE-PAINT+). Off, it costs one test of a flag. Returns the values of BODY."
   (let ((c (gensym "CONTEXT"))
         (start (gensym "START"))
@@ -297,7 +297,7 @@ runs its own loop; this is how it asks for the next frame of an animation."
 
 (declaim (inline context-now-ns))
 (defun context-now-ns (context)
-  "The time in nanoseconds, from the core clock (which replay can replace)."
+  "The time in nanoseconds, from the library's clock (which replay can replace)."
   (declare (ignore context))
   (now-ns))
 

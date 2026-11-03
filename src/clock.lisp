@@ -15,8 +15,8 @@
 
 (in-package #:almighty-bolt/clock)
 
-;;; All time in the core goes through NOW-NS, so replay can substitute a
-;;; virtual clock by rebinding *TIME-SOURCE*. Nothing else in the core calls
+;;; All time in the library goes through NOW-NS, so replay can substitute a
+;;; virtual clock by rebinding *TIME-SOURCE*. Nothing else in the library calls
 ;;; the system clock.
 
 (deftype nanoseconds ()
@@ -42,11 +42,11 @@ clock directly.")
 
 (declaim (inline now-ns))
 (defun now-ns ()
-  "The current time in nanoseconds, from the core clock."
+  "The current time in nanoseconds, from the library's clock."
   (the nanoseconds (funcall *time-source*)))
 
 (defmacro with-time-source ((source) &body body)
-  "Run BODY with SOURCE as the core clock."
+  "Run BODY with SOURCE as the library's clock."
   `(let ((*time-source* ,source))
      ,@body))
 

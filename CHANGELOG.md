@@ -35,6 +35,7 @@ are not listed.
 
 - `make-session` takes `:app` where it took `:variant`, and `session-variant` is `session-app` ([0.3](docs/releases/dev.md#machine-interface)).
 - The examples' make targets take `TASK=` alone, not `VARIANT=immediate` (`make 7guis TASK=counter`, `make image` writes `build/apps`), each task's app is in `app.lisp`, and their systems are `almighty-bolt-7guis/apps` and `almighty-bolt-stress/apps` ([0.3](docs/releases/dev.md#examples)).
+- The canvas examples (the cells, the circles and the stress apps) use only the public `almighty-bolt` package, not `almighty-bolt/internals` ([0.3](docs/releases/dev.md#examples)).
 - Quit (Command-Q) in a Lisp you work in closes every window, not only the one in front ([0.3](docs/releases/dev.md#more-than-one-window)).
 - `context-font` takes an optional weight, so a method of it for a context of your own needs `&optional weight` ([0.3](docs/releases/dev.md#backwards-incompatible-changes-in-xy)).
 - The pointer highlights a row of a menu only when it moves onto it, so a pointer at rest no longer takes the highlight from the arrow keys ([0.3](docs/releases/dev.md#input)).

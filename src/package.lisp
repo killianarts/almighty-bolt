@@ -1,7 +1,8 @@
-;;;; The public face of the core: the seams an app and a host share, gathered in one
-;;;; package. It re-exports the portable modules (clock, frame ring, events, display
-;;;; list, the app contract and layout) and is never imported by them. An app imports
-;;;; only this package; the platform, text and renderer modules stay under their own
+;;;; The library's internals, gathered in one package: the portable modules (clock, frame
+;;;; ring, events, display list, the app contract and layout) re-exported, for the tests, the
+;;;; benchmarks and the tools that drive an app from outside (replay, the launcher). It is not
+;;;; promised to stay as it is; a program that uses the library imports almighty-bolt (see
+;;;; src/almighty-bolt.lisp). The platform, text and renderer modules stay under their own
 ;;;; packages.
 
 (defpackage #:almighty-bolt/internals

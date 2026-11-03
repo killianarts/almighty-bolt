@@ -33,11 +33,11 @@
 (in-package #:almighty-bolt-bench-null/measure)
 
 ;;; The null app in a window: what a frame costs when the app does nothing,
-;;; which is what the core costs. Run it from a terminal of your own and leave the
+;;; which is what the library itself costs. Run it from a terminal of your own and leave the
 ;;; window alone, so that the stillness check means something.
 ;;;
 ;;; The frame's time is reported in parts, because the parts behave differently:
-;;; the build (here, copying the list) and the encoding are the core's own work, and
+;;; the build (here, copying the list) and the encoding are the library's own work, and
 ;;; the wait is the display and the GPU making us wait, and it ranges
 ;;; from 84 us to 5 ms between runs of identical code.
 
@@ -123,7 +123,7 @@ ANIMATION-FRAMES frames from inside the draws, and print what it saw."
           (wait-for-last-frame (host-renderer host))
           (multiple-value-bind (means maxes slow rebuilt capped consed)
               (summarize host begin finish)
-            (format t "~&~%--- The null app: the core's own cost ---~%")
+            (format t "~&~%--- The null app: the library's own cost ---~%")
             (line "frames requested:" "~d (drawn ~d, timeouts ~d)"
                   frames (- finish begin) timeouts)
             (line "request-to-draw latency:" "mean ~,2f ms, max ~,2f ms"
@@ -136,7 +136,7 @@ ANIMATION-FRAMES frames from inside the draws, and print what it saw."
                   :for max :in maxes
                   :do (line name "mean ~,1f us, max ~,1f us" (microseconds mean)
                             (microseconds max)))
-            (line "the core's own cost (build + encode):" "mean ~,1f us"
+            (line "the library's own cost (build + encode):" "mean ~,1f us"
                   (microseconds (+ (first means) (third means))))
             (line "frames that waited over 1 ms:" "~d of ~d" slow (- finish begin))
             (line "frames built more than once, capped:" "~d, ~d" rebuilt capped)

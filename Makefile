@@ -38,7 +38,7 @@ smoke:
 	$(MAKE) windows-smoke
 	$(MAKE) accessibility-smoke
 
-# The null app in a window: the core's own cost. Run it from a terminal of your
+# The null app in a window: the library's own cost. Run it from a terminal of your
 # own and leave the window alone while it runs.
 bench-null:
 	$(SBCL_APP) $(REGISTRY) --load bench/null/run.lisp
