@@ -14,6 +14,7 @@ are not listed.
 
 ### Added
 
+- `open-window` and `close-window`: more than one window, each with an app of its own, from a button or the REPL ([0.3](docs/releases/dev.md#more-than-one-window)).
 - `:cursor` on `canvas`: the shape the pointer has over it ([0.3](docs/releases/dev.md#input)).
 - `shortcut`, true in the frame a keyboard shortcut is pressed ([0.3](docs/releases/dev.md#input)).
 - `:width`, `:height`, `:min-width`, `:min-height`, `:max-width` and `:max-height` on `column`, `row`, `stack`, `padding`, `panel` and `center` ([0.3](docs/releases/dev.md#layout)).
@@ -30,6 +31,7 @@ are not listed.
 
 ### Changed
 
+- Quit (Command-Q) in a Lisp you work in closes every window, not only the one in front ([0.3](docs/releases/dev.md#more-than-one-window)).
 - `context-font` takes an optional weight, so a method of it for a context of your own needs `&optional weight` ([0.3](docs/releases/dev.md#backwards-incompatible-changes-in-xy)).
 - The pointer highlights a row of a menu only when it moves onto it, so a pointer at rest no longer takes the highlight from the arrow keys ([0.3](docs/releases/dev.md#input)).
 - A menu longer than the window shows the rows that fit and scrolls; `:max-rows` on `dropdown` and `menu-button`; letters typed in an open menu go to the row they begin ([0.3](docs/releases/dev.md#input)).

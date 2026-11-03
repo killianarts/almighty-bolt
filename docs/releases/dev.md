@@ -23,6 +23,16 @@ See [Upgrading to X.Y](../upgrading.md) if you are moving from X.(Y-1).
 
 ## What's new in X.Y
 
+### More than one window
+
+An app can open more windows: `(bolt:open-window 'make-preferences :title "Preferences" :width 400 :height 300)`, called where a button says it was pressed (the window opens after the frame) or from the REPL, opens a window that shows the app `make-preferences` makes, and returns it for `(bolt:close-window window)`.
+
+- Each window's app is an app of its own, with its own `state-let`. Two windows share what Lisp shares: a closure over the first app's variables, or a special variable.
+- A frame in which one window took input (a press, a key, the wheel) draws the others, so a preferences window and the window it sets show the same thing. A frame that took none wakes nobody, so windows at rest stay at rest.
+- While you develop (`open-app`, or `run-app` with `:hot`), compiling code makes every window's app again, not only the first.
+- Closing the app's window leaves the others open; closing the last stops the windows' loop and leaves the Lisp running. `close-app` closes the app's window only, and Quit (Command-Q) closes them all: before, it closed only the window in front.
+- `open-session` takes a window, for the machine interface on a window other than the app's.
+
 ### Spacing in a theme
 
 A theme now says how much room there is in and round the controls, as it says their colours, font and corners. It is worked out from one number, `:spacing`, as the colours are worked out from three seeds, and any of the sizes can be given on its own as well.

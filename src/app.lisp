@@ -8,8 +8,10 @@
                 #:run-variant
                 #:open-variant
                 #:close-variant
+                #:close-host-window
+                #:host-open-p
                 #:running-host
-                #:request-host-frame
+                #:request-all-frames
                 #:host-kept-state)
   (:import-from #:almighty-bolt/ui/theme
                 #:*theme-defined-hook*)
@@ -22,6 +24,9 @@
            #:run-app
            #:open-app
            #:close-app
+           #:open-window
+           #:close-window
+           #:*development*
            #:state))
 
 (in-package #:almighty-bolt/app)
@@ -32,12 +37,14 @@
 ;;; window calls the constructor again and swaps what it makes in, with the state that STATE-LET
 ;;; keeps, the caret and selection of fields, the scroll of lists and the keyboard focus.
 
-;;; A theme defined again (DEFINE-THEME, compiled in the editor) is drawn at once in the open window:
-;;; its new id is in the hashes of the boxes drawn in it, so a frame is all that is needed.
-(setf *theme-defined-hook*
-      (lambda ()
-        (let ((host (running-host)))
-          (when host (request-host-frame host)))))
+;;; A theme defined again (DEFINE-THEME, compiled in the editor) is drawn at once in the open windows:
+;;; its new id is in the hashes of the boxes drawn in them, so a frame is all that is needed.
+(setf *theme-defined-hook* #'request-all-frames)
+
+(defvar *development* nil
+  "True while the app is being developed: opened by OPEN-APP, or by RUN-APP with :HOT or
+:WATCH-SYSTEMS. Then the windows it opens are made again when code is compiled, as its own is, and
+the tools for developing it can be opened. Never true in an app that is delivered (RUN-APP alone).")
 
 (defun make-app-instance (constructor)
   "Call CONSTRUCTOR, a function or the name of one, and make what the host runs from the function
@@ -59,6 +66,7 @@ smoke checks and the benchmarks use a window)."
   (let* ((state (make-kept-state))
          (variant (with-kept-state (state) (make-app-instance constructor)))
          (watcher (and watch-systems (watch-sources watch-systems))))
+    (setf *development* (and (or hot watch-systems) t))
     (unwind-protect
          (run-variant variant :title title :width width :height height
                               :kept-state state :driver driver
@@ -79,14 +87,42 @@ SLIME, and needs the main thread to be waiting for something that can be interru
 an editor starts Lisp with a pipe for its input. In a Lisp whose REPL runs on the main thread it is an
 error; RUN-APP does what is wanted there."
   (let ((state (make-kept-state)))
+    (setf *development* t)
     (open-variant (with-kept-state (state) (make-app-instance constructor))
                   :title title :width width :height height
                   :kept-state state
                   :rebuild (lambda () (make-app-instance constructor)))))
 
 (defun close-app ()
-  "Close the window that OPEN-APP opened. Returns its host, or NIL if there was none."
+  "Close the window that OPEN-APP opened. Returns its host, or NIL if there was none. The other
+windows stay open."
   (close-variant))
+
+(defun open-window (constructor &key (title "almighty-bolt") (width 800) (height 600))
+  "Open another window, WIDTH by HEIGHT points, that shows the app that CONSTRUCTOR makes, and return
+it (for CLOSE-WINDOW). It is called from an app, in its function (say, when a button is pressed),
+and the window opens after the frame; or from the REPL while a window is open, or before, when it
+opens the first window as OPEN-APP does but is not the app's window.
+
+The window's app is an app of its own, with its own STATE-LET. What two windows share is the
+ordinary Lisp they share: a closure that CONSTRUCTOR makes over the first app's variables, or a
+special variable. A frame in which one window took input (a press, a key, the wheel) draws the
+other windows again, so that each shows what the other changed. While the app is being developed
+(*DEVELOPMENT*), compiling code makes the window's app again, as it does the app's own; the window
+stays open when the app's window closes, and closing the last window stops the windows' loop."
+  (let ((state (make-kept-state)))
+    (open-variant (with-kept-state (state) (make-app-instance constructor))
+                  :title title :width width :height height
+                  :kept-state state
+                  :main nil
+                  :rebuild (and *development* (lambda () (make-app-instance constructor))))))
+
+(defun close-window (window)
+  "Close WINDOW, which OPEN-WINDOW returned, as its close button would. Returns at once, and the
+window is closed by the next frame; closing one that is closed does nothing."
+  (when (host-open-p window)
+    (close-host-window window))
+  nil)
 
 (defun state (name)
   "The value of the kept variable NAME (a symbol: the one STATE-LET was given, in the package it was

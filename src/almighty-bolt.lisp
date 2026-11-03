@@ -4,6 +4,8 @@
                 #:run-app
                 #:open-app
                 #:close-app
+                #:open-window
+                #:close-window
                 #:state)
   (:import-from #:almighty-bolt/internals
                 ;; state that survives a reload
@@ -110,7 +112,7 @@
                 #:now
                 #:ask-for-frame
                 #:current-context)
-  (:export #:run-app #:open-app #:close-app #:state
+  (:export #:run-app #:open-app #:close-app #:open-window #:close-window #:state
            #:state-let
            #:missing-id #:duplicate-id #:duplicate-id-id
            #:label #:paragraph #:button #:text-field #:text-area #:combo-box #:slider #:choice #:checkbox

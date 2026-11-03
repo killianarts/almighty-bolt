@@ -72,7 +72,7 @@ git clone git@github.com:killianarts/almighty-bolt.git
 cd almighty-bolt
 make deps       # vend get
 make test       # compile without warnings, then the integration and end-to-end tests
-make smoke      # opens windows: the REPL check, the hot reload check, run-app
+make smoke      # opens windows: the REPL check, the hot reload check, run-app, more than one window
 ```
 
 To use it from a Lisp, point ASDF at the repository (so that it finds
@@ -99,6 +99,8 @@ is what the window runs.
 | `(bolt:open-app 'make-x :title "X" :width 360 :height 160)` | Opens a window and gives the REPL back. Closing the window leaves Lisp running, and `open-app` can be called again.                                                                                                                                  |
 | `(bolt:run-app 'make-x ...)`                                | For a program that is only a window (`sbcl --load app.lisp`): it runs on the main thread, and closing the window ends the process. `:hot t` remakes the app when code is compiled, `:watch-systems '("my-system")` also when a source file is saved. |
 | `(bolt:close-app)`                                          | Closes the window that `open-app` opened.                                                                                                                                                                                                            |
+| `(bolt:open-window 'make-y :title "Y")`                     | Opens another window with an app of its own, from a button or the REPL, and returns it; a press in one window draws the others. See [Windows](docs/reference.md#windows).                                                                            |
+| `(bolt:close-window window)`                                | Closes a window that `open-window` returned.                                                                                                                                                                                                         |
 
 ## State
 

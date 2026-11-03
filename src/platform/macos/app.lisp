@@ -14,7 +14,8 @@
                 #:run-on-main)
   (:export #:run-application
            #:quit-application
-           #:stop-application))
+           #:stop-application
+           #:*may-stop-p*))
 
 (in-package #:almighty-bolt/platform/macos/app)
 
@@ -32,6 +33,11 @@
 (defvar *ends-process* t
   "True if the application ends the process when its last window closes, or when it is told
 to quit. False if it only stops the event loop. Bound by RUN-APPLICATION.")
+
+(defvar *may-stop-p* (lambda () t)
+  "A function of no arguments, called on the main thread when the last window has closed, that
+says whether the application may end (or its loop stop) now. False when a window is about to be
+opened from another thread, whose work is already on its way to the main thread.")
 
 (defun shared-application ()
   (msg-send :id (objc-class "NSApplication") "sharedApplication"))
@@ -51,13 +57,29 @@ loop, as GLFW does."
 
 (define-callback app-should-terminate-after-last-window-closed sb-alien:unsigned-char
     ((self sb-alien:unsigned-long) (cmd sb-alien:unsigned-long) (app sb-alien:unsigned-long))
-  (cond (*ends-process* 1)
+  (cond ((not (funcall *may-stop-p*)) 0)
+        (*ends-process* 1)
         (t (stop-event-loop app)
            0)))
 
+;;; Quit (Command-Q). A program that is only its windows ends. A Lisp that a person is working in
+;;; does not: its windows are all closed instead, and closing the last one stops the loop.
+(define-callback app-should-terminate sb-alien:unsigned-long
+    ((self sb-alien:unsigned-long) (cmd sb-alien:unsigned-long) (app sb-alien:unsigned-long))
+  (cond (*ends-process* 1)              ; NSTerminateNow
+        (t (let* ((windows (msg-send :id app "windows"))
+                  (count (msg-send :ulong windows "count")))
+             ;; -windows is a copy, so closing them as it is read is safe.
+             (dotimes (i count)
+               (let ((window (msg-send :id windows "objectAtIndex:" (:ulong i))))
+                 (when (msg-send :bool window "isVisible")
+                   (msg-send :void window "performClose:" (:id 0))))))
+           0)))                         ; NSTerminateCancel
+
 (define-runtime-class *app-delegate-class* "AlmightyBoltAppDelegate" "NSObject"
   :methods '(("applicationShouldTerminateAfterLastWindowClosed:" "B@:@"
-              app-should-terminate-after-last-window-closed)))
+              app-should-terminate-after-last-window-closed)
+             ("applicationShouldTerminate:" "Q@:@" app-should-terminate)))
 
 (defconstant +command-key+ (ash 1 20) "NSEventModifierFlagCommand.")
 (defconstant +option-key+ (ash 1 19) "NSEventModifierFlagOption.")
@@ -102,7 +124,7 @@ shortcut KEY (\"\" for none) and MODIFIERS (an NSEventModifierFlags mask) held w
   "The main menu every Mac app has: the application's menu (hiding it and the others, and Quit),
 Edit (undo, redo, cut, copy, paste and select all, which reach the app as their shortcuts' keys do)
 and Window (minimize, zoom and close). When the application does not end the process, Quit closes
-the window instead: it may not take the Lisp that a person is working in with it."
+the windows instead: it may not take the Lisp that a person is working in with it."
   (let ((menu-bar (msg-send :id (msg-send :id (objc-class "NSMenu") "alloc") "init")))
     (add-menu menu-bar
               (make-menu "Application"
@@ -111,7 +133,7 @@ the window instead: it may not take the Lisp that a person is working in with it
                                     (logior +command-key+ +option-key+))
                          (menu-item "Show All" "unhideAllApplications:" "" 0)
                          :separator
-                         (menu-item "Quit" (if *ends-process* "terminate:" "performClose:") "q")))
+                         (menu-item "Quit" "terminate:" "q")))
     (add-menu menu-bar
               (make-menu "Edit"
                          (menu-item "Undo" "undo:" "z")

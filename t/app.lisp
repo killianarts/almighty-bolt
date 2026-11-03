@@ -3166,9 +3166,18 @@ released unless RELEASE."
           ;; Redo is Command-Shift-Z, not Undo's key again.
           (assert-eql (logior (ash 1 20) (ash 1 17))
                       (objc:msg-send :ulong (item "Edit" "Redo") "keyEquivalentModifierMask"))
-          ;; Quit, in a Lisp that a person works in, closes the window and no more.
-          (assert-eql (objc:register-selector "performClose:")
+          ;; Quit asks the application to end, which in a Lisp that a person works in it does not:
+          ;; it closes the windows instead (the smoke check sees them close), and the Lisp stays.
+          (assert-eql (objc:register-selector "terminate:")
                       (objc:msg-send :ulong (item "Application" "Quit") "action"))
+          (let ((delegate (objc:msg-send :id (objc:msg-send
+                                              :id almighty-bolt/platform/macos/app::*app-delegate-class*
+                                              "alloc")
+                                         "init")))
+            (let ((almighty-bolt/platform/macos/app::*ends-process* nil))
+              (assert-eql 0 (objc:msg-send :ulong delegate "applicationShouldTerminate:" (:id app))))
+            (let ((almighty-bolt/platform/macos/app::*ends-process* t))
+              (assert-eql 1 (objc:msg-send :ulong delegate "applicationShouldTerminate:" (:id app)))))
           (assert-true (plusp (item "Window" "Minimize"))))))))
 
 ;;; --- an id used in two containers ---

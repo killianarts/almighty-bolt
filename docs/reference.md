@@ -42,7 +42,7 @@ A `dialog` (`:id :open :title`) is modal: while `:open`, it is in the middle of 
 
 `shortcut` is a function too: `(bolt:shortcut #\s :command)` is true in the frame that Command-S is pressed, and takes the key, so nothing described after it sees it. The modifiers, `:command`, `:shift`, `:option` and `:control`, must be the ones held, no more; the key is a character or a `+key-...+` code. A widget described before it that has the keyboard takes the keys it uses first (a text field, Command-A, -C, -V, -X and -Z), and the menu bar's (Command-H, -M, -Q and -W) never reach the app.
 
-The window has the menu bar of a Mac app: the application's menu (Hide, Hide Others, Show All, Quit), Edit (Undo, Redo, Cut, Copy, Paste, Select All) and Window (Minimize, Zoom, Close). A command of the Edit menu, chosen with the pointer or by its shortcut, reaches the app as its shortcut's key, so it does what that key does in whatever has the keyboard. In a Lisp you work in (`open-app`), Quit closes the window and leaves the Lisp running.
+The window has the menu bar of a Mac app: the application's menu (Hide, Hide Others, Show All, Quit), Edit (Undo, Redo, Cut, Copy, Paste, Select All) and Window (Minimize, Zoom, Close). A command of the Edit menu, chosen with the pointer or by its shortcut, reaches the app as its shortcut's key, so it does what that key does in whatever has the keyboard. In a Lisp you work in (`open-app`), Quit closes every window and leaves the Lisp running.
 
 `toast` is a function, not a widget: `(bolt:toast "Saved" :seconds 3)`, called anywhere in the app's function (where a button says it was pressed), shows the words at the bottom of the window, in the middle, for `:seconds` (3), the newer under the older; a press on one puts it away. While a toast shows, the frames ask for the next. In the semantic tree it is a `:toast`, and VoiceOver reads it out as it comes.
 
@@ -174,6 +174,12 @@ A button, a check box, an option or a row can be pressed from VoiceOver; the pre
 VoiceOver says a changed value only for the thing its cursor is on. A `label` or `paragraph` given `:live t` is read out, by announcement, whenever its text changes, wherever the cursor is: `(bolt:label (princ-to-string count) :id :count :live t)`. One that has just appeared is not read out, only one that changes; use it for a result, a count or a status, not for text that changes every frame.
 
 Two other things use the tree, in different systems because they are for different people.
+
+## Windows
+
+An app can open more windows. `(bolt:open-window 'make-preferences :title "Preferences" :width 400 :height 300)` opens one that shows the app `make-preferences` makes, and returns it; `(bolt:close-window window)` closes it as its close button would. It can be called in the app's function, where a button says it was pressed (the window opens after the frame), or from the REPL while a window is open, or before one is, when it starts the windows as `open-app` does without being the app's window.
+
+Each window's app is an app of its own, with its own `state-let`. What two windows share is the Lisp they share: a closure that the constructor makes over the first app's variables, or a special variable. A frame in which one window took input (a press, a key, the wheel) draws the others again, so each shows what the other changed; a frame that took none does not, so windows do not keep waking each other. While you are developing (`open-app`, or `run-app` with `:hot` or `:watch-systems`), compiling code makes every window's app again. Closing the app's window leaves the others open, and closing the last one stops the windows' loop; `close-app` closes the app's window only. `(almighty-bolt/machine/host-session:open-session window)` is a machine-interface session on a window that `open-window` returned.
 
 ## The machine interface
 

@@ -72,11 +72,11 @@ texture that nobody sees, between frames, on the main thread."
                 :on-main #'call-on-main
                 :screenshot (lambda () (host-screenshot host))))
 
-(defun open-session ()
-  "A session on the window that OPEN-APP or RUN-APP has open, or an error if there is none. It is
-returned once the window has made its first frame, so that what is seen and photographed through it
-is the window and not the nothing before it."
-  (let ((host (running-host)))
+(defun open-session (&optional window)
+  "A session on WINDOW (one that OPEN-WINDOW returned), or on the window that OPEN-APP or RUN-APP has
+open; an error if there is none. It is returned once the window has made its first frame, so that
+what is seen and photographed through it is the window and not the nothing before it."
+  (let ((host (or window (running-host))))
     (unless host
       (error 'cannot :message "There is no window open: call open-app or run-app first."))
     (wait-for-first-frame host)

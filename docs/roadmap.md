@@ -4,7 +4,7 @@ What is planned after [0.1](releases/0.1.md). These are plans, not promises, and
 
 ## Next
 
-- **Windows.** More than one window, control over a window's title, size limits and full screen, and an app's own menus in the menu bar. More than one window comes first: the designer and tester app (under Tools) is a window of its own.
+- **Windows.** Control over a window's title, size limits and full screen, and an app's own menus in the menu bar. (More than one window is in 0.3.)
 
 ## Later
 

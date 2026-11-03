@@ -59,13 +59,15 @@
   (:import-from #:almighty-bolt/platform/macos/main-queue
                 #:on-main-thread-p
                 #:run-on-main
+                #:run-on-main-later
                 #:run-on-main-in-a-turn
                 #:call-on-main)
   (:import-from #:almighty-bolt/redefinition
                 #:watch-redefinitions
                 #:stop-watching-redefinitions)
   (:import-from #:almighty-bolt/platform/macos/app
-                #:run-application)
+                #:run-application
+                #:*may-stop-p*)
   (:import-from #:almighty-bolt/platform/macos/window
                 #:make-window
                 #:set-content-view
@@ -137,7 +139,11 @@
            #:host-keyboard-state
            #:run-variant
            #:open-variant
-           #:close-variant))
+           #:close-variant
+           #:open-hosts
+           #:host-open-p
+           #:host-owner
+           #:request-all-frames))
 
 (in-package #:almighty-bolt/platform/macos/host)
 
@@ -259,7 +265,10 @@ copied is kept in the context and the person's clipboard is never touched."
   (idle-queue (sb-thread:make-waitqueue :name "host idle"))
   ;; True once a frame has been made: until then the window has no size, and a host that has
   ;; done nothing yet is idle without having shown anything.
-  (drawn nil :type boolean))
+  (drawn nil :type boolean)
+  ;; The host whose window this one's belongs to (a tool's window belongs to the app's it looks at),
+  ;; which it closes with; or NIL.
+  (owner nil))
 
 (defmethod print-object ((host host) stream)
   ;; What a REPL shows after (OPEN-APP ...), which returns the host: not its parts.
@@ -462,7 +471,8 @@ build, the wait for the display (the GPU finishing the frame before, and then
 getting the drawable) and the encoding. A frame requested while this one was made
 is asked for after it is presented, with the host's wake function, which does not
 allocate. WIDTH and HEIGHT are in points. Does nothing past the build if there is
-no drawable. Must run inside an autorelease pool."
+no drawable. Must run inside an autorelease pool. Returns how many times the variant built the
+frame: more than once if what it was given (a press, a key) changed what the app holds."
   (declare (type single-float width height scale))
   (let ((context (host-context host))
         (ring (host-ring host))
@@ -470,7 +480,8 @@ no drawable. Must run inside an autorelease pool."
         (start (real-time-source))
         (consed-before (the (unsigned-byte 64) (sb-ext:get-bytes-consed)))
         (gc-before sb-ext:*gc-run-time*)
-        (previous-gpu-ns 0))
+        (previous-gpu-ns 0)
+        (made 0))
     (declare (type (unsigned-byte 64) start consed-before previous-gpu-ns)
              (type fixnum gc-before))
     (when (context-phases-p context)
@@ -484,6 +495,7 @@ no drawable. Must run inside an autorelease pool."
            (incf (context-frame-number context))
            (multiple-value-bind (builds capped)
                (settle-host host context)
+             (setf made builds)
              (let ((built (real-time-source)))
                (wait-for-last-frame (host-renderer host))
                ;; The frame before has finished, and its command buffer says how long it took.
@@ -517,7 +529,7 @@ no drawable. Must run inside an autorelease pool."
       (setf again (stop-drawing host)))
     (when again
       (funcall (the function (host-wake host))))
-    nil))
+    made))
 
 ;;; --- a window ---
 
@@ -530,26 +542,82 @@ no drawable. Must run inside an autorelease pool."
           (values 0 0)
           (values pass drawable)))))
 
+;;; --- the windows that are open ---
+;;;
+;;; An app can have more than one window, each with a host of its own: its own app, made by its own
+;;; constructor, with its own STATE-LET, view, renderer and glyph atlas. They share the main thread
+;;; and AppKit's one event loop, which the first window starts and the last one, closing, stops.
+;;;
+;;; What one window's app holds may be what another shows (a preferences window and the window whose
+;;; preferences they are), and an immediate-mode window draws only when it is asked. So a frame in
+;;; which a window took input (a press, a key, the wheel: it built more than once) asks every other
+;;; window for a frame. That frame takes no input, builds once, and asks nothing of the others, so
+;;; windows do not wake each other for ever.
+
+(defvar *hosts-lock* (sb-thread:make-mutex :name "open windows")
+  "Guards *HOSTS*, *LOOP* and *PENDING-OPENS*.")
+
+(defvar *hosts* '()
+  "The hosts whose windows are open, in the order they were opened.")
+
+(defvar *loop* nil
+  "The state of the application's event loop: NIL before it starts and after it stops, :STARTING
+while the main thread is being asked to run it, :RUNNING, and :STOPPING once the last window has
+closed and it is about to return.")
+
+(defvar *pending-opens* 0
+  "How many windows other threads have asked the running loop to open, and it has not opened yet.
+While there are any, the loop does not stop when the last window closes.")
+
+(defun open-hosts ()
+  "The hosts whose windows are open, in the order they were opened."
+  (sb-thread:with-mutex (*hosts-lock*)
+    (copy-list *hosts*)))
+
+(defun host-open-p (host)
+  "True while HOST's window is open."
+  (sb-thread:with-mutex (*hosts-lock*)
+    (and (member host *hosts*) t)))
+
+(defun request-all-frames ()
+  "Ask every open window for a frame: what they all show has changed (a theme was defined again)."
+  (dolist (host (open-hosts))
+    (request-host-frame host)))
+
+(defun may-stop-p ()
+  "Whether the loop may stop now that the last window has closed (see *MAY-STOP-P*): not while a
+window is on its way. If it may, it is marked as stopping, so that no other thread gives it work."
+  (sb-thread:with-mutex (*hosts-lock*)
+    (cond ((plusp *pending-opens*) nil)
+          (t (setf *loop* :stopping)
+             t))))
+
+(setf *may-stop-p* #'may-stop-p)
+
 (defun draw-view (host view)
-  "The view's draw callback: read its size and scale, and make a frame."
+  "The view's draw callback: read its size and scale, and make a frame. A frame that took input asks
+the other windows for one (see above)."
   (when host
     (let ((object (metal-view-object view)))
       (multiple-value-bind (x y width height) (msg-send :rect object "bounds")
         (declare (ignore x y))
-        (let ((pixel-width (msg-send :size object "drawableSize")))
-          (run-frame host
-                     (float width 1f0) (float height 1f0)
-                     (if (plusp width) (float (/ pixel-width width) 1f0) 1f0))
+        (let* ((pixel-width (msg-send :size object "drawableSize"))
+               (builds (run-frame host
+                                  (float width 1f0) (float height 1f0)
+                                  (if (plusp width) (float (/ pixel-width width) 1f0) 1f0))))
           ;; The pointer takes the shape the frame said, for what is under it.
           (set-view-cursor view (context-cursor (host-context host)))
           ;; What a screen reader reads is out of date now, and is made when it is asked for.
           (let ((bridge (metal-view-bridge view)))
             (when bridge
-              (frame-presented bridge))))))))
+              (frame-presented bridge)))
+          (when (> builds 1)
+            (dolist (other (open-hosts))
+              (unless (eq other host)
+                (request-host-frame other)))))))))
 
 (defun close-host-window (host)
-  "Close the host's window as the user would, which ends the application. Safe from
-any thread."
+  "Close the host's window as the user would. Safe from any thread."
   (close-window (host-window host)))
 
 (defun host-keyboard-state (host)
@@ -567,11 +635,12 @@ thread."
                (and (msg-send :bool app "isActive") t))))))
 
 (defvar *running-host* nil
-  "The host of the window that RUN-VARIANT or OPEN-VARIANT has open, if there is one.")
+  "The host of the app's window that RUN-VARIANT or OPEN-VARIANT opened, while it is open.")
 
 (defun running-host ()
-  "The host of the window that RUN-VARIANT or OPEN-VARIANT has open, or NIL. It is what a REPL has
-to ask for a frame with, or to make the app again with (RELOAD-HOST), while the window is open."
+  "The host of the app's window that RUN-VARIANT or OPEN-VARIANT opened (the first, not one that the
+app or a tool opened beside it), or NIL. It is what a REPL has to ask for a frame with, or to make
+the app again with (RELOAD-HOST), while the window is open."
   *running-host*)
 
 (defun reload-host (host rebuild)
@@ -591,14 +660,42 @@ REBUILD signals an error the error is reported and the old variant stays."
          (report-hot-reload "the app could not be made again, so the old one stays"
                             condition))))))
 
-(defun make-variant-window (variant title width height capacity rebuild driver kept-state)
-  "Make the window for VARIANT, show it, and return the host. Called inside the application, on
-the main thread (RUN-VARIANT and OPEN-VARIANT see to that). The arguments are theirs."
+(defun forget-host (host)
+  "What is left to do when HOST's window has closed: stop watching definitions, let the screen
+reader go, and take it from the windows that are open."
+  (let ((watcher (host-watcher host)))
+    (when watcher
+      (setf (host-watcher host) nil)
+      (stop-watching-redefinitions watcher)))
+  (let* ((view (host-view host))
+         (bridge (and view (metal-view-bridge view))))
+    (when bridge
+      (setf (metal-view-bridge view) nil)
+      (release-bridge bridge)))
+  (sb-thread:with-mutex (*hosts-lock*)
+    (setf *hosts* (remove host *hosts*))
+    (when (eq *running-host* host)
+      (setf *running-host* nil))))
+
+(defun window-closing (host)
+  "HOST's window is closing: the windows that belong to it close first, and then it is forgotten."
+  (dolist (other (open-hosts))
+    (when (eq (host-owner other) host)
+      (msg-send :void (window-object (host-window other)) "close")))
+  (forget-host host))
+
+(defun make-variant-window (variant title width height capacity rebuild driver kept-state
+                            &key owner main (show t))
+  "Make the window for VARIANT and return its host, shown at once with SHOW, or else after what
+the main thread is doing now (a frame, in which the window is asked for). Called inside the
+application, on the main thread. OWNER is the host the window belongs to and closes with, and with
+MAIN it is the app's window (RUNNING-HOST). The other arguments are RUN-VARIANT's."
   (let* ((host nil)
          (device (default-device))
          (window (make-window :title title :width width :height height
                               :event-handler (lambda (event)
-                                               (host-deliver-event host event))))
+                                               (host-deliver-event host event))
+                              :on-close (lambda () (window-closing host))))
          (view (make-metal-view :device device :width width :height height
                                 ;; Read when asked, from the variant the host has then: the app
                                 ;; may have been made again.
@@ -631,13 +728,22 @@ the main thread (RUN-VARIANT and OPEN-VARIANT see to that). The arguments are th
           (context-appearance (host-context host)) (view-appearance object))
     (setf (host-window host) window
           (host-view host) view
+          (host-owner host) owner
           (host-acquire host) (view-acquirer object)
           (host-wake host) (lambda ()
                              (msg-send :void object "setNeedsDisplay:" (:bool t))))
-    (setf *running-host* host)
+    (sb-thread:with-mutex (*hosts-lock*)
+      (setf *hosts* (append *hosts* (list host)))
+      (when main
+        (setf *running-host* host)))
     (set-content-view window object)
-    (show-window window)
-    (request-draw view)
+    (flet ((show ()
+             (when (host-open-p host)
+               (show-window window)
+               (request-draw view))))
+      ;; A window asked for in a frame is shown after it: it takes the keyboard from the window
+      ;; whose frame it is, which must not be told of that while it is building.
+      (if show (show) (run-on-main-later #'show)))
     (when rebuild
       (setf (host-watcher host)
             (watch-redefinitions (lambda () (reload-host host rebuild)))))
@@ -652,28 +758,21 @@ the main thread (RUN-VARIANT and OPEN-VARIANT see to that). The arguments are th
        :name "variant driver"))
     host))
 
-(defun close-down (host)
-  "What is left to do when the event loop of HOST's window has stopped: stop watching
-definitions, and forget the host."
-  (when host
-    (let ((watcher (host-watcher host)))
-      (when watcher
-        (setf (host-watcher host) nil)
-        (stop-watching-redefinitions watcher)))
-    (let* ((view (host-view host))
-           (bridge (and view (metal-view-bridge view))))
-      (when bridge
-        (release-bridge bridge)))
-    (when (eq *running-host* host)
-      (setf *running-host* nil))))
+(defun loop-ended ()
+  "The event loop has returned: forget every window that is left, and say the loop is not running."
+  (dolist (host (open-hosts))
+    (forget-host host))
+  (sb-thread:with-mutex (*hosts-lock*)
+    (setf *loop* nil
+          *pending-opens* 0)))
 
 (defun run-variant (variant &key (title "almighty-bolt") (width 800) (height 600)
                               driver (capacity 65536) rebuild kept-state)
   "Open a window of WIDTH by HEIGHT points, run VARIANT in it, and return only when
-the application quits. This thread must be the main thread, and it is the window's until the
-window closes, which ends the process: it is for a program that is only the window (make 7guis).
-For a REPL, which must be free, see OPEN-VARIANT. DRIVER, if given, is called on a new thread with
-the host once the window is up; a driver that finishes should close the window.
+the application quits. This thread must be the main thread, and it is the windows' until the
+last of them closes, which ends the process: it is for a program that is only its windows (make
+7guis). For a REPL, which must be free, see OPEN-VARIANT. DRIVER, if given, is called on a new thread
+with the host once the window is up; a driver that finishes should close the window.
 
 REBUILD, if given, is a function of no arguments that returns a variant. It is called again,
 on the main thread, whenever functions are defined or redefined and the definitions have
@@ -681,37 +780,78 @@ stopped for a moment (WATCH-REDEFINITIONS), and what it returns takes the place 
 variant that runs (RELOAD-HOST). So code that is compiled in a running
 image, from an editor or from a file, changes the window with nothing else done. The new
 variant starts from nothing; if its first frame fails the old one is put back."
-  (let ((host nil))
-    (unwind-protect
-         (run-application
-          (lambda ()
-            (setf host (make-variant-window variant title width height capacity rebuild driver
-                                            kept-state))))
-      (close-down host))))
+  (sb-thread:with-mutex (*hosts-lock*)
+    (when *loop*
+      (error "The application is running already; open another window with OPEN-VARIANT."))
+    (setf *loop* :starting))
+  (unwind-protect
+       (run-application
+        (lambda ()
+          (sb-thread:with-mutex (*hosts-lock*)
+            (setf *loop* :running))
+          (make-variant-window variant title width height capacity rebuild driver kept-state
+                               :main t)))
+    (loop-ended)))
 
 (defun open-variant (variant &key (title "almighty-bolt") (width 800) (height 600)
-                               (capacity 65536) rebuild kept-state (timeout 10))
-  "Open a window of WIDTH by HEIGHT points that runs VARIANT, and return its host at once, with
-the calling thread free: for a REPL, which goes on being one while the window is open. The
-window's event loop runs on the main thread, which has to be doing nothing that cannot be
-interrupted (a REPL in an editor that starts Lisp itself leaves it waiting for input, as one
-does when it is the standard input), so this is called from another thread, as a REPL's
-forms are in Slynk or SLIME with threads. Closing the window, with its button, Command-W or
-Command-Q, or CLOSE-VARIANT, stops the loop and leaves the Lisp running; OPEN-VARIANT can then be
-called again.
+                               (capacity 65536) rebuild kept-state (timeout 10) owner (main t))
+  "Open a window of WIDTH by HEIGHT points that runs VARIANT, and return its host. With MAIN it is
+the app's window (RUNNING-HOST), of which there is one at a time; without it, another window beside
+it, which closes with OWNER if one is given.
+
+The first window starts the application's event loop on the main thread and returns at once, with
+the calling thread free: for a REPL, which goes on being one while the window is open. The main
+thread has to be doing nothing that cannot be interrupted (a REPL in an editor that starts Lisp
+itself leaves it waiting for input, as one does when it is the standard input), so the first window
+is opened from another thread, as a REPL's forms are in Slynk or SLIME with threads. A window opened
+while the loop runs (from the REPL, or from an app's frame, on the main thread) joins it. Closing the
+last window, with its button, Command-W, Command-Q (which closes them all) or CLOSE-VARIANT, stops the
+loop and leaves the Lisp running; OPEN-VARIANT can then be called again.
 
 REBUILD is as for RUN-VARIANT, which is what compiling a definition in the editor needs: with
 it the window changes when code is compiled. What it prints, and what the window's callbacks
-print when they fail, goes to the output of the thread that called this.
+print when they fail, goes to the output of the thread that started the loop.
 
-Signals an error if this is the main thread, if a window is open, if the window could not be
-made, or if the main thread had not started it in TIMEOUT seconds."
+Signals an error if MAIN and the app's window is open, if the loop has to be started and this is the
+main thread, if the window could not be made, or if the main thread had not made it in TIMEOUT
+seconds."
+  (when (and main *running-host*)
+    (error "A window is already open. Close it first with CLOSE-VARIANT."))
+  (let ((deadline (+ (get-internal-real-time) (* timeout internal-time-units-per-second)))
+        (state nil))
+    ;; A loop that is starting or stopping is waited for: then it runs, or it has stopped.
+    (loop
+      (setf state (sb-thread:with-mutex (*hosts-lock*)
+                    (case *loop*
+                      (:running (incf *pending-opens*) :running)
+                      ((nil) (setf *loop* :starting) :start)
+                      (t :wait))))
+      (unless (eq state :wait)
+        (return))
+      (when (> (get-internal-real-time) deadline)
+        (error "The application's event loop did not start or stop in ~d seconds." timeout))
+      (sleep 0.01))
+    (if (eq state :running)
+        (flet ((make (show)
+                 (unwind-protect
+                      (make-variant-window variant title width height capacity rebuild nil
+                                           kept-state :owner owner :main main :show show)
+                   (sb-thread:with-mutex (*hosts-lock*)
+                     (decf *pending-opens*)))))
+          (if (on-main-thread-p)
+              (make nil)
+              (call-on-main (lambda () (make t)))))
+        (start-loop variant title width height capacity rebuild kept-state timeout main))))
+
+(defun start-loop (variant title width height capacity rebuild kept-state timeout main)
+  "Start the application's event loop on the main thread, with a window for VARIANT, and return its
+host (see OPEN-VARIANT, which has said that the loop is :STARTING)."
   (when (on-main-thread-p)
+    (sb-thread:with-mutex (*hosts-lock*)
+      (setf *loop* nil))
     (error "OPEN-VARIANT is called from the main thread, which it needs for the window's event ~
             loop and which would then never come back. Call it from another thread (a REPL in an ~
             editor is on one), or use RUN-VARIANT to give this thread to the window."))
-  (when *running-host*
-    (error "A window is already open. Close it first with CLOSE-VARIANT."))
   (let ((out *standard-output*)
         (err *error-output*)
         (ready (sb-thread:make-semaphore))
@@ -727,41 +867,46 @@ made, or if the main thread had not started it in TIMEOUT seconds."
      ;; thread by interrupting it.
      (lambda ()
        (sb-sys:with-interrupts
-         (unless (sb-thread:with-mutex (lock) cancelled)
-           (let ((*standard-output* out)
-                 (*error-output* err))
-             (handler-case
-                 (run-application
-                  (lambda ()
-                    (setf host (make-variant-window variant title width height capacity
-                                                    rebuild nil kept-state))
-                    (sb-thread:signal-semaphore ready))
-                  :ends-process nil)
-               (error (condition)
-                 (setf failure condition)))
-             (close-down host)
-             (finish-output out)
-             (finish-output err)
-             ;; Setup failed before it said it was done.
-             (unless host
-               (sb-thread:signal-semaphore ready)))))))
+         (if (sb-thread:with-mutex (lock) cancelled)
+             (loop-ended)
+             (let ((*standard-output* out)
+                   (*error-output* err))
+               (handler-case
+                   (run-application
+                    (lambda ()
+                      (sb-thread:with-mutex (*hosts-lock*)
+                        (setf *loop* :running))
+                      (setf host (make-variant-window variant title width height capacity
+                                                      rebuild nil kept-state :main main))
+                      (sb-thread:signal-semaphore ready))
+                    :ends-process nil)
+                 (error (condition)
+                   (setf failure condition)))
+               (loop-ended)
+               (finish-output out)
+               (finish-output err)
+               ;; Setup failed before it said it was done.
+               (unless host
+                 (sb-thread:signal-semaphore ready)))))))
     (unless (sb-thread:wait-on-semaphore ready :timeout timeout)
       (sb-thread:with-mutex (lock)
         (setf cancelled t))
+      (sb-thread:with-mutex (*hosts-lock*)
+        (setf *loop* nil))
       (error "The main thread did not open the window in ~d seconds. Is it busy?" timeout))
     (when failure
       (error "The window could not be opened: ~a" failure))
     host))
 
-(defun close-variant (&key (timeout 5))
-  "Close the window that OPEN-VARIANT opened, as its close button would, and return the host once
-the event loop has stopped, or NIL if no window was open. Safe from any thread but the main one."
-  (let ((host *running-host*))
-    (when host
-      (close-host-window host)
-      (let ((end (+ (get-internal-real-time) (* timeout internal-time-units-per-second))))
-        (loop :while (eq *running-host* host)
-              :do (when (> (get-internal-real-time) end)
-                    (error "The window did not close in ~d seconds." timeout))
-                  (sleep 0.01))))
+(defun close-variant (&key (host *running-host*) (timeout 5))
+  "Close HOST's window (the app's window that OPEN-VARIANT opened, if not given), as its close button
+would, and return the host once it has closed, or NIL if it was not open. Safe from any thread but
+the main one."
+  (when (and host (host-open-p host))
+    (close-host-window host)
+    (let ((end (+ (get-internal-real-time) (* timeout internal-time-units-per-second))))
+      (loop :while (host-open-p host)
+            :do (when (> (get-internal-real-time) end)
+                  (error "The window did not close in ~d seconds." timeout))
+                (sleep 0.01)))
     host))
