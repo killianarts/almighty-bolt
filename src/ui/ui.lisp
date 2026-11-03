@@ -58,6 +58,13 @@
            #:float-spec-modal
            #:float-spec-tool
            #:ui-inspection
+           #:inspection
+           #:make-inspection
+           #:inspection-picking
+           #:inspection-picked
+           #:inspection-theme
+           #:inspection-hover
+           #:inspection-shown
            #:ui-parent
            #:ui-count
            #:ui-boxes
@@ -439,7 +446,31 @@ box that was open, which CLOSE-FLOAT is given back."
         (ui-frame-layout-hash ui) +seed+
         (ui-frame-paint-hash ui) +seed+))
 
+;;; --- what the inspector asks of the window ---
+;;;
+;;; The inspector, in a window of its own, asks the app's window to pick a widget and to outline it
+;;; (see inspection.lisp). It is here because the pointer's events must know that it picks: the
+;;; outline follows the pointer from one thing to the next, which a window draws only when asked.
+
+(defstruct (inspection (:constructor make-inspection (theme)))
+  ;; True while the next press on the app picks.
+  (picking nil)
+  ;; The key of the box picked, or 0.
+  (picked 0 :type fixnum)
+  ;; The theme the outlines are drawn in (the inspector's).
+  (theme nil)
+  ;; Where the box under the pointer is while picking, and where the picked one is, in the window,
+  ;; as lists of x, y, width and height, or NIL.
+  (hover nil)
+  (shown nil))
+
 ;;; --- what arrives ---
+
+(defun picking-p (ui)
+  "True while the inspector picks in UI's window: then the outline under the pointer moves with it,
+and every move of the pointer wants a frame."
+  (let ((inspection (ui-inspection ui)))
+    (and inspection (inspection-picking inspection))))
 
 (defun enqueue-event (ui event)
   "Note that EVENT arrived. Returns true if a frame is wanted for it: the pointer moving
@@ -457,10 +488,12 @@ over nothing in particular is not, and everything that a widget could use is."
             (enqueue ui event)
             (or (/= hot-before (ui-hot ui))
                 (/= (ui-active ui) 0)
-                (moves-at-p ui x y))))
+                (moves-at-p ui x y)
+                (picking-p ui))))
          (:leave
           (enqueue ui event)
-          (/= (ui-hot ui) 0))
+          (or (/= (ui-hot ui) 0)
+              (picking-p ui)))
          ((:down :up)
           (enqueue ui event)
           t))))

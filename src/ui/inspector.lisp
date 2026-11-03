@@ -11,7 +11,10 @@
                 #:box-w
                 #:box-h)
   (:import-from #:almighty-bolt/ui/ui
-                #:ui-inspection)
+                #:ui-inspection
+                #:make-inspection
+                #:inspection-picking
+                #:inspection-picked)
   (:import-from #:almighty-bolt/ui/theme
                 #:*theme*
                 #:theme-name
@@ -34,9 +37,6 @@
                 #:text-field
                 #:shortcut)
   (:import-from #:almighty-bolt/ui/inspection
-                #:make-inspection
-                #:inspection-picking
-                #:inspection-picked
                 #:box-by-key)
   (:import-from #:almighty-bolt/ui/immediate
                 #:immediate-variant-ui

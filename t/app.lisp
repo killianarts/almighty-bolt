@@ -3762,8 +3762,9 @@ the others."
   (let* ((opened '())
          (almighty-bolt/ui/inspection:*inspector-opener* (lambda (variant) (push variant opened)))
          (*own-i* 0))
-    ;; An app that is delivered: the keys are its own.
-    (let ((screen (show 'make-own-i)))
+    ;; An app that is delivered: the keys are its own. (OPEN-APP, run from a REPL before the tests,
+    ;; leaves *DEVELOPMENT* true.)
+    (let ((screen (let ((app:*development* nil)) (show 'make-own-i))))
       (command-option-i screen)
       (assert-eql 1 *own-i*)
       (assert-eq '() opened))
@@ -3823,6 +3824,48 @@ the others."
                       1)))
     (draw (panel-of both))
     (assert-true (search "Id: :count-button" (inspector-says both)))))
+
+(defun make-two-labels ()
+  "Two labels, which take no pointer: nothing is hot over them."
+  (lambda ()
+    (column (:gap 20)
+      (label "Upper" :id :upper)
+      (label "Lower" :id :lower))))
+
+(define-test while-the-inspector-picks-every-move-of-the-pointer-asks-for-a-frame ()
+  ;; A window draws when an event asks it to. A move from one label to another changes nothing the
+  ;; app sees, and asks for no frame; while the inspector picks, the outline goes with the pointer,
+  ;; and the move must ask for one, as must the pointer leaving for the inspector's window.
+  (let* ((*asked* '())
+         (both (inspecting 'make-two-labels))
+         (app (app-of both))
+         (variant (screen-variant app)))
+    (flet ((move-to (id)
+             (multiple-value-bind (x y w h) (core:lookup-target variant id)
+               (core:handle-event variant (core:make-pointer-event
+                                           :timestamp 0 :kind :move :x (float (+ x (/ w 2)) 1d0)
+                                           :y (float (+ y (/ h 2)) 1d0) :button nil :buttons 0
+                                           :click-count 0))))
+           (leave ()
+             (core:handle-event variant (core:make-pointer-event :timestamp 0 :kind :leave :x 0d0
+                                                                 :y 0d0 :button nil :buttons 0
+                                                                 :click-count 0))))
+      (move-to :upper)
+      (draw app)
+      (assert-false (move-to :lower))
+      (draw app)
+      (in-panel both #'click :inspector-pick)
+      (move-to :upper)
+      (draw app)
+      (assert-true (move-to :lower))
+      (draw app)
+      (multiple-value-bind (x y) (core:lookup-target variant :lower)
+        (assert-eql (theme-setting (find-theme :dark) :ring) (color-at app (+ x 1) (+ y 1))))
+      (assert-true (leave))
+      (draw app)
+      ;; Gone with the pointer.
+      (multiple-value-bind (x y) (core:lookup-target variant :lower)
+        (assert-false (eql (theme-setting (find-theme :dark) :ring) (color-at app (+ x 1) (+ y 1))))))))
 
 (define-test escape-stops-the-inspector-picking-in-either-window ()
   (let ((*asked* '())

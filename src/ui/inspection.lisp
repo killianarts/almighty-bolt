@@ -18,6 +18,11 @@
                 #:ui-root
                 #:ui-floats
                 #:ui-inspection
+                #:inspection-picking
+                #:inspection-picked
+                #:inspection-theme
+                #:inspection-hover
+                #:inspection-shown
                 #:ui-pressed
                 #:ui-pointer-x
                 #:ui-pointer-y
@@ -29,12 +34,7 @@
                 #:theme-ring)
   (:import-from #:almighty-bolt/ui/widgets
                 #:shortcut)
-  (:export #:inspection
-           #:make-inspection
-           #:inspection-picking
-           #:inspection-picked
-           #:inspection-theme
-           #:*inspector-opener*
+  (:export #:*inspector-opener*
            #:inspection-take-input
            #:describe-outlines
            #:box-at
@@ -53,19 +53,8 @@
 ;;; What it says of a widget is from the last frame that was laid out: the boxes are still those of
 ;;; that frame when the input of a new one is taken, and between frames, when the inspector's window
 ;;; reads them. The pick is kept by the box's key, which is the same from frame to frame while the
-;;; widget is described in the same place.
-
-(defstruct (inspection (:constructor make-inspection (theme)))
-  ;; True while the next press on the app picks.
-  (picking nil)
-  ;; The key of the box picked, or 0.
-  (picked 0 :type fixnum)
-  ;; The theme the outlines are drawn in (the inspector's).
-  (theme nil)
-  ;; Where the box under the pointer is while picking, and where the picked one is, in the window,
-  ;; as lists of x, y, width and height, or NIL.
-  (hover nil)
-  (shown nil))
+;;; widget is described in the same place. (The INSPECTION itself is in ui.lisp, where the pointer's
+;;; events are told that it picks.)
 
 (defvar *inspector-opener* nil
   "A function of the variant, called when Command-Option-I is pressed in a window that may have an
