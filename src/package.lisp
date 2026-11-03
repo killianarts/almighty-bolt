@@ -241,6 +241,7 @@
                 #:context-file-chooser
                 #:context-appearance
                 #:context-cursor
+                #:context-window
                 #:+cursors+)
   (:import-from #:almighty-bolt/kept
                 #:state-let
@@ -534,6 +535,7 @@
            #:context-file-chooser
            #:context-appearance
            #:context-cursor
+           #:context-window
            #:+cursors+
            #:state-let
            #:kept-state

@@ -64,6 +64,7 @@
 
 (defvar *count* 0)
 (defvar *second* nil "The window the first one opened.")
+(defvar *below* nil "The window the second one opened below itself.")
 
 (defun make-first ()
   (lambda ()
@@ -79,7 +80,15 @@
     (bolt:column (:gap 8)
       (bolt:label (format nil "~d" *count*) :id :count)
       (when (bolt:button "Add ten" :id :add-ten)
-        (incf *count* 10)))))
+        (incf *count* 10))
+      (when (bolt:button "Below" :id :below)
+        (setf *below* (bolt:open-window 'make-closing :title "Below" :width 200 :height 80
+                                                      :beside (bolt:this-window) :side :below))))))
+
+(defun make-closing ()
+  (lambda ()
+    (when (bolt:button "Close" :id :close)
+      (bolt:close-window (bolt:this-window)))))
 
 (defun make-third ()
   (lambda ()
@@ -168,6 +177,25 @@
                                        (almighty-bolt/ui/immediate:immediate-app-ui
                                         (host-app first)))))))))
 
+(defun this-window-checks ()
+  "A window that the second opens beside itself, and that closes itself, both by THIS-WINDOW."
+  (m:click (open-session *second*) :id :below)
+  (check "a window opened beside THIS-WINDOW opens"
+         (wait-for (lambda () (and *below* (plusp (frames *below*))))))
+  (destructuring-bind (sx sy sw sh) (frame-of *second*)
+    (declare (ignore sw))
+    (destructuring-bind (bx by bw bh) (frame-of *below*)
+      (declare (ignore bw))
+      (check "below the window whose button opened it (or above, with no room), left edges lined up"
+             (and (near bx sx) (or (near by (+ sy sh 12)) (near (+ by bh 12) sy)))
+             (list (frame-of *second*) (frame-of *below*)))))
+  (wait-for-idle *below*)
+  (sleep 1)
+  (m:click (open-session *below*) :id :close)
+  (check "and its own button closes it, by THIS-WINDOW"
+         (wait-for (lambda () (not (host-open-p *below*)))))
+  (check "and only it" (and (host-open-p *second*) (= 2 (length (open-hosts))))))
+
 (defun checks ()
   (let ((first (bolt:open-app 'make-first :title "First" :width 320 :height 200)))
     (check "the app's window opens" (wait-for (lambda () (plusp (frames first)))))
@@ -194,6 +222,7 @@
            (equal "11" (count-in first)) (count-in first))
     (check "then both rest: neither keeps waking the other" (at-rest-p (list first *second*)))
     (inspector-checks first)
+    (this-window-checks)
     ;; Another, from the REPL, closed again.
     (let ((third (bolt:open-window 'make-third :title "Third" :width 200 :height 80
                                                :top 0 :right 0)))

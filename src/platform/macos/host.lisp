@@ -23,6 +23,7 @@
                 #:context-scale
                 #:context-frame-number
                 #:context-requester
+                #:context-window
                 #:context-frame-requested
                 #:context-text-input-p
                 #:context-text-input-rect
@@ -317,7 +318,8 @@ made INSTANCE had it bound. RUN-HOST makes one with a window; tests make one and
     (setf (context-requester context)
           (lambda (context)
             (declare (ignore context))
-            (request-host-frame host)))
+            (request-host-frame host))
+          (context-window context) host)
     host))
 
 (defun host-deliver-event (host event)

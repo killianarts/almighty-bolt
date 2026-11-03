@@ -111,7 +111,8 @@
   (:import-from #:almighty-bolt/ui/immediate
                 #:now
                 #:ask-for-frame
-                #:current-context)
+                #:current-context
+                #:this-window)
   (:export #:run-app #:open-app #:close-app #:open-window #:close-window #:state
            #:state-let
            #:missing-id #:duplicate-id #:duplicate-id-id
@@ -123,7 +124,7 @@
            #:theme #:make-theme #:define-theme #:find-theme #:with-theme #:theme-names #:theme-name
            #:theme-setting #:theme-color #:theme-form #:+theme-settings+ #:+theme-seeds+ #:+theme-colors+ #:+theme-sizes+
            #:parse-color #:color-hex #:mix-colors #:contrast-ratio
-           #:now #:ask-for-frame #:current-context
+           #:now #:ask-for-frame #:current-context #:this-window
            #:pack-color #:push-rect #:push-rounded-rect #:push-clip #:push-unclip
            #:context-font #:context-measure #:context-push-text #:context-caret-x
            #:context-index-at-x

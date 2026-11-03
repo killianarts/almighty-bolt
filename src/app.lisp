@@ -120,7 +120,7 @@ error; RUN-APP does what is wanted there.
 Where the window opens: TOP, LEFT, BOTTOM and RIGHT are points from that edge of the screen's usable
 area (below the menu bar and beside the Dock), as CSS's absolute positioning has them: LEFT before
 RIGHT and TOP before BOTTOM when both are given, and the middle along an axis that has neither.
-BESIDE is a window (one that OPEN-APP or OPEN-WINDOW returned), next to which it opens on its SIDE
+BESIDE is a window (one that OPEN-APP or OPEN-WINDOW returned, or THIS-WINDOW in an app), next to which it opens on its SIDE
 (:right, :left, :above or :below), GAP points away, with the edges lined up, or on the other side
 if there is no room there. With none of them, the first window opens in the middle of the screen and
 the others below and to the right of the last one opened. Wherever it goes, it is kept on the
@@ -152,8 +152,8 @@ other windows again, so that each shows what the other changed. While the app is
 (*DEVELOPMENT*), compiling code makes the window's app again, as it does the app's own; the window
 stays open when the app's window closes, and closing the last window stops the windows' loop.
 
-Where it opens is as for OPEN-APP: BESIDE the window that OPEN-APP returned, say, or at a corner of
-the screen with TOP and RIGHT."
+Where it opens is as for OPEN-APP: BESIDE the window that OPEN-APP returned, say, or the window of
+the app that opens it (THIS-WINDOW), or at a corner of the screen with TOP and RIGHT."
   (let ((state (make-kept-state)))
     (open-host (with-kept-state (state) (make-app-instance constructor))
                   :title title :width width :height height
@@ -163,8 +163,9 @@ the screen with TOP and RIGHT."
                   :rebuild (and *development* (lambda () (make-app-instance constructor))))))
 
 (defun close-window (window)
-  "Close WINDOW, which OPEN-WINDOW returned, as its close button would. Returns at once, and the
-window is closed by the next frame; closing one that is closed does nothing."
+  "Close WINDOW, which OPEN-WINDOW returned (or THIS-WINDOW, for an app's own), as its close button
+would. Returns at once, and the window is closed by the next frame; closing one that is closed does
+nothing."
   (when (host-open-p window)
     (close-host-window window))
   nil)

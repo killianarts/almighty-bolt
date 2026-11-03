@@ -3677,6 +3677,38 @@ released unless RELEASE."
     (multiple-value-bind (x y) (core:lookup-target (screen-app screen) :days)
       (assert-eql ring (color-at screen (+ x 20) (- y 1))))))
 
+;;; --- the app's own window ---
+
+(defvar *seen-window* :unset
+  "What THIS-WINDOW was in the last frame of MAKE-SEES-ITS-WINDOW's app.")
+
+(defun make-sees-its-window ()
+  (lambda ()
+    (setf *seen-window* (this-window))
+    (label "Mine" :id :mine)))
+
+(define-test an-app-names-its-own-window ()
+  ;; The window a host draws in is the host, as OPEN-WINDOW returns it, so what the app sees in its
+  ;; frame can be closed with CLOSE-WINDOW or put a window BESIDE it (the smoke check does both in
+  ;; real windows). With no host, in a test's context, and outside a frame, there is none.
+  (objc:with-masked-float-traps
+    (objc:with-autorelease-pool
+      (let ((host (host:make-host (make-instance 'core:app-instance) (device:default-device)
+                                  target:+pixel-format-bgra8-unorm+ :capacity 1024 :scale 2))
+            (instance (core:with-kept-state ((core:make-kept-state))
+                        (app:make-app-instance 'make-sees-its-window))))
+        (setf *seen-window* :unset)
+        (draw-on-host host instance)
+        (assert-eq host *seen-window*)
+        (let ((other (host:make-host (make-instance 'core:app-instance) (device:default-device)
+                                     target:+pixel-format-bgra8-unorm+ :capacity 1024 :scale 2)))
+          (draw-on-host other instance)
+          (assert-eq other *seen-window*))
+        (setf *seen-window* :unset)
+        (show 'make-sees-its-window)
+        (assert-eq nil *seen-window*)
+        (assert-eq nil (this-window))))))
+
 ;;; --- the inspector ---
 ;;;
 ;;; The inspector is a window of its own. Here it is a second screen whose app looks at the first's

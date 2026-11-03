@@ -106,6 +106,7 @@ is what the window runs.
 | `(bolt:close-app)`                                          | Closes the window that `open-app` opened.                                                                                                                                                                                                            |
 | `(bolt:open-window 'make-y :title "Y")`                     | Opens another window with an app of its own, from a button or the REPL, and returns it; a press in one window draws the others. `:top`, `:left`, `:bottom`, `:right` (from the screen's edges) or `:beside window` say where it opens. See [Windows](docs/reference.md#windows). |
 | `(bolt:close-window window)`                                | Closes a window that `open-window` returned.                                                                                                                                                                                                         |
+| `(bolt:this-window)`                                        | In an app's function, the window it is in: for `close-window`, or for `open-window`'s `:beside`.                                                                                                                                                     |
 
 ## State
 

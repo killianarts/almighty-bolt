@@ -61,6 +61,7 @@
            #:context-file-chooser
            #:context-appearance
            #:context-cursor
+           #:context-window
            #:+cursors+))
 
 (in-package #:almighty-bolt/app-instance)
@@ -215,6 +216,9 @@ within the frame. REQUESTER is what REQUEST-FRAME calls; the host replaces it."
   ;; The shape the pointer has over the window, one of +CURSORS+, as the last frame said; the host of
   ;; a window shows it.
   (cursor :arrow :type keyword)
+  ;; The window the context draws in, as OPEN-WINDOW returns it (the host sets it to itself), so
+  ;; that an app can name its own window (THIS-WINDOW); NIL for a context that no host made.
+  (window nil)
   (phase-ns (make-array +phase-slots+ :element-type '(unsigned-byte 64) :initial-element 0)
    :type (simple-array (unsigned-byte 64) (*)) :read-only t))
 

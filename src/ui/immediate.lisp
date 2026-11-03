@@ -3,6 +3,7 @@
   (:import-from #:almighty-bolt/internals
                 #:context-appearance
                 #:context-cursor
+                #:context-window
                 #:app-instance
                 #:frame
                 #:handle-event
@@ -126,6 +127,7 @@
            #:immediate-app-tools
            #:now
            #:current-context
+           #:this-window
            #:ask-for-frame))
 
 (in-package #:almighty-bolt/ui/immediate)
@@ -160,6 +162,12 @@
   "The context of the frame being built, which measures text: for the code that handles what a
 canvas returned, to turn a point into a place in text."
   (ui-context *ui*))
+
+(defun this-window ()
+  "The window whose frame is being built, as OPEN-WINDOW returns it: for CLOSE-WINDOW, or for
+OPEN-WINDOW's :BESIDE, from the app's own function. NIL outside a frame, and in a frame with no
+window (a test's)."
+  (and *ui* (context-window (ui-context *ui*))))
 
 (defun ask-for-frame ()
   "Ask for another frame, which an interface that is animating does from its function."

@@ -44,6 +44,7 @@ An app can open more windows: `(bolt:open-window 'make-preferences :title "Prefe
 - Closing the app's window leaves the others open; closing the last stops the windows' loop and leaves the Lisp running. `close-app` closes the app's window only, and Quit (Command-Q) closes them all: before, it closed only the window in front.
 - `open-session` takes a window, for the machine interface on a window other than the app's.
 - Where a window opens can be given, to `open-app`, `open-window` and `run-app`: `:top`, `:left`, `:bottom` and `:right`, points from those edges of the screen's usable area as in CSS's absolute positioning (`:top 0 :right 0` is the top right corner), or `:beside window`, with `:side` (`:right`, `:left`, `:above`, `:below`) and `:gap`. A window given neither opens below and to the right of the last one, and the first in the middle of the screen; before, every window opened in the middle, on top of the others. The inspector opens beside the app's window.
+- `(bolt:this-window)`, in an app's function, is the window the app is in, as `open-window` returns it: a button can close its own window with `(bolt:close-window (bolt:this-window))`, or open another next to it with `:beside (bolt:this-window)`. Outside a frame it is `nil`.
 
 ### Spacing in a theme
 
