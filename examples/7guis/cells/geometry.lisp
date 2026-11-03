@@ -18,8 +18,7 @@
 
 (in-package #:almighty-bolt-7guis/cells/geometry)
 
-;;; Where the cells are in the cells task's grid, the same in every variant's version of it
-;;; and in the tests: a header row and a header column (the column letters and the row
+;;; Where the cells are in the cells task's grid, the same in the app and in the tests: a header row and a header column (the column letters and the row
 ;;; numbers), and below and to the right of them, the visible columns and rows of cells,
 ;;; the first of each being whatever the grid is scrolled to. Everything is in points from
 ;;; the top left of the grid.

@@ -1,4 +1,4 @@
-(defpackage #:almighty-bolt-7guis/dialog/immediate
+(defpackage #:almighty-bolt-7guis/dialog/app
   (:use #:cl)
   (:import-from #:almighty-bolt-7guis/common/registry
                 #:register-app)
@@ -22,7 +22,7 @@
                 #:row)
   (:export #:make-dialog))
 
-(in-package #:almighty-bolt-7guis/dialog/immediate)
+(in-package #:almighty-bolt-7guis/dialog/app)
 
 ;;; The dialog screen, immediate: the card is described inside a centre, and layout, which
 ;;; runs after the description, centres what it finds.
@@ -47,4 +47,4 @@
               (paragraph +body+ :id :card-text))))
         (label +status+ :id :status)))))
 
-(register-app :immediate :dialog 'make-dialog :width 640 :height 420)
+(register-app :dialog 'make-dialog :width 640 :height 420)

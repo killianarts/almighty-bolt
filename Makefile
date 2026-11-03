@@ -31,8 +31,8 @@ compile-clean:
 # The window checks, which need a window server (a logged-in Mac) and nobody at the keyboard: the
 # app opens, draws and rests; the REPL entry; a saved file made into the app again with its state.
 smoke:
-	$(MAKE) 7guis-smoke VARIANT=immediate TASK=counter
-	$(MAKE) 7guis-repl-smoke VARIANT=immediate TASK=crud
+	$(MAKE) 7guis-smoke TASK=counter
+	$(MAKE) 7guis-repl-smoke TASK=crud
 	$(MAKE) 7guis-hot-smoke
 	$(MAKE) examples-smoke
 	$(MAKE) windows-smoke
@@ -67,16 +67,16 @@ bench-compile:
 bench-report:
 	WHICH=report $(SBCL) $(REGISTRY) --load bench/run.lisp
 
-# A picture of each task of a variant after a few events: make snapshots VARIANT=immediate OUT=/tmp/shots/
+# A picture of each task after a few events: make snapshots OUT=/tmp/shots/
 snapshots:
-	VARIANT=$(VARIANT) OUT=$(OUT) sbcl --noinform --non-interactive --no-sysinit --no-userinit --load scripts/snapshot-apps.lisp
+	OUT=$(OUT) sbcl --noinform --non-interactive --no-sysinit --no-userinit --load scripts/snapshot-apps.lisp
 
-# An executable of a variant with its apps: make image VARIANT=immediate, then
-# TASK=counter build/immediate (MEASURE=1 reports to the process that started it).
+# An executable of the example apps: make image, then
+# TASK=counter build/apps (MEASURE=1 reports to the process that started it).
 image:
-	VARIANT=$(VARIANT) sbcl --noinform --non-interactive --no-sysinit --no-userinit --load scripts/build-image.lisp
+	sbcl --noinform --non-interactive --no-sysinit --no-userinit --load scripts/build-image.lisp
 
-# A 7GUIs task of a variant in a window: make 7guis VARIANT=immediate TASK=counter
+# A 7GUIs task in a window: make 7guis TASK=counter
 # LOG=1 prints the presses, releases and keys that reach it and what is under the
 # pointer. RECORD=session.script writes what you do as a replay script, after each press,
 # release and key (make replay SCRIPT=session.script plays it back). 7guis-smoke opens it, draws,
@@ -85,31 +85,31 @@ image:
 # HOT=1 makes the app again, in the same window, when code is compiled into the process or a
 # source file is saved; the state the app keeps (state-let) stays.
 7guis:
-	VARIANT=$(VARIANT) TASK=$(TASK) LOG=$(LOG) RECORD=$(RECORD) HOT=$(HOT) $(SBCL_APP) $(REGISTRY) --load examples/7guis/run.lisp
+	TASK=$(TASK) LOG=$(LOG) RECORD=$(RECORD) HOT=$(HOT) $(SBCL_APP) $(REGISTRY) --load examples/7guis/run.lisp
 
 # Play a replay script back with the real text engine and no window, and say what happened:
-#   make replay SCRIPT=examples/7guis/replay/counter-clicks.script [VARIANT=immediate] [FREEZE=golden.script]
+#   make replay SCRIPT=examples/7guis/replay/counter-clicks.script [FREEZE=golden.script]
 # FREEZE plays the script twice, and if the frames are the same, writes a copy with a checkpoint
 # after each event that holds the hash of the frame there, to check later runs against.
 replay:
-	SCRIPT=$(SCRIPT) VARIANT=$(VARIANT) FREEZE=$(FREEZE) sbcl $(HEAP) --noinform --non-interactive --no-sysinit --no-userinit --eval '(require :asdf)' --eval '(asdf:initialize-source-registry (list :source-registry (list :tree (uiop:getcwd)) :ignore-inherited-configuration))' --load scripts/replay.lisp
+	SCRIPT=$(SCRIPT) FREEZE=$(FREEZE) sbcl $(HEAP) --noinform --non-interactive --no-sysinit --no-userinit --eval '(require :asdf)' --eval '(asdf:initialize-source-registry (list :source-registry (list :tree (uiop:getcwd)) :ignore-inherited-configuration))' --load scripts/replay.lisp
 
 7guis-smoke:
-	SMOKE=1 VARIANT=$(VARIANT) TASK=$(TASK) $(SBCL_APP) $(REGISTRY) --load examples/7guis/run.lisp
+	SMOKE=1 TASK=$(TASK) $(SBCL_APP) $(REGISTRY) --load examples/7guis/run.lisp
 
 # What an editor's REPL does: open the task in a window and get the REPL back, compile a
 # definition and see the app made again, close the window and keep the Lisp, open it again.
 # It is judged by what it says, not by its exit code: AppKit's quit ends a process with code 0.
 7guis-repl-smoke:
 	@out=$$(mktemp); \
-	VARIANT=$(VARIANT) TASK=$(TASK) $(SBCL_APP) $(REGISTRY) --load examples/7guis/repl-smoke.lisp > $$out 2>&1; \
+	TASK=$(TASK) $(SBCL_APP) $(REGISTRY) --load examples/7guis/repl-smoke.lisp > $$out 2>&1; \
 	grep -v -e '^;' -e '^$$' $$out; \
 	grep -q "The REPL check passed" $$out && ! grep -q "FAIL" $$out; status=$$?; rm -f $$out; exit $$status
 
 # What saving a file does, in a real window: the CRUD app is used, its file is saved with a change,
 # and the app must be made again with its entries, the keyboard and the caret where they were
 # (examples/7guis/hot-smoke.lisp). Judged by what it says, as 7guis-repl-smoke is. It writes
-# examples/7guis/crud/immediate.lisp and puts it back.
+# examples/7guis/crud/app.lisp and puts it back.
 7guis-hot-smoke:
 	@out=$$(mktemp); \
 	$(SBCL_APP) $(REGISTRY) --load examples/7guis/hot-smoke.lisp > $$out 2>&1; \

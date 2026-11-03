@@ -13,14 +13,14 @@
 
 (in-package #:almighty-bolt-scripts/frame-hashes)
 
-;;;; The hash of the frame of each app of each variant after each step of a fixed battery of events,
+;;;; The hash of the frame of each app after each step of a fixed battery of events,
 ;;;; as the acceptance driver delivers them (the fake context, a virtual clock). Run before and after
 ;;;; a change of an app's code and compare the output: the same lines mean the same frames. From the
 ;;;; repository root:
-;;;;   VARIANTS="immediate" sbcl --noinform --non-interactive --no-sysinit --no-userinit \
+;;;;   sbcl --noinform --non-interactive --no-sysinit --no-userinit \
 ;;;;     --eval '(require :asdf)' --eval '(asdf:initialize-source-registry (list :source-registry
 ;;;;     (list :tree (uiop:getcwd)) :ignore-inherited-configuration))' --load scripts/frame-hashes.lisp
-;;;; Each line is: variant task step hash commands. SYSTEMS="a-system another" loads systems after
+;;;; Each line is: task step hash commands. SYSTEMS="a-system another" loads systems after
 ;;;; the apps, which can put another version of an app in place of one.
 
 (defparameter +down+ (code-char #xF701))
@@ -80,30 +80,26 @@
      ("wheel" ,(lambda (d) (d:scroll d :editor -3)))
      ("second click" ,(lambda (d) (d:click-at d :editor 0.6 0.5))))))
 
-(defun report (variant task step driver)
+(defun report (task step driver)
   (let ((list (d:driver-list driver)))
-    (format t "~(~a~) ~(~a~) ~a ~x ~d~%" variant task step (core:display-list-hash list)
+    (format t "~(~a~) ~a ~x ~d~%" task step (core:display-list-hash list)
             (core:display-list-count list))))
 
-(defun run-task (variant task steps)
+(defun run-task (task steps)
   (handler-case
-      (let ((driver (d:start variant task)))
-        (report variant task "start" driver)
+      (let ((driver (d:start task)))
+        (report task "start" driver)
         (dolist (step steps)
           (funcall (second step) driver)
-          (report variant task (first step) driver))
+          (report task (first step) driver))
         (d:resize driver 500 420)
-        (report variant task "resized" driver))
+        (report task "resized" driver))
     (error (condition)
-      (format t "~(~a~) ~(~a~) ERROR ~a~%" variant task
+      (format t "~(~a~) ERROR ~a~%" task
               (substitute #\Space #\Newline (princ-to-string condition))))))
 
 (defun main ()
-  (let ((variants (mapcar (lambda (name) (intern (string-upcase name) :keyword))
-                          (uiop:split-string (or (uiop:getenv "VARIANTS") "immediate")
-                                             :separator " "))))
-    (dolist (variant variants)
-      (dolist (entry +steps+)
-        (run-task variant (first entry) (rest entry))))))
+  (dolist (entry +steps+)
+    (run-task (first entry) (rest entry))))
 
 (main)

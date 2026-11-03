@@ -12,7 +12,7 @@
 
 (in-package #:almighty-bolt-stress/dashboard/paint)
 
-;;; How the dashboard's chart looks, the same in every variant: a dark ground and, for each of the
+;;; How the dashboard's chart looks: a dark ground and, for each of the
 ;;; three series, a short bar at the height of each of the last 240 steps, the oldest at the left.
 
 (defparameter +ground+ (pack-color 30 33 46))

@@ -1,4 +1,4 @@
-(defpackage #:almighty-bolt-stress/dashboard/immediate
+(defpackage #:almighty-bolt-stress/dashboard/app
   (:use #:cl)
   (:import-from #:almighty-bolt-7guis/common/registry
                 #:register-app)
@@ -30,7 +30,7 @@
                 #:state-let)
   (:export #:make-dashboard-app))
 
-(in-package #:almighty-bolt-stress/dashboard/immediate)
+(in-package #:almighty-bolt-stress/dashboard/app)
 
 ;;; The dashboard, immediate: the function that describes the screen first brings the model to the
 ;;; step the time is in (a second build of a frame finds it there already), asks for another frame,
@@ -59,4 +59,4 @@
                                   (declare (ignore context))
                                   (paint-chart list 0f0 0f0 width height model)) :id :chart))))))
 
-(register-app :immediate :dashboard 'make-dashboard-app :width 960 :height 680)
+(register-app :dashboard 'make-dashboard-app :width 960 :height 680)

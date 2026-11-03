@@ -128,5 +128,5 @@ The same things are done from Lisp, without MCP, by the machine interface (`almi
 ## 8. Where next
 
 - The widgets, the containers and the canvas are in the [README](../README.md) and, with their options, in the [reference](reference.md).
-- A `canvas` is where you draw yourself and handle the pointer and the keyboard; [`examples/7guis/circles/immediate.lisp`](../examples/7guis/circles/immediate.lisp) and [`examples/7guis/cells/immediate.lisp`](../examples/7guis/cells/immediate.lisp) are small ones, and [`bench/stress/editor/immediate.lisp`](../bench/stress/editor/immediate.lisp) is a text editor with input-method support.
+- A `canvas` is where you draw yourself and handle the pointer and the keyboard; [`examples/7guis/circles/app.lisp`](../examples/7guis/circles/app.lisp) and [`examples/7guis/cells/app.lisp`](../examples/7guis/cells/app.lisp) are small ones, and [`bench/stress/editor/app.lisp`](../bench/stress/editor/app.lisp) is a text editor with input-method support.
 - `make test` and `make smoke` are what has to pass before a change is committed, and [`CLAUDE.md`](../CLAUDE.md) says how the project is worked on.

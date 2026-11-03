@@ -1,4 +1,4 @@
-(:almighty-bolt-replay 1 :variant :immediate :app :rows :width 640 :height 470)
+(:almighty-bolt-replay 1 :app :rows :width 640 :height 470)
 (0 (:focus :focused-p t))
 (100000000 (:pointer :kind :move :target :list :fx 0.2d0 :fy 0.1d0))
 (116000000 (:pointer :kind :down :target :list :fx 0.2d0 :fy 0.1d0 :button 0 :buttons 1 :click-count 1))

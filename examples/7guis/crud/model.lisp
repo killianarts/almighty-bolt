@@ -17,8 +17,8 @@
 (in-package #:almighty-bolt-7guis/crud/model)
 
 ;;; The CRUD task's data: a list of people with names and surnames, and the operations on
-;;; it, all as values. What is selected and what is typed in the fields is the UI's state,
-;;; which is what the variants differ in, and is not here.
+;;; it, all as values. What is selected and what is typed in the fields is the app's state, and
+;;; is not here.
 
 (defstruct (entry (:constructor make-entry (id name surname)) (:copier nil))
   (id 0 :type fixnum :read-only t)

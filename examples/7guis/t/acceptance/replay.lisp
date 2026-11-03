@@ -11,23 +11,21 @@
 ;;; Replay scripts, which name the controls they act on, drive a task's app. And a script replays
 ;;; to the same frames every time, which has to hold before any measurement is trusted.
 
-(defun make-app (variant task)
-  (registry:make-app-object (registry:find-app variant task)))
+(defun make-app (task)
+  (registry:make-app-object (registry:find-app task)))
 
-(defun make-context (variant task)
-  (let ((app (registry:find-app variant task)))
+(defun make-context (task)
+  (let ((app (registry:find-app task)))
     (fake:make-fake-context :width (float (registry:app-width app) 1f0)
                             :height (float (registry:app-height app) 1f0))))
 
 (defmacro define-replay-test (name task (new) &body body)
-  "A test of NAME for each variant that has an app for TASK. In BODY, (NEW) is a function that
-makes a new variant of that app and a context for it, as two values."
-  `(progn
-     ,@(loop :for which :in (d:available-variants task)
-             :collect `(lisp-unit2:define-test ,(intern (format nil "~a/~a" name which)) ()
-                         (flet ((,new ()
-                                  (values (make-app ,which ,task) (make-context ,which ,task))))
-                           ,@body)))))
+  "A test of NAME for TASK's app. In BODY, (NEW) is a function that makes a new instance of that app
+and a context for it, as two values."
+  `(lisp-unit2:define-test ,name ()
+     (flet ((,new ()
+              (values (make-app ,task) (make-context ,task))))
+       ,@body)))
 
 (defun click (id &key (at 0) (fx 0.5d0) (fy 0.5d0) (count 1))
   "The entries of a click on the control ID, the press 1 ms after the move."
@@ -71,7 +69,7 @@ makes a new variant of that app and a context for it, as two values."
    :entries (loop :for i :below 3
                   :append (click :count-button :at (* i 100000000)))))
 
-(define-replay-test one-script-clicks-the-counter-in-every-variant :counter (new)
+(define-replay-test one-script-clicks-the-counter :counter (new)
   (multiple-value-bind (variant result) (run (counter-script) #'new)
     (assert-equal "3" (text-in variant result :count))
     (assert-true (core:replay-ok-p result))))

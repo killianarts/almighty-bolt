@@ -60,7 +60,7 @@
 
 (in-package #:almighty-bolt-7guis/launcher)
 
-;;; Open a task of a variant in a window. With LOG, the variant is changed into a subclass
+;;; Open a task in a window. With LOG, the variant is changed into a subclass
 ;;; that prints each press and release of the pointer with what is under it, each key with
 ;;; its character code, and each step of the wheel with its deltas and whether they are in
 ;;; lines or points, so that what a window really delivers can be seen. The printing
@@ -166,11 +166,15 @@ line of words and numbers."
       (format t "~&tick ~d ~d~%" (frame-ring-total ring) (sb-kernel:dynamic-usage))
       (finish-output))))
 
-(defun make-app-variant (variant task log)
-  "A new variant of the app of TASK in VARIANT, made by the constructor that is registered now:
-the app may have been defined again since the window opened. With LOG it logs."
-  (let* ((app (or (find-app variant task)
-                  (error "There is no ~(~a~) app for ~(~a~)." variant task)))
+(defun task-app (task)
+  "The app registered for TASK, or an error."
+  (or (find-app task)
+      (error "There is no app for ~(~a~)." task)))
+
+(defun make-task-app (task log)
+  "A new instance of the app of TASK, made by the constructor that is registered now: the app may
+have been defined again since the window opened. With LOG it logs."
+  (let* ((app (task-app task))
          (object (make-app-object app)))
     (if log (logged object) object)))
 
@@ -179,29 +183,28 @@ the app may have been defined again since the window opened. With LOG it logs."
   (remove-if-not (lambda (name) (eql 0 (search "almighty-bolt" name)))
                  (asdf:already-loaded-systems)))
 
-(defun run (variant task &key log smoke record measure hot)
-  "Open the app of TASK in VARIANT (keywords) in a window, and run until it is closed. With
+(defun run (task &key log smoke record measure hot)
+  "Open the app of TASK (a keyword) in a window, and run until it is closed. With
 RECORD, a pathname, the events are written to it as a replay script as they come. With MEASURE
 the process reports to whoever started it and runs until it is killed. With HOT, the app is made
 again, in the same window, whenever the code that makes it is compiled, and a source file that is
 saved is compiled and loaded (decisions 0030 and 0031); the state that the app keeps, and that its
 widgets hold, is kept."
-  (let ((app (or (find-app variant task)
-                 (error "There is no ~(~a~) app for ~(~a~)." variant task)))
+  (let ((app (task-app task))
         (recorder nil)
         (sources nil))
     (when (and hot record)
       (error "HOT and RECORD do not go together: a new app would not be recorded."))
     (let* ((state (make-kept-state))
            (object (with-kept-state (state)
-                     (make-app-variant variant task log))))
+                     (make-task-app task log))))
       (when log
         (format t "~&~a: press, drag, type; what arrives is printed. Close the window to finish.~%"
                 (app-title app))
         (finish-output))
       (when record
         (setf object (with-mixins object 'recording-mixin)
-              recorder (make-recorder :header (list :variant variant :app task
+              recorder (make-recorder :header (list :app task
                                                     :width (app-width app)
                                                     :height (app-height app)))
               (mixin-recorder object) recorder
@@ -222,17 +225,16 @@ widgets hold, is kept."
                                :driver (cond (smoke #'smoke-check)
                                              (measure #'measure-driver))
                                :rebuild (and hot
-                                             (lambda () (make-app-variant variant task log))))
+                                             (lambda () (make-task-app task log))))
         (when sources
           (stop-watching-files sources))))))
 
-(defun open-task (variant task)
-  "Open the app of TASK in VARIANT (keywords) in a window and return its host at once, with the
+(defun open-task (task)
+  "Open the app of TASK (a keyword) in a window and return its host at once, with the
 REPL free: the library's OPEN-APP, for an app that is registered here. Whenever code is compiled
 into the image the app is made again in the same window, with the state it keeps (STATE-LET);
 closing the window leaves the Lisp running."
-  (let ((app (or (find-app variant task)
-                 (error "There is no ~(~a~) app for ~(~a~)." variant task))))
+  (let ((app (task-app task)))
     (open-app (app-constructor app)
               :title (app-title app) :width (app-width app) :height (app-height app))))
 
@@ -244,8 +246,8 @@ closing the window leaves the Lisp running."
   (let ((value (uiop:getenv name)))
     (and value (plusp (length value)) value)))
 
-(defun image-main (variant)
-  "What a saved executable of VARIANT does when it starts: open the app of the task that the
+(defun image-main ()
+  "What a saved executable of the apps does when it starts: open the app of the task that the
 environment's TASK names, in a window. MEASURE=1 makes it report to the process that started
 it, for bench/app-metrics.lisp; RECORD is as for make 7guis."
   (sb-ext:disable-debugger)
@@ -253,6 +255,6 @@ it, for bench/app-metrics.lisp; RECORD is as for make 7guis."
     (unless task
       (format *error-output* "Say which task with TASK=counter, for example.~%")
       (sb-ext:exit :code 2 :abort t))
-    (run variant (intern (string-upcase task) :keyword)
+    (run (intern (string-upcase task) :keyword)
          :log (environment "LOG") :record (environment "RECORD") :measure (environment "MEASURE"))
     (sb-ext:exit :code 0)))

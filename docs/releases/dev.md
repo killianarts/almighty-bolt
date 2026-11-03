@@ -114,6 +114,7 @@ A theme that gives the spacing works out every size again, except those it gives
 
 #### Examples
 
+- The 7GUIs tasks and the stress apps no longer carry the name of the immediate "variant", from when the project compared three kinds of ui. The make targets take `TASK=` alone (`make 7guis TASK=counter`, `make 7guis-smoke TASK=counter`, `make snapshots`, `make replay SCRIPT=…`), `make image` writes `build/apps`, each task's app is in `examples/7guis/<task>/app.lisp` (and `bench/stress/<app>/app.lisp`), and the systems are `almighty-bolt-7guis/apps` and `almighty-bolt-stress/apps`. Replay scripts no longer write `:variant :immediate` in their header; old scripts still play. Benchmark records are version 3, without `:variant`.
 - The gallery shows how each widget, container and function in it is called, under it: its arguments and options with their defaults, as its lambda list has them, in a fixed-width face that can be selected and copied. It also shows the containers it did not have before, `grid`, `pressable` and `spacer`, and a segmented `choice`.
 
 ## Backwards incompatible changes in X.Y

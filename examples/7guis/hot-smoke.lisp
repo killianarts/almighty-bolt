@@ -7,12 +7,12 @@
 ;;;; the file is put back, and the app must change back. Then two saves that do not work (a file that
 ;;;; does not read, and code that fails when the app runs) must leave the old app in the window.
 ;;;; It says "The hot reload check passed" when every check holds.
-;;;; It writes examples/7guis/crud/immediate.lisp and writes back what it read, whatever happens (a
+;;;; It writes examples/7guis/crud/app.lisp and writes back what it read, whatever happens (a
 ;;;; watchdog does too). If the Lisp is killed in the middle, git checkout puts the file back.
 
 (asdf:load-system "almighty-bolt-7guis/launcher")
-(asdf:load-system "almighty-bolt-7guis/immediate")
-(asdf:load-system "almighty-bolt-stress/immediate")
+(asdf:load-system "almighty-bolt-7guis/apps")
+(asdf:load-system "almighty-bolt-stress/apps")
 
 (defpackage #:almighty-bolt-7guis/hot-smoke
   (:use #:cl)
@@ -36,7 +36,7 @@
 
 (in-package #:almighty-bolt-7guis/hot-smoke)
 
-(defparameter *file* (merge-pathnames "examples/7guis/crud/immediate.lisp" (uiop:getcwd)))
+(defparameter *file* (merge-pathnames "examples/7guis/crud/app.lisp" (uiop:getcwd)))
 (defparameter *label* "(label \"Filter prefix:\" :id :filter-label)")
 (defparameter *labelled* "(label \"Filter prefix:\" :id :probe)")
 (defparameter *original* (uiop:read-file-string *file*))
@@ -213,4 +213,4 @@ and the text of its field, as a list, or (NIL) if no field has the keyboard."
                          (sb-ext:exit :code 2 :abort t))
                        :name "hot smoke watchdog")
 ;; The event loop runs on this, the main, thread, and returns when the window is closed.
-(funcall (intern "RUN" "ALMIGHTY-BOLT-7GUIS/LAUNCHER") :immediate :crud :hot t)
+(funcall (intern "RUN" "ALMIGHTY-BOLT-7GUIS/LAUNCHER") :crud :hot t)

@@ -30,7 +30,7 @@ would."
     (d:click-at-point driver x y)))
 
 (define-test the-crud-has-the-parts-of-a-form-with-the-names-the-person-reads ()
-  (let ((driver (d:start :immediate :crud)))
+  (let ((driver (d:start :crud)))
     (assert-eq :group (s:node-role (tree driver)))
     (dolist (name '("Filter prefix:" "Name:" "Surname:"))
       (let ((field (the-node driver :role :text-field :name name)))
@@ -43,7 +43,7 @@ would."
       (assert-false (s:node-value list)))))
 
 (define-test what-is-not-possible-yet-is-disabled-and-what-the-person-did-is-in-the-state ()
-  (let ((driver (d:start :immediate :crud)))
+  (let ((driver (d:start :crud)))
     (assert-true (s:node-property (the-node driver :role :button :name "Update") :disabled))
     (assert-true (s:node-property (the-node driver :role :button :name "Delete") :disabled))
     (d:click driver :name)
@@ -58,7 +58,7 @@ would."
     (assert-false (s:node-property (the-node driver :role :button :name "Update") :disabled))))
 
 (define-test the-bounds-in-the-tree-are-where-the-widget-is ()
-  (let ((driver (d:start :immediate :crud)))
+  (let ((driver (d:start :crud)))
     ;; A press in the middle of the field's bounds gives it the keyboard, and the next keys go in it.
     (click-node driver (the-node driver :role :text-field :name "Surname:"))
     (d:type-text driver "Q")
@@ -70,7 +70,7 @@ would."
 
 (define-test every-node-is-inside-its-parent-and-inside-the-window ()
   (dolist (task '(:crud :temperature :timer :flight :circles :cells :layout :dialog))
-    (let* ((driver (d:start :immediate task))
+    (let* ((driver (d:start task))
            (tree (tree driver)))
       (destructuring-bind (x y width height) (s:node-bounds tree)
         (declare (ignore x y))
@@ -83,14 +83,14 @@ would."
                       tree)))))
 
 (define-test the-temperature-fields-are-named-by-the-labels-beside-them ()
-  (let ((driver (d:start :immediate :temperature)))
+  (let ((driver (d:start :temperature)))
     (d:click driver :celsius)
     (d:type-text driver "100")
     (assert-equal "100" (s:node-value (the-node driver :role :text-field :name "Celsius =")))
     (assert-equal "212" (s:node-value (the-node driver :role :text-field :name "Fahrenheit")))))
 
 (define-test the-timer-has-a-slider-with-its-range-and-a-bar-that-fills ()
-  (let ((driver (d:start :immediate :timer)))
+  (let ((driver (d:start :timer)))
     (let ((slider (the-node driver :role :slider :name "Duration:")))
       (assert-eql 10d0 (s:node-value slider))
       (assert-eql 1d0 (s:node-property slider :minimum))
@@ -100,7 +100,7 @@ would."
     (assert-true (< 0.4d0 (s:node-value (the-node driver :role :progress-bar)) 0.6d0))))
 
 (define-test the-flight-booker-has-a-choice-with-its-options-and-the-one-chosen ()
-  (let ((driver (d:start :immediate :flight)))
+  (let ((driver (d:start :flight)))
     (let ((choice (the-node driver :role :radio-group)))
       (assert-equal "one-way flight" (s:node-value choice))
       (assert-equal '("one-way flight" "return flight") (s:node-property choice :options)))

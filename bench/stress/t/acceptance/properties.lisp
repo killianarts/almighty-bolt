@@ -54,9 +54,9 @@
   (asdf:system-relative-pathname (format nil "almighty-bolt-~a" system) relative))
 
 (defun play (path &key measure)
-  "Play the script at PATH into a new app of the immediate variant, with the real text engine.
-Returns the replay result. The first two plays of a script are warm-ups, and the third is
-returned: the variant builds its tables in the first frame of its first play."
+  "Play the script at PATH into a new app of its task, with the real text engine. Returns the
+replay result. The first two plays of a script are warm-ups, and the third is returned: the app
+builds its tables in the first frame of its first play."
   (let* ((script (core:load-script path))
          (task (getf (core:script-header script) :app)))
     (with-masked-float-traps
@@ -66,7 +66,7 @@ returned: the variant builds its tables in the first frame of its first play."
                (context (host-context host)))
           (flet ((once (measure)
                    (core:replay script
-                                (registry:make-app-object (registry:find-app :immediate task))
+                                (registry:make-app-object (registry:find-app task))
                                 context :measure measure)))
             (once nil)
             (once nil)
@@ -113,14 +113,13 @@ frame that allocates."
 
 (define-test an-app-that-is-not-animating-asks-for-no-frame ()
   (dolist (task '(:counter :temperature :flight :crud :circles :cells :layout :dialog))
-    (dolist (variant (d:available-variants task))
-      (let ((driver (d:start variant task)))
-        ;; What the first frame asked for.
-        (d:frame-requested-p driver)
-        (d:redraw driver)
-        (assert-false (d:frame-requested-p driver) task variant)
-        (d:advance-time driver 5d0)
-        (assert-false (d:frame-requested-p driver) task variant)))))
+    (let ((driver (d:start task)))
+      ;; What the first frame asked for.
+      (d:frame-requested-p driver)
+      (d:redraw driver)
+      (assert-false (d:frame-requested-p driver) task)
+      (d:advance-time driver 5d0)
+      (assert-false (d:frame-requested-p driver) task))))
 
 ;;; --- state kept ---
 ;;;
@@ -130,8 +129,8 @@ frame that allocates."
 ;;; frame (the same text, the same commands).
 
 (defun the-same-with-and-without-a-reload (task before after)
-  (let ((plain (d:start :immediate task))
-        (reloaded (d:start :immediate task)))
+  (let ((plain (d:start task))
+        (reloaded (d:start task)))
     (funcall before plain)
     (funcall before reloaded)
     (d:reload reloaded)
@@ -202,9 +201,9 @@ frame that allocates."
 
 (define-test no-app-has-two-things-that-the-ui-cannot-tell-apart ()
   (dolist (task registry:+tasks+)
-    (assert-true (> (things-on-screen (d:start :immediate task)) 1) task))
+    (assert-true (> (things-on-screen (d:start task)) 1) task))
   (loop :for (task before after) :in +things-done-before-and-after-a-reload+
-        :do (let ((driver (d:start :immediate task)))
+        :do (let ((driver (d:start task)))
               (funcall before driver)
               (assert-true (> (things-on-screen driver) 1) task)
               (funcall after driver)

@@ -28,12 +28,12 @@
 ;;; The animated dashboard's data (the second stress app): 36 tiles in a grid, each with a name, a
 ;;; value that is a number of tenths from 0 to 99.9, and a bar, and a chart of the last 240 steps of
 ;;; three series. Every frame is a new step, so every tile changes in every frame, which is the
-;;; point: what a variant spends on a screen where everything changes.
+;;; point: what the app spends on a screen where everything changes.
 ;;;
-;;; What every variant shares is done once and allocates nothing in a step: the value of a tile at a
+;;; The model is worked out once and allocates nothing in a step: the value of a tile at a
 ;;; step is a function of the two (a sine, rounded to a tenth), the text of a value is a string in a
 ;;; table made when this file is loaded, and the history is an array that is written in place. So
-;;; the allocation that a variant shows in a frame is its own, and not the model's.
+;;; the allocation that the app shows in a frame is the ui's, and not the model's.
 
 (defconstant +columns+ 6)
 (defconstant +rows+ 6)

@@ -1,4 +1,4 @@
-(defpackage #:almighty-bolt-7guis/circles/immediate
+(defpackage #:almighty-bolt-7guis/circles/app
   (:use #:cl)
   (:import-from #:almighty-bolt-7guis/common/registry
                 #:register-app)
@@ -30,7 +30,7 @@
                 #:state-let)
   (:export #:make-circles))
 
-(in-package #:almighty-bolt-7guis/circles/immediate)
+(in-package #:almighty-bolt-7guis/circles/app)
 
 ;;; The circle drawer, immediate: the drawing, the circle under the pointer, the circle being
 ;;; adjusted and its diameter so far are variables. The canvas is given a function that draws
@@ -90,4 +90,4 @@
                     (when (button "Done" :id :done)
                       (close-dialog))))))))))))
 
-(register-app :immediate :circles 'make-circles :width 420 :height 340)
+(register-app :circles 'make-circles :width 420 :height 340)

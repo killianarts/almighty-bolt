@@ -1,4 +1,4 @@
-(defpackage #:almighty-bolt-7guis/counter/immediate
+(defpackage #:almighty-bolt-7guis/counter/app
   (:use #:cl)
   (:import-from #:almighty-bolt-7guis/common/registry
                 #:register-app)
@@ -10,7 +10,7 @@
                 #:state-let)
   (:export #:make-counter))
 
-(in-package #:almighty-bolt-7guis/counter/immediate)
+(in-package #:almighty-bolt-7guis/counter/app)
 
 ;;; The Counter, immediate: the count is a variable, and the function that describes the
 ;;; screen is called again for every frame. The button says whether it was clicked.
@@ -24,4 +24,4 @@
           (when (button "Count" :id :count-button)
             (incf count)))))))
 
-(register-app :immediate :counter 'make-counter :width 360 :height 160)
+(register-app :counter 'make-counter :width 360 :height 160)

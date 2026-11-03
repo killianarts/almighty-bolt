@@ -1,4 +1,4 @@
-(:almighty-bolt-replay 1 :variant :immediate :app :counter :width 360 :height 160)
+(:almighty-bolt-replay 1 :app :counter :width 360 :height 160)
 (0 (:pointer :kind :move :target :count-button :fx 0.5d0 :fy 0.5d0))
 (1000000 (:pointer :kind :down :target :count-button :fx 0.5d0 :fy 0.5d0 :button 0 :buttons 1 :click-count 1))
 (2000000 (:pointer :kind :up :target :count-button :fx 0.5d0 :fy 0.5d0 :button 0 :click-count 1))

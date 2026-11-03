@@ -23,7 +23,7 @@
 
 (in-package #:almighty-bolt-stress/rows/paint)
 
-;;; How the list looks, the same in every variant: a dark ground with a lighter stripe on every
+;;; How the list looks: a dark ground with a lighter stripe on every
 ;;; second row, the selected row in blue, the number of the row, a name and a value across, and the
 ;;; bar at the right with its thumb.
 

@@ -21,15 +21,13 @@
 ;;; as it is open (the dashboard) is measured in the ten seconds after its first frame instead, and
 ;;; its record says :state :animating.
 
-(defparameter +variants+ '(:immediate))
 (defparameter +tasks+ '(:counter :temperature :flight :timer :crud :circles :cells))
 (defparameter +animated-tasks+ '(:dashboard)
   "The tasks that never stop drawing. They cannot be waited on to be quiet, so the window that is
 measured is the first ten seconds after the first frame, and the record says :state :animating: the
 numbers are what the animation costs, not an idle floor.")
 
-(defun image-path (variant)
-  (format nil "build/~(~a~)" variant))
+(defparameter +image+ "build/apps" "The executable of the example apps that make image writes.")
 
 (defun file-size (path)
   (with-open-file (stream path :element-type '(unsigned-byte 8))
@@ -74,10 +72,10 @@ numbers are what the animation costs, not an idle floor.")
   (let ((text (results:shell "ps" "-o" "rss=" "-p" (princ-to-string pid))))
     (and text (plusp (length text)) (parse-integer text :junk-allowed t))))
 
-(defun launch (variant task)
+(defun launch (task)
   (let ((process (uiop:launch-program
                   (list "/usr/bin/env" (format nil "TASK=~(~a~)" task) "MEASURE=1"
-                        (image-path variant))
+                        +image+)
                   :output :stream :error-output nil)))
     (let ((watched (make-watched process)))
       (start-watching watched)
@@ -97,10 +95,10 @@ Returns that line, or NIL after TIMEOUT seconds."
       (when (> (get-internal-real-time) deadline) (return nil))
       (sleep poll))))
 
-(defun startup-only (variant task)
+(defun startup-only (task)
   "Start the executable and say how many nanoseconds it took to present its first frame."
   (let* ((start (core:real-time-source))
-         (watched (launch variant task)))
+         (watched (launch task)))
     (unwind-protect
          (let ((line (wait-for watched (lambda (line) (eql 0 (search "first-frame-ns" line))))))
            (and line (- (parse-integer (second (words line))) start)))
@@ -119,22 +117,22 @@ interval and the memory, of the second sample."
             :wakeups (parse-integer (third fields) :junk-allowed t)
             :memory (fourth fields)))))
 
-(defun measure-app (variant task &key (idle-seconds 10) (wait-quiet t))
-  "Start the executable of VARIANT, running TASK, and measure it. Returns a plist. With WAIT-QUIET
+(defun measure-app (task &key (idle-seconds 10) (wait-quiet t))
+  "Start the executable of the apps, running TASK, and measure it. Returns a plist. With WAIT-QUIET
 false the window is measured at once, whatever it is doing: a check that the measurement sees an
 app that is not idle."
   (let* ((start (core:real-time-source))
-         (watched (launch variant task))
+         (watched (launch task))
          (pid (uiop:process-info-pid (watched-process watched)))
          (peak 0) (frames nil) (heap nil) (quiet-ticks 0) (last-frames -1) (waited 0))
     (unwind-protect
          (let ((first (wait-for watched (lambda (line) (eql 0 (search "first-frame-ns" line))))))
-           (unless first (error "~(~a ~a~) did not present a frame in 60 s." variant task))
+           (unless first (error "~(~a~) did not present a frame in 60 s." task))
            (let ((startup (- (parse-integer (second (words first))) start)))
              ;; Wait until it has stopped drawing, watching how large it gets.
              (loop
                (let ((tick (wait-for watched (lambda (line) (eql 0 (search "tick" line))) :timeout 5)))
-                 (unless tick (error "~(~a ~a~) stopped reporting." variant task))
+                 (unless tick (error "~(~a~) stopped reporting." task))
                  (let ((numbers (mapcar #'parse-integer (rest (words tick)))))
                    (setf frames (first numbers) heap (second numbers))
                    (setf peak (max peak (or (rss-kb pid) 0)))
@@ -142,7 +140,7 @@ app that is not idle."
                    (setf last-frames frames)
                    (incf waited)
                    (when (or (>= quiet-ticks 3) (not wait-quiet)) (return))
-                   (when (> waited 90) (error "~(~a ~a~) kept drawing for 90 s." variant task)))))
+                   (when (> waited 90) (error "~(~a~) kept drawing for 90 s." task)))))
              ;; The idle window.
              (let* ((frames-before frames)
                     (rss-before (rss-kb pid))
@@ -172,32 +170,27 @@ app that is not idle."
   (let* ((repetitions (results:environment-number "REPS" 5))
          (idle-seconds (results:environment-number "IDLE" 10))
          (directory (uiop:ensure-directory-pathname (or (uiop:getenv "OUT") "results/")))
-         (variants (let ((v (uiop:getenv "VARIANTS")))
-                     (if (and v (plusp (length v)))
-                         (mapcar (lambda (name) (intern (string-upcase name) :keyword))
-                                 (uiop:split-string v :separator ","))
-                         +variants+)))
          (tasks (let ((v (uiop:getenv "TASKS")))
                   (if (and v (plusp (length v)))
                       (mapcar (lambda (name) (intern (string-upcase name) :keyword))
                               (uiop:split-string v :separator ","))
                       +tasks+)))
          (date (results:timestamp)) (source (results:source-state)) (machine (results:machine-profile)))
-    (dolist (variant variants)
-      (unless (probe-file (image-path variant))
-        (error "There is no ~a: make image VARIANT=~(~a~) first." (image-path variant) variant))
-      (let ((image (list :bytes (file-size (image-path variant))
-                         :gzip-bytes (compressed-size (image-path variant)))))
+    (progn
+      (unless (probe-file +image+)
+        (error "There is no ~a: make image first." +image+))
+      (let ((image (list :bytes (file-size +image+)
+                         :gzip-bytes (compressed-size +image+))))
         (dolist (task tasks)
           (let* ((animating (and (member task +animated-tasks+) t))
-                 (first (measure-app variant task :idle-seconds idle-seconds
+                 (first (measure-app task :idle-seconds idle-seconds
                                                   :wait-quiet (not animating)))
                  (startups (cons (getf first :startup-ns)
                                  (loop :repeat (1- repetitions)
-                                       :collect (or (startup-only variant task)
+                                       :collect (or (startup-only task)
                                                     (error "No first frame."))))))
             (let* ((record (append (list :date date) source
-                                   (list :mode :app :variant variant :app task :script-name "idle-startup"
+                                   (list :mode :app :app task :script-name "idle-startup"
                                          :state (if animating :animating :idle)
                                          :machine machine :repetitions repetitions
                                          :image image
@@ -206,8 +199,8 @@ app that is not idle."
                                                         :max-ns (reduce #'max startups))
                                          :idle (getf first :idle) :memory (getf first :memory))))
                    (idle (getf first :idle)))
-              (format t "~&~(~10a ~10a~) ~:[~;[animating] ~]startup ~6,1f ms (~,1f to ~,1f)  idle: ~d frames, ~,1f% cpu, ~,1f wakeups/s   rss ~,1f MB (peak ~,1f)  heap ~,1f MB   image ~,1f MB (gzip ~,1f)~%"
-                      variant task animating (/ (getf (getf record :startup) :median-ns) 1d6)
+              (format t "~&~(~10a~) ~:[~;[animating] ~]startup ~6,1f ms (~,1f to ~,1f)  idle: ~d frames, ~,1f% cpu, ~,1f wakeups/s   rss ~,1f MB (peak ~,1f)  heap ~,1f MB   image ~,1f MB (gzip ~,1f)~%"
+                      task animating (/ (getf (getf record :startup) :median-ns) 1d6)
                       (/ (getf (getf record :startup) :min-ns) 1d6)
                       (/ (getf (getf record :startup) :max-ns) 1d6)
                       (getf idle :frames) (or (getf idle :cpu-percent) -1) (or (getf idle :wakeups-per-second) -1)

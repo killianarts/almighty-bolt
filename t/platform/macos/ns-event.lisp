@@ -6,7 +6,7 @@
 
 ;;; The part of the translation of AppKit's events that needs no AppKit object. What
 ;;; a real key press gives is checked by running an app in a window and reading its
-;;; log (`make 7guis VARIANT=immediate TASK=counter LOG=1`).
+;;; log (`make 7guis TASK=counter LOG=1`).
 
 (define-test the-logical-key-is-the-first-character-of-the-event ()
   (assert-eql #\a (ns-event:logical-key "a"))

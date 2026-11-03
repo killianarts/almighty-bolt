@@ -33,9 +33,10 @@
 (in-package #:almighty-bolt/replay/script)
 
 ;;; A replay script is a list of s-expressions, so that it can be read, written and edited by
-;;; hand. The first is the header, =(:almighty-bolt-replay 1 :variant :immediate :app :counter
-;;; :width 360 :height 160 :scale 2.0)=, and each of the others is an entry, =(TIME FORM)=:
-;;; TIME is nanoseconds on the virtual clock from the start, and FORM is one of
+;;; hand. The first is the header, =(:almighty-bolt-replay 1 :app :counter :width 360 :height 160
+;;; :scale 2.0)=, and each of the others is an entry, =(TIME FORM)=. (Scripts recorded before 0.3
+;;; have =:variant :immediate= in the header too, from when there was more than one kind of ui; it
+;;; is not read.) TIME is nanoseconds on the virtual clock from the start, and FORM is one of
 ;;;
 ;;;   (:pointer :kind :down :x 12.5d0 :y 40.0d0 :button 0 :buttons 1 :click-count 1)
 ;;;   (:pointer :kind :down :target :count-button :fx 0.5d0 :fy 0.5d0 :button 0 ...)
@@ -46,8 +47,8 @@
 ;;;   (:checkpoint :name "after the click" :hash 123456789)
 ;;;
 ;;; An event with a :TARGET is placed at the fraction :FX, :FY across and down the rectangle
-;;; that the variant's LOOKUP-TARGET gives for that id at the time it is delivered, so one
-;;; script can drive variants whose layouts differ by a few pixels. Anything that is its
+;;; that the app's LOOKUP-TARGET gives for that id at the time it is delivered, so a script
+;;; still drives an app whose layout has moved by a few pixels. Anything that is its
 ;;; default (no button, no modifiers) is left out. Only keywords, numbers, characters and
 ;;; strings appear, and the reader never evaluates anything.
 

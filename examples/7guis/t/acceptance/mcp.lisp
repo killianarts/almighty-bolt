@@ -72,7 +72,7 @@ element of an array."
 
 (defmacro with-client ((stream) &body body)
   "Run BODY with STREAM connected to a server that works a CRUD."
-  `(let* ((driver (d:start :immediate :crud))
+  `(let* ((driver (d:start :crud))
           (server (mcp:start-mcp-server :announce nil
                                         :session-function (lambda () (d:driver-session driver))))
           (,stream (connect (mcp:mcp-server-port server))))
@@ -172,7 +172,7 @@ element of an array."
 (define-test every-tool-makes-the-events-of-what-a-person-would-do ()
   ;; The session is wrapped to write down what is delivered to the app and how often it is waited on,
   ;; so that each tool can be seen to make the events of what a person would do.
-  (let* ((driver (d:start :immediate :crud))
+  (let* ((driver (d:start :crud))
          (events '())
          (settled 0)
          (server (mcp:start-mcp-server
@@ -222,7 +222,7 @@ element of an array."
   ;; The driver has no window to look at, so the session is given a picture: the eight bytes that
   ;; begin every PNG, and the same cut at seven and extended to nine, which are the three ways that
   ;; base64 ends (two padding signs, one, none).
-  (let* ((driver (d:start :immediate :crud))
+  (let* ((driver (d:start :crud))
          (picture #(137 80 78 71 13 10 26 10 0))
          (length 8)
          (server (mcp:start-mcp-server
@@ -254,7 +254,7 @@ element of an array."
       (mcp:stop-mcp-server server))))
 
 (define-test the-server-listens-on-this-machine-only-and-stopping-it-closes-everything ()
-  (let* ((driver (d:start :immediate :crud))
+  (let* ((driver (d:start :crud))
          (server (mcp:start-mcp-server :announce nil
                                        :session-function (lambda () (d:driver-session driver))))
          (port (mcp:mcp-server-port server))
@@ -279,7 +279,7 @@ element of an array."
         (mcp:stop-mcp-server again)))))
 
 (define-test several-clients-at-once-each-get-their-own-answers ()
-  (let* ((driver (d:start :immediate :crud))
+  (let* ((driver (d:start :crud))
          (server (mcp:start-mcp-server :announce nil
                                        :session-function (lambda () (d:driver-session driver))))
          (a (connect (mcp:mcp-server-port server)))

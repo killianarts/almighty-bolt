@@ -9,7 +9,6 @@
            #:driver-list
            #:resize
            #:define-acceptance
-           #:available-variants
            #:start
            #:reload
            #:redraw
@@ -43,12 +42,10 @@
 
 (in-package #:almighty-bolt-7guis/t/acceptance/driver)
 
-;;; A user, as a test: it starts an app by variant and task, finds its controls by id
-;;; through the variant's HIT-TARGET and LOOKUP-TARGET, drives them with pointer and key
-;;; events as a window would deliver them, and reads what the app shows from the display
-;;; list, which with the fake context draws a character as a command whose parameter is
-;;; its code. Nothing here knows which variant it is driving, so the same tests hold all
-;;; of them to the same behaviour.
+;;; A user, as a test: it starts the app of a task, finds its controls by id through its
+;;; HIT-TARGET and LOOKUP-TARGET, drives them with pointer and key events as a window would
+;;; deliver them, and reads what the app shows from the display list, which with the fake
+;;; context draws a character as a command whose parameter is its code.
 
 (defstruct (driver (:constructor %make-driver (variant context clock list)))
   variant
@@ -62,30 +59,19 @@
   (gestures 0))
 
 (defmacro define-acceptance (name task &body body)
-  "Define a test for each variant that has an app for TASK (those loaded when this is
-compiled), named NAME/VARIANT. BODY runs with DRIVER (a symbol in the package of the
-caller) bound to a driver that has started the app."
+  "Define a test called NAME of the app for TASK. BODY runs with DRIVER (a symbol in the package
+of the caller) bound to a driver that has started the app."
   (let ((driver (intern "DRIVER" *package*)))
-    `(progn
-       ,@(loop :for variant :in (available-variants task)
-               :collect `(lisp-unit2:define-test ,(intern (format nil "~a/~a" name variant)
-                                                          *package*)
-                             ()
-                           (let ((,driver (start ,variant ,task)))
-                             (declare (ignorable ,driver))
-                             ,@body))))))
+    `(lisp-unit2:define-test ,name ()
+       (let ((,driver (start ,task)))
+         (declare (ignorable ,driver))
+         ,@body))))
 
-(defun available-variants (task)
-  "The variants that have an app for TASK."
-  (loop :for variant :in registry:+variants+
-        :when (registry:find-app variant task)
-          :collect variant))
-
-(defun start (variant task)
-  "Start the app of TASK in VARIANT and draw its first frame, and return the driver. The
-clock the app sees is a virtual one, which ADVANCE-TIME moves."
-  (let* ((app (or (registry:find-app variant task)
-                  (error "No ~(~a~) app for ~(~a~)." variant task)))
+(defun start (task)
+  "Start the app of TASK and draw its first frame, and return the driver. The clock the app sees
+is a virtual one, which ADVANCE-TIME moves."
+  (let* ((app (or (registry:find-app task)
+                  (error "No app for ~(~a~)." task)))
          (context (fake:make-fake-context :width (float (registry:app-width app) 1f0)
                                           :height (float (registry:app-height app) 1f0)))
          (clock (core:make-virtual-clock 1000000000))

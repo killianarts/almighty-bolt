@@ -58,8 +58,8 @@
 
 (in-package #:almighty-bolt-stress/editor/control)
 
-;;; What the events do to the document, the same in every variant. Each function returns true if the
-;;; event was one that the editor handles (so that the variant redraws, and says the key is used).
+;;; What the events do to the document. Each function returns true if the event was one that the
+;;; editor handles (so that the app redraws, and says the key is used).
 
 (defun editor-key (document event)
   "A key: the arrows (with Shift to extend the selection), Home, End, the pages, Backspace and

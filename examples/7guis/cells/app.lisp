@@ -1,4 +1,4 @@
-(defpackage #:almighty-bolt-7guis/cells/immediate
+(defpackage #:almighty-bolt-7guis/cells/app
   (:use #:cl)
   (:import-from #:almighty-bolt
                 #:make-text-state
@@ -42,7 +42,7 @@
                 #:paint-grid)
   (:export #:make-cells))
 
-(in-package #:almighty-bolt-7guis/cells/immediate)
+(in-package #:almighty-bolt-7guis/cells/app)
 
 ;;; The cells task, immediate: the sheet is a mutable object, and which cell is selected,
 ;;; where the grid is scrolled to and what is being typed are variables. The grid is drawn by
@@ -141,4 +141,4 @@
                 (:wheel (scroll (second event) (third event)))
                 ((:move :drag :release :exit) nil)))))))))
 
-(register-app :immediate :cells 'make-cells :width 640 :height 440)
+(register-app :cells 'make-cells :width 640 :height 440)

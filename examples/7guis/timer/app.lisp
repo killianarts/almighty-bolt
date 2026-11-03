@@ -1,4 +1,4 @@
-(defpackage #:almighty-bolt-7guis/timer/immediate
+(defpackage #:almighty-bolt-7guis/timer/app
   (:use #:cl)
   (:import-from #:almighty-bolt-7guis/common/registry
                 #:register-app)
@@ -22,7 +22,7 @@
                 #:state-let)
   (:export #:make-timer-app))
 
-(in-package #:almighty-bolt-7guis/timer/immediate)
+(in-package #:almighty-bolt-7guis/timer/app)
 
 ;;; The timer, immediate: the elapsed time and the duration are variables, and the function
 ;;; that describes the screen first lets the time that has passed since it was last called go
@@ -63,4 +63,4 @@
               (setf elapsed 0d0
                     last-time nil))))))))
 
-(register-app :immediate :timer 'make-timer-app :width 460 :height 250)
+(register-app :timer 'make-timer-app :width 460 :height 250)

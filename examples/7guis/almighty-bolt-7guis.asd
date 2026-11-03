@@ -1,6 +1,6 @@
 (defsystem "almighty-bolt-7guis"
   :version "0.2.0"
-  :description "The logic of the seven 7GUIs tasks, shared by every variant's version of them"
+  :description "The logic of the seven 7GUIs tasks"
   :author "Micah Killian"
   :maintainer "Micah Killian <micah@almightylisp.com>"
   :license "MIT"
@@ -17,7 +17,7 @@
                (:module "dialog" :components ((:file "text")))))
 
 (defsystem "almighty-bolt-7guis/launcher"
-  :description "Open a task of a variant in a window"
+  :description "Open a task in a window"
   :depends-on ("almighty-bolt-7guis" "almighty-bolt")
   :serial t
   :components ((:module "launcher" :if-feature :darwin :components ((:file "launcher")))))
@@ -25,7 +25,7 @@
 (defsystem "almighty-bolt-7guis/acceptance"
   :description "Behavioural tests of every task: events in, what the app shows out"
   :depends-on ("almighty-bolt-7guis" "almighty-bolt/test-support" "almighty-bolt/mcp"
-               "almighty-bolt-7guis/immediate"
+               "almighty-bolt-7guis/apps"
                "lisp-unit2" "flexi-streams")
   :serial t
   :components ((:module "t"
@@ -73,16 +73,16 @@
                       (when bad
                         (error "~d 7GUIs acceptance test~:p failed." (length bad))))))
 
-(defsystem "almighty-bolt-7guis/immediate"
-  :description "The seven 7GUIs tasks in the immediate variant"
+(defsystem "almighty-bolt-7guis/apps"
+  :description "The seven 7GUIs tasks"
   :depends-on ("almighty-bolt-7guis")
   :serial t
-  :components ((:module "counter" :components ((:file "immediate")))
-               (:module "temperature" :components ((:file "immediate")))
-               (:module "flight" :components ((:file "immediate")))
-               (:module "timer" :components ((:file "immediate")))
-               (:module "crud" :components ((:file "immediate")))
-               (:module "circles" :components ((:file "immediate")))
-               (:module "cells" :components ((:file "immediate")))
-               (:module "layout" :components ((:file "immediate")))
-               (:module "dialog" :components ((:file "immediate")))))
+  :components ((:module "counter" :components ((:file "app")))
+               (:module "temperature" :components ((:file "app")))
+               (:module "flight" :components ((:file "app")))
+               (:module "timer" :components ((:file "app")))
+               (:module "crud" :components ((:file "app")))
+               (:module "circles" :components ((:file "app")))
+               (:module "cells" :components ((:file "app")))
+               (:module "layout" :components ((:file "app")))
+               (:module "dialog" :components ((:file "app")))))

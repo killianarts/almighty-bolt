@@ -38,7 +38,7 @@
 
 (in-package #:almighty-bolt-stress/editor/paint)
 
-;;; How the editor looks, the same in every variant: a gutter of line numbers, the lines that show
+;;; How the editor looks: a gutter of line numbers, the lines that show
 ;;; in a font of equal widths, the selection behind them, the caret, and the text an input method is
 ;;; composing underlined where it will go. It also says where the caret is (in the window) so that the
 ;;; input method can put its candidates beside it, and what a character is wide so that a click can

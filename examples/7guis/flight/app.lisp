@@ -1,4 +1,4 @@
-(defpackage #:almighty-bolt-7guis/flight/immediate
+(defpackage #:almighty-bolt-7guis/flight/app
   (:use #:cl)
   (:import-from #:almighty-bolt-7guis/common/registry
                 #:register-app)
@@ -17,7 +17,7 @@
                 #:state-let)
   (:export #:make-flight))
 
-(in-package #:almighty-bolt-7guis/flight/immediate)
+(in-package #:almighty-bolt-7guis/flight/app)
 
 ;;; The flight booker, immediate: the kind of flight, the two dates and the message are
 ;;; variables, and which fields are red, whether the return date can be used and whether Book
@@ -57,4 +57,4 @@
               (setf message (booking-message flight-kind start return)))
             (label message :id :message)))))))
 
-(register-app :immediate :flight 'make-flight :width 460 :height 290)
+(register-app :flight 'make-flight :width 460 :height 290)

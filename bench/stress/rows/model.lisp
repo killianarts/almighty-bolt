@@ -31,9 +31,9 @@
 
 ;;; The million-row list (the third stress app): a list of a million rows of which 18 show, a
 ;;; scroll bar at its right, a row selected. The rows are not kept: what a row shows is worked out
-;;; from its index when it is drawn, so that the memory a variant uses is its own and not a
+;;; from its index when it is drawn, so that the memory the app uses is its own and not a
 ;;; million rows'. Everything here is on plain numbers (the index of the first row that shows, the
-;;; index of the selected row), so that each variant holds those as it likes.
+;;; index of the selected row), which the app holds as it likes.
 
 (defconstant +row-count+ 1000000)
 (defconstant +row-height+ 22)

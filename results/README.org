@@ -2,7 +2,7 @@
 
 One file per run of a script in an app, written by =make bench-run= (the harness of
 =bench/results.lisp=). A record is a single s-expression:
-=(:almighty-bolt-result 2 :date .. :commit .. :dirty .. :variant .. :app .. :script ..
+=(:almighty-bolt-result 3 :date .. :commit .. :dirty .. :app .. :script ..
 :machine (..) :repetitions .. :warmups .. :runs (..) :summary (..))=. =:runs= holds the raw
 samples of every repetition (the build time of each frame in nanoseconds, the builds it took,
 the bytes consed while it was built), =:summary= what they say. The first frame of a run is
@@ -15,8 +15,10 @@ the display, nor its encoding. The numbers are of the machine in =:machine=; com
 only from the same machine and treat differences within the spread of the repetitions as ties.
 
 * Modes
-Records of version 1 have no =:mode= and are =:headless=. The latest record of each mode, app
-and script is what =make bench-report= prints.
+Records of version 1 have no =:mode= and are =:headless=. Records of versions 1 and 2 also have
+=:variant=, always =:immediate=: it named one of the kinds of ui that the project once compared,
+and is not read. The latest record of each mode, app and script is what =make bench-report=
+prints.
 
 - =:headless= (=make bench-run=): the ui's build of a frame, with no renderer.
 - =:host= (=make bench-run=): the script played through the host's frame (=run-frame=) into an

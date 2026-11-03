@@ -1,4 +1,4 @@
-(defpackage #:almighty-bolt-stress/editor/immediate
+(defpackage #:almighty-bolt-stress/editor/app
   (:use #:cl)
   (:import-from #:almighty-bolt-7guis/common/registry
                 #:register-app)
@@ -25,7 +25,7 @@
                 #:state-let)
   (:export #:make-editor-app))
 
-(in-package #:almighty-bolt-stress/editor/immediate)
+(in-package #:almighty-bolt-stress/editor/app)
 
 ;;; The text editor, immediate. The canvas is given a function that draws the document every frame
 ;;; and returns what happened to it, which is handled where it is described. The canvas draws in its
@@ -56,4 +56,4 @@
                                    :focusable t :autofocus t))
               (handle event))))))))
 
-(register-app :immediate :editor 'make-editor-app :width 740 :height 560)
+(register-app :editor 'make-editor-app :width 740 :height 560)

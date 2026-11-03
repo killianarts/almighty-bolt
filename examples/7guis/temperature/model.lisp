@@ -10,7 +10,7 @@
 
 (in-package #:almighty-bolt-7guis/temperature/model)
 
-;;; The temperature converter's logic, which every variant's version shares: what a text
+;;; The temperature converter's logic: what a text
 ;;; means as a number, and what the other field shows when one of them is typed into. A
 ;;; text that is not a number changes nothing, which is the task's rule.
 

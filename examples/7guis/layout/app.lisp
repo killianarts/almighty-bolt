@@ -1,4 +1,4 @@
-(defpackage #:almighty-bolt-7guis/layout/immediate
+(defpackage #:almighty-bolt-7guis/layout/app
   (:use #:cl)
   (:import-from #:almighty-bolt-7guis/common/registry
                 #:register-app)
@@ -17,7 +17,7 @@
                 #:row)
   (:export #:make-layout))
 
-(in-package #:almighty-bolt-7guis/layout/immediate)
+(in-package #:almighty-bolt-7guis/layout/app)
 
 ;;; The layout screen: the function describes the screen with the parents opened
 ;;; before their children, and layout runs afterwards over the boxes it made, so a pane's
@@ -43,4 +43,4 @@
             (panel (:all +gap+ :flex 1 :id :bottom-right)
               (paragraph +small-text+ :id :right-text))))))))
 
-(register-app :immediate :layout 'make-layout :width 640 :height 420)
+(register-app :layout 'make-layout :width 640 :height 420)

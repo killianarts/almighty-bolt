@@ -56,7 +56,7 @@
 ;;; The text editor (the fourth stress app): a document held as a gap buffer, so that an edit at
 ;;; the caret moves no text but what lies in the gap's way, with an index of where each line begins,
 ;;; a caret, an anchor (the other end of a selection), and the line that shows at the top. The
-;;; editing is here, on positions and strings, so that each variant has only to give it the events
+;;; editing is here, on positions and strings, so that the app has only to give it the events
 ;;; and to draw it again; the text is drawn by paint.lisp. A document of a few megabytes is held as
 ;;; one array of characters (four bytes each), which is what is being stressed: the line cache of the
 ;;; text engine and the drawing of a screenful of a large text.

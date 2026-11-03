@@ -14,7 +14,7 @@
 
 (in-package #:almighty-bolt-7guis/circles/paint)
 
-;;; How the circle drawer's canvas looks, the same in every variant: a dark ground and each
+;;; How the circle drawer's canvas looks: a dark ground and each
 ;;; circle as an outline with a fill just inside it, grey for the one under the pointer. A
 ;;; circle being adjusted is drawn with the diameter the slider has now.
 

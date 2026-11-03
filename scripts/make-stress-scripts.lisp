@@ -13,7 +13,7 @@
 ;;;;   sbcl --script scripts/make-stress-scripts.lisp
 ;;;; They are made here, in the script format of src/replay/script.lisp, and not recorded from a
 ;;;; session, because a session of a person's is not the same twice and these have to be: each is a
-;;;; fixed timeline of events at the control that they name, so that every variant is driven the same.
+;;;; fixed timeline of events at the control that they name, so that every run is driven the same.
 ;;;; Times are in nanoseconds; an event is at a fraction of a control.
 
 (defconstant +ms+ 1000000)
@@ -51,7 +51,7 @@ the bar."
                               :fy (+ 0.1d0 (* i 0.02d0)) :buttons 1)))
       (at (* 16 +ms+) '(:pointer :kind :up :target :list :fx 0.988d0 :fy 0.9d0 :button 0))
       (at (* 100 +ms+) '(:checkpoint :name "end")))
-    (write-script "rows-scroll" '(:variant :immediate :app :rows
+    (write-script "rows-scroll" '(:app :rows
                                   :width 640 :height 470)
                   (nreverse entries))))
 
@@ -105,7 +105,7 @@ five compositions of a few steps each, and a drag over several lines."
       (at (* 16 +ms+) '(:pointer :kind :up :target :editor :fx 0.5d0 :fy 0.85d0 :button 0))
       (at (* 50 +ms+) (key #\a core:+modifier-super+))
       (at (* 100 +ms+) '(:checkpoint :name "end")))
-    (write-script "editor-session" '(:variant :immediate :app :editor
+    (write-script "editor-session" '(:app :editor
                                      :width 740 :height 560)
                   (nreverse entries))))
 

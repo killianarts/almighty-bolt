@@ -18,15 +18,15 @@
 (in-package #:almighty-bolt-scripts/replay)
 
 ;;;; Play a replay script back into one of the 7GUIs apps, with the real text engine, and say
-;;;; what happened. From the repository root:  make replay SCRIPT=path [VARIANT=..] [FREEZE=path]
+;;;; what happened. From the repository root:  make replay SCRIPT=path [FREEZE=path]
 
 (defun environment (name)
   (let ((value (uiop:getenv name)))
     (and value (plusp (length value)) value)))
 
-(defun run-once (script variant task)
-  "Play SCRIPT into a new VARIANT app of TASK. Returns the result."
-  (let ((object (registry:make-app-object (registry:find-app variant task))))
+(defun run-once (script task)
+  "Play SCRIPT into a new app of TASK. Returns the result."
+  (let ((object (registry:make-app-object (registry:find-app task))))
     (with-masked-float-traps
       (with-autorelease-pool
         (let* ((host (make-host (make-instance 'core:variant) (default-device)
@@ -34,9 +34,9 @@
                (context (host-context host)))
           (core:replay script object context))))))
 
-(defun report (result variant task)
-  (format t "~&~(~a~) ~(~a~): ~d frames, ~d builds, ~d hit the settle cap, ~d checkpoints~%"
-          variant task (core:replay-result-frames result) (core:replay-result-builds result)
+(defun report (result task)
+  (format t "~&~(~a~): ~d frames, ~d builds, ~d hit the settle cap, ~d checkpoints~%"
+          task (core:replay-result-frames result) (core:replay-result-builds result)
           (core:replay-result-capped result) (length (core:replay-result-checkpoints result)))
   (dolist (checkpoint (core:replay-result-checkpoints result))
     (unless (core:checkpoint-passed-p checkpoint)
@@ -53,29 +53,26 @@
   (let* ((path (or (environment "SCRIPT") (error "Say which script with SCRIPT=path.")))
          (script (core:load-script path))
          (header (core:script-header script))
-         (variant (if (environment "VARIANT")
-                      (intern (string-upcase (environment "VARIANT")) :keyword)
-                      (getf header :variant)))
          (task (getf header :app))
          (freeze (environment "FREEZE")))
-    (unless (and variant task)
-      (error "The script's header names no :variant and :app, and VARIANT= does not say."))
-    (asdf:load-system (format nil "almighty-bolt-7guis/~(~a~)" variant))
-    (asdf:load-system (format nil "almighty-bolt-stress/~(~a~)" variant))
+    (unless task
+      (error "The script's header names no :app."))
+    (asdf:load-system "almighty-bolt-7guis/apps")
+    (asdf:load-system "almighty-bolt-stress/apps")
     (cond
       (freeze
        (let* ((with (core:script-with-checkpoints script))
-              (first-run (run-once with variant task))
-              (second-run (run-once with variant task)))
+              (first-run (run-once with task))
+              (second-run (run-once with task)))
          (unless (equalp (core:replay-result-hashes first-run) (core:replay-result-hashes second-run))
            (format t "~&The two runs of the script give different frames: not writing ~a.~%" freeze)
            (uiop:quit 1))
          (core:save-script (core:freeze-checkpoints with first-run) freeze)
-         (report first-run variant task)
+         (report first-run task)
          (format t "~&Played twice with the same frames; wrote ~a.~%" freeze)))
       (t
-       (let ((result (run-once script variant task)))
-         (unless (and (report result variant task) (core:replay-ok-p result))
+       (let ((result (run-once script task)))
+         (unless (and (report result task) (core:replay-ok-p result))
            (uiop:quit 1)))))))
 
 (main)

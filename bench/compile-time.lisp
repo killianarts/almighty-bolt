@@ -12,14 +12,12 @@
 ;;; incremental steps touch are touched back to what they were:
 ;;; only their modification times change.
 
-(defparameter +variants+ '("immediate"))
-
-(defun run-once (variant)
-  "The steps of one compile of VARIANT, as a list of (name . seconds)."
-  (let* ((cache (format nil "/tmp/almighty-bolt-compile-cache-~a-~d/" variant (get-universal-time)))
+(defun run-once ()
+  "The steps of one compile, as a list of (name . seconds)."
+  (let* ((cache (format nil "/tmp/almighty-bolt-compile-cache-~d/" (get-universal-time)))
          (output (unwind-protect
                       (uiop:run-program
-                       (list "env" (format nil "VARIANT=~a" variant) (format nil "CACHE=~a" cache)
+                       (list "env" (format nil "CACHE=~a" cache)
                              "sbcl" "--noinform" "--non-interactive" "--no-sysinit" "--no-userinit"
                              "--load" "scripts/compile-time.lisp")
                        :output :string :error-output nil)
@@ -36,19 +34,18 @@
          (directory (uiop:ensure-directory-pathname (or (uiop:getenv "OUT") "results/")))
          (date (results:timestamp)) (source (results:source-state))
          (machine (results:machine-profile)))
-    (dolist (variant +variants+)
-      (let ((runs (loop :repeat repetitions :collect (run-once variant))))
+    (progn
+      (let ((runs (loop :repeat repetitions :collect (run-once))))
         (let* ((names (mapcar #'car (first runs)))
                (medians (loop :for name :in names
                               :collect (cons name (core:median
                                                    (mapcar (lambda (run) (cdr (assoc name run :test #'string=)))
                                                            runs))))))
-          (format t "~&~(~10a~) ~{~a~^   ~}~%" variant
+          (format t "~&~{~a~^   ~}~%"
                   (mapcar (lambda (entry) (format nil "~a ~,2f s" (car entry) (cdr entry))) medians))
           (results:write-record
            directory
            (append (list :date date) source
-                   (list :mode :compile :variant (intern (string-upcase variant) :keyword)
-                         :app :compile :script-name "compile-time" :machine machine
+                   (list :mode :compile :app :compile :script-name "compile-time" :machine machine
                          :repetitions repetitions :runs runs :medians medians))))))
     (format t "~&Records written to ~a~%" directory)))

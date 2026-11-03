@@ -1,4 +1,4 @@
-(defpackage #:almighty-bolt-7guis/temperature/immediate
+(defpackage #:almighty-bolt-7guis/temperature/app
   (:use #:cl)
   (:import-from #:almighty-bolt-7guis/common/registry
                 #:register-app)
@@ -13,7 +13,7 @@
                 #:state-let)
   (:export #:make-temperature))
 
-(in-package #:almighty-bolt-7guis/temperature/immediate)
+(in-package #:almighty-bolt-7guis/temperature/app)
 
 ;;; The temperature converter, immediate: the text of each field is a variable the field is
 ;;; given every frame, and a field that was typed in returns the new text, which is written to
@@ -42,4 +42,4 @@
                   (setf celsius other)))))
           (label "Fahrenheit" :id :fahrenheit-label))))))
 
-(register-app :immediate :temperature 'make-temperature :width 520 :height 90)
+(register-app :temperature 'make-temperature :width 520 :height 90)

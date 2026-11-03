@@ -61,10 +61,10 @@
 
 ;;; The same frame at every width, built once.
 
-(defun frame-at (variant width)
-  "Build a frame of a new VARIANT of the layout screen at WIDTH. Returns its builds and display list
+(defun frame-at (width)
+  "Build a frame of a new app of the layout screen at WIDTH. Returns its builds and display list
 hash."
-  (let* ((app (registry:find-app variant :layout))
+  (let* ((app (registry:find-app :layout))
          (object (registry:make-app-object app))
          (context (fake:make-fake-context :width (float width 1f0) :height 420f0))
          (list (core:make-display-list :capacity 65536)))
@@ -72,23 +72,18 @@ hash."
             (core:display-list-hash list))))
 
 (define-test the-layout-is-built-once-at-every-width ()
-  (let ((variants (d:available-variants :layout)))
-    (assert-true variants)
-    (loop :for width :from 280 :to 900 :by 40
-          :do (dolist (variant variants)
-                (assert-eql 1 (first (multiple-value-list (frame-at variant width)))
-                            variant width)))))
+  (loop :for width :from 280 :to 900 :by 40
+        :do (assert-eql 1 (first (multiple-value-list (frame-at width))) width)))
 
-(define-test one-variant-resized-through-many-widths-draws-what-a-new-one-draws ()
-  ;; The immediate variant skips layout and painting when the frame is the same; a window that
+(define-test one-screen-resized-through-many-widths-draws-what-a-new-one-draws ()
+  ;; The ui skips layout and painting when the frame is the same; a window that
   ;; is resized, and then not, must still get the frame of its size.
-  (dolist (variant (d:available-variants :layout))
-    (let* ((app (registry:find-app variant :layout))
-           (object (registry:make-app-object app))
-           (context (fake:make-fake-context :width 640f0 :height 420f0))
-           (list (core:make-display-list :capacity 65536)))
-      (dolist (width '(640 300 520 520 900 280 640))
-        (setf (core:context-width context) (float width 1f0))
-        (core:settle-frame object context list)
-        (assert-eql (nth-value 1 (frame-at variant width)) (core:display-list-hash list)
-                    variant width)))))
+  (let* ((app (registry:find-app :layout))
+         (object (registry:make-app-object app))
+         (context (fake:make-fake-context :width 640f0 :height 420f0))
+         (list (core:make-display-list :capacity 65536)))
+    (dolist (width '(640 300 520 520 900 280 640))
+      (setf (core:context-width context) (float width 1f0))
+      (core:settle-frame object context list)
+      (assert-eql (nth-value 1 (frame-at width)) (core:display-list-hash list)
+                  width))))

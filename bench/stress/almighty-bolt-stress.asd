@@ -1,6 +1,6 @@
 (defsystem "almighty-bolt-stress"
   :version "0.2.0"
-  :description "The stress apps' data and painters, which every variant's version of them shares"
+  :description "The stress apps' data and painters"
   :author "Micah Killian"
   :maintainer "Micah Killian <micah@almightylisp.com>"
   :license "MIT"
@@ -11,17 +11,17 @@
                (:module "editor"
                 :components ((:file "model") (:file "paint") (:file "control")))))
 
-(defsystem "almighty-bolt-stress/immediate"
-  :description "The stress apps in the immediate variant"
+(defsystem "almighty-bolt-stress/apps"
+  :description "The stress apps"
   :depends-on ("almighty-bolt-stress" "almighty-bolt-7guis")
   :serial t
-  :components ((:module "dashboard" :components ((:file "immediate")))
-               (:module "rows" :components ((:file "immediate")))
-               (:module "editor" :components ((:file "immediate")))))
+  :components ((:module "dashboard" :components ((:file "app")))
+               (:module "rows" :components ((:file "app")))
+               (:module "editor" :components ((:file "app")))))
 
 (defsystem "almighty-bolt-stress/acceptance"
   :description "Behavioural tests of every stress app: events in, what the app shows out"
-  :depends-on ("almighty-bolt-stress" "almighty-bolt-stress/immediate"
+  :depends-on ("almighty-bolt-stress" "almighty-bolt-stress/apps"
                "almighty-bolt-7guis/acceptance" "lisp-unit2")
   :components ((:module "t"
                 :components ((:module "acceptance"

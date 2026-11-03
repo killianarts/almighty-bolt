@@ -33,6 +33,7 @@ are not listed.
 
 ### Changed
 
+- The examples' make targets take `TASK=` alone, not `VARIANT=immediate` (`make 7guis TASK=counter`, `make image` writes `build/apps`), each task's app is in `app.lisp`, and their systems are `almighty-bolt-7guis/apps` and `almighty-bolt-stress/apps` ([0.3](docs/releases/dev.md#examples)).
 - Quit (Command-Q) in a Lisp you work in closes every window, not only the one in front ([0.3](docs/releases/dev.md#more-than-one-window)).
 - `context-font` takes an optional weight, so a method of it for a context of your own needs `&optional weight` ([0.3](docs/releases/dev.md#backwards-incompatible-changes-in-xy)).
 - The pointer highlights a row of a menu only when it moves onto it, so a pointer at rest no longer takes the highlight from the arrow keys ([0.3](docs/releases/dev.md#input)).

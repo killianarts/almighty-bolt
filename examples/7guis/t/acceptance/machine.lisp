@@ -11,7 +11,7 @@
 ;;; app's, except where a test says so. The events go through the same input path as a person's.
 
 (defun session-for (task)
-  (d:driver-session (d:start :immediate task)))
+  (d:driver-session (d:start task)))
 
 (defun items (session)
   (getf (s:node-state (m:find-node session :role :list)) :items))

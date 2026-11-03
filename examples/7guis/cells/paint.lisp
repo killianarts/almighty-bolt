@@ -34,9 +34,8 @@
 
 (in-package #:almighty-bolt-7guis/cells/paint)
 
-;;; How the cells grid looks, which is the same in every variant: the variants differ in how
-;;; they hold the state that this draws and in what they do with the events, not in the
-;;; commands they append for it. A cell shows its value (numbers on the right, text on the
+;;; How the cells grid looks: the commands appended for the state the app holds, apart from how it
+;;; holds it and what it does with the events. A cell shows its value (numbers on the right, text on the
 ;;; left, errors in red), cut to the width of the cell; the selected cell has an outline, and
 ;;; while it is being typed into, the text and a caret.
 

@@ -1,4 +1,4 @@
-(defpackage #:almighty-bolt-7guis/crud/immediate
+(defpackage #:almighty-bolt-7guis/crud/app
   (:use #:cl)
   (:import-from #:almighty-bolt
                 #:state-let
@@ -23,7 +23,7 @@
                 #:entries-filtered)
   (:export #:make-crud))
 
-(in-package #:almighty-bolt-7guis/crud/immediate)
+(in-package #:almighty-bolt-7guis/crud/app)
 
 ;;; CRUD, immediate: the entries, the filter, the picked entry and the two fields are
 ;;; variables, kept when the app is made again. The list that shows is worked out at the top of
@@ -82,4 +82,4 @@
                       name ""
                       surname "")))))))))
 
-(register-app :immediate :crud 'make-crud :width 640 :height 280)
+(register-app :crud 'make-crud :width 640 :height 280)

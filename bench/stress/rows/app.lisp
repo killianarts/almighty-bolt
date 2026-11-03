@@ -1,4 +1,4 @@
-(defpackage #:almighty-bolt-stress/rows/immediate
+(defpackage #:almighty-bolt-stress/rows/app
   (:use #:cl)
   (:import-from #:almighty-bolt
                 #:key-event-kind
@@ -24,7 +24,7 @@
                 #:paint-rows)
   (:export #:make-rows-app))
 
-(in-package #:almighty-bolt-stress/rows/immediate)
+(in-package #:almighty-bolt-stress/rows/app)
 
 ;;; The million-row list, immediate: where the list is scrolled to and which row is selected are
 ;;; variables. The canvas is given a function that draws them every frame and returns what happened
@@ -71,4 +71,4 @@
             (dolist (event (canvas +list-width+ +list-height+ #'draw :id :list :focusable t))
               (handle event))))))))
 
-(register-app :immediate :rows 'make-rows-app :width 640 :height 470)
+(register-app :rows 'make-rows-app :width 640 :height 470)
