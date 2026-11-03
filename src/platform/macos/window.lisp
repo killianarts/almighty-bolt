@@ -27,7 +27,8 @@
            #:close-window
            #:resize-window-content
            #:window-number
-           #:window-scale-factor))
+           #:window-scale-factor
+           #:window-frame))
 
 (in-package #:almighty-bolt/platform/macos/window)
 
@@ -128,9 +129,84 @@ the window is closing. Call on the main thread."
   "Make the NSView VIEW-OBJECT fill WINDOW."
   (msg-send :void (window-object window) "setContentView:" (:id view-object)))
 
-(defun show-window (window)
-  "Centre WINDOW on the screen and bring it to the front."
-  (msg-send :void (window-object window) "center")
+;;; --- where a window opens ---
+;;;
+;;; A window is put where its PLACEMENT says, a property list. :TOP, :LEFT, :BOTTOM and :RIGHT are
+;;; as CSS's absolute positioning has them: points from that edge of the screen's usable area (below
+;;; the menu bar and beside the Dock), :LEFT before :RIGHT and :TOP before :BOTTOM when both are given,
+;;; and the middle along an axis that has neither. :BESIDE is another window, which it opens next to
+;;; on its :SIDE (:RIGHT, :LEFT, :ABOVE or :BELOW), :GAP points away, with the edges lined up, or on
+;;; the other side if there is no room. :CASCADE is another window, below and to the right of which
+;;; it opens, as a Mac app's new windows do. Wherever it goes, it is kept on the screen.
+;;;
+;;; AppKit counts up from the bottom of the main screen; the rectangles here are as it gives them.
+
+(defconstant +cascade-step+ 24d0 "How far down and right of the window before a new one opens.")
+
+(defun window-frame (window)
+  "WINDOW's frame, with its title bar, as four values: x, y (from the top of the screen it is on, down)
+and width and height, in points. Call on the main thread."
+  (let ((object (window-object window)))
+    (multiple-value-bind (x y w h) (msg-send :rect object "frame")
+      (multiple-value-bind (vx vy vw vh) (visible-frame (msg-send :id object "screen"))
+        (declare (ignore vx vw))
+        (values x (- (+ vy vh) (+ y h)) w h)))))
+
+(defun visible-frame (screen)
+  "The part of SCREEN (an NSScreen, or 0 for the main one) that windows go in, as AppKit's x, y, width
+and height."
+  (msg-send :rect (if (zerop screen) (msg-send :id (objc-class "NSScreen") "mainScreen") screen)
+            "visibleFrame"))
+
+(defun place-window (window placement)
+  "Put WINDOW where PLACEMENT says (see above). Call on the main thread, before it is shown."
+  (destructuring-bind (&key top left bottom right beside (side :right) (gap 12) cascade)
+      placement
+    (let* ((object (window-object window))
+           (other (or beside cascade))
+           (screen (if other (msg-send :id (window-object other) "screen") 0)))
+      (multiple-value-bind (vx vy vw vh) (visible-frame screen)
+        (multiple-value-bind (fx fy w h) (msg-send :rect object "frame")
+          (declare (ignore fx fy))
+          (let ((gap (float gap 1d0))
+                ;; The top left corner, in AppKit's coordinates.
+                (tx (+ vx (/ (- vw w) 2)))
+                (ty (- (+ vy vh) (/ (- vh h) 2))))
+            (cond
+              (beside
+               (multiple-value-bind (ox oy ow oh) (msg-send :rect (window-object beside) "frame")
+                 (flet ((fits-p (x y) (and (<= vx x) (<= (+ x w) (+ vx vw))
+                                           (<= (+ vy h) y) (<= y (+ vy vh)))))
+                   (let ((spots (list :right (list (+ ox ow gap) (+ oy oh))
+                                      :left (list (- ox gap w) (+ oy oh))
+                                      :below (list ox (- oy gap))
+                                      :above (list ox (+ oy oh gap h))))
+                         (other-side (ecase side
+                                       (:right :left) (:left :right) (:below :above) (:above :below))))
+                     (destructuring-bind (x y) (if (apply #'fits-p (getf spots side))
+                                                   (getf spots side)
+                                                   (if (apply #'fits-p (getf spots other-side))
+                                                       (getf spots other-side)
+                                                       (getf spots side)))
+                       (setf tx x ty y))))))
+              (cascade
+               (multiple-value-bind (ox oy ow oh) (msg-send :rect (window-object cascade) "frame")
+                 (declare (ignore ow))
+                 (setf tx (+ ox +cascade-step+)
+                       ty (- (+ oy oh) +cascade-step+))))
+              (t
+               (cond (left (setf tx (+ vx left)))
+                     (right (setf tx (- (+ vx vw) right w))))
+               (cond (top (setf ty (- (+ vy vh) top)))
+                     (bottom (setf ty (+ vy bottom h))))))
+            ;; On the screen: as far as it fits, from the top left.
+            (setf tx (max vx (min tx (- (+ vx vw) w)))
+                  ty (min (+ vy vh) (max ty (+ vy h))))
+            (msg-send :void object "setFrameTopLeftPoint:" (:point tx ty))))))))
+
+(defun show-window (window &optional placement)
+  "Put WINDOW where PLACEMENT says (see PLACE-WINDOW) and bring it to the front."
+  (place-window window placement)
   (msg-send :void (window-object window) "makeKeyAndOrderFront:" (:id 0)))
 
 (defun close-window (window)

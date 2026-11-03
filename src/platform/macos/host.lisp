@@ -690,12 +690,19 @@ reader go, and take it from the windows that are open."
     (when on-close
       (funcall on-close))))
 
+(defun remove-key (plist key)
+  (loop :for (k v) :on plist :by #'cddr
+        :unless (eq k key) :append (list k v)))
+
 (defun make-variant-window (variant title width height capacity rebuild driver kept-state
-                            &key owner main (show t))
+                            &key owner main (show t) placement)
   "Make the window for VARIANT and return its host, shown at once with SHOW, or else after what
 the main thread is doing now (a frame, in which the window is asked for). Called inside the
 application, on the main thread. OWNER is the host the window belongs to and closes with, and with
-MAIN it is the app's window (RUNNING-HOST). The other arguments are RUN-VARIANT's."
+MAIN it is the app's window (RUNNING-HOST). PLACEMENT says where it opens (see PLACE-WINDOW; a host
+given as :BESIDE stands for its window); with none, it opens below and to the right of the last
+window opened, or in the middle of the screen if it is the first. The other arguments are
+RUN-VARIANT's."
   (let* ((host nil)
          (device (default-device))
          (window (make-window :title title :width width :height height
@@ -738,6 +745,12 @@ MAIN it is the app's window (RUNNING-HOST). The other arguments are RUN-VARIANT'
           (host-acquire host) (view-acquirer object)
           (host-wake host) (lambda ()
                              (msg-send :void object "setNeedsDisplay:" (:bool t))))
+    (let ((beside (getf placement :beside))
+          (last (car (last (open-hosts)))))
+      (setf placement
+            (cond (beside (list* :beside (host-window beside) (remove-key placement :beside)))
+                  ((or placement (null last)) placement)
+                  (t (list :cascade (host-window last))))))
     (sb-thread:with-mutex (*hosts-lock*)
       (setf *hosts* (append *hosts* (list host)))
       (when main
@@ -745,7 +758,7 @@ MAIN it is the app's window (RUNNING-HOST). The other arguments are RUN-VARIANT'
     (set-content-view window object)
     (flet ((show ()
              (when (host-open-p host)
-               (show-window window)
+               (show-window window placement)
                (request-draw view))))
       ;; A window asked for in a frame is shown after it: it takes the keyboard from the window
       ;; whose frame it is, which must not be told of that while it is building.
@@ -773,7 +786,7 @@ MAIN it is the app's window (RUNNING-HOST). The other arguments are RUN-VARIANT'
           *pending-opens* 0)))
 
 (defun run-variant (variant &key (title "almighty-bolt") (width 800) (height 600)
-                              driver (capacity 65536) rebuild kept-state)
+                              driver (capacity 65536) rebuild kept-state placement)
   "Open a window of WIDTH by HEIGHT points, run VARIANT in it, and return only when
 the application quits. This thread must be the main thread, and it is the windows' until the
 last of them closes, which ends the process: it is for a program that is only its windows (make
@@ -796,14 +809,15 @@ variant starts from nothing; if its first frame fails the old one is put back."
           (sb-thread:with-mutex (*hosts-lock*)
             (setf *loop* :running))
           (make-variant-window variant title width height capacity rebuild driver kept-state
-                               :main t)))
+                               :main t :placement placement)))
     (loop-ended)))
 
 (defun open-variant (variant &key (title "almighty-bolt") (width 800) (height 600)
-                               (capacity 65536) rebuild kept-state (timeout 10) owner (main t))
+                               (capacity 65536) rebuild kept-state (timeout 10) owner (main t)
+                               placement)
   "Open a window of WIDTH by HEIGHT points that runs VARIANT, and return its host. With MAIN it is
 the app's window (RUNNING-HOST), of which there is one at a time; without it, another window beside
-it, which closes with OWNER if one is given.
+it, which closes with OWNER if one is given. PLACEMENT says where it opens (see PLACE-WINDOW).
 
 The first window starts the application's event loop on the main thread and returns at once, with
 the calling thread free: for a REPL, which goes on being one while the window is open. The main
@@ -841,15 +855,17 @@ seconds."
         (flet ((make (show)
                  (unwind-protect
                       (make-variant-window variant title width height capacity rebuild nil
-                                           kept-state :owner owner :main main :show show)
+                                           kept-state :owner owner :main main :show show
+                                           :placement placement)
                    (sb-thread:with-mutex (*hosts-lock*)
                      (decf *pending-opens*)))))
           (if (on-main-thread-p)
               (make nil)
               (call-on-main (lambda () (make t)))))
-        (start-loop variant title width height capacity rebuild kept-state timeout main))))
+        (start-loop variant title width height capacity rebuild kept-state timeout main
+                    placement))))
 
-(defun start-loop (variant title width height capacity rebuild kept-state timeout main)
+(defun start-loop (variant title width height capacity rebuild kept-state timeout main placement)
   "Start the application's event loop on the main thread, with a window for VARIANT, and return its
 host (see OPEN-VARIANT, which has said that the loop is :STARTING)."
   (when (on-main-thread-p)
@@ -883,7 +899,8 @@ host (see OPEN-VARIANT, which has said that the loop is :STARTING)."
                       (sb-thread:with-mutex (*hosts-lock*)
                         (setf *loop* :running))
                       (setf host (make-variant-window variant title width height capacity
-                                                      rebuild nil kept-state :main main))
+                                                      rebuild nil kept-state :main main
+                                                      :placement placement))
                       (sb-thread:signal-semaphore ready))
                     :ends-process nil)
                  (error (condition)

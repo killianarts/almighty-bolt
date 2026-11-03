@@ -72,8 +72,14 @@ open the inspector."
     (setf (immediate-variant-tools variant) *development*)
     variant))
 
+(defun placement (top left bottom right beside side gap)
+  "The placement (see PLACE-WINDOW in the platform's window) that the keyword arguments give."
+  (append (and top (list :top top)) (and left (list :left left))
+          (and bottom (list :bottom bottom)) (and right (list :right right))
+          (and beside (list :beside beside :side side :gap gap))))
+
 (defun run-app (constructor &key (title "almighty-bolt") (width 800) (height 600)
-                              hot watch-systems driver)
+                              hot watch-systems driver top left bottom right)
   "Open a window of WIDTH by HEIGHT points that shows the app that CONSTRUCTOR makes. This must be
 called on the main thread, which the window then has, and closing the window ends the process: it is
 for a program that is only the window (sbcl --load app.lisp). For a REPL, which has to be free and
@@ -83,7 +89,8 @@ With HOT, the app is made again, in the window, whenever code is compiled into t
 WATCH-SYSTEMS, a list of system names, the systems are also loaded again when one of their files is
 saved, which is for editing in a program that does not compile into the running image.
 DRIVER, if given, is called with the host on a new thread once the window is up (it is how the
-smoke checks and the benchmarks use a window)."
+smoke checks and the benchmarks use a window). TOP, LEFT, BOTTOM and RIGHT say where the window
+opens, as for OPEN-APP."
   (setf *development* (and (or hot watch-systems) t))
   (let* ((state (make-kept-state))
          (variant (with-kept-state (state) (make-app-instance constructor)))
@@ -91,12 +98,14 @@ smoke checks and the benchmarks use a window)."
     (unwind-protect
          (run-variant variant :title title :width width :height height
                               :kept-state state :driver driver
+                              :placement (placement top left bottom right nil nil nil)
                               :rebuild (and (or hot watch-systems)
                                             (lambda () (make-app-instance constructor))))
       (when watcher
         (stop-watching-files watcher)))))
 
-(defun open-app (constructor &key (title "almighty-bolt") (width 800) (height 600))
+(defun open-app (constructor &key (title "almighty-bolt") (width 800) (height 600)
+                               top left bottom right beside (side :right) (gap 12))
   "Open a window of WIDTH by HEIGHT points that shows the app that CONSTRUCTOR makes, and return at
 once, with the REPL free. Whenever code is compiled into the image, from the editor or by loading
 a file, the app is made again in the same window, with the state it keeps. Closing the window (its
@@ -106,12 +115,22 @@ the app then starts from the beginning.
 It is called from a thread other than the main one, as the forms of an editor's REPL are in Slynk or
 SLIME, and needs the main thread to be waiting for something that can be interrupted, as it is when
 an editor starts Lisp with a pipe for its input. In a Lisp whose REPL runs on the main thread it is an
-error; RUN-APP does what is wanted there."
+error; RUN-APP does what is wanted there.
+
+Where the window opens: TOP, LEFT, BOTTOM and RIGHT are points from that edge of the screen's usable
+area (below the menu bar and beside the Dock), as CSS's absolute positioning has them: LEFT before
+RIGHT and TOP before BOTTOM when both are given, and the middle along an axis that has neither.
+BESIDE is a window (one that OPEN-APP or OPEN-WINDOW returned), next to which it opens on its SIDE
+(:right, :left, :above or :below), GAP points away, with the edges lined up, or on the other side
+if there is no room there. With none of them, the first window opens in the middle of the screen and
+the others below and to the right of the last one opened. Wherever it goes, it is kept on the
+screen."
   (let ((state (make-kept-state)))
     (setf *development* t)
     (open-variant (with-kept-state (state) (make-app-instance constructor))
                   :title title :width width :height height
                   :kept-state state
+                  :placement (placement top left bottom right beside side gap)
                   :rebuild (lambda () (make-app-instance constructor)))))
 
 (defun close-app ()
@@ -119,7 +138,8 @@ error; RUN-APP does what is wanted there."
 windows stay open."
   (close-variant))
 
-(defun open-window (constructor &key (title "almighty-bolt") (width 800) (height 600))
+(defun open-window (constructor &key (title "almighty-bolt") (width 800) (height 600)
+                                  top left bottom right beside (side :right) (gap 12))
   "Open another window, WIDTH by HEIGHT points, that shows the app that CONSTRUCTOR makes, and return
 it (for CLOSE-WINDOW). It is called from an app, in its function (say, when a button is pressed),
 and the window opens after the frame; or from the REPL while a window is open, or before, when it
@@ -130,12 +150,16 @@ ordinary Lisp they share: a closure that CONSTRUCTOR makes over the first app's 
 special variable. A frame in which one window took input (a press, a key, the wheel) draws the
 other windows again, so that each shows what the other changed. While the app is being developed
 (*DEVELOPMENT*), compiling code makes the window's app again, as it does the app's own; the window
-stays open when the app's window closes, and closing the last window stops the windows' loop."
+stays open when the app's window closes, and closing the last window stops the windows' loop.
+
+Where it opens is as for OPEN-APP: BESIDE the window that OPEN-APP returned, say, or at a corner of
+the screen with TOP and RIGHT."
   (let ((state (make-kept-state)))
     (open-variant (with-kept-state (state) (make-app-instance constructor))
                   :title title :width width :height height
                   :kept-state state
                   :main nil
+                  :placement (placement top left bottom right beside side gap)
                   :rebuild (and *development* (lambda () (make-app-instance constructor))))))
 
 (defun close-window (window)
@@ -184,13 +208,19 @@ main thread, in that window's frame."
       (let ((open (cdr (assoc host *inspectors*))))
         (if open
             (close-host-window open)
-            (let ((inspector
+            (let* ((closed nil)
+                   (inspector
                     (open-variant (make-immediate-variant
-                                   (make-inspector (lambda () (and (host-open-p host) (host-variant host)))
+                                   ;; A frame of the inspector's window may come after it has
+                                   ;; closed; it must not put its pick in the app's ui again.
+                                   (make-inspector (lambda () (and (not closed) (host-open-p host)
+                                                                   (host-variant host)))
                                                    (act-on host)))
-                                  :title "Inspector" :width 360 :height 600 :main nil :owner host)))
+                                  :title "Inspector" :width 360 :height 600 :main nil :owner host
+                                  :placement (list :beside host :side :right))))
               (setf (host-on-close inspector)
                     (lambda ()
+                      (setf closed t)
                       (when (host-open-p host)
                         (setf (ui-inspection (immediate-variant-ui (host-variant host))) nil)
                         (request-host-frame host))))

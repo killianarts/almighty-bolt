@@ -102,6 +102,23 @@
                   (msg-send :void (msg-send :id (objc-class "NSApplication") "sharedApplication")
                             "terminate:" (:id 0)))))
 
+(defun frame-of (host)
+  "Where HOST's window is: x, y (down from the top of the screen's usable area), width and height."
+  (call-on-main (lambda ()
+                  (multiple-value-list
+                   (almighty-bolt/platform/macos/window:window-frame
+                    (almighty-bolt/platform/macos/host:host-window host))))))
+
+(defun usable-width ()
+  "The width and the left of the main screen's usable area."
+  (call-on-main (lambda ()
+                  (multiple-value-bind (x y w h)
+                      (msg-send :rect (msg-send :id (objc-class "NSScreen") "mainScreen") "visibleFrame")
+                    (declare (ignore y h))
+                    (list x w)))))
+
+(defun near (a b) (< (abs (- a b)) 0.5))
+
 (defun command-option-i (host)
   (call-on-main (lambda ()
                   (host-deliver-event host (make-key-event :timestamp 0 :kind :down :logical-key #\i
@@ -124,6 +141,13 @@
   (let ((inspector (and (wait-for (lambda () (the-inspector-of first))) (the-inspector-of first))))
     (check "Command-Option-I in the app's window opens the inspector's, which belongs to it"
            (and inspector (wait-for (lambda () (plusp (frames inspector))))))
+    (destructuring-bind (ax ay aw ah) (frame-of first)
+      (declare (ignore ah))
+      (destructuring-bind (ix iy iw ih) (frame-of inspector)
+        (declare (ignore ih))
+        (check "it opens beside the app's window, 12 points away, tops lined up"
+               (and (near iy ay) (or (near ix (+ ax aw 12)) (near (+ ix iw 12) ax)))
+               (list (frame-of first) (frame-of inspector)))))
     ;; A window that has just come up is told where the real pointer is, which would come between
     ;; the events of a click made here; as the run-app check does, let that pass first.
     (wait-for-idle inspector)
@@ -153,6 +177,13 @@
     (check "two windows are open, and the first is still the app's"
            (and (= 2 (length (open-hosts))) (eq first (running-host))))
     (check "the second shows what the first holds" (equal "0" (count-in *second*)))
+    (destructuring-bind (fx fy fw fh) (frame-of first)
+      (declare (ignore fw fh))
+      (destructuring-bind (sx sy sw sh) (frame-of *second*)
+        (declare (ignore sw sh))
+        (check "a window given no place opens below and to the right of the one before"
+               (and (near sx (+ fx 24)) (near sy (+ fy 24)))
+               (list (frame-of first) (frame-of *second*)))))
     (m:click (open-session first) :id :add)
     (wait-for-idle *second*)
     (check "a press in the first draws the second with what it changed"
@@ -164,8 +195,15 @@
     (check "then both rest: neither keeps waking the other" (at-rest-p (list first *second*)))
     (inspector-checks first)
     ;; Another, from the REPL, closed again.
-    (let ((third (bolt:open-window 'make-third :title "Third" :width 200 :height 80)))
+    (let ((third (bolt:open-window 'make-third :title "Third" :width 200 :height 80
+                                               :top 0 :right 0)))
       (check "a window opened from the REPL draws" (wait-for (lambda () (plusp (frames third)))))
+      (destructuring-bind (tx ty tw th) (frame-of third)
+        (declare (ignore th))
+        (destructuring-bind (left width) (usable-width)
+          (check "one given :top 0 :right 0 is in the top right corner of the screen"
+                 (and (near ty 0) (near (+ tx tw) (+ left width)))
+                 (frame-of third))))
       (bolt:close-window third)
       (check "and closes" (wait-for (lambda () (not (host-open-p third)))))
       (check "leaving the other two" (= 2 (length (open-hosts))))
