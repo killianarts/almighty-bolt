@@ -2,6 +2,7 @@
   ;; This package uses the public one, whole: a symbol that the public package exports and that
   ;; Common Lisp or the test framework also has would be a conflict, and fail here.
   (:use #:cl #:lisp-unit2 #:almighty-bolt)
+  (:import-from #:sb-introspect #:function-lambda-list)
   (:local-nicknames (#:core #:almighty-bolt/internals)
                     (#:app #:almighty-bolt/app)
                     (#:s #:almighty-bolt/ui/semantics)
@@ -810,7 +811,7 @@ at the start, and a button under where the popovers' catchers are that counts it
     (list-box . :list) (progress . :progress-bar) (canvas . :canvas) (scrim . :overlay)
     (switch . :switch) (spinner . :busy-indicator) (dropdown . :pop-up-button)
     (menu-button . :menu-button) (popover . :popover) (dialog . :dialog) (toast . :toast)
-    (combo-box . :combo-box)
+    (combo-box . :combo-box) (grid . :grid) (pressable . :toggle-button)
     (scroll . :scroll-area) (lazy-list . :scroll-area)))
 
 (defun roles-in (screen)
@@ -851,6 +852,44 @@ at the start, and a button under where the popovers' catchers are that counts it
     (assert-eq :scroll-area (s:node-role (node-of screen :inner)))
     (m:click session :id :close)
     (assert-false (member :overlay (roles-in screen)))))
+
+(defparameter +every-call+
+  ;; Each widget, container and function of the library whose call the gallery shows, under it.
+  '(label paragraph button menu-button text-field combo-box text-area slider choice dropdown checkbox
+    switch spinner list-box progress canvas scrim spacer row column stack padding panel center grid
+    pressable scroll lazy-list context-menu popover dialog toast open-file-dialog save-file-dialog))
+
+(defun call-of (operator)
+  "How OPERATOR is called, as the gallery writes it: its lambda list, without the defaults that only
+mean nothing was given (the id that is required, and a pressable that is not a toggle)."
+  (labels ((tidy (parameter)
+             (if (and (consp parameter)
+                      (or (eq (second parameter) :none)
+                          (and (consp (second parameter))
+                               (string= (first (second parameter)) "REQUIRED-ID"))))
+                 (first parameter)
+                 parameter)))
+    (let* ((list (function-lambda-list (or (macro-function operator) (fdefinition operator))))
+           (list (if (consp (first list))
+                     (cons (mapcar #'tidy (first list)) (rest list))
+                     (mapcar #'tidy list)))
+           (*package* (symbol-package operator))
+           (*print-pretty* nil))
+      (format nil "~(bolt:~a~{ ~s~}~)" operator list))))
+
+(define-test the-gallery-shows-how-each-widget-is-called ()
+  (let ((screen (show 'gallery:make-gallery))
+        (shown '()))
+    (s:walk-nodes (lambda (node)
+                    (let ((name (s:node-name node)))
+                      (when (and (stringp name) (eql 0 (search "(bolt:" name)))
+                        (push name shown))))
+                  (core:accessibility-tree (screen-variant screen)))
+    (dolist (operator +every-call+)
+      (assert-eql 1 (count (format nil "(~a)" (call-of operator)) shown :test #'string=)
+                  operator))
+    ;; And no call of something that is not in the list, or that is not called so any more.
+    (assert-eql (length +every-call+) (length shown))))
 
 (define-test what-the-gallerys-widgets-return-is-shown-under-them ()
   (let* ((screen (show 'gallery:make-gallery))

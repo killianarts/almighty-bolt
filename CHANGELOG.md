@@ -25,6 +25,7 @@ are not listed.
 - `grid`, children in columns and rows, with equal or shared column widths and rows of their own height, all the tallest's, or a given one ([0.3](docs/releases/dev.md#layout)).
 - `spacer`, empty room that takes the free space of its row or column ([0.3](docs/releases/dev.md#layout)).
 - `:within` on the machine interface's calls and the MCP server's tools: the container a thing is in, for an id used in more than one container ([0.3](docs/releases/dev.md#machine-interface)).
+- The gallery shows how each widget and container is called, with its options and their defaults, and has a `grid`, a `pressable`, a `spacer` and a segmented `choice` ([0.3](docs/releases/dev.md#examples)).
 - Spacing in a theme: `:spacing`, a scale that the paddings, gaps and heights of the controls are worked out from, and each of those sizes on its own; and a Spacing slider in the theme designer ([0.3](docs/releases/dev.md#spacing-in-a-theme)).
 
 ### Changed

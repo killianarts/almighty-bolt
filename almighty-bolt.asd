@@ -129,7 +129,7 @@
   ;; cl-unicode) generates its source files with it on first load, and vend
   ;; only finds it if some system names it.
   :depends-on ("almighty-bolt" "almighty-bolt/test-support" "almighty-bolt-examples"
-               "lisp-unit2" "flexi-streams")
+               "lisp-unit2" "flexi-streams" "sb-introspect")
   :components ((:module "t"
                 :serial t
                 :components

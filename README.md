@@ -233,7 +233,8 @@ what comes first, is in [docs/roadmap.md](docs/roadmap.md).
 ## Examples
 
 - [`examples/`](examples): a counter, a to-do list, and a gallery of every
-  widget and container with what each returns, written with the public package
+  widget and container with what each returns and how it is called (its
+  arguments and options), written with the public package
   only: `(bolt:open-app 'almighty-bolt-examples/gallery:make-gallery :width 960
   :height 760)` after loading [`load-examples.lisp`](load-examples.lisp).
 - [`apps/theme-designer/`](apps/theme-designer): a theme designer. Pick a

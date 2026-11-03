@@ -90,6 +90,10 @@ A theme that gives the spacing works out every size again, except those it gives
 
 - Every call that names a thing (`find-node`, `click`, `set-value` and the rest) takes `:within`, the id of a container it is inside. Ids need be unique only within a container, so `(m:click session :id :show :within :gregorian-search)` presses the Show button of one panel of two that each have one. A name that fits more than one thing says to use it. The MCP server's tools take `within` as well.
 
+#### Examples
+
+- The gallery shows how each widget, container and function in it is called, under it: its arguments and options with their defaults, as its lambda list has them, in a fixed-width face that can be selected and copied. It also shows the containers it did not have before, `grid`, `pressable` and `spacer`, and a segmented `choice`.
+
 ## Backwards incompatible changes in X.Y
 
 ### `context-font` takes a weight
