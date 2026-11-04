@@ -96,6 +96,7 @@
                  (:file "ui")
                  (:file "widgets")
                  (:file "inspection")
+                 (:file "design-surface")
                  (:file "layout")
                  (:file "paint")
                  (:file "immediate")

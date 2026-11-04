@@ -34,6 +34,16 @@ While you develop an app (`open-app`, or `run-app` with `:hot`), Command-Option-
 - It changes a setting of the theme the picked widget is drawn in (`accent`, `row-height`, `font-size`), which defines that theme again, and shows the theme's `define-theme` form to copy into the app's code.
 - It is there only while the app is developed: in an app that is delivered, Command-Option-I is the app's. It closes with the app's window, and the app's semantic tree has nothing of it.
 
+### The GUI designer, begun
+
+`apps/gui-designer` is the start of the GUI designer on the [roadmap](../roadmap.md): `(almighty-bolt-gui-designer:open-designer)` after loading the system `almighty-bolt-gui-designer`. It shows the widgets it knows on the left (a label, a button, a text field, a column and a row), a view made of them in the middle, and what is picked on the right.
+
+- The view is drawn with the real widgets, in the theme, as the app will draw it, but none of them works: a press picks the widget it was on (the innermost: a press between two widgets picks the column they are in), and typing goes nowhere.
+- The picked widget is outlined, and so is the one the pointer is over. The right shows its kind, its id and the value of each of its options, given or not.
+- The view is data: a tree of widgets, each with its kind, its id and its options by the widget's own names, written as a form such as `(:button :sign-in (:text "Sign in"))`. For now it is one written in the designer; placing widgets from the list, changing their options and saving the view come next.
+
+It is built on a new container, `design-surface`, which any designer can use: what is in it is drawn but does not work, the pointer and the keyboard do not reach it, and a press on it returns the id of the thing it was on. `(bolt:design-surface (:id :canvas :selected picked) ...)` outlines the thing whose id is `picked`.
+
 ### More than one window
 
 An app can open more windows: `(bolt:open-window 'make-preferences :title "Preferences" :width 400 :height 300)`, called where a button says it was pressed (the window opens after the frame) or from the REPL, opens a window that shows the app `make-preferences` makes, and returns it for `(bolt:close-window window)`.

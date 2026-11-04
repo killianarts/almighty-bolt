@@ -165,7 +165,9 @@ it, moved by the wheel: `(bolt:scroll (:id :log :height 300) ...)`) and
 `lazy-list` (a scrolling list that describes only the rows that show:
 `(bolt:lazy-list (task tasks :id :tasks :key #'task-id) ...)`), and
 `context-menu` (a menu on a right-click anywhere in it, which returns the item
-chosen: `(bolt:context-menu (:id :menu :items '("Cut" "Copy")) ...)`). Containers
+chosen: `(bolt:context-menu (:id :menu :items '("Cut" "Copy")) ...)`), and
+`design-surface` (what is in it is drawn but does not work, and a press on it
+returns the id of what it was on: for a designer). Containers
 take `:width`, `:height` and `:min-`/`:max-` of each, and a `spacer` takes the free room of its
 row or column. A still app draws nothing and costs no
 CPU; an animation asks for its next frame with `(bolt:ask-for-frame)`, and
@@ -250,6 +252,10 @@ what comes first, is in [docs/roadmap.md](docs/roadmap.md).
   check that its text is readable, and save it as a `define-theme` form:
   `(almighty-bolt-theme-designer:open-designer)` after loading the system
   `almighty-bolt-theme-designer`.
+- [`apps/gui-designer/`](apps/gui-designer): the start of a GUI designer. A
+  view made of widgets is drawn as it will look, and a press picks a widget and
+  shows its options: `(almighty-bolt-gui-designer:open-designer)` after loading
+  the system `almighty-bolt-gui-designer`.
 - [`examples/7guis/`](examples/7guis): the seven 7GUIs tasks.
   [`bench/stress/`](bench/stress) has a dashboard, a million-row list and a text
   editor with input-method support.

@@ -38,7 +38,8 @@
     (dolist (name '("almighty-bolt" "almighty-bolt/mcp" "almighty-bolt/tests" "almighty-bolt-examples"
                     "almighty-bolt-7guis/launcher" "almighty-bolt-7guis/acceptance"
                     "almighty-bolt-stress/acceptance" "almighty-bolt-bench"
-                    "almighty-bolt-theme-designer" "almighty-bolt-theme-designer/tests"))
+                    "almighty-bolt-theme-designer" "almighty-bolt-theme-designer/tests"
+                    "almighty-bolt-gui-designer" "almighty-bolt-gui-designer/tests"))
       (asdf:load-system name))))
 
 (uiop:delete-directory-tree (uiop:ensure-directory-pathname *cache*) :validate t

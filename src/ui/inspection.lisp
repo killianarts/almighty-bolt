@@ -38,7 +38,8 @@
            #:inspection-take-input
            #:describe-outlines
            #:box-at
-           #:box-by-key))
+           #:box-by-key
+           #:outline))
 
 (in-package #:almighty-bolt/ui/inspection)
 
@@ -141,12 +142,13 @@ drawn after it, as after any frame that took input."
 
 ;;; --- what it describes after the app ---
 
-(defun outline (ui id rect color)
-  "A frame of COLOR round RECT (x, y, width, height in the window)."
+(defun outline (ui id rect color &optional (owner +seed+))
+  "A frame of COLOR round RECT (x, y, width, height in the window), called ID among the outlines of
+the box whose key is OWNER (the window's, if not given)."
   (when rect
     (destructuring-bind (x y w h) rect
       (multiple-value-bind (float open)
-          (open-float ui :outline +seed+ id
+          (open-float ui :outline owner id
                       (make-float-spec :placement :at :x (float x 1f0) :y (float y 1f0) :tool t))
         (setf (box-pref-w float) (float w 1f0)
               (box-pref-h float) (float h 1f0)

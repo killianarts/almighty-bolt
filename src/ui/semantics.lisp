@@ -117,7 +117,7 @@
     (:canvas :canvas)
     (:scrim :overlay)
     ((:scroll :lazy-list) :scroll-area)
-    ((:column :row :stack :padding :panel :center :context-area) :group)
+    ((:column :row :stack :padding :panel :center :context-area :surface) :group)
     (:grid :grid)
     (:pressable (if (zerop (box-n3 box)) :button :toggle-button))))
 

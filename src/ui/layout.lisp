@@ -394,7 +394,7 @@ them in the boxes, and return the width and height."
                 (constrain (theme-control-height *theme*) min-h max-h)))
       (:scrim
        (set-box box (if (< max-w +unbounded+) max-w min-w) (if (< max-h +unbounded+) max-h min-h)))
-      ((:column :row :context-area)
+      ((:column :row :context-area :surface)
        (let ((children (box-children box)))
          (flet ((measure (i a b c d)
                   (layout-box (aref children i) context a b c d))

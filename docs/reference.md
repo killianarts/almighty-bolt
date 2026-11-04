@@ -205,7 +205,7 @@ Containers take their options in a list and their children after it:
 other), `padding` (`:all :left :top :right :bottom`), `panel` (padding with a
 background: `:color :radius`, and an edge, `:border-color` and `:border-width`,
 1 if not given), `center`, `grid`, `pressable`, `scroll`, `lazy-list`,
-`context-menu`, `popover` and `dialog`.
+`context-menu`, `popover`, `dialog` and `design-surface`.
 
 `pressable` (`:id :tooltip :enabled :selected :name :look :color :border-color
 :border-width :radius :gap`, the padding keys and the sizes below) is a
@@ -303,6 +303,18 @@ to be. A wheel tick costs the same with a million rows as with a hundred, about
 described. In the semantic tree it is a `:scroll-area` whose state also has
 `:row-count` and `:first-row`, and whose children are the rows that were
 described.
+
+`design-surface` (`:id :selected :flex`) is for a designer, which draws the view being designed in
+it: what is in it is drawn as it looks, one under another, and none of it works. The pointer, a press
+and the keyboard do not reach it, so a button in it is not hovered or pressed and a text field in it
+takes no keys. A press on it returns the id of the innermost thing with an id that the press was on,
+on the frame of the press: `(let ((pressed (bolt:design-surface (:id :canvas :selected picked) (draw
+view)))) (when pressed (setf picked pressed)))`. The thing whose id is `:selected` is outlined in
+the theme's ring colour, and the thing the pointer is over in its dim text colour. What is in it is
+in the semantic tree as it would be anywhere, so the machine interface finds it (`:within` the
+surface), and a click there, or VoiceOver's press, selects it. What floats above the screen from a
+widget in it (a dropdown's menu, a tooltip, a dialog) is not covered yet, nor a `canvas` with
+`:autofocus`, which takes the keyboard when the window opens.
 
 ## Themes
 
