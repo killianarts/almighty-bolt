@@ -38,38 +38,157 @@ the order inside a section is not a schedule. What has shipped is in the
   - Drag and drop, inside an app and from the Finder.
   - Animation helpers (easing and tweens).
   - Undo and redo of the app's own changes (text fields undo their own already).
-- **Tools.**
-  - One app for the front end of a native app, in development only and never in
-    the app that is delivered: the theme, widget and GUI designers and the
-    tester, as panes of a single window, like Photoshop or Figma. The app being
-    developed is drawn in a pane of it, live, and can be zoomed and panned. Its
-    first tool, the inspector, is in 0.3, in a window of its own beside the
-    app's.
-  - The catalogue of widgets and their options (in 0.3, with what kind each
-    option is, for five widgets) covers every widget, and the inspector shows
-    and edits the options of the widget it picked.
-  - An API for writing your own widgets, which says how a widget appears in the
-    semantic tree and in the catalogue.
-  - A widget designer, to build new widgets.
-  - The GUI designer, begun in 0.3 (a view of labels, buttons, text fields,
-    columns and rows, saved as a `define-view` file and wired to the app's code
-    with `view`, checked when the code is compiled):
-    - Every widget and container of the library in its catalogue.
-    - Widgets placed by dragging them from the list into the view, and moved
-      within it, besides being added by a click.
-    - Views inside views: one view placed in another, as a message row is in a
-      list.
-    - A pane of the one app for the front end, beside the theme designer, with
-      the app being developed drawn in it.
-  - Undo and redo in the theme designer (the GUI designer has them in 0.3), and
-    the app's own menus (File, Edit) in the menu bar.
-- **Widgets made with the widget designer.** These come after the designer and
-  are built with it, to test it: a number stepper, a divider, a collapsible
-  section, a link, chips, badges and cards, and a toolbar, a sidebar and a
-  status bar.
+- **Tools.** The designers, the inspector and the tester become one app: see
+  [almighty-bolt studio](#almighty-bolt-studio) below.
 - **Web content.** A web view (WebKit's `WKWebView`) inside a window, laid out
   by the library like any widget and drawn by WebKit.
   - **Delivery.** An application bundle (`.app`) with an icon, and signing; and
     a helper for work that goes on in the background while the window stays
     alive.
 - **Platforms.** Windows and Linux. A Coalton library.
+
+## almighty-bolt studio
+
+One app for the front end of a native app, in development only and never in the
+app that is delivered: the theme, widget and GUI designers, the inspector and
+the tester, as panes of a single window, like Photoshop or Figma. An Almighty
+Lisp developer designs with their hands and thinks in s-expressions; the studio
+does not make them choose. Every gesture on the canvas is an edit to a form they
+can read, and every form they write is a canvas they can touch, in the running
+image. A prototype of it, in the design system taken from the almighty-lisp
+site, is in [Figma][studio-prototype].
+
+[studio-prototype]: https://www.figma.com/design/AnkjMYkC0RbbevQUkKMcom/almighty-bolt?node-id=0-1
+
+### Ideals
+
+- **The image is the document.** The studio is a window onto the running Lisp,
+  not a file editor. Views, themes, state and windows are live objects, there in
+  the REPL in its dock. Saving writes source; nothing is exported.
+- **One thing, read three ways.** A view is a form. The canvas, the outline and
+  the code are three editors of the same s-expression, in step as you type.
+  Wiring is a second form beside it, checked against the first.
+- **What you see is what the app draws.** The canvas is the library drawing the
+  app, at its real size, in its real theme and with its real data, never an
+  imitation.
+- **Time is a material.** Every frame and every event is recorded: go back,
+  replay, compare the state of two frames, step into what a press called, and
+  keep a recording as a test.
+- **Accessible as it is made.** The semantic tree, what VoiceOver says, the
+  keyboard order and the contrast of every text are shown while you design, not
+  found in an audit afterwards.
+- **Agents work beside you.** The machine interface the tests use is how an
+  agent proposes a change: you see it on the canvas and in the code, and take
+  it, change it or undo it.
+
+### Features
+
+In five modes, with the panes of each. What 0.3 has is said; the rest is
+planned.
+
+- **Design.**
+  - A catalogue of every widget and container of the library, and the app's own
+    views and widgets beside them.
+  - Widgets dragged from the catalogue into the view, and moved within it, with
+    a marker where they will land: into this column, before its third child.
+    (0.3 adds them with a click.)
+  - Handles that change a container's gap, alignment and flex and a widget's
+    size limits, never x and y, since the layout places things. Widgets put in a
+    column, row, grid or panel with a key (Command-G), and taken out of one.
+  - Views inside views, as a message row is in a list.
+  - The view in each window size, in both modes, and in its data's states
+    (empty, long, invalid, loading), side by side.
+  - Trying a widget in place: Command-click uses it instead of selecting it.
+  - The outline, the inspector (what each option is and where its value comes
+    from: given, wired, a default or the theme), undo and redo, and saving as a
+    `define-view` file are in 0.3.
+- **Wire and code.**
+  - Wiring written in the inspector, which goes into the source as a clause,
+    compiled and checked against the view as it is typed.
+  - The stub of the wiring for every id (0.3 shows it to copy), an id renamed in
+    the view and in every wiring of it, and where an id is wired.
+  - The window's `state-let` values, live and editable, kept across a reload.
+    (0.3 has them at the REPL, with `state`.)
+  - The view's form edited as Lisp, with paredit and completion of ids, kinds
+    and options, or the same file open in Emacs, kept in step through the image.
+- **Debug.**
+  - A timeline of frames: the build, layout and paint of each, the builds it
+    took and the bytes it allocated, from the frame ring.
+  - Replay and time travel: back to any event, replayed from there on a virtual
+    clock, with the state of two frames compared.
+  - Why a frame was laid out or painted again: what in its description changed.
+  - What a press called, with its arguments, its result and its time, and a way
+    into the debugger at it.
+  - A recording kept as a replay script with checkpoints: an acceptance test
+    written by using the app.
+- **Theme.**
+  - The theme designer as a pane: the seeds, the colours worked out from them,
+    the sizes, both modes side by side, readability, and the `define-theme`
+    form, kept in step with the design system's variables in Figma.
+- **Test and agent.**
+  - The semantic tree, spoken by VoiceOver on request, the keyboard order drawn
+    over the canvas, and the contrast of every text checked. (0.3 has the tree,
+    and VoiceOver.)
+  - An agent pane: a change asked for in words, made by an agent through the
+    machine interface and the MCP server, and proposed as a change to the view
+    and the code, shown on the canvas.
+- **Widgets made with the widget designer,** built with it to test it: a number
+  stepper, a divider, a collapsible section, a link, chips, badges and cards,
+  and a toolbar, a sidebar and a status bar.
+
+### Gaps
+
+What stands between the library today and the studio, as found while building
+the GUI designer, and where on this roadmap each is closed.
+
+- **The catalogue has five widgets** (label, button, text field, column, row).
+  Every widget has to say what its options are and of what kind: an API for
+  writing your own widgets, which says how a widget appears in the semantic tree
+  and in the catalogue.
+- **No dragging.** The library has drags inside one widget only. It needs a drag
+  with a source, what is carried, drop targets, and an insertion marker worked
+  out from the layout ([Interaction](#later)).
+- **Windows, not panes.** The GUI designer, the inspector and the theme designer
+  are separate windows. One window needs splitters, docked panes, tabs and a
+  tree view ([Text and layout](#later)).
+- **The app is not in a pane.** Drawing the app inside the studio needs its
+  display list scaled and placed, the pointer hit-tested through the zoom, and
+  keys sent on to it.
+- **The design surface is not quite inert.** Menus, tooltips and dialogs that a
+  widget in it opens still work, and a canvas with `:autofocus` takes the
+  keyboard. A short fix.
+- **Views do not nest in the designer,** and views take no parameters. Wiring
+  where a view is drawn gives what differs, which may be enough.
+- **Wiring goes stale.** What a `view` form wired is noted until the image
+  restarts, so the designer can warn of a clause that no code has now. A short
+  fix: a `view` compiled again replaces what it noted.
+- **The semantic tree is wrong while frames fail.** It comes from the failing
+  build, which has no places yet; it should stay with the last good frame. A
+  short fix.
+- **Type and effects.** No italic, no weights between regular and bold, no
+  shadow, grain or scanlines: the design system's chrome cannot be drawn by the
+  library yet ([Text and layout, Effects](#later)).
+- **No menus, and undo only in the GUI designer.** An app's own menus (File,
+  Edit) are not in the menu bar ([Windows](#next)), and the theme designer
+  cannot undo.
+- **No code editor.** A text area is plain text: no colouring, no structural
+  editing, no large files. A code widget, or a bridge to Emacs through the
+  image.
+- **Recording without a face.** The frame ring, the phase times and replay
+  scripts exist, and nothing shows them; the timeline and replay panes are built
+  on what is there.
+
+### Stages
+
+1. **Finish the designer.** Every widget in the catalogue, through the widget
+   API. Dragging. Floats and focus inert in a design surface. Wiring that does
+   not go stale. Views in the catalogue.
+2. **One window.** Splitters, docked panes, tabs and a tree view. The app drawn
+   in a pane, hit-tested through the zoom. The app's menus. The theme designer
+   as a pane, with undo.
+3. **Code and time.** A code editor, or the bridge to Emacs. The timeline,
+   replay and state panes over the frame ring. The semantic and accessibility
+   panes. Tests made from recordings.
+4. **Craft and agents.** Effects for the chrome: shadow, grain, scanlines. The
+   agent pane over the MCP server. The theme and the Figma variables kept in
+   step. Shipping an `.app`.
