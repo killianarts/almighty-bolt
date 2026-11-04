@@ -111,7 +111,7 @@ A theme that gives the spacing works out every size again, except those it gives
 
 #### Windowing
 
-- A window whose frame fails no longer stops: it shows the last frame that did not fail, with the error along its bottom, says the error once (not on every move of the pointer), and goes on, so that a press on what it shows can put the app right. Tests and the REPL still get the error. See [When a frame fails](../reference.md#when-a-frame-fails).
+- A window whose frame fails no longer stops: it shows the last frame that did not fail, with the error along its bottom, says the error once (not on every move of the pointer), and goes on, so that a press on what it shows can put the app right. Tests and the REPL still get the error. The machine interface and VoiceOver are given the tree of the frame that is shown. See [When a frame fails](../reference.md#when-a-frame-fails).
 - [`symbol`](../reference/page.md#symbol) now does X.
 
 #### Rendering

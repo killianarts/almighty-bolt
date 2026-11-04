@@ -545,7 +545,10 @@ and says the error once on the error output. The window goes on: what was shown 
 a press on it reaches the app, and a frame that lays out again is shown as any other. A layout that
 fails because of what the app holds (an option it was given that the layout does not take) can be
 put right that way, by a button that changes it back or an Undo. While frames fail, the machine
-interface and VoiceOver see what the failing frame described, which has no places yet. In a test,
+interface and VoiceOver are given the tree of the frame shown, as it was last asked for (they ask
+often), so what they press is where it is shown; a state that only changes how something looks (a
+toggle that is on) can be a frame behind. If nothing asked for it in a frame laid out as the one
+shown, they are given the window, saying what failed. In a test,
 and when an app's frame is made from the REPL, the error is the caller's, as before.
 
 ## The inspector

@@ -3677,6 +3677,28 @@ released unless RELEASE."
     (multiple-value-bind (x y) (core:lookup-target (screen-app screen) :days)
       (assert-eql ring (color-at screen (+ x 20) (- y 1))))))
 
+;;; --- the tree while frames fail ---
+
+(define-test while-frames-fail-the-tree-is-that-of-the-frame-shown ()
+  ;; The machine interface and VoiceOver read the tree; while frames fail, the window shows the last
+  ;; good frame, and the tree must be of it, so that what they press is where it is shown.
+  (let ((core:*show-frame-errors* t)
+        (*error-output* (make-broadcast-stream)))
+    (let* ((screen (show 'make-breakable))
+           (session (screen-session screen))
+           (before (s:node-bounds (m:find-node session :id :mend))))
+      (click screen :break)
+      (assert-equal before (s:node-bounds (m:find-node session :id :mend)))
+      ;; And a press on it through the machine interface mends the app.
+      (m:click session :id :mend)
+      (assert-false (search "failed" (all-text screen))))
+    ;; Asked for first while frames fail, there is no good tree to give: the window says what failed.
+    (let* ((screen (show 'make-breakable))
+           (session (screen-session screen)))
+      (click screen :break)
+      (assert-true (search "The app failed in this frame"
+                           (s:node-name (m:find-node session :role :static-text)))))))
+
 ;;; --- a design surface takes no input ---
 
 (defvar *surface-log* '()

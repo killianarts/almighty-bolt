@@ -134,6 +134,8 @@
            #:immediate-app-ui
            #:immediate-app-tools
            #:immediate-app-failure
+           #:immediate-app-tree
+           #:immediate-app-tree-frame
            #:now
            #:current-context
            #:this-window
@@ -158,7 +160,11 @@
    ;; True if the tools for developing the app (the inspector) can be opened from its window.
    (tools :initform nil :accessor immediate-app-tools)
    ;; What the last frame's error said, while frames fail, so that it is reported once.
-   (failure :initform nil :accessor immediate-app-failure))
+   (failure :initform nil :accessor immediate-app-failure)
+   ;; The semantic tree last asked for in a frame that did not fail, and what that frame was (its
+   ;; hashes and size), for while frames fail: the tree of the frame that is shown.
+   (tree :initform nil :accessor immediate-app-tree)
+   (tree-frame :initform nil :accessor immediate-app-tree-frame))
   (:documentation "An app whose interface is a function that is called every frame."))
 
 (defun make-immediate-app (app)

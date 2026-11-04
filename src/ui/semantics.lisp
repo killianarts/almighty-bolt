@@ -31,6 +31,10 @@
                 #:box-h)
   (:import-from #:almighty-bolt/ui/ui
                 #:ui-root
+                #:ui-last-layout-hash
+                #:ui-last-width
+                #:ui-last-height
+                #:ui-last-scale
                 #:ui-floats
                 #:ui-boxes
                 #:ui-count
@@ -51,7 +55,10 @@
                 #:theme-row-height)
   (:import-from #:almighty-bolt/ui/immediate
                 #:immediate-app
-                #:immediate-app-ui)
+                #:immediate-app-ui
+                #:immediate-app-failure
+                #:immediate-app-tree
+                #:immediate-app-tree-frame)
   (:export #:node-id
            #:node-role
            #:node-name
@@ -320,11 +327,38 @@ shows; one that is all out of sight is :hidden, with no width or height."
                               (list shown-left shown-top shown-w shown-h)))
             (and children (list :children children)))))
 
+(defun shown-frame (ui)
+  "What says where things are in the frame the window shows: the hash of what decides its layout,
+and its size. (Not the hash of its look: a frame that differs from another only in how something
+looks, a button held down, has everything where it was.)"
+  (list (ui-last-layout-hash ui) (ui-last-width ui) (ui-last-height ui) (ui-last-scale ui)))
+
 (defmethod accessibility-tree ((instance immediate-app))
-  "The semantic tree of the frame last built, a node (see above) for the whole window, or NIL if
-no frame has been built."
-  (let* ((ui (immediate-app-ui instance))
-         (root (ui-root ui)))
+  "The semantic tree of the frame the window shows, a node (see above) for the whole window, or NIL
+if no frame has been built. While frames fail, the window shows the last that did not (see
+SHOW-FAILURE), and the boxes are those of the build that failed, which has no places: the tree is
+then the one last asked for, if that was of a frame laid out as the one shown (a state that only
+changes how something looks, a toggle that is on, can be a frame behind), and otherwise a window
+that says what failed. Kept only as it is asked for, so that a frame allocates nothing for it."
+  (let ((ui (immediate-app-ui instance)))
+    (if (immediate-app-failure instance)
+        (if (equal (immediate-app-tree-frame instance) (shown-frame ui))
+            (immediate-app-tree instance)
+            (let ((w (ui-last-width ui)) (h (ui-last-height ui)))
+              (list :role :group
+                    :bounds (list 0f0 0f0 w h)
+                    :children (list (list :role :static-text
+                                          :name (format nil "The app failed in this frame: ~a"
+                                                        (immediate-app-failure instance))
+                                          :bounds (list 0f0 (- h 36f0) w 36f0))))))
+        (let ((tree (frame-tree ui)))
+          (setf (immediate-app-tree instance) tree
+                (immediate-app-tree-frame instance) (shown-frame ui))
+          tree))))
+
+(defun frame-tree (ui)
+  "The semantic tree of the frame last built in UI."
+  (let ((root (ui-root ui)))
     (and root
          (let ((node (node-of ui root 0f0 0f0 -1f30 -1f30 1f30 1f30))
                ;; What floats above the screen (a menu) is in the window too, after the rest; the
