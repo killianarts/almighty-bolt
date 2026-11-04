@@ -293,6 +293,10 @@ what comes first, is in [docs/roadmap.md](docs/roadmap.md).
   app to load and wire, which an open window shows at once:
   `(almighty-bolt-gui-designer:open-designer)` after loading the system
   `almighty-bolt-gui-designer`.
+- [`apps/studio/`](apps/studio): the start of the studio, the GUI designer and
+  the theme designer in one window, a tab for each:
+  `(almighty-bolt-studio:open-studio)` after loading the system
+  `almighty-bolt-studio`.
 - [`examples/7guis/`](examples/7guis): the seven 7GUIs tasks.
   [`bench/stress/`](bench/stress) has a dashboard, a million-row list and a text
   editor with input-method support.

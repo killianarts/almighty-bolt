@@ -54,6 +54,10 @@ A view made in the GUI designer is a file of Lisp that defines it, `(bolt:define
 
 A view is named by a symbol of the app's package, as a function is, so that views of two apps or libraries do not take each other's names. It takes no parameters: what differs from one place it is drawn to the next is given by the wiring there.
 
+### The studio, begun
+
+`apps/studio` has the GUI designer and the theme designer in one window, a tab for each: `(almighty-bolt-studio:open-studio)` after loading the system `almighty-bolt-studio`. Each is as it is in a window of its own, and keeps what it holds (the view, the theme being made, the undo of each) while the other is shown. The menu bar has the GUI designer's File menu while it is shown. It is built of the library's own widgets: a tab bar, and each designer drawn in a container of its own, so that their ids do not meet.
+
 ### A tree view
 
 `(bolt:tree roots :id :outline :children #'node-children :label #'node-title :key #'node-id :selected picked)` shows a tree of items, each indented a level further, with a mark that opens and closes those that have children, and returns the key selected. It takes the keyboard as one thing: the arrows move the selection, open and close. VoiceOver reads it as an outline of rows. The GUI designer's outline is one, so that a container's contents can be hidden while the rest is worked on.

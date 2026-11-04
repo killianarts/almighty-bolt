@@ -23,6 +23,7 @@ test: compile-clean
 	$(SBCL) $(REGISTRY) --eval '(asdf:test-system "almighty-bolt-stress/acceptance")'
 	$(SBCL) $(REGISTRY) --eval '(asdf:test-system "almighty-bolt-theme-designer")'
 	$(SBCL) $(REGISTRY) --eval '(asdf:test-system "almighty-bolt-gui-designer")'
+	$(SBCL) $(REGISTRY) --eval '(asdf:test-system "almighty-bolt-studio")'
 
 # The project compiled from nothing, into a directory that is thrown away, without a warning of any
 # kind (scripts/compile-clean.lisp). make test starts with it.

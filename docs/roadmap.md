@@ -139,8 +139,12 @@ planned.
 What stands between the library today and the studio, as found while building
 the GUI designer, and where on this roadmap each is closed.
 
-- **Windows, not panes.** The GUI designer, the inspector and the theme designer
-  are separate windows. One window needs docked panes ([Text and layout](#later)).
+- **Tabs, not docked panes.** The studio has the GUI designer and the theme
+  designer in one window, one at a time behind a tab bar, and the inspector is a
+  window of its own. Docked panes need a pane to keep what is in it when it is
+  moved (a widget's state is kept by where it is), a split's size the app's to
+  keep, and a shortcut to go to the pane with the keyboard rather than to every
+  pane ([Text and layout](#later)).
 - **The app is not in a pane.** Drawing the app inside the studio needs its
   display list scaled and placed, the pointer hit-tested through the zoom, and
   keys sent on to it.
@@ -160,7 +164,7 @@ the GUI designer, and where on this roadmap each is closed.
 ### Stages
 
 1. **One window.** Docked panes. The app drawn in a pane, hit-tested through
-   the zoom. The theme designer as a pane.
+   the zoom.
 2. **Code and time.** A code editor, or the bridge to Emacs. The timeline,
    replay and state panes over the frame ring. The semantic and accessibility
    panes. Tests made from recordings.
