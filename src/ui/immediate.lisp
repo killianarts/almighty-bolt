@@ -47,6 +47,7 @@
                 #:box-data
                 #:box-children
                 #:box-interactive
+                #:box-inert
                 #:box-focusable
                 #:box-moves
                 #:box-x
@@ -280,8 +281,9 @@ key (RECT-OF, which a widget measures from) is the whole of it, wherever it is."
       ;; The floats after the screen, so that the pointer finds them first; each is at its place in
       ;; the window (its X and Y), with nothing over it.
       (loop :for float :across (ui-floats ui)
-            :do (walk float 0f0 0f0 -1f30 -1f30 1f30 1f30 (box-key float))
-                (when (float-spec-modal (box-data float))
+            :do (walk float 0f0 0f0 -1f30 -1f30 1f30 1f30 (box-key float) (box-inert float))
+                ;; A dialog opened in a design surface does not keep the keyboard.
+                (when (and (float-spec-modal (box-data float)) (not (box-inert float)))
                   (setf (ui-modal-layer ui) (box-key float)))))
     (let ((saved (ui-saved-geometry ui)))
       (unless (= (length saved) (* 4 count))

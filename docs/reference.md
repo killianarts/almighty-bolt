@@ -312,9 +312,11 @@ on the frame of the press: `(let ((pressed (bolt:design-surface (:id :canvas :se
 view)))) (when pressed (setf picked pressed)))`. The thing whose id is `:selected` is outlined in
 the theme's ring colour, and the thing the pointer is over in its dim text colour. What is in it is
 in the semantic tree as it would be anywhere, so the machine interface finds it (`:within` the
-surface), and a click there, or VoiceOver's press, selects it. What floats above the screen from a
-widget in it (a dropdown's menu, a tooltip, a dialog) is not covered yet, nor a `canvas` with
-`:autofocus`, which takes the keyboard when the window opens.
+surface), and a click there, or VoiceOver's press, selects it. No input reaches anything in it:
+not a shortcut, not a dialog's Escape, not a press that would close a popover. What floats above the
+screen from a widget in it (a menu, a dialog) takes no input either, and a dialog there does not
+keep the keyboard; a `canvas` in it with `:autofocus` is not given the keyboard. What floats is
+still drawn where it would be, over the rest of the window (a dialog in the middle, with its scrim).
 
 ## Themes
 

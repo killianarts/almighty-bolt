@@ -3677,6 +3677,49 @@ released unless RELEASE."
     (multiple-value-bind (x y) (core:lookup-target (screen-app screen) :days)
       (assert-eql ring (color-at screen (+ x 20) (- y 1))))))
 
+;;; --- a design surface takes no input ---
+
+(defvar *surface-log* '()
+  "What the widgets inside MAKE-INERT-SURFACE's surface did, which should be nothing.")
+
+(defun make-inert-surface ()
+  (state-let ((outside ""))
+    (lambda ()
+      (column (:id :page :gap 8)
+        (setf outside (text-field outside :id :outside))
+        (design-surface (:id :canvas)
+          (column (:id :design :gap 8)
+            (when (button "Inner" :id :inner)
+              (push :inner *surface-log*))
+            ;; Each of these takes input whatever is under the pointer or has the keyboard.
+            (when (shortcut #\k :command)
+              (push :shortcut *surface-log*))
+            (when (dialog (:id :dialog :open t :title "A dialog")
+                    (when (button "In the dialog" :id :in-dialog)
+                      (push :in-dialog *surface-log*)))
+              (push :escape *surface-log*))
+            (when (canvas 60 40 (lambda (list context w h) (declare (ignore list context w h)))
+                          :id :area :focusable t :autofocus t)
+              (push :canvas *surface-log*))))))))
+
+(define-test nothing-in-a-design-surface-takes-input-not-even-what-floats-or-asks-for-the-keyboard ()
+  (setf *surface-log* '())
+  (let* ((screen (show 'make-inert-surface))
+         (session (screen-session screen)))
+    ;; The canvas that asks for the keyboard is not given it.
+    (assert-false (s:node-property (m:find-node session :id :area) :focused))
+    ;; A shortcut and the dialog's Escape: taken by nothing in it.
+    (m:press-key session :k :modifiers '(:super))
+    (m:press-key session :escape)
+    ;; A press where the dialog's button is drawn: the dialog does not take the pointer.
+    (click screen :in-dialog)
+    (assert-equal '() *surface-log*)
+    ;; And the dialog does not keep the keyboard: Tab goes to the field outside the surface.
+    (m:press-key session :tab)
+    (m:type-text session "q")
+    (assert-equal "q" (s:node-value (m:find-node session :id :outside)))
+    (assert-equal '() *surface-log*)))
+
 ;;; --- views: a design, and the code wired to it ---
 
 (define-view t-login

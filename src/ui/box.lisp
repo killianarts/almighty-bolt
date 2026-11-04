@@ -43,6 +43,7 @@
            #:box-aux
            #:box-aux-doubles
            #:box-interactive
+           #:box-inert
            #:box-focusable
            #:box-moves
            #:box-x
@@ -118,6 +119,8 @@
   (focusable nil)
   ;; Whether it wants to be told of the pointer moving over it.
   (moves nil)
+  ;; True for a float opened inside a design surface: drawn, and not found by the pointer.
+  (inert nil)
   ;; Where it is in its parent and how large, from layout.
   (x 0f0 :type single-float)
   (y 0f0 :type single-float)
@@ -174,6 +177,7 @@ made."
         (box-interactive box) nil
         (box-focusable box) nil
         (box-moves box) nil
+        (box-inert box) nil
         (box-x box) 0f0
         (box-y box) 0f0
         (box-w box) 0f0

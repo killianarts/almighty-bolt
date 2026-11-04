@@ -18,6 +18,13 @@
                 #:ui-pressed
                 #:ui-pointer-x
                 #:ui-pointer-y
+                #:ui-released
+                #:ui-secondary-pressed
+                #:ui-keys
+                #:ui-inputs
+                #:ui-wheel-dx
+                #:ui-wheel-dy
+                #:ui-inert
                 #:consume-press
                 #:open-float
                 #:close-float
@@ -41,19 +48,37 @@
 ;;; draws the view being designed. What is described in it is laid out and drawn as anywhere else,
 ;;; one under another, but the pointer finds only the surface: none of what is in it is among the
 ;;; frame's hits (see REMEMBER-GEOMETRY), so none of it is ever what the pointer is over, and nothing
-;;; in it is hovered, pressed, given the keyboard (by a press or by Tab) or given a cursor. The surface takes the press
+;;; in it is hovered, pressed, given the keyboard (by a press or by Tab) or given a cursor. And
+;;; while it is described, the frame's input is put aside (and put back after), so that what takes
+;;; input whatever has the keyboard (a shortcut, a dialog's Escape, a press outside a popover) takes
+;;; none there; a float opened in it (a menu, a dialog) is inert as the rest is, and a canvas in it
+;;; that asks for the keyboard (:autofocus) is not given it. The surface takes the press
 ;;; itself and says which thing in it, by its id, the press was on; it outlines the thing with an id
 ;;; that the pointer is over, and the one that is SELECTED, as the inspector outlines what it picked.
 
 (defun begin-design-surface (id flex)
-  "Open the surface's box. Returns it and the index of the first box inside it."
+  "Open the surface's box, and put the frame's input aside. Returns the box, the index of the first
+box inside it, and the input put aside, for PUT-INPUT-BACK."
   (let* ((ui *ui*)
-         (box (open-box ui :surface :id (or id (required-id 'design-surface)))))
+         (box (open-box ui :surface :id (or id (required-id 'design-surface))))
+         (held (list (ui-pressed ui) (ui-released ui) (ui-secondary-pressed ui) (ui-keys ui)
+                     (ui-inputs ui) (ui-wheel-dx ui) (ui-wheel-dy ui))))
     (setf (box-interactive box) t
           ;; Every move over it wants a frame, for the outline that follows the pointer.
           (box-moves box) t
-          (box-flex box) (float flex 1f0))
-    (values box (ui-count ui))))
+          (box-flex box) (float flex 1f0)
+          (ui-pressed ui) nil (ui-released ui) nil (ui-secondary-pressed ui) nil
+          (ui-keys ui) '() (ui-inputs ui) '() (ui-wheel-dx ui) 0f0 (ui-wheel-dy ui) 0f0)
+    (incf (ui-inert ui))
+    (values box (ui-count ui) held)))
+
+(defun put-input-back (held)
+  "Give the frame back the input BEGIN-DESIGN-SURFACE put aside."
+  (let ((ui *ui*))
+    (destructuring-bind (pressed released secondary keys inputs dx dy) held
+      (setf (ui-pressed ui) pressed (ui-released ui) released (ui-secondary-pressed ui) secondary
+            (ui-keys ui) keys (ui-inputs ui) inputs (ui-wheel-dx ui) dx (ui-wheel-dy ui) dy))
+    (setf (ui-inert ui) (max 0 (1- (ui-inert ui))))))
 
 (defun inside-p (box surface)
   (loop :for parent = (box-parent box) :then (box-parent parent)
@@ -119,7 +144,8 @@ pointer, a press and the keyboard do not reach it. A press on it returns the id 
 thing with an id that the press was on, on the frame of the press (and NIL otherwise, or if the press
 was on none). The thing whose id is SELECTED is outlined, and so is the thing the pointer is over.
 For a designer, which draws the view being designed in one. The :id is required."
-  (let ((box (gensym "SURFACE")) (first (gensym "FIRST")))
-    `(multiple-value-bind (,box ,first) (begin-design-surface ,id ,flex)
-       ,@body
+  (let ((box (gensym "SURFACE")) (first (gensym "FIRST")) (held (gensym "HELD")))
+    `(multiple-value-bind (,box ,first ,held) (begin-design-surface ,id ,flex)
+       (unwind-protect (progn ,@body)
+         (put-input-back ,held))
        (end-design-surface ,box ,first ,selected))))

@@ -14,6 +14,7 @@
                 #:box-tooltip
                 #:box-data
                 #:box-interactive
+                #:box-inert
                 #:box-parent
                 #:box-children)
   (:import-from #:almighty-bolt/internals
@@ -58,6 +59,7 @@
            #:float-spec-modal
            #:float-spec-tool
            #:ui-inspection
+           #:ui-inert
            #:inspection
            #:make-inspection
            #:inspection-picking
@@ -221,6 +223,9 @@
   ;; What the inspector, in a window of its own, has asked of this window (see inspection.lisp), or
   ;; NIL while no inspector looks at it.
   (inspection nil)
+  ;; How many design surfaces the build is inside (see design-surface.lisp): what is described there
+  ;; is drawn and takes no input, and a float opened there is inert too.
+  (inert 0 :type fixnum)
   (active 0 :type fixnum)
   (focus 0 :type fixnum)
   ;; True once a frame has been laid out and drawn: the window has opened, and a canvas that asks
@@ -420,6 +425,7 @@ box that was open, which CLOSE-FLOAT is given back."
         (open (ui-parent ui)))
     (setf (box-id box) id
           (box-data box) spec
+          (box-inert box) (plusp (ui-inert ui))
           (box-key box) (let ((key (mix (mix owner (hash-of :float)) (hash-of id))))
                           (if (zerop key) 1 key)))
     (when (> (* 2 (ui-count ui)) (length (ui-seen-keys ui)))
@@ -443,6 +449,8 @@ box that was open, which CLOSE-FLOAT is given back."
         (ui-root ui) nil
         (fill-pointer (ui-floats ui)) 0
         (ui-consumed ui) nil
+        ;; A surface whose body failed has put its input back (it unwinds), and is closed.
+        (ui-inert ui) 0
         (ui-cursor ui) :arrow
         (ui-frame-layout-hash ui) +seed+
         (ui-frame-paint-hash ui) +seed+))

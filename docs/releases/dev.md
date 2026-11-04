@@ -67,7 +67,7 @@ A view is named by a symbol of the app's package, as a function is, so that view
 - Save also defines the view in the running Lisp, so an app's window that draws it shows it at once, and says if the app's code that wires it no longer fits (an id it wires that the view has lost).
 - Below the selected widget, the start of the code that draws the view: `(bolt:view login (column :sign-in-form) (label :heading) ...)`, a line for each widget, to copy.
 
-It is built on a new container, `design-surface`, which any designer can use: what is in it is drawn but does not work, the pointer and the keyboard do not reach it, and a press on it returns the id of the thing it was on. `(bolt:design-surface (:id :canvas :selected picked) ...)` outlines the thing whose id is `picked`.
+It is built on a new container, `design-surface`, which any designer can use: what is in it is drawn but does not work, no input reaches it (the pointer, the keyboard, a shortcut, a dialog's Escape; what floats from a widget in it, a menu or a dialog, takes none either, and a canvas in it is not given the keyboard), and a press on it returns the id of the thing it was on. `(bolt:design-surface (:id :canvas :selected picked) ...)` outlines the thing whose id is `picked`.
 
 ### More than one window
 

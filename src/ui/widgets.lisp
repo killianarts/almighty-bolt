@@ -46,6 +46,7 @@
                 #:box-children)
   (:import-from #:almighty-bolt/ui/ui
                 #:*ui*
+                #:ui-inert
                 #:ui-context
                 #:ui-parent
                 #:ui-consumed
@@ -2275,7 +2276,8 @@ frame to frame, as what is under the pointer changes."
          (events '())
          (rect (rect-of ui key))
          (hot (= (ui-hot ui) key)))
-    (when (and autofocus focusable (not (ui-started ui)) (zerop (ui-focus ui)))
+    ;; Not in a design surface, where nothing takes the keyboard.
+    (when (and autofocus focusable (not (ui-started ui)) (zerop (ui-focus ui)) (zerop (ui-inert ui)))
       (setf (ui-focus ui) key))
     (when cursor
       (unless (member cursor +cursors+)
