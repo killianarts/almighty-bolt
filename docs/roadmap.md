@@ -154,17 +154,8 @@ the GUI designer, and where on this roadmap each is closed.
 - **The app is not in a pane.** Drawing the app inside the studio needs its
   display list scaled and placed, the pointer hit-tested through the zoom, and
   keys sent on to it.
-- **The design surface is not quite inert.** Menus, tooltips and dialogs that a
-  widget in it opens still work, and a canvas with `:autofocus` takes the
-  keyboard. A short fix.
 - **Views do not nest in the designer,** and views take no parameters. Wiring
   where a view is drawn gives what differs, which may be enough.
-- **Wiring goes stale.** What a `view` form wired is noted until the image
-  restarts, so the designer can warn of a clause that no code has now. A short
-  fix: a `view` compiled again replaces what it noted.
-- **The semantic tree is wrong while frames fail.** It comes from the failing
-  build, which has no places yet; it should stay with the last good frame. A
-  short fix.
 - **Type and effects.** No italic, no weights between regular and bold, no
   shadow, grain or scanlines: the design system's chrome cannot be drawn by the
   library yet ([Text and layout, Effects](#later)).
@@ -181,8 +172,7 @@ the GUI designer, and where on this roadmap each is closed.
 ### Stages
 
 1. **Finish the designer.** Every widget in the catalogue, through the widget
-   API. Dragging. Floats and focus inert in a design surface. Wiring that does
-   not go stale. Views in the catalogue.
+   API. Dragging. Views in the catalogue.
 2. **One window.** Splitters, docked panes, tabs and a tree view. The app drawn
    in a pane, hit-tested through the zoom. The app's menus. The theme designer
    as a pane, with undo.
