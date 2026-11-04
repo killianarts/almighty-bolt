@@ -26,6 +26,7 @@
                 #:option-type
                 #:option-default
                 #:find-entry
+                #:option-value-p
                 #:node-option
                 #:draw-node)
   (:export #:make-designer
@@ -62,11 +63,12 @@
 ;;; --- the file ---
 
 (defun write-view (view stream)
-  "Write VIEW to STREAM as the file the designer saves: its form, readable in any package."
+  "Write VIEW to STREAM as the file the designer saves: its form, read in a package that uses CL, so
+that NIL and T are written as they are and every widget's kind, id and options as keywords."
   (format stream ";;; A view made with the GUI designer of almighty-bolt: ~
                   (kind id (option value ...) what-is-in-it ...).~%")
   (with-standard-io-syntax
-    (let ((*package* (find-package :keyword))
+    (let ((*package* (find-package :cl-user))
           (*print-case* :downcase)
           (*print-pretty* t)
           (*print-right-margin* 100))
@@ -74,17 +76,33 @@
       (terpri stream))))
 
 (defun read-view (stream)
-  "The view in STREAM, a file the designer saved. An error if it is not one."
+  "The view in STREAM, a file the designer saved. An error, saying what is wrong, if it is not one:
+a widget of a kind the catalogue does not have, an option its kind does not have or a value that
+option cannot have, or an id that two widgets have. A view that opens can be drawn."
   (let ((form (with-standard-io-syntax
                 (let ((*read-eval* nil)
-                      (*package* (find-package :keyword)))
-                  (read stream)))))
+                      (*package* (find-package :cl-user)))
+                  (read stream))))
+        (ids '()))
     (labels ((check (form)
                (unless (and (consp form) (keywordp (first form)) (keywordp (second form))
-                            (listp (third form)))
+                            (listp (third form)) (evenp (length (third form))))
                  (error "~s is not a widget of a view." form))
-               (find-entry (first form))
-               (mapc #'check (cdddr form))))
+               (destructuring-bind (kind id options &rest children) form
+                 (let ((entry (find-entry kind)))
+                   (when (member id ids)
+                     (error "Two widgets have the id ~s." id))
+                   (push id ids)
+                   (loop :for (name value) :on options :by #'cddr
+                         :do (let ((option (find name (entry-options entry) :key #'option-name)))
+                               (unless option
+                                 (error "A ~(~a~) has no option ~s." kind name))
+                               (unless (option-value-p option value)
+                                 (error "~s is not a value of the option ~s of a ~(~a~)."
+                                        value name kind))))
+                   (when (and children (not (entry-container-p entry)))
+                     (error "A ~(~a~) holds nothing, and ~s has something in it." kind id))
+                   (mapc #'check children)))))
       (check form))
     (form-node form)))
 

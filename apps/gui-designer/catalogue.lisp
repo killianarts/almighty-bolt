@@ -17,6 +17,7 @@
            #:option-default
            #:+catalogue+
            #:find-entry
+           #:option-value-p
            #:node-option
            #:draw-node))
 
@@ -93,6 +94,15 @@ node, a function that draws its children, and the node's option values by name."
 (defun find-entry (kind)
   (or (find kind +catalogue+ :key #'entry-kind)
       (error "The catalogue has no widget of the kind ~s." kind)))
+
+(defun option-value-p (option value)
+  "True if VALUE is one that OPTION can have, by its type."
+  (let ((type (option-type option)))
+    (cond ((eq type :string) (stringp value))
+          ((eq type :number) (realp value))
+          ((eq type :boolean) (member value '(t nil)))
+          ((and (consp type) (eq (first type) :choice)) (member value (rest type)))
+          (t nil))))
 
 (defun node-option (node name)
   "The value of NODE's option NAME: what the node was given, or the option's default."

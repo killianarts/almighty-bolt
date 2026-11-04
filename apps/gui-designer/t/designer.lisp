@@ -219,6 +219,9 @@ event changed shows in it."
              (m:click session :id :save :within :toolbar)
              (assert-true (search "Saved to" (shown-name session :status)))
              (let ((saved (uiop:read-file-string path)))
+               ;; Written plainly: no package prefix on NIL.
+               (assert-false (search "common-lisp:" saved) saved)
+               (assert-true (search "(:text-field :name nil)" saved) saved)
                (assert-true (search "(:button :sign-in (:text \"Log in\"))" saved) saved)
                (assert-true (search "(:label :heading (:text \"Sign in\" :size 22))" saved) saved))
              (m:click session :id :new :within :toolbar)
@@ -230,20 +233,54 @@ event changed shows in it."
         (when (probe-file path) (delete-file path))))))
 
 (define-test a-file-that-is-not-a-view-is-not-opened ()
+  ;; Each would open and then fail in every frame, or (two widgets with one id) select and change
+  ;; the wrong one.
+  ;; Each says what is wrong.
+  (loop :for (text why) :in '(("(:slab :nope ())" "no widget of the kind :SLAB")
+                              ("(:column :v () (:label :x (:size \"big\")))" "of the option :SIZE")
+                              ("(:column :v () (:label :x (:colour 3)))" "has no option :COLOUR")
+                              ("(:column :v () (:button :x (:enabled maybe)))" "of the option :ENABLED")
+                              ("(:column :v () (:label :x ()) (:row :r () (:label :x ())))"
+                               "Two widgets have the id :X")
+                              ("(:column :v () (:label :x () (:label :y ())))" "holds nothing"))
+        :do
+    (multiple-value-bind (screen session) (open-designer)
+      (let ((path (merge-pathnames (format nil "not-~d.view" (random 1000000000))
+                                   (uiop:temporary-directory))))
+        (unwind-protect
+             (progn
+               (with-open-file (out path :direction :output)
+                 (write-string text out))
+               (setf (core:context-file-chooser (screen-context screen))
+                     (lambda (kind types offered)
+                       (declare (ignore kind types offered))
+                       (namestring path)))
+               (m:click session :id :open :within :toolbar)
+               (assert-true (search "Could not open" (shown-name session :status)) text)
+               (assert-true (search why (shown-name session :status)) why (shown-name session :status))
+               (assert-true (in-view session :sign-in) text))
+          (when (probe-file path) (delete-file path)))))))
+
+(define-test a-view-with-an-option-set-to-false-opens-again-as-it-was ()
   (multiple-value-bind (screen session) (open-designer)
-    (let ((path (merge-pathnames (format nil "not-~d.view" (random 1000000000))
+    (let ((path (merge-pathnames (format nil "view-~d.view" (random 1000000000))
                                  (uiop:temporary-directory))))
       (unwind-protect
            (progn
-             (with-open-file (out path :direction :output)
-               (write-string "(:slab :nope ())" out))
              (setf (core:context-file-chooser (screen-context screen))
                    (lambda (kind types offered)
                      (declare (ignore kind types offered))
                      (namestring path)))
+             (m:click session :id :sign-in :within :canvas)
+             (m:set-value session nil :id :option-enabled)
+             (m:click session :id :save :within :toolbar)
+             (assert-true (search "(:button :sign-in (:text \"Sign in\" :enabled nil))"
+                                  (uiop:read-file-string path))
+                          (uiop:read-file-string path))
+             (m:click session :id :new :within :toolbar)
              (m:click session :id :open :within :toolbar)
-             (assert-true (search "Could not open" (shown-name session :status)))
-             (assert-true (in-view session :sign-in)))
+             (assert-true (search "Opened" (shown-name session :status)))
+             (assert-true (s:node-property (in-view session :sign-in) :disabled)))
         (when (probe-file path) (delete-file path))))))
 
 (define-test the-outline-is-where-the-selected-widget-is-in-the-frame-it-changes-size ()
