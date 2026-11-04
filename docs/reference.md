@@ -146,7 +146,8 @@ it sees it. The modifiers, `:command`, `:shift`, `:option` and `:control`, must
 be the ones held, no more; the key is a character or a `+key-...+` code. A
 widget described before it that has the keyboard takes the keys it uses first (a
 text field, Command-A, -C, -V, -X and -Z), and the menu bar's (Command-H, -M, -Q
-and -W) never reach the app.
+and -W) never reach the app. In a pane of a `dock`, a shortcut is heard only
+while the pane is the active one, so two editors side by side do not both undo.
 
 The window has the menu bar of a Mac app: the application's menu (Hide, Hide
 Others, Show All, Quit), Edit (Undo, Redo, Cut, Copy, Paste, Select All) and
@@ -383,7 +384,9 @@ one over the other (`:vertical`), the first `size` points. Give it back as
 `:layout` to keep it, in `state-let` or a file; a `:layout` other than the one
 given the frame before is taken up. With none, every pane is a tab of one
 group; a pane the layout does not have goes in its first group, and one the
-dock is not given is left out. The tabs are buttons in the semantic tree. A
+dock is not given is left out. The active pane is the one last pressed in, whose
+tab was last chosen, or that has the keyboard (the first, until one is): only
+its shortcuts are heard. The tabs are buttons in the semantic tree. A
 pane is moved only by the pointer for now.
 
 `design-surface` (`:id :selected :flex`) is for a designer, which draws the view being designed in

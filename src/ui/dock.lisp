@@ -26,6 +26,10 @@
                 #:rect-h
                 #:ui-pointer-x
                 #:ui-pointer-y
+                #:ui-pressed
+                #:ui-focus
+                #:ui-count
+                #:ui-boxes
                 #:ui-consumed)
   (:import-from #:almighty-bolt/ui/theme
                 #:*theme*
@@ -35,7 +39,8 @@
                 #:set-size-limits
                 #:stack
                 #:panel
-                #:label)
+                #:label
+                #:*shortcuts-heard*)
   (:import-from #:almighty-bolt/ui/drag
                 #:drag-source
                 #:dragging
@@ -147,7 +152,11 @@ tall. KEY is taken from where it was first. LAYOUT as it was if ANCHOR is KEY, o
 (defstruct (dock-state (:constructor make-dock-state ()))
   ;; The layout now, and the one the app gave last: one it gives that is not that is taken up.
   (layout nil)
-  (given nil))
+  (given nil)
+  ;; The pane last pressed in or that has the keyboard, whose shortcuts are heard; and the key of
+  ;; each shown pane's box, to know where it was.
+  (active nil)
+  (pane-boxes (make-hash-table :test 'equal) :read-only t))
 
 (defun path-id (prefix path)
   (intern (format nil "~a~{-~d~}" prefix path) :keyword))
@@ -198,6 +207,27 @@ tall. KEY is taken from where it was first. LAYOUT as it was if ANCHOR is KEY, o
           (box-flex box) 1f0)
     box))
 
+(defvar *dock-state* nil
+  "The state of the dock being drawn.")
+
+(defun draw-pane (dock-key pane)
+  "Draw PANE, (key title function), in its box: its shortcuts heard if it is the active pane, and
+made the active one if the keyboard is in it."
+  (let* ((ui *ui*)
+         (state *dock-state*)
+         (key (first pane))
+         (box (open-pane-box dock-key key))
+         (first-box (ui-count ui)))
+    (setf (gethash key (dock-state-pane-boxes state)) (box-key box))
+    (let ((*shortcuts-heard* (and *shortcuts-heard* (equal key (dock-state-active state)))))
+      (funcall (third pane)))
+    (let ((focus (ui-focus ui)))
+      (when (and (/= focus 0)
+                 (loop :for index :from first-box :below (ui-count ui)
+                         :thereis (= (box-key (svref (ui-boxes ui) index)) focus)))
+        (setf (dock-state-active state) key)))
+    (close-box ui)))
+
 (defun draw-group (dock-key node path panes)
   "Draw the group NODE at PATH: its tabs and the pane it shows. Returns the layout it makes of NODE
 (another pane chosen), and what was let go of on it, if anything: (values node (key anchor zone
@@ -220,14 +250,14 @@ size))."
                     (panel (:id :tab :left 10 :right 10 :top 4 :bottom 4 :radius 4
                             :color (if (equal key selected) :row-selected :panel))
                       (label title :id :title)))
-              (setf new (list* :tabs key keys)))))
+              ;; Chosen, its pane is shown, and its shortcuts heard.
+              (setf new (list* :tabs key keys)
+                    (dock-state-active *dock-state*) key))))
         (close-box ui))
       (stack (:id :body :flex 1)
         (let ((pane (assoc (second new) panes :test #'equal)))
           (when pane
-            (open-pane-box dock-key (first pane))
-            (funcall (third pane))
-            (close-box ui))))
+            (draw-pane dock-key pane))))
       (close-box ui)
       ;; Where a pane being dragged would go here, and taking it when it is let go of.
       (let ((payload (dragging)))
@@ -275,7 +305,21 @@ size))."
     (unless (equal layout (dock-state-given state))
       (setf (dock-state-layout state) layout
             (dock-state-given state) layout))
-    (let ((old (with-panes (dock-state-layout state) (mapcar #'first panes))))
+    (let ((old (with-panes (dock-state-layout state) (mapcar #'first panes)))
+          (*dock-state* state))
+      ;; A press in a pane, where it was in the last frame, makes it the active one; until there is
+      ;; one, the first pane is.
+      (when (ui-pressed ui)
+        (maphash (lambda (pane box-key)
+                   (let ((rect (rect-of ui box-key)))
+                     (when (and rect
+                                (<= (rect-x rect) (ui-pointer-x ui) (+ (rect-x rect) (rect-w rect)))
+                                (<= (rect-y rect) (ui-pointer-y ui) (+ (rect-y rect) (rect-h rect))))
+                       (setf (dock-state-active state) pane))))
+                 (dock-state-pane-boxes state)))
+      (unless (member (dock-state-active state) (dock-panes old) :test #'equal)
+        (setf (dock-state-active state) (first (dock-panes old))))
+      (clrhash (dock-state-pane-boxes state))
       (multiple-value-bind (new drop) (draw-node key old '() panes)
         (when drop
           (destructuring-bind (moved anchor zone size) drop

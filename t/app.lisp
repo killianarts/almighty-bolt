@@ -3881,6 +3881,53 @@ released unless RELEASE."
       (assert-equal "(:split :vertical 153.0 (:tabs :beta :alpha :beta) (:tabs :gamma :gamma))"
                     (layout)))))
 
+;;; --- shortcuts in panes ---
+
+(defun make-two-editors ()
+  (state-let ((left 0) (right 0))
+    (lambda ()
+      (column (:id :page :fill t :cross-align :stretch)
+        (dock (:id :editors :layout '(:split :horizontal 170 (:tabs :left :left) (:tabs :right :right))
+               :flex 1)
+          (:left "Left"
+           (when (shortcut #\z :command) (incf left))
+           (button "In the left" :id :left-button))
+          (:right "Right"
+           (when (shortcut #\z :command) (incf right))
+           (text-field "" :id :right-field)))
+        (label (format nil "~d ~d" left right) :id :undone)))))
+
+(define-test a-shortcut-in-a-pane-is-heard-only-in-the-pane-last-pressed-in-or-with-the-keyboard ()
+  (let ((screen (show 'make-two-editors)))
+    (flet ((press-in (id)
+             (destructuring-bind (x y w h) (bounds-of screen id)
+               (let ((x (+ x (/ w 2))) (y (+ y (/ h 2))))
+                 (pointer screen :move x y)
+                 (pointer screen :down x y :button 0 :buttons 1)
+                 (pointer screen :up x y :button 0)
+                 (draw screen)))))
+      ;; The first pane, until another is pressed in.
+      (key screen #\z :command)
+      (assert-equal "1 0" (text-in screen :undone))
+      (press-in :right-field)
+      (key screen #\z :command)
+      (assert-equal "1 1" (text-in screen :undone))
+      (press-in :left-button)
+      (key screen #\z :command)
+      (assert-equal "2 1" (text-in screen :undone))
+      ;; The keyboard is where Tab takes it: past the field (which had it) round to the left
+      ;; button, then on (by the divider, which is in neither pane) to the field on the right,
+      ;; each pane with it.
+      (key screen #\Tab)
+      (key screen #\z :command)
+      (assert-equal "3 1" (text-in screen :undone))
+      (loop :repeat 6
+            :until (s:node-property (node-of screen :right-field) :focused)
+            :do (key screen #\Tab))
+      (assert-true (s:node-property (node-of screen :right-field) :focused))
+      (key screen #\z :command)
+      (assert-equal "3 2" (text-in screen :undone)))))
+
 ;;; --- a tree in a view ---
 
 (define-view t-plants

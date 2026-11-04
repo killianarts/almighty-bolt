@@ -56,11 +56,11 @@ A view is named by a symbol of the app's package, as a function is, so that view
 
 ### Docked panes
 
-`(bolt:dock (:id :studio :layout layout) (:outline "Outline" ...) (:canvas "Canvas" ...))` is panes in groups of tabs, side by side or one over the other, that the person arranges: a tab dragged to another group's tabs puts its pane there, and to a group's edge splits the group. What is in a pane keeps its state when it moves. The layout is a list, returned each frame, for the app to keep and give back. A `split` given a new `:size` now takes it up, so an app can keep a split's width too.
+`(bolt:dock (:id :studio :layout layout) (:outline "Outline" ...) (:canvas "Canvas" ...))` is panes in groups of tabs, side by side or one over the other, that the person arranges: a tab dragged to another group's tabs puts its pane there, and to a group's edge splits the group. What is in a pane keeps its state when it moves, and a `shortcut` in a pane is heard only while it is the pane last pressed in or that has the keyboard. The layout is a list, returned each frame, for the app to keep and give back. A `split` given a new `:size` now takes it up, so an app can keep a split's width too.
 
 ### The studio, begun
 
-`apps/studio` has the GUI designer and the theme designer in one window, a tab for each: `(almighty-bolt-studio:open-studio)` after loading the system `almighty-bolt-studio`. Each is as it is in a window of its own, and keeps what it holds (the view, the theme being made, the undo of each) while the other is shown. The menu bar has the GUI designer's File menu while it is shown. It is built of the library's own widgets: a tab bar, and each designer drawn in a container of its own, so that their ids do not meet.
+`apps/studio` has the GUI designer and the theme designer in one window, as panes of a dock, tabs of one group until one is dragged beside the other: `(almighty-bolt-studio:open-studio)` after loading the system `almighty-bolt-studio`. Each is as it is in a window of its own, and keeps what it holds (the view, the theme being made, the undo of each) while the other is shown. The menu bar has the GUI designer's File menu while it is shown. Side by side, Command-Z undoes in the one last used. It is built of the library's own widgets: a dock, and each designer drawn in a container of its own, so that their ids do not meet.
 
 ### A tree view
 

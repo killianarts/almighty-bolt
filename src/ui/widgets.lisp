@@ -226,6 +226,7 @@
            #:describe-toasts
            #:toast
            #:shortcut
+           #:*shortcuts-heard*
            #:app-menu
            #:spacer
            #:grid
@@ -2432,12 +2433,17 @@ otherwise NIL."
               (ui-consumed ui) t)
         (cdr chosen)))))
 
+(defvar *shortcuts-heard* t
+  "True where a SHORTCUT described is heard: false in a pane of a dock that is not the active one,
+so that two editors side by side do not both undo.")
+
 (defun shortcut (key &rest modifiers)
   "True in the frame KEY (a character, or one of the +KEY-...+ codes) is pressed with exactly
 MODIFIERS held: :command, :shift, :option and :control. The key is taken, so nothing described after
 this sees it. A widget described before it that has the keyboard takes the keys it uses first (a text
 field takes Command-A, -C, -V, -X and -Z). The menu bar's keys (Command-H, -M, -Q and -W) never
-reach the app."
+reach the app. In a pane of a dock, it is heard only while the pane is the active one: the one last
+pressed in, or that has the keyboard."
   (let ((ui *ui*)
         (want (loop :for modifier :in modifiers
                     :sum (ecase modifier
@@ -2446,7 +2452,7 @@ reach the app."
                            (:option +modifier-alt+)
                            (:control +modifier-control+))))
         (held (logior +modifier-super+ +modifier-shift+ +modifier-alt+ +modifier-control+)))
-    (dolist (event (copy-list (ui-keys ui)) nil)
+    (dolist (event (and *shortcuts-heard* (copy-list (ui-keys ui))) nil)
       (let ((pressed (key-event-logical-key event)))
         (when (and (eq (key-event-kind event) :down)
                    pressed
