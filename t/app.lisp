@@ -3841,10 +3841,12 @@ released unless RELEASE."
         (fasl (merge-pathnames (format nil "view-~d.fasl" (random 1000000000))
                                (uiop:temporary-directory))))
     (unwind-protect
-         (progn
-           (handler-bind ((warning #'muffle-warning))
-             (almighty-bolt/ui/views:set-view 't-recompiled '(:column :c () (:button :gone ())))
-             (compile nil '(lambda () (view t-recompiled (button :gone :on-press (print 1))))))
+         ;; The code that wires it is held (in a special variable, which the collector sees), so
+         ;; it can still run, and it does not fit.
+         (let ((*held-wiring* (handler-bind ((warning #'muffle-warning))
+                         (almighty-bolt/ui/views:set-view 't-recompiled
+                                                          '(:column :c () (:button :gone ())))
+                         (compile nil '(lambda () (view t-recompiled (button :gone :on-press (print 1))))))))
            (with-open-file (out source :direction :output)
              (write-string "(in-package #:almighty-bolt/t/app) (almighty-bolt:define-view t-recompiled (:column :c ()))" out))
            ;; Not muffled: a warning muffled is not counted by COMPILE-FILE.
@@ -3855,9 +3857,38 @@ released unless RELEASE."
              (assert-true warnings)
              (assert-false failure)))
       (remhash 't-recompiled almighty-bolt/ui/views::*views*)
-      (remhash 't-recompiled almighty-bolt/ui/views::*wirings*)
       (dolist (file (list source fasl))
         (when (probe-file file) (delete-file file))))))
+
+(defvar *held-wiring* nil
+  "Code that wires a view, held while a test needs it to be: a special variable, which the garbage
+collector sees, where a local one that is not used again may not be.")
+
+(defun wiring-compiled-elsewhere (form)
+  "FORM compiled on a thread of its own, and the function returned. Compiled on this thread, what the
+compiler made can stay on its stack, where the garbage collector takes it to be held."
+  (sb-thread:join-thread
+   (sb-thread:make-thread (lambda ()
+                            (handler-bind ((warning #'muffle-warning))
+                              (compile nil form))))))
+
+(define-test wiring-of-code-compiled-again-is-forgotten-and-of-code-still-held-is-not ()
+  ;; Code that wired :gone, compiled again without it: once the old code is gone, a view without
+  ;; :gone fits. While the old code is held (it could still run), it does not.
+  (unwind-protect
+       (flet ((define (form)
+                (handler-bind ((warning #'muffle-warning))
+                  (almighty-bolt/ui/views:set-view 't-again form))))
+         (define '(:column :c () (:button :gone ()) (:button :kept ())))
+         (wiring-compiled-elsewhere '(lambda () (view t-again (button :gone) (button :kept))))
+         (let ((*held-wiring* (wiring-compiled-elsewhere '(lambda () (view t-again (button :kept))))))
+           (assert-equal '() (define '(:column :c () (:button :kept ())))))
+         ;; Code that fits when it is compiled, and is held while the view loses its widget.
+         (define '(:column :c () (:button :kept ()) (:button :also ())))
+         (let ((*held-wiring* (wiring-compiled-elsewhere '(lambda () (view t-again (button :also))))))
+           (assert-true (some (lambda (p) (search ":ALSO is wired" p))
+                              (define '(:column :c () (:button :kept ())))))))
+    (remhash 't-again almighty-bolt/ui/views::*views*)))
 
 (define-test wiring-to-a-view-not-yet-defined-is-a-style-warning ()
   (let ((said (compiling '(lambda () (view t-not-defined (button :go))))))

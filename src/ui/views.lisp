@@ -28,21 +28,32 @@
 ;;; share.
 ;;;
 ;;; The wiring is checked against the design when the app's code is compiled (VIEW is a macro, and
-;;; the view is known then if its file was loaded first), when a view is defined again (every VIEW
-;;; that was loaded is noted, and checked against the new design), and when it is drawn. A view
-;;; defined again is drawn in every window at once, without the code that wires it being compiled
-;;; again: VIEW finds the view by its name when it draws.
+;;; the view is known then if its file was loaded first), when a view is defined again (what each
+;;; VIEW whose code is still there wires is noted, and checked against the new design), and when it
+;;; is drawn. A view defined again is drawn in every window at once, without the code that wires it
+;;; being compiled again: VIEW finds the view by its name when it draws.
 
 (defvar *views* (make-hash-table)
   "The views defined, each a form, by name.")
 
-(defvar *wirings* (make-hash-table)
-  "For each view's name, what each VIEW form that was loaded wires to it: a list of specs, each a
-list of (id kind key ...), the keys being the options and wires it gives.")
+(defun make-weak-table ()
+  "A table whose entries go when nothing else holds their key (where the Lisp can say so)."
+  #+sbcl (make-hash-table :test 'eq :weakness :key :synchronized t)
+  #-sbcl (make-hash-table :test 'eq))
 
-(defvar *checked* (make-hash-table :test 'eq)
+(defun collect-garbage ()
+  "Let the Lisp find what nothing holds, so that the weak tables forget it."
+  #+sbcl (sb-ext:gc :full t))
+
+(defvar *wirings* (make-weak-table)
+  "What each VIEW form that is loaded wires: its spec, a list of (id kind key ...) (the keys being
+the options and wires it gives), to the name of the view it wires. A spec is a constant of the code
+that VIEW was compiled into, and the table holds it weakly: when that code is gone (compiled
+again, and the old code no longer held), so is its entry.")
+
+(defvar *checked* (make-weak-table)
   "For each spec, the form it was last found to fit, so that a view is checked again only when it
-has changed.")
+has changed. Weak, as *WIRINGS* is.")
 
 (defvar *view-defined-hook* nil
   "A function called with no arguments after a view has been defined, or NIL: the host sets it so
@@ -77,15 +88,20 @@ that an open window shows a view changed in a designer.")
     (nreverse problems)))
 
 (defun wiring-problems (name)
-  "What does not fit between the view called NAME and the code that wires it, as it was loaded: a
-list of sentences, empty if all is well. Wiring that was loaded and then compiled again without a
-clause is noted still, until the Lisp is started again, so this can name a clause that no code has
-now; drawing the view checks the code that runs."
+  "What does not fit between the view called NAME and the code that wires it: a list of
+sentences, empty if all is well. Only code that can still run is asked: if something does not
+fit, the garbage is collected first and the question asked again, so that the wiring of code
+compiled again since (and no longer held) is not counted."
   (let ((form (find-view name)))
-    (and form
-         (remove-duplicates (loop :for spec :in (gethash name *wirings*)
-                                  :append (spec-problems spec form))
-                            :test #'string=))))
+    (flet ((problems ()
+             (remove-duplicates (loop :for spec :being :the :hash-keys :of *wirings*
+                                        :using (hash-value view)
+                                      :when (eq view name)
+                                        :append (spec-problems spec form))
+                                :test #'string=)))
+      (and form
+           (and (problems)
+                (progn (collect-garbage) (problems)))))))
 
 (define-condition view-wiring-mismatch (style-warning)
   ((name :initarg :name :reader view-wiring-mismatch-name)
@@ -94,9 +110,8 @@ now; drawing the view checks the code that runs."
              (format stream "The view ~s is wired by code that does not fit it: ~a"
                      (view-wiring-mismatch-name condition) (view-wiring-mismatch-problem condition))))
   (:documentation "A view defined that the code wiring it, as loaded, does not fit. A style warning,
-so that compiling a view's file does not fail for it: the code may have been changed and compiled
-since it was loaded (the wiring that was is noted until the Lisp is started again), and drawing
-the view checks the code that runs, and is an error if it does not fit."))
+so that compiling a view's file does not fail for it: drawing the view checks the code that runs,
+and is an error if it does not fit."))
 
 (defun set-view (name form)
   "Make FORM, checked (CHECK-VIEW-FORM), the view called NAME, and show it in every window. Returns
@@ -131,7 +146,7 @@ defined when compiled too, so that the code that wires it, compiled after, is ch
 
 (defun note-wiring (name spec)
   "Note that a VIEW form wires SPEC to the view NAME; called when that form is loaded."
-  (pushnew spec (gethash name *wirings*) :test #'equal)
+  (setf (gethash spec *wirings*) name)
   spec)
 
 (defun draw-view (name id spec wires)

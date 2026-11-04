@@ -528,10 +528,10 @@ more than once, each wired to its own; ids inside it are its own.
 The wiring is checked three times. When the code is compiled, a kind, an option or a wire that does
 not exist is an error, and so, if the view is defined then, is an id it does not have or a widget of
 another kind; a view not defined then is a style warning, and the check is made when it is drawn.
-When a view is defined again (the designer saves it), the code that draws it, as loaded, is checked
-against it: what no longer fits is a style warning, which the designer shows. (The wiring of code
-loaded and then compiled again without a clause is still noted until the Lisp is started again, so
-this can name a clause that no code has now.) And when it is drawn, a
+When a view is defined again (the designer saves it), the code that draws it is checked against it:
+what no longer fits is a style warning, which the designer shows. Only code that can still run is
+asked: the wiring of code compiled again, once the old code is no longer held, is forgotten (the
+garbage is collected before a mismatch is said, so that it is). And when it is drawn, a
 wiring that does not fit is an error, which a window shows over its last good frame. A view defined
 again is drawn in every open window at once, with the code as it is.
 

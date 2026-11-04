@@ -440,6 +440,10 @@ event changed shows in it."
         (remhash keyword views::*views*)
         (when (probe-file path) (delete-file path))))))
 
+(defvar *held-wiring* nil
+  "Code that wires a view, held while a test needs it to be: a special variable, which the garbage
+collector sees, where a local one that is not used again may not be.")
+
 (define-test saving-a-view-that-no-longer-fits-its-wiring-says-so ()
   (multiple-value-bind (screen session) (open-designer)
     (let* ((name (format nil "wired-~d" (random 1000000000)))
@@ -447,16 +451,16 @@ event changed shows in it."
            (path (saving-to screen name)))
       (unwind-protect
            (progn
-             ;; Code that wires the view's Forgot button, compiled and so noted.
-             (handler-bind ((warning #'muffle-warning))
-               (compile nil `(lambda () (bolt:view ,keyword (button :forgot :on-press (print 1))))))
-             (m:click session :id :forgot :within :canvas)
-             (m:click session :id :remove :within :toolbar)
-             (m:click session :id :save :within :toolbar)
-             (assert-true (search ":FORGOT is wired" (shown-name session :status))
-                          (shown-name session :status)))
+             ;; Code that wires the view's Forgot button, compiled and held, so it could still run.
+             (let ((*held-wiring* (handler-bind ((warning #'muffle-warning))
+                             (compile nil `(lambda () (bolt:view ,keyword
+                                                        (button :forgot :on-press (print 1))))))))
+               (m:click session :id :forgot :within :canvas)
+               (m:click session :id :remove :within :toolbar)
+               (m:click session :id :save :within :toolbar)
+               (assert-true (search ":FORGOT is wired" (shown-name session :status))
+                            (shown-name session :status))))
         (remhash keyword views::*views*)
-        (remhash keyword views::*wirings*)
         (when (probe-file path) (delete-file path))))))
 
 (define-test the-start-of-the-wiring-names-every-widget-by-its-kind-and-id ()
