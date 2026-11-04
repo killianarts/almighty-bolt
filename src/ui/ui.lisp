@@ -410,9 +410,13 @@ the same key are an error (DUPLICATE-ID): the ui could not tell them apart."
       (grow-seen-keys ui))
     (when (claim-key ui (box-key box))
       (refuse-duplicate ui kind id parent (box-key box)))
-    (if parent
-        (vector-push-extend box (box-children parent))
-        (setf (ui-root ui) box))
+    (cond (parent (vector-push-extend box (box-children parent)))
+          ;; A second thing at the top would take the first one's place, and the first would not
+          ;; be seen, whatever their ids.
+          ((ui-root ui)
+           (error 'duplicate-id :id id :kinds (list (box-kind (ui-root ui)) kind) :container nil
+                                :by-place nil))
+          (t (setf (ui-root ui) box)))
     (setf (ui-parent ui) box)
     box))
 

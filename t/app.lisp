@@ -3805,6 +3805,20 @@ released unless RELEASE."
     (assert-true (search "inside itself" (text-in screen :loop)))
     (assert-true (search "No view is called" (text-in screen :missing)))))
 
+;;; --- one thing at the top ---
+
+(defun make-two-at-the-top ()
+  (lambda ()
+    (label "First" :id :first-words)
+    (label "Second" :id :second-words)))
+
+(define-test two-things-at-the-top-are-an-error-even-with-ids-of-their-own ()
+  ;; The second took the first one's place, and the first was not seen, with nothing said.
+  (let ((condition (handler-case (progn (show 'make-two-at-the-top) nil)
+                     (duplicate-id (condition) condition))))
+    (assert-true condition)
+    (assert-true (search "Put them in a container" (princ-to-string condition)))))
+
 ;;; --- a tree in a view ---
 
 (define-view t-plants

@@ -62,6 +62,7 @@ are not listed.
 
 ### Fixed
 
+- Two things at the top of an app, with ids of their own, are an error instead of the last alone being shown ([0.3](docs/releases/dev.md#bug-fixes)).
 - Command-Z and Command-Shift-Z undo and redo in text fields, combo boxes and text areas ([0.3](docs/releases/dev.md#bug-fixes)).
 - An app that is only a dialog, with nothing under it, shows the dialog instead of an empty window ([0.3](docs/releases/dev.md#bug-fixes)).
 - The pointer is a text cursor over text that can be edited or selected ([0.3](docs/releases/dev.md#bug-fixes)).
