@@ -5,6 +5,7 @@
                 #:make-node
                 #:node-kind
                 #:node-id
+                #:node-children
                 #:form-node
                 #:node-form
                 #:find-by-id
@@ -34,9 +35,10 @@
 
 (in-package #:almighty-bolt-gui-designer)
 
-;;; A GUI designer: the widgets it knows on the left, the view being designed in the middle, drawn
-;;; with the real widgets but not working (a press there selects what it was on), and the selected
-;;; widget's id and options on the right, to change. A widget from the left goes into the selected
+;;; A GUI designer: the widgets it knows and an outline of the view on the left, the view being
+;;; designed in the middle, drawn with the real widgets but not working (a press there selects what
+;;; it was on, as a row of the outline does), and the selected widget's id and options on the right,
+;;; to change. A widget from the left goes into the selected
 ;;; container, or after the selected widget. The view is saved as its form, in a file of its own.
 ;;; It uses the public package only.
 ;;;
@@ -111,13 +113,41 @@
 (defun palette ()
   "The widgets that can be added. Returns the kind of the one pressed, or NIL."
   (let ((pressed nil))
-    (bolt:panel (:id :palette :all 14 :radius 0)
-      (bolt:column (:gap 8 :min-width 150 :cross-align :stretch)
-        (bolt:label "Add" :id :palette-heading :size 17)
-        (dolist (entry +catalogue+)
-          (when (bolt:button (entry-title entry) :id (id "add" (entry-kind entry)))
-            (setf pressed (entry-kind entry))))))
+    (bolt:column (:id :palette :gap 8 :cross-align :start)
+      (bolt:label "Add" :id :palette-heading :size 17)
+      (dolist (entry +catalogue+)
+        (when (bolt:button (entry-title entry) :id (id "add" (entry-kind entry)))
+          (setf pressed (entry-kind entry)))))
     pressed))
+
+(defun outline-rows (view)
+  "The widgets of VIEW in order, as (id . what the outline says of it): its kind and id, indented
+by how deep it is."
+  (let ((rows '()))
+    (labels ((walk (node depth)
+               (push (cons (node-id node)
+                           (format nil "~a~a ~(~s~)" (make-string (* 3 depth) :initial-element #\Space)
+                                   (entry-title (find-entry (node-kind node))) (node-id node)))
+                     rows)
+               (dolist (child (node-children node))
+                 (walk child (1+ depth)))))
+      (walk view 0))
+    (nreverse rows)))
+
+(defun outline (view selected)
+  "The view's widgets as a list, the selected one chosen in it. Returns the id of the one chosen
+there, on the frame it is, or NIL."
+  (let ((rows (outline-rows view))
+        (chosen nil))
+    (bolt:column (:id :outline :gap 8)
+      (bolt:label "Outline" :id :outline-heading :size 17)
+      (multiple-value-bind (index moved)
+          (bolt:list-box (mapcar #'cdr rows) (position selected rows :key #'car)
+                         :id :outline-list :rows 12 :width 260
+                         :labelled-by :outline-heading)
+        (when (and moved index)
+          (setf chosen (car (nth index rows))))))
+    chosen))
 
 (defun option-editor (node option drafts)
   "An editor of NODE's OPTION, of the option's type. Returns the new value if it was changed, and
@@ -259,11 +289,16 @@ or at the end of the view if nothing is selected. Returns the view and the new w
                 (error (condition)
                   (setf status (format nil "Could not open ~a: ~a" path condition))))))
           (bolt:row (:id :panes :flex 1 :cross-align :stretch)
-            (let ((kind (palette)))
-              (when kind
-                (multiple-value-bind (new id) (added view selected kind)
-                  (setf view new)
-                  (select id))))
+            (bolt:panel (:id :left :all 14 :radius 0)
+              (bolt:column (:gap 20)
+                (let ((kind (palette)))
+                  (when kind
+                    (multiple-value-bind (new id) (added view selected kind)
+                      (setf view new)
+                      (select id))))
+                (let ((chosen (outline view selected)))
+                  (when chosen
+                    (select chosen)))))
             (bolt:panel (:id :canvas-back :color :background :radius 0 :flex 1 :all 32)
               (let ((pressed (bolt:design-surface (:id :canvas :selected selected)
                                (draw-node view))))

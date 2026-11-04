@@ -140,13 +140,13 @@ event changed shows in it."
   (multiple-value-bind (screen session) (open-designer)
     ;; With the form selected, at its end, below the buttons.
     (press-beside-heading screen)
-    (m:click session :id :add-button :within :palette)
+    (m:click session :id :add-button :within :left)
     (assert-equal "Button :button-1" (shown-name session :selected-what))
     (assert-equal "Button" (s:node-name (in-view session :button-1)))
     (assert-true (> (top-of session :button-1) (top-of session :sign-in)))
     ;; With a label selected, just after it: between the heading and the label under it.
     (m:click session :id :heading :within :canvas)
-    (m:click session :id :add-label :within :palette)
+    (m:click session :id :add-label :within :left)
     (assert-equal "Label :label-1" (shown-name session :selected-what))
     (assert-true (< (top-of session :heading) (top-of session :label-1)
                     (top-of session :name-label)))))
@@ -263,3 +263,28 @@ event changed shows in it."
         (multiple-value-bind (x y w h) (core:lookup-target (screen-app screen) :forgot)
           (assert-true (> w w0))
           (assert-eql ring (color-at screen (+ x w -1) (+ y (/ h 2)))))))))
+
+;;; --- the outline ---
+
+(define-test the-outline-lists-the-widgets-in-order-indented-by-depth ()
+  (multiple-value-bind (screen session) (open-designer)
+    (declare (ignore screen))
+    (let ((items (s:node-property (m:find-node session :id :outline-list) :items)))
+      (assert-equal "Column :sign-in-form" (first items))
+      (assert-equal "   Label :heading" (second items))
+      (assert-equal "      Button :forgot" (car (last items)))
+      (assert-equal 9 (length items)))
+    ;; What is added is in it, where it went.
+    (m:click session :id :heading :within :canvas)
+    (m:click session :id :add-text-field :within :left)
+    (assert-equal "   Text field :text-field-1"
+                  (third (s:node-property (m:find-node session :id :outline-list) :items)))))
+
+(define-test a-row-of-the-outline-selects-its-widget-and-the-view-selects-its-row ()
+  (multiple-value-bind (screen session) (open-designer)
+    (declare (ignore screen))
+    ;; The row of the row of buttons, which a press in the view could only find between them.
+    (m:set-value session 6 :id :outline-list)
+    (assert-equal "Row :actions" (shown-name session :selected-what))
+    (m:click session :id :password :within :canvas)
+    (assert-equal "   Text field :password" (shown-value session :outline-list))))

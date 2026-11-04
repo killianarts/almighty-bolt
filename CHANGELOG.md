@@ -18,7 +18,7 @@ are not listed.
 - `open-window` and `close-window`: more than one window, each with an app of its own, from a button or the REPL ([0.3](docs/releases/dev.md#more-than-one-window)).
 - Where a window opens: `:top`, `:left`, `:bottom` and `:right` from the screen's edges, or `:beside` another window, on `open-app`, `open-window` and `run-app`; with neither, windows cascade ([0.3](docs/releases/dev.md#more-than-one-window)).
 - `design-surface`: a container whose contents are drawn but do not work, and a press on which returns the id of what it was on, for a designer ([0.3](docs/releases/dev.md#the-gui-designer-begun)).
-- The start of a GUI designer, in `apps/gui-designer`: a view drawn with the real widgets, to which widgets are added, whose ids and options are changed, and which is saved and opened again ([0.3](docs/releases/dev.md#the-gui-designer-begun)).
+- The start of a GUI designer, in `apps/gui-designer`: a view drawn with the real widgets and listed as an outline, to which widgets are added, whose ids and options are changed, and which is saved and opened again ([0.3](docs/releases/dev.md#the-gui-designer-begun)).
 - `this-window`: in an app's function, the window it is in, to close it or open another beside it ([0.3](docs/releases/dev.md#more-than-one-window)).
 - `:cursor` on `canvas`: the shape the pointer has over it ([0.3](docs/releases/dev.md#input)).
 - `shortcut`, true in the frame a keyboard shortcut is pressed ([0.3](docs/releases/dev.md#input)).
