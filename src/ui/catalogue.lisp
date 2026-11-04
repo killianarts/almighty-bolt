@@ -27,6 +27,8 @@
                 #:pressable)
   (:import-from #:almighty-bolt/ui/split
                 #:split)
+  (:import-from #:almighty-bolt/ui/tree
+                #:tree-view)
   (:export #:entry
            #:catalogue
            #:define-widget-entry
@@ -322,6 +324,32 @@ wired there or NIL, and SET-VALUE the function that sets the place wired as :val
 (define-widget-entry :scroll (:title "Scroll" :options ((:height :number 200)) :container t)
   (scroll (:id id :height height)
     (contents)))
+
+(defun indented-tree (lines)
+  "The items of a tree written as LINES, each indented by two spaces for every level it is in: a list
+of (index words . children), INDEX its line's place in LINES."
+  (let ((stack (list (list -1 "")))
+        (depths (list -1)))
+    (loop :for line :in lines
+          :for index :from 0
+          :do (let* ((depth (floor (or (position #\Space line :test-not #'char=) 0) 2))
+                     (item (list index (string-left-trim " " line))))
+                (loop :while (>= (first depths) depth)
+                      :do (pop depths) (pop stack))
+                (setf (cddr (first stack)) (append (cddr (first stack)) (list item)))
+                (push item stack)
+                (push depth depths)))
+    (cddr (car (last stack)))))
+
+(define-widget-entry :tree-view (:title "Tree view"
+                                 :options ((:items :list ("Fruit" "  Apple" "  Pear" "Vegetables"
+                                                          "  Leek"))
+                                           (:selected :number 0))
+                                 :value :selected)
+  (multiple-value-bind (now changed)
+      (tree-view (indented-tree items) :id id :children #'cddr :label #'second :key #'first
+                                       :selected (round selected))
+    (when (and changed set-value) (funcall set-value now))))
 
 ;; Bounded, as a split must be where its parent gives it as much room as it likes (a view's column):
 ;; the first widget in it is in the first pane, and the others in the second.

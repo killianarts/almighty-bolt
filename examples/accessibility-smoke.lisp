@@ -28,7 +28,8 @@
                 #:canvas
                 #:scrim
                 #:split
-                #:tabs)
+                #:tabs
+                #:tree-view)
   (:import-from #:almighty-bolt/machine/host-session
                 #:open-session)
   (:local-nicknames (#:m #:almighty-bolt/machine)
@@ -73,7 +74,11 @@
           (split (:id :sides :size 50 :min 40 :width 160 :height 20)
             (label "Left" :id :left-words)
             (label "Right" :id :right-words))
-          (tabs '("Design" "Theme") 1 :id :pages))
+          (tabs '("Design" "Theme") 1 :id :pages)
+          (tree-view '(("Fruit" ("Apple"))) :id :plants :children #'rest :label #'first
+                                            :key (lambda (item) (intern (string-upcase (first item))
+                                                                        :keyword))
+                                            :selected :apple))
         (stack ()
           (label "Under" :id :under)
           (scrim :id :veil))))))
@@ -274,6 +279,19 @@ them, and what pressing and adjusting them does."
                     (equal '("0" "1") (mapcar (lambda (tab) (said tab "AXValue")) tabs)))
                (and pages (list (said pages "AXRole")
                                 (mapcar (lambda (tab) (said tab "AXDescription")) tabs)))))
+      (let* ((plants (named elements "plants"))
+             (rows (and plants (parts plants))))
+        (check "a tree view is an outline of rows, called by their words, the selected one said"
+               (and plants
+                    (equal "AXOutline" (said plants "AXRole"))
+                    (equal '("AXRow" "AXRow") (mapcar (lambda (row) (said row "AXRole")) rows))
+                    (equal '("Fruit" "Apple") (mapcar (lambda (row) (said row "AXDescription")) rows))
+                    (equal '("0" "1") (mapcar (lambda (row) (said row "AXSelected")) rows)))
+               (and plants (list (said plants "AXRole")
+                                 (mapcar (lambda (row) (list (said row "AXRole")
+                                                             (said row "AXDescription")
+                                                             (said row "AXSelected")))
+                                         rows)))))
       (check "a progress bar is a progress bar, between 0 and 1"
              (and (equal "AXProgressIndicator" (said progress "AXRole"))
                   (about 0.25 (number-of progress "AXValue"))

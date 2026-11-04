@@ -181,33 +181,34 @@ its kind and id, for what the app gives it."
                 (setf pressed (list :view name))))))))
     pressed))
 
-(defun outline-rows (view)
-  "The widgets of VIEW in order, as (id . what the outline says of it): its kind and id, indented
-by how deep it is."
-  (let ((rows '()))
-    (labels ((walk (node depth)
-               (push (cons (node-id node)
-                           (format nil "~a~a ~(~s~)" (make-string (* 3 depth) :initial-element #\Space)
-                                   (entry-title (find-entry (node-kind node))) (node-id node)))
-                     rows)
-               (dolist (child (node-children node))
-                 (walk child (1+ depth)))))
-      (walk view 0))
-    (nreverse rows)))
+(defun row-key (node-id)
+  "The id of the outline's row of the widget NODE-ID: its own, but not the widget's, so that a row
+and the widget in the view are not taken for each other."
+  (id "row" (symbol-name node-id)))
 
 (defun outline (view selected)
-  "The view's widgets as a list, the selected one chosen in it. Returns the id of the one chosen
-there, on the frame it is, or NIL."
-  (let ((rows (outline-rows view))
+  "The view's widgets as a tree, each called by its kind and id, the selected one chosen in it.
+Returns the id of the one chosen there, on the frame it is, or NIL."
+  (let ((ids (make-hash-table))
         (chosen nil))
+    (labels ((note (node)
+               (setf (gethash (row-key (node-id node)) ids) (node-id node))
+               (mapc #'note (node-children node))))
+      (note view))
     (bolt:column (:id :outline :gap 8)
       (bolt:label "Outline" :id :outline-heading :size 17)
-      (multiple-value-bind (index moved)
-          (bolt:list-box (mapcar #'cdr rows) (position selected rows :key #'car)
-                         :id :outline-list :rows 12 :width 260
-                         :labelled-by :outline-heading)
-        (when (and moved index)
-          (setf chosen (car (nth index rows))))))
+      (bolt:scroll (:id :outline-scroll :height 300)
+        (multiple-value-bind (key changed)
+            (bolt:tree-view (list view) :id :outline-tree :width 260 :children #'node-children
+                                        :key (lambda (node) (row-key (node-id node)))
+                                        :label (lambda (node)
+                                                 (format nil "~a ~(~s~)"
+                                                         (entry-title (find-entry (node-kind node)))
+                                                         (node-id node)))
+                                        :selected (and selected (row-key selected))
+                                        :labelled-by :outline-heading)
+          (when changed
+            (setf chosen (gethash key ids))))))
     chosen))
 
 (defun option-editor (node option drafts)

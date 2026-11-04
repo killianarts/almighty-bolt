@@ -98,6 +98,8 @@
                 #:dragging)
   (:import-from #:almighty-bolt/ui/split
                 #:split)
+  (:import-from #:almighty-bolt/ui/tree
+                #:tree-view)
   (:import-from #:almighty-bolt/ui/catalogue
                 #:define-widget-entry)
   (:import-from #:almighty-bolt/ui/views
@@ -135,7 +137,7 @@
            #:switch #:tabs #:spinner #:dropdown #:menu-button #:context-menu #:popover
            #:dialog #:toast #:shortcut #:spacer #:grid #:pressable #:open-file-dialog #:save-file-dialog #:list-box
            #:progress #:canvas #:scrim #:design-surface #:app-menu #:drag-source #:drop-target #:dragging
-           #:split
+           #:split #:tree-view
            #:define-view #:view #:define-widget-entry
            #:column #:row #:stack #:padding #:panel #:center #:scroll #:lazy-list
            #:theme #:make-theme #:define-theme #:find-theme #:with-theme #:theme-names #:theme-name

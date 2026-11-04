@@ -53,7 +53,32 @@ VoiceOver. `(bolt:tabs '("Design" "Wire") page :id :pages)` is a tab bar, a
 choice with `:style :tabs`: the tabs' words side by side over a hairline, the
 chosen one marked under its words, and the app draws the page of the tab
 chosen. It is a `:radio-group` with `:style :tabs` in the semantic tree, and a
-tab group of radio buttons to VoiceOver. A `switch` is a check box that looks like a light switch, for a
+tab group of radio buttons to VoiceOver.
+
+A `tree-view` shows ROOTS and what `:children` (a function of an item) gives
+for each, one under another, each called by `:label` (a function of an item,
+`princ-to-string` if not given) and indented 16 points a level, with a mark
+before an item that has children:
+
+```lisp
+(bolt:tree-view (list view) :id :outline :children #'node-children
+                            :label #'node-title :key #'node-id :selected picked)
+```
+
+`:key` (`identity` if not given) gives each item a key, unique in the tree and
+compared with `equal`, which is also its row's id; `:selected` is the key of the
+item selected, and the key selected now is returned, with whether it changed. A
+press on a row selects its item; a press on the mark, or two on the row, opens
+or closes it too. The tree takes the keyboard as one thing, so Tab goes past its
+rows: Up and Down move the selection, Home and End go to the first and the last
+row, Right opens what is selected or goes into it, and Left closes it or goes
+out to its parent. Everything is open until it is closed, and what is closed is
+kept by the tree's id. It is an `:outline` of `:row`s in the semantic tree, each
+with its `:level` (from 0), whether it is `:selected` and, for one with
+children, whether it is `:expanded`; to VoiceOver it is an outline of rows. In a
+view its items are lines, each indented two spaces for every level it is in
+(`(:items ("Fruit" "  Apple" "Vegetables"))`), and its value is the place of
+the line selected. A `switch` is a check box that looks like a light switch, for a
 setting that takes effect at once. A `spinner` (`:size`, 18 points) is a ring of
 dots that goes round, for work whose end is not known; it asks for a frame about
 ten times a second while it is shown, so show it only while the work goes on.
@@ -540,8 +565,8 @@ when its file is compiled too, so the code that draws it, compiled after it, is 
 put the view's file before that code in the system.
 
 The kinds are those of the catalogue, every widget and container of the library (a label, a
-paragraph, a button, a text field, a text area, a combo box, a slider, a choice, a tab bar, a check
-box, a switch, a dropdown, a list box, a progress bar, a spinner; a column, a row, a grid, a stack,
+paragraph, a button, a text field, a text area, a combo box, a slider, a choice, a tab bar, a tree
+view, a check box, a switch, a dropdown, a list box, a progress bar, a spinner; a column, a row, a grid, a stack,
 a padding, a panel, a center, a scroll, a pressable, a split) but the spacer, which needs a row or
 column whose size is bounded, and whatever an app adds. `(:view :card (:name my-app::card))` is another view
 drawn inside this one, by its name, with the node's id for its outermost widget: changed when that

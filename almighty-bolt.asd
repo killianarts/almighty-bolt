@@ -98,6 +98,7 @@
                  (:file "inspection")
                  (:file "drag")
                  (:file "split")
+                 (:file "tree")
                  (:file "design-surface")
                  (:file "catalogue")
                  (:file "views")

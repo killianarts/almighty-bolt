@@ -396,7 +396,7 @@ them in the boxes, and return the width and height."
        (set-box box (if (< max-w +unbounded+) max-w min-w) (if (< max-h +unbounded+) max-h min-h)))
       (:splitter
        (set-box box (constrain (box-pref-w box) min-w max-w) (constrain (box-pref-h box) min-h max-h)))
-      ((:column :row :context-area :surface :drag-source :pane :split)
+      ((:column :row :context-area :surface :drag-source :pane :split :tree)
        (let ((children (box-children box)))
          (flet ((measure (i a b c d)
                   (layout-box (aref children i) context a b c d))
@@ -492,7 +492,7 @@ them in the boxes, and return the width and height."
          (set-box box w h)))
       (:outline
        (set-box box (constrain (box-pref-w box) min-w max-w) (constrain (box-pref-h box) min-h max-h)))
-      ((:padding :panel :pressable)
+      ((:padding :panel :pressable :tree-row)
        (let ((children (box-children box)))
          (flet ((measure (a b c d)
                   (layout-box (aref children 0) context a b c d)))

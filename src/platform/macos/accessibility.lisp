@@ -149,6 +149,7 @@ element (that a client still holds) answers."
     (:tab-group (foreign-constant "NSAccessibilityTabGroupRole"))
     (:radio-button (foreign-constant "NSAccessibilityRadioButtonRole"))
     (:list (foreign-constant "NSAccessibilityListRole"))
+    (:outline (foreign-constant "NSAccessibilityOutlineRole"))
     (:row (foreign-constant "NSAccessibilityRowRole"))
     (:splitter (foreign-constant "NSAccessibilitySplitterRole"))
     (:group (foreign-constant "NSAccessibilityGroupRole"))))
@@ -376,6 +377,9 @@ thing that is not told yet."
     ;; A tab bar is a tab group, whose tabs are radio buttons, as AppKit's own is.
     (:radio-group (if (eq (getf (getf node :state) :style) :tabs) :tab-group :radio-group))
     (:list :list)
+    ;; A tree view is an outline of rows.
+    (:outline :outline)
+    (:row :row)
     ((:canvas :overlay :grid) :group)))
 
 (defun text-of (thing)
@@ -438,7 +442,11 @@ thing that is not told yet."
                      (item-minimum item) (getf state :minimum)
                      (item-maximum item) (getf state :maximum)))
       ;; What a choice or a list holds is in the things inside it; the group is called by its label.
-      ((:radio-group :tab-group :list :group) (setf (item-label item) name
+      ;; A row of a tree view is called by its words, and says if it is selected.
+      (:row (setf (item-label item) name
+                  (item-value item) nil
+                  (item-selected item) (and (getf state :selected) t)))
+      ((:radio-group :tab-group :list :outline :group) (setf (item-label item) name
                                          (item-value item) nil)))
     (not (and (equal old-value (item-value item))
               (equal old-label (item-label item))))))

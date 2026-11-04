@@ -126,6 +126,8 @@
     ((:scroll :lazy-list) :scroll-area)
     ((:column :row :stack :padding :panel :center :context-area :surface :pane :split) :group)
     (:splitter :splitter)
+    (:tree :outline)
+    (:tree-row :row)
     (:grid :grid)
     (:pressable (if (zerop (box-n3 box)) :button :toggle-button))
     (:drag-source :button)))
@@ -175,7 +177,7 @@ The whole frame is searched last, for a label in a float (a dialog's title) or e
   "What the thing is called: its own words, or the words of the widget that its :labelled-by names."
   (case (box-kind box)
     (:pressable (or (box-data box) (words-inside box)))
-    (:drag-source (words-inside box))
+    ((:drag-source :tree-row) (words-inside box))
     ((:label :paragraph :button :checkbox :switch :menu-item :menu-button :tooltip :dialog
       :toast)
      (box-text box))
@@ -216,6 +218,11 @@ The whole frame is searched last, for a label in a float (a dialog's title) or e
          (when (= (box-n3 box) 1) (note :live t)))
         (:pressable
          (unless (zerop (box-n3 box)) (note :selected (= (box-n3 box) 2))))
+        ;; How deep it is, from 0, whether it is selected, and whether what is in it is shown.
+        (:tree-row
+         (note :level (round (box-n1 box)))
+         (note :selected (= (box-n3 box) 1))
+         (unless (zerop (box-n2 box)) (note :expanded (= (box-n2 box) 2))))
         ;; Read out as it comes.
         (:toast (note :announce t))
         ((:text-field :combo-box :text-area)

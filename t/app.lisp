@@ -3643,6 +3643,67 @@ released unless RELEASE."
     (m:set-value session "Design" :id :pages)
     (assert-equal "Designing" (text-in screen :page-shown))))
 
+;;; --- a tree view ---
+
+(defparameter +garden+ '(("Fruit" ("Apple") ("Pear")) ("Veg" ("Leek")))
+  "Items of a tree: each its name and its children.")
+
+(defun garden-key (item)
+  (intern (string-upcase (first item)) :keyword))
+
+(defun make-garden ()
+  (state-let ((picked nil))
+    (lambda ()
+      (column (:id :page :gap 8 :cross-align :stretch)
+        (multiple-value-bind (key changed)
+            (tree-view +garden+ :id :garden :children #'rest :label #'first :key #'garden-key
+                                :selected picked)
+          (when changed (setf picked key)))
+        (label (format nil "~(~a~)" picked) :id :picked)))))
+
+(define-test a-tree-view-selects-opens-and-closes-by-the-pointer-and-the-arrows ()
+  (let ((screen (show 'make-garden)))
+    (flet ((shown-p (id) (and (core:lookup-target (screen-app screen) id) t))
+           ;; Where a row's words begin: the row is as wide as the tree.
+           (left-of (id) (first (s:node-bounds (first (s:node-children (node-of screen id))))))
+           (press-at (x y)
+             (pointer screen :move x y)
+             (pointer screen :down x y :button 0 :buttons 1)
+             (pointer screen :up x y :button 0)
+             (draw screen))
+           (picked () (text-in screen :picked)))
+      ;; Everything is open until it is closed, each level further in.
+      (assert-true (every #'shown-p '(:fruit :apple :pear :veg :leek)))
+      (assert-eql 16 (round (- (left-of :apple) (left-of :fruit))))
+      (assert-eq :outline (s:node-role (node-of screen :garden)))
+      (assert-eq :row (s:node-role (node-of screen :leek)))
+      (assert-eql 1 (s:node-property (node-of screen :leek) :level))
+      ;; A press on a row's words selects it.
+      (destructuring-bind (x y w h) (bounds-of screen :apple)
+        (press-at (+ x (/ w 2)) (+ y (/ h 2))))
+      (assert-equal "apple" (picked))
+      (assert-true (s:node-property (node-of screen :apple) :selected))
+      ;; A press on the mark before an item opens or closes it, and selects it.
+      (destructuring-bind (x y w h) (bounds-of screen :fruit)
+        (declare (ignore w))
+        (press-at (+ x 12) (+ y (/ h 2))))
+      (assert-equal "fruit" (picked))
+      (assert-false (shown-p :apple))
+      (assert-false (s:node-property (node-of screen :fruit) :expanded))
+      ;; The press gave the tree the keyboard: Down, then Right into what is open, Left out of it,
+      ;; Left again closes it, and Right opens it.
+      (key screen core:+key-down+)
+      (assert-equal "veg" (picked))
+      (key screen core:+key-right+)
+      (assert-equal "leek" (picked))
+      (key screen core:+key-left+)
+      (assert-equal "veg" (picked))
+      (key screen core:+key-left+)
+      (assert-false (shown-p :leek))
+      (key screen core:+key-right+)
+      (assert-true (shown-p :leek))
+      (assert-equal "veg" (picked)))))
+
 ;;; --- the weight of text ---
 
 (defun make-weighted ()
@@ -3743,6 +3804,32 @@ released unless RELEASE."
     ;; Inside itself, and not defined: said, in its place.
     (assert-true (search "inside itself" (text-in screen :loop)))
     (assert-true (search "No view is called" (text-in screen :missing)))))
+
+;;; --- a tree in a view ---
+
+(define-view t-plants
+  (:column :plants-page (:gap 4)
+   (:tree-view :plants (:items ("Fruit" "  Apple" "    Wild apple" "Vegetables")))))
+
+(defun make-plants ()
+  (state-let ((picked 0))
+    (lambda ()
+      (column (:id :page :gap 8)
+        (view t-plants (tree-view :plants :value picked))
+        (label (format nil "~d" picked) :id :picked)))))
+
+(define-test a-tree-in-a-view-is-its-lines-each-indented-a-level-deeper-and-wired-by-value ()
+  (let ((screen (show 'make-plants)))
+    ;; Its rows are known by their lines' places.
+    (assert-equal '(0 1 2 0)
+                  (mapcar (lambda (row) (s:node-property (node-of screen row) :level)) '(0 1 2 3)))
+    (assert-equal "Wild apple" (s:node-name (node-of screen 2)))
+    (destructuring-bind (x y w h) (bounds-of screen 3)
+      (pointer screen :move (+ x (/ w 2)) (+ y (/ h 2)))
+      (pointer screen :down (+ x (/ w 2)) (+ y (/ h 2)) :button 0 :buttons 1)
+      (pointer screen :up (+ x (/ w 2)) (+ y (/ h 2)) :button 0))
+    (draw screen)
+    (assert-equal "3" (text-in screen :picked))))
 
 ;;; --- dragging ---
 

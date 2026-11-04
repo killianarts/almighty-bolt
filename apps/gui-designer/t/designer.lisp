@@ -311,28 +311,47 @@ event changed shows in it."
 
 ;;; --- the outline ---
 
-(define-test the-outline-lists-the-widgets-in-order-indented-by-depth ()
+(defun outline-rows (session)
+  "The rows of the outline, in order: each its words and how deep it is."
+  (let ((rows '()))
+    (labels ((walk (node)
+               (when (eq (s:node-role node) :row)
+                 (push (list (s:node-name node) (s:node-property node :level)) rows))
+               (mapc #'walk (s:node-children node))))
+      (walk (m:find-node session :id :outline-tree)))
+    (nreverse rows)))
+
+(define-test the-outline-is-a-tree-of-the-widgets-in-order-each-as-deep-as-it-is ()
   (multiple-value-bind (screen session) (open-designer)
-    (declare (ignore screen))
-    (let ((items (s:node-property (m:find-node session :id :outline-list) :items)))
-      (assert-equal "Column :sign-in-form" (first items))
-      (assert-equal "   Label :heading" (second items))
-      (assert-equal "      Button :forgot" (car (last items)))
-      (assert-equal 9 (length items)))
+    (let ((rows (outline-rows session)))
+      (assert-equal '("Column :sign-in-form" 0) (first rows))
+      (assert-equal '("Label :heading" 1) (second rows))
+      (assert-equal '("Button :forgot" 2) (car (last rows)))
+      (assert-equal 9 (length rows)))
     ;; What is added is in it, where it went.
     (m:click session :id :heading :within :canvas)
     (m:click session :id :add-text-field :within :left)
-    (assert-equal "   Text field :text-field-1"
-                  (third (s:node-property (m:find-node session :id :outline-list) :items)))))
+    (assert-equal '("Text field :text-field-1" 1) (third (outline-rows session)))
+    ;; A container is closed and opened by the mark before it, and what is in it goes and comes.
+    (destructuring-bind (x y w h) (s:node-bounds (m:find-node session :id :row-actions))
+      (declare (ignore w))
+      ;; The row is one deep: its mark is after one indent.
+      (pointer screen :move (+ x 4 16 8) (+ y (/ h 2)))
+      (pointer screen :down (+ x 4 16 8) (+ y (/ h 2)))
+      (pointer screen :up (+ x 4 16 8) (+ y (/ h 2))))
+    ;; The ten rows less the row's two buttons.
+    (assert-equal 8 (length (outline-rows session)))
+    (assert-equal "Row :actions" (shown-name session :selected-what))))
 
 (define-test a-row-of-the-outline-selects-its-widget-and-the-view-selects-its-row ()
   (multiple-value-bind (screen session) (open-designer)
     (declare (ignore screen))
     ;; The row of the row of buttons, which a press in the view could only find between them.
-    (m:set-value session 6 :id :outline-list)
+    (m:click session :id :row-actions :within :outline)
     (assert-equal "Row :actions" (shown-name session :selected-what))
     (m:click session :id :password :within :canvas)
-    (assert-equal "   Text field :password" (shown-value session :outline-list))))
+    (assert-true (s:node-property (m:find-node session :id :row-password) :selected))
+    (assert-false (s:node-property (m:find-node session :id :row-actions) :selected))))
 
 ;;; --- the catalogue ---
 

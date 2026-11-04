@@ -21,6 +21,7 @@ are not listed.
 - The start of a GUI designer, in `apps/gui-designer`: a view drawn with the real widgets and listed as an outline, to which widgets are added, whose ids and options are changed, and which is saved as a `define-view` file and opened again ([0.3](docs/releases/dev.md#the-gui-designer-begun)).
 - `define-view` and `view`: a view made in the GUI designer, drawn by an app with its own code wired to it by the designer's ids, checked when the code is compiled ([0.3](docs/releases/dev.md#views-a-design-wired-to-code)).
 - `drag-source`, `drop-target` and `dragging`: dragging within an app; widgets dragged into the GUI designer's view and within it ([0.3](docs/releases/dev.md#dragging)).
+- `tree-view`: a tree of items that open and close; the GUI designer's outline is one ([0.3](docs/releases/dev.md#a-tree-view)).
 - `tabs`, and `choice` with `:style :tabs`: a tab bar ([0.3](docs/releases/dev.md#input)).
 - `split`: two panes with a divider that is dragged, and in a view ([0.3](docs/releases/dev.md#two-panes-and-a-divider)).
 - `app-menu`: an app's own menus in the menu bar, with shortcuts ([0.3](docs/releases/dev.md#the-apps-own-menus)).

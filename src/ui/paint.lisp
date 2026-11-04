@@ -82,7 +82,7 @@
                 #:theme-background #:theme-panel #:theme-text #:theme-dim-text
                 #:theme-button-text #:theme-ring #:theme-field-border #:theme-field-fill
                 #:theme-field-invalid #:theme-field-disabled #:theme-selection #:theme-caret
-                #:theme-track #:theme-thumb #:theme-row-selected #:theme-scrim #:theme-tooltip
+                #:theme-track #:theme-thumb #:theme-row-selected #:theme-row-hover #:theme-scrim #:theme-tooltip
                 #:theme-tooltip-text #:theme-font-name #:theme-radius
                 #:theme-field-padding-x #:theme-field-padding-y #:theme-row-height #:spaced
                 #:button-color #:mix-colors)
@@ -713,12 +713,39 @@ kept, and otherwise afresh, which is then kept."
                             (or (box-color box) (theme-panel *theme*)))
          (draw-border box list x y)
          (paint-contents ui box context list x y))
+        (:tree
+         (when (nth-value 1 (look-state box))
+           (push-rounded-stroke list (- x 2) (- y 2) (+ (box-w box) 4) (+ (box-h box) 4)
+                                (theme-radius *theme*) 2 (theme-ring *theme*)))
+         (paint-contents ui box context list x y))
+        (:tree-row
+         (draw-tree-row box list x y)
+         (paint-contents ui box context list x y))
         (:pressable
          (draw-pressable box list x y)
          (draw-border box list x y)
          (paint-contents ui box context list x y))
         ((:column :row :padding :center :stack :context-area :grid :surface :drag-source :split)
          (paint-contents ui box context list x y))))))
+
+;; A row of a tree view: the selection's colour if its item is selected, the hover colour under the
+;; pointer, and before its words the mark of an item with children, pointing right while they are
+;; hidden and down while they are shown.
+(defun draw-tree-row (box list x y)
+  (let ((w (box-w box)) (h (box-h box))
+        (state (look-state box)))
+    (cond ((= (box-n3 box) 1)
+           (push-rounded-rect list x y w h 4 (theme-row-selected *theme*)))
+          ((member state '(:hover :pressed))
+           (push-rounded-rect list x y w h 4 (theme-row-hover *theme*))))
+    (unless (zerop (box-n2 box))
+      (let ((cx (+ x (box-pad-left box) -10)) (cy (+ y (/ h 2)))
+            (color (theme-dim-text *theme*)))
+        (if (= (box-n2 box) 1)
+            (loop :for i :from 0 :below 4
+                  :do (push-rect list (+ cx i) (- cy (- 3 i)) 1 (+ 1 (* 2 (- 3 i))) color))
+            (loop :for i :from 0 :below 4
+                  :do (push-rect list (- cx (- 3 i)) (+ cy i -1) (+ 1 (* 2 (- 3 i))) 1 color)))))))
 
 (defun draw-pressable (box list x y)
   "The background of a pressable: the theme's selected row for a toggle that is on, a button's colours
