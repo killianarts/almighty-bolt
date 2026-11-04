@@ -253,9 +253,10 @@ what comes first, is in [docs/roadmap.md](docs/roadmap.md).
   `(almighty-bolt-theme-designer:open-designer)` after loading the system
   `almighty-bolt-theme-designer`.
 - [`apps/gui-designer/`](apps/gui-designer): the start of a GUI designer. A
-  view made of widgets is drawn as it will look, and a press picks a widget and
-  shows its options: `(almighty-bolt-gui-designer:open-designer)` after loading
-  the system `almighty-bolt-gui-designer`.
+  view made of labels, buttons, text fields, columns and rows is drawn as it
+  will look; add widgets to it, select one to change its id and options, and
+  save it as a file to open again: `(almighty-bolt-gui-designer:open-designer)`
+  after loading the system `almighty-bolt-gui-designer`.
 - [`examples/7guis/`](examples/7guis): the seven 7GUIs tasks.
   [`bench/stress/`](bench/stress) has a dashboard, a million-row list and a text
   editor with input-method support.

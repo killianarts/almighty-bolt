@@ -48,6 +48,8 @@
                 #:box-y
                 #:box-w
                 #:box-h
+                #:box-pref-w
+                #:box-pref-h
                 #:box-layout-hash
                 #:box-paint-hash)
   (:import-from #:almighty-bolt/ui/ui
@@ -349,6 +351,11 @@ where its spec says: against its anchor where that is in this frame (so a submen
 menu), turned to the other side or moved in where it would go out of the window."
   (loop :for float :across (ui-floats ui)
         :do (let ((spec (box-data float)))
+              ;; Over its anchor, it is the anchor's size (an outline round it).
+              (when (eq (float-spec-placement spec) :over)
+                (let ((anchor (float-spec-anchor spec)))
+                  (setf (box-pref-w float) (box-w anchor)
+                        (box-pref-h float) (box-h anchor))))
               (multiple-value-bind (w h)
                   (if (eq (float-spec-placement spec) :fill)
                       (layout-box float context width width height height)
@@ -361,6 +368,7 @@ menu), turned to the other side or moved in where it would go out of the window.
                       (:bottom (values (/ (- width w) 2) (- height h 24f0)))
                       (:center (values (/ (- width w) 2) (/ (- height h) 2)))
                       (:at (values (float-spec-x spec) (float-spec-y spec)))
+                      (:over (window-position (float-spec-anchor spec)))
                       ((:below :right)
                        (let ((anchor (float-spec-anchor spec)))
                          (multiple-value-bind (ax ay) (window-position anchor)

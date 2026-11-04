@@ -61,6 +61,27 @@ event changed shows in it."
 (defun shown-name (session id)
   (s:node-name (m:find-node session :id id)))
 
+(defun shown-value (session id)
+  (s:node-value (m:find-node session :id id)))
+
+(defun in-view (session id)
+  "The node of the widget ID of the view being designed, or NIL if the view has none."
+  (handler-case (m:find-node session :id id :within :canvas)
+    (error () nil)))
+
+(defun top-of (session id)
+  (second (s:node-bounds (m:find-node session :id id :within :canvas))))
+
+(defun press-beside-heading (screen)
+  "A press in the form, right of its heading: on the form and nothing in it."
+  (multiple-value-bind (fx fy fw) (core:lookup-target (screen-app screen) :sign-in-form)
+    (declare (ignore fy))
+    (multiple-value-bind (hx hy hw) (core:lookup-target (screen-app screen) :heading)
+      (assert-true (< (+ hx hw) (+ fx fw -10)))
+      (pointer screen :move (+ fx fw -4) (+ hy 4))
+      (pointer screen :down (+ fx fw -4) (+ hy 4))
+      (pointer screen :up (+ fx fw -4) (+ hy 4)))))
+
 (define-test the-view-is-drawn-with-the-real-widgets ()
   (multiple-value-bind (screen session) (open-designer)
     (declare (ignore screen))
@@ -76,10 +97,10 @@ event changed shows in it."
     (declare (ignore screen))
     (m:click session :id :sign-in :within :canvas)
     (assert-equal "Button :sign-in" (shown-name session :selected-what))
-    (assert-equal "text: \"Sign in\"" (shown-name session :selected-text))
+    (assert-equal "Sign in" (shown-value session :option-text))
     (m:click session :id :heading :within :canvas)
     (assert-equal "Label :heading" (shown-name session :selected-what))
-    (assert-equal "weight: :bold" (shown-name session :selected-weight))))
+    (assert-equal ":bold" (shown-value session :option-weight))))
 
 (define-test typing-on-a-text-field-of-the-view-selects-it-and-types-nothing ()
   ;; The press that would give the field the keyboard is the designer's; with no keyboard, the field
@@ -93,13 +114,7 @@ event changed shows in it."
 (define-test a-press-between-widgets-selects-the-container-they-are-in ()
   (multiple-value-bind (screen session) (open-designer)
     ;; Right of the heading, which is narrower than the form: in the form, on nothing in it.
-    (multiple-value-bind (fx fy fw) (core:lookup-target (screen-app screen) :sign-in-form)
-      (declare (ignore fy))
-      (multiple-value-bind (hx hy hw) (core:lookup-target (screen-app screen) :heading)
-        (assert-true (< (+ hx hw) (+ fx fw -10)))
-        (pointer screen :move (+ fx fw -4) (+ hy 4))
-        (pointer screen :down (+ fx fw -4) (+ hy 4))
-        (pointer screen :up (+ fx fw -4) (+ hy 4))))
+    (press-beside-heading screen)
     (assert-equal "Column :sign-in-form" (shown-name session :selected-what))))
 
 (define-test the-pointer-and-the-selection-are-outlined ()
@@ -118,3 +133,133 @@ event changed shows in it."
           (assert-equal "Button :forgot" (shown-name session :selected-what))
           (pointer screen :leave 0 0)
           (assert-eql (bolt:theme-setting dark :ring) (edge)))))))
+
+;;; --- changing the view ---
+
+(define-test a-widget-added-goes-into-the-selected-container-or-after-the-selected-widget ()
+  (multiple-value-bind (screen session) (open-designer)
+    ;; With the form selected, at its end, below the buttons.
+    (press-beside-heading screen)
+    (m:click session :id :add-button :within :palette)
+    (assert-equal "Button :button-1" (shown-name session :selected-what))
+    (assert-equal "Button" (s:node-name (in-view session :button-1)))
+    (assert-true (> (top-of session :button-1) (top-of session :sign-in)))
+    ;; With a label selected, just after it: between the heading and the label under it.
+    (m:click session :id :heading :within :canvas)
+    (m:click session :id :add-label :within :palette)
+    (assert-equal "Label :label-1" (shown-name session :selected-what))
+    (assert-true (< (top-of session :heading) (top-of session :label-1)
+                    (top-of session :name-label)))))
+
+(define-test an-option-changed-changes-the-widget-in-the-view ()
+  (multiple-value-bind (screen session) (open-designer)
+    (m:click session :id :sign-in :within :canvas)
+    (m:set-value session "Log in" :id :option-text)
+    (assert-equal "Log in" (s:node-name (in-view session :sign-in)))
+    (m:set-value session nil :id :option-enabled)
+    (assert-true (s:node-property (in-view session :sign-in) :disabled))
+    ;; A number: what is not one is shown as wrong and changes nothing. The form's gap, seen in how
+    ;; far apart its first two widgets are.
+    (press-beside-heading screen)
+    (flet ((apart () (- (top-of session :name-label) (top-of session :heading))))
+      (let ((before (apart)))
+        (m:set-value session "wide" :id :option-gap)
+        (assert-true (s:node-property (m:find-node session :id :option-gap) :invalid))
+        (assert-equal before (apart))
+        (m:set-value session "40" :id :option-gap)
+        (assert-false (s:node-property (m:find-node session :id :option-gap) :invalid))
+        (assert-equal (+ before 28) (apart))))))
+
+(define-test an-id-can-be-changed-to-one-no-other-widget-has ()
+  (multiple-value-bind (screen session) (open-designer)
+    (declare (ignore screen))
+    (m:click session :id :sign-in :within :canvas)
+    ;; Typed, it is not changed yet: Return changes it.
+    (m:set-value session "submit" :id :option-id)
+    (assert-equal "Button :sign-in" (shown-name session :selected-what))
+    (m:press-key session :return)
+    (assert-equal "Button :submit" (shown-name session :selected-what))
+    (assert-true (in-view session :submit))
+    (assert-false (in-view session :sign-in))
+    ;; Another widget's id is shown as wrong, and Return leaves the widget its own.
+    (m:set-value session "forgot" :id :option-id)
+    (assert-true (s:node-property (m:find-node session :id :option-id) :invalid))
+    (m:press-key session :return)
+    (assert-equal "Button :submit" (shown-name session :selected-what))
+    (assert-true (in-view session :forgot))))
+
+(define-test remove-takes-the-selected-widget-out-of-the-view ()
+  (multiple-value-bind (screen session) (open-designer)
+    (m:click session :id :forgot :within :canvas)
+    (m:click session :id :remove :within :toolbar)
+    (assert-false (in-view session :forgot))
+    (assert-true (in-view session :sign-in))
+    (assert-true (search "Nothing" (shown-name session :selected-nothing)))
+    ;; The view itself cannot be removed.
+    (press-beside-heading screen)
+    (assert-true (s:node-property (m:find-node session :id :remove :within :toolbar) :disabled))))
+
+(define-test a-view-saved-opens-again-as-it-was ()
+  (multiple-value-bind (screen session) (open-designer)
+    (let ((path (merge-pathnames (format nil "view-~d.view" (random 1000000000))
+                                 (uiop:temporary-directory))))
+      (unwind-protect
+           (progn
+             (setf (core:context-file-chooser (screen-context screen))
+                   (lambda (kind types offered)
+                     (declare (ignore kind offered))
+                     (assert-equal '("view") types)
+                     (namestring path)))
+             (m:click session :id :sign-in :within :canvas)
+             (m:set-value session "Log in" :id :option-text)
+             ;; The heading's weight back to the default: then the file does not say it.
+             (m:click session :id :heading :within :canvas)
+             (m:set-value session ":regular" :id :option-weight)
+             (assert-equal ":regular" (shown-value session :option-weight))
+             (m:click session :id :save :within :toolbar)
+             (assert-true (search "Saved to" (shown-name session :status)))
+             (let ((saved (uiop:read-file-string path)))
+               (assert-true (search "(:button :sign-in (:text \"Log in\"))" saved) saved)
+               (assert-true (search "(:label :heading (:text \"Sign in\" :size 22))" saved) saved))
+             (m:click session :id :new :within :toolbar)
+             (assert-false (in-view session :sign-in))
+             (m:click session :id :open :within :toolbar)
+             (assert-true (search "Opened" (shown-name session :status)))
+             (assert-equal "Log in" (s:node-name (in-view session :sign-in)))
+             (assert-true (in-view session :password)))
+        (when (probe-file path) (delete-file path))))))
+
+(define-test a-file-that-is-not-a-view-is-not-opened ()
+  (multiple-value-bind (screen session) (open-designer)
+    (let ((path (merge-pathnames (format nil "not-~d.view" (random 1000000000))
+                                 (uiop:temporary-directory))))
+      (unwind-protect
+           (progn
+             (with-open-file (out path :direction :output)
+               (write-string "(:slab :nope ())" out))
+             (setf (core:context-file-chooser (screen-context screen))
+                   (lambda (kind types offered)
+                     (declare (ignore kind types offered))
+                     (namestring path)))
+             (m:click session :id :open :within :toolbar)
+             (assert-true (search "Could not open" (shown-name session :status)))
+             (assert-true (in-view session :sign-in)))
+        (when (probe-file path) (delete-file path))))))
+
+(define-test the-outline-is-where-the-selected-widget-is-in-the-frame-it-changes-size ()
+  ;; One key and one frame: a window draws no more until something happens, so the outline must be
+  ;; round the button as that frame lays it out, not as the frame before did.
+  (multiple-value-bind (screen session) (open-designer)
+    (let ((ring (bolt:theme-setting (bolt:find-theme :dark) :ring)))
+      (m:click session :id :forgot :within :canvas)
+      (m:click session :id :option-text :within :selection)
+      (multiple-value-bind (x0 y0 w0) (core:lookup-target (screen-app screen) :forgot)
+        (declare (ignore x0 y0))
+        (dolist (character (coerce " now" 'list))
+          (core:handle-event (screen-app screen)
+                             (core:make-key-event :timestamp 0 :kind :down :logical-key character
+                                                  :modifiers 0))
+          (draw screen))
+        (multiple-value-bind (x y w h) (core:lookup-target (screen-app screen) :forgot)
+          (assert-true (> w w0))
+          (assert-eql ring (color-at screen (+ x w -1) (+ y (/ h 2)))))))))

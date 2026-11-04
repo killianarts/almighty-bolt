@@ -5,6 +5,7 @@
                 #:box-id
                 #:box-parent
                 #:box-flex
+                #:box-color
                 #:box-interactive
                 #:box-moves)
   (:import-from #:almighty-bolt/ui/ui
@@ -18,6 +19,9 @@
                 #:ui-pointer-x
                 #:ui-pointer-y
                 #:consume-press
+                #:open-float
+                #:close-float
+                #:make-float-spec
                 #:rect-of
                 #:rect-x
                 #:rect-y
@@ -29,8 +33,6 @@
                 #:theme-dim-text)
   (:import-from #:almighty-bolt/ui/widgets
                 #:required-id)
-  (:import-from #:almighty-bolt/ui/inspection
-                #:outline)
   (:export #:design-surface))
 
 (in-package #:almighty-bolt/ui/design-surface)
@@ -58,10 +60,15 @@
         :while parent
           :thereis (eq parent surface)))
 
-(defun rect-list (ui box)
-  "Where BOX was in the last frame, as a list of x, y, width and height in the window, or NIL."
-  (let ((rect (rect-of ui (box-key box))))
-    (and rect (list (rect-x rect) (rect-y rect) (rect-w rect) (rect-h rect)))))
+(defun outline-over (ui surface id box color)
+  "A frame of COLOR round BOX, called ID among SURFACE's outlines, laid out over BOX where it is in
+this frame: a widget that has changed its size is outlined as it is now."
+  (when box
+    (multiple-value-bind (float open)
+        (open-float ui :outline (box-key surface) id
+                    (make-float-spec :anchor box :placement :over :tool t))
+      (setf (box-color float) color)
+      (close-float ui open))))
 
 (defun thing-under (ui surface first x y)
   "The innermost box with an id inside SURFACE (its boxes are FIRST and after, this build) that was
@@ -99,10 +106,11 @@ Returns the id of the thing the press was on, on the frame of the press, or NIL.
       (when (and hot (ui-pressed ui))
         (consume-press ui)
         (setf pressed (and under (box-id under))))
-      (outline ui :hover (and under (not (eq under chosen)) (rect-list ui under))
-               (theme-dim-text *theme*) (box-key surface))
-      (outline ui :selected (and chosen (rect-list ui chosen)) (theme-ring *theme*)
-               (box-key surface)))
+      ;; Where the pointer is over is found in the last frame's places, which is where the person
+      ;; saw things; the outlines are put where things are now.
+      (outline-over ui surface :hover (and under (not (eq under chosen)) under)
+                    (theme-dim-text *theme*))
+      (outline-over ui surface :selected chosen (theme-ring *theme*)))
     pressed))
 
 (defmacro design-surface ((&key id selected (flex 0)) &body body)

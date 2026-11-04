@@ -36,11 +36,12 @@ While you develop an app (`open-app`, or `run-app` with `:hot`), Command-Option-
 
 ### The GUI designer, begun
 
-`apps/gui-designer` is the start of the GUI designer on the [roadmap](../roadmap.md): `(almighty-bolt-gui-designer:open-designer)` after loading the system `almighty-bolt-gui-designer`. It shows the widgets it knows on the left (a label, a button, a text field, a column and a row), a view made of them in the middle, and what is picked on the right.
+`apps/gui-designer` is the start of the GUI designer on the [roadmap](../roadmap.md): `(almighty-bolt-gui-designer:open-designer)` after loading the system `almighty-bolt-gui-designer`. It shows the widgets it knows on the left (a label, a button, a text field, a column and a row), the view being designed in the middle, and the selected widget on the right.
 
-- The view is drawn with the real widgets, in the theme, as the app will draw it, but none of them works: a press picks the widget it was on (the innermost: a press between two widgets picks the column they are in), and typing goes nowhere.
-- The picked widget is outlined, and so is the one the pointer is over. The right shows its kind, its id and the value of each of its options, given or not.
-- The view is data: a tree of widgets, each with its kind, its id and its options by the widget's own names, written as a form such as `(:button :sign-in (:text "Sign in"))`. For now it is one written in the designer; placing widgets from the list, changing their options and saving the view come next.
+- The view is drawn with the real widgets, in the theme, as the app will draw it, but none of them works: a press selects the widget it was on (the innermost: a press between two widgets selects the column they are in), and typing goes nowhere. The selected widget is outlined, and so is the one the pointer is over.
+- A widget from the left goes at the end of the selected column or row, or just after the selected widget, or at the end of the view; it is called by its kind and a number (`:button-1`), and selected.
+- On the right, the selected widget's options, each with an editor of its kind: a field for text and for numbers (a number that is not one is shown as wrong and changes nothing), a check box, a menu of choices. What is changed shows in the view at once. Its id is changed with Return, to one no other widget in the view has. Remove takes it out, with what is in it.
+- New starts an empty view, Save… writes the view to a `.view` file and Open… reads one back. The file is the view's form: each widget as its kind, its id and the options that are not the default, by the widget's own names, then what is in it, such as `(:row :actions (:gap 8) (:button :sign-in (:text "Sign in")))`. It is read with `*read-eval*` off, and a file that is not a view is not opened.
 
 It is built on a new container, `design-surface`, which any designer can use: what is in it is drawn but does not work, the pointer and the keyboard do not reach it, and a press on it returns the id of the thing it was on. `(bolt:design-surface (:id :canvas :selected picked) ...)` outlines the thing whose id is `picked`.
 
