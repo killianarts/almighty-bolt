@@ -199,7 +199,7 @@ Returns the id of the one chosen there, on the frame it is, or NIL."
       (bolt:label "Outline" :id :outline-heading :size 17)
       (bolt:scroll (:id :outline-scroll :height 300)
         (multiple-value-bind (key changed)
-            (bolt:tree-view (list view) :id :outline-tree :width 260 :children #'node-children
+            (bolt:tree (list view) :id :outline-tree :width 260 :children #'node-children
                                         :key (lambda (node) (row-key (node-id node)))
                                         :label (lambda (node)
                                                  (format nil "~a ~(~s~)"

@@ -28,7 +28,7 @@
   (:import-from #:almighty-bolt/ui/split
                 #:split)
   (:import-from #:almighty-bolt/ui/tree
-                #:tree-view)
+                #:tree)
   (:export #:entry
            #:catalogue
            #:define-widget-entry
@@ -341,13 +341,13 @@ of (index words . children), INDEX its line's place in LINES."
                 (push depth depths)))
     (cddr (car (last stack)))))
 
-(define-widget-entry :tree-view (:title "Tree view"
+(define-widget-entry :tree (:title "Tree view"
                                  :options ((:items :list ("Fruit" "  Apple" "  Pear" "Vegetables"
                                                           "  Leek"))
                                            (:selected :number 0))
                                  :value :selected)
   (multiple-value-bind (now changed)
-      (tree-view (indented-tree items) :id id :children #'cddr :label #'second :key #'first
+      (tree (indented-tree items) :id id :children #'cddr :label #'second :key #'first
                                        :selected (round selected))
     (when (and changed set-value) (funcall set-value now))))
 

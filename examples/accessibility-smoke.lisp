@@ -29,7 +29,7 @@
                 #:scrim
                 #:split
                 #:tabs
-                #:tree-view)
+                #:tree)
   (:import-from #:almighty-bolt/machine/host-session
                 #:open-session)
   (:local-nicknames (#:m #:almighty-bolt/machine)
@@ -75,7 +75,7 @@
             (label "Left" :id :left-words)
             (label "Right" :id :right-words))
           (tabs '("Design" "Theme") 1 :id :pages)
-          (tree-view '(("Fruit" ("Apple"))) :id :plants :children #'rest :label #'first
+          (tree '(("Fruit" ("Apple"))) :id :plants :children #'rest :label #'first
                                             :key (lambda (item) (intern (string-upcase (first item))
                                                                         :keyword))
                                             :selected :apple))

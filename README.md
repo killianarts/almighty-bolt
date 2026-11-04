@@ -152,7 +152,7 @@ holds, and it gives you the new one:
 | `(slider value minimum maximum &key id labelled-by width enabled flex)`      | the value now, whether it was changed                                       |
 | `(choice options selected &key id labelled-by direction style enabled flex)` | the index now, whether it was changed (`:direction :vertical`: radio buttons) |
 | `(tabs titles selected &key id labelled-by enabled flex)`                    | the index now, whether it was changed (a tab bar; the app draws the page)   |
-| `(tree-view roots &key id children label key selected labelled-by flex)`     | the key selected now, whether it was changed (items open and close)         |
+| `(tree roots &key id children label key selected labelled-by flex)`          | the key selected now, whether it was changed (items open and close)         |
 | `(menu-button text items &key id enabled flex max-rows)`                     | the item chosen from its menu, on the frame it is chosen                    |
 | `(dropdown options selected &key id labelled-by width enabled flex max-rows)` | the index now, whether it was changed (its menu floats above the screen)    |
 | `(checkbox label checked &key id enabled flex)`                              | the state now, whether it was changed                                       |

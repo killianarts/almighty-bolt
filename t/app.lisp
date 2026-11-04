@@ -3656,12 +3656,12 @@ released unless RELEASE."
     (lambda ()
       (column (:id :page :gap 8 :cross-align :stretch)
         (multiple-value-bind (key changed)
-            (tree-view +garden+ :id :garden :children #'rest :label #'first :key #'garden-key
+            (tree +garden+ :id :garden :children #'rest :label #'first :key #'garden-key
                                 :selected picked)
           (when changed (setf picked key)))
         (label (format nil "~(~a~)" picked) :id :picked)))))
 
-(define-test a-tree-view-selects-opens-and-closes-by-the-pointer-and-the-arrows ()
+(define-test a-tree-selects-opens-and-closes-by-the-pointer-and-the-arrows ()
   (let ((screen (show 'make-garden)))
     (flet ((shown-p (id) (and (core:lookup-target (screen-app screen) id) t))
            ;; Where a row's words begin: the row is as wide as the tree.
@@ -3809,13 +3809,13 @@ released unless RELEASE."
 
 (define-view t-plants
   (:column :plants-page (:gap 4)
-   (:tree-view :plants (:items ("Fruit" "  Apple" "    Wild apple" "Vegetables")))))
+   (:tree :plants (:items ("Fruit" "  Apple" "    Wild apple" "Vegetables")))))
 
 (defun make-plants ()
   (state-let ((picked 0))
     (lambda ()
       (column (:id :page :gap 8)
-        (view t-plants (tree-view :plants :value picked))
+        (view t-plants (tree :plants :value picked))
         (label (format nil "~d" picked) :id :picked)))))
 
 (define-test a-tree-in-a-view-is-its-lines-each-indented-a-level-deeper-and-wired-by-value ()

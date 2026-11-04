@@ -55,13 +55,13 @@ chosen one marked under its words, and the app draws the page of the tab
 chosen. It is a `:radio-group` with `:style :tabs` in the semantic tree, and a
 tab group of radio buttons to VoiceOver.
 
-A `tree-view` shows ROOTS and what `:children` (a function of an item) gives
+A `tree` shows ROOTS and what `:children` (a function of an item) gives
 for each, one under another, each called by `:label` (a function of an item,
 `princ-to-string` if not given) and indented 16 points a level, with a mark
 before an item that has children:
 
 ```lisp
-(bolt:tree-view (list view) :id :outline :children #'node-children
+(bolt:tree (list view) :id :outline :children #'node-children
                             :label #'node-title :key #'node-id :selected picked)
 ```
 

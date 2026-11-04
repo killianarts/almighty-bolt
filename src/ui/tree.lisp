@@ -48,7 +48,7 @@
                 #:look-of
                 #:set-size-limits
                 #:label)
-  (:export #:tree-view
+  (:export #:tree
            #:+tree-indent+))
 
 (in-package #:almighty-bolt/ui/tree)
@@ -132,7 +132,7 @@ what it opens or closes: (values new-selection key-to-open key-to-close)."
                  (t (values selected nil nil))))
           (t (values selected nil nil)))))
 
-(defun tree-view (roots &key (id (required-id 'tree-view)) (children (constantly '()))
+(defun tree (roots &key (id (required-id 'tree)) (children (constantly '()))
                           (label #'princ-to-string) (key #'identity) selected labelled-by tooltip
                           (flex 0) width height min-width min-height max-width max-height)
   "A tree of ROOTS and what CHILDREN (a function of an item) gives for each, one under another, each
