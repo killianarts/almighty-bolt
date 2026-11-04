@@ -1,7 +1,8 @@
 ;;;; Check, in real windows, what an app with more than one window gets: a second window opened by a
 ;;;; button of the first, which shows what the first holds and changes it; another opened from the
 ;;;; REPL and closed; both made again when code is compiled; a window that belongs to another closing
-;;;; with it; Quit closing them all and leaving the Lisp; and the loop starting again. From the
+;;;; with it; a window whose frames fail going on, and mended by a press; Quit closing them all and
+;;;; leaving the Lisp; and the loop starting again. From the
 ;;;; repository root:
 ;;;;   make windows-smoke
 ;;;; The main thread waits, as a REPL's waits for the editor, and another thread does what the
@@ -19,6 +20,8 @@
   (:import-from #:almighty-bolt/internals
                 #:frame-ring-total
                 #:make-key-event
+                #:make-pointer-event
+                #:lookup-target
                 #:+modifier-super+
                 #:+modifier-alt+)
   (:import-from #:almighty-bolt/platform/macos/main-queue
@@ -177,6 +180,51 @@
                                        (almighty-bolt/ui/immediate:immediate-app-ui
                                         (host-app first)))))))))
 
+(defun make-breakable ()
+  (bolt:state-let ((align :start))
+    (lambda ()
+      (bolt:column (:id :page :gap 8 :main-align align)
+        ;; :stretch is a cross-align; as a main-align, layout fails in every frame.
+        (when (bolt:button "Break" :id :break)
+          (setf align :stretch))
+        (when (bolt:button "Mend" :id :mend)
+          (setf align :start))))))
+
+(defun press-on (host id)
+  "A press and release of the primary button in the middle of ID, where the last good frame had it."
+  (destructuring-bind (x y w h) (call-on-main (lambda ()
+                                                (multiple-value-list
+                                                 (lookup-target (host-app host) id))))
+    (let ((px (float (+ x (/ w 2)) 1d0)) (py (float (+ y (/ h 2)) 1d0)))
+      (call-on-main
+       (lambda ()
+         (dolist (kind '(:move :down :up))
+           (host-deliver-event host (make-pointer-event :timestamp 0 :kind kind :x px :y py
+                                                        :button 0
+                                                        :buttons (if (eq kind :down) 1 0)
+                                                        :click-count (if (eq kind :move) 0 1)))))))))
+
+(defun failing-frame-checks ()
+  "A window whose app makes every frame fail goes on, showing its last good frame, and a press on
+what is shown mends it."
+  (let ((window (bolt:open-window 'make-breakable :title "Breakable" :width 240 :height 120)))
+    (wait-for (lambda () (plusp (frames window))))
+    (wait-for-idle window)
+    (sleep 1)
+    (press-on window :break)
+    (check "a frame that fails leaves the window open, saying what failed"
+           (wait-for (lambda () (almighty-bolt/ui/immediate:immediate-app-failure (host-app window))))
+           (almighty-bolt/ui/immediate:immediate-app-failure (host-app window)))
+    (let ((before (frames window)))
+      (press-on window :mend)
+      (check "and a press on what it shows mends it"
+             (wait-for (lambda () (and (> (frames window) before)
+                                       (null (almighty-bolt/ui/immediate:immediate-app-failure
+                                              (host-app window)))))))
+      (check "and the loop is still running" (host-open-p window)))
+    (bolt:close-window window)
+    (wait-for (lambda () (not (host-open-p window))))))
+
 (defun this-window-checks ()
   "A window that the second opens beside itself, and that closes itself, both by THIS-WINDOW."
   (m:click (open-session *second*) :id :below)
@@ -223,6 +271,7 @@
     (check "then both rest: neither keeps waking the other" (at-rest-p (list first *second*)))
     (inspector-checks first)
     (this-window-checks)
+    (failing-frame-checks)
     ;; Another, from the REPL, closed again.
     (let ((third (bolt:open-window 'make-third :title "Third" :width 200 :height 80
                                                :top 0 :right 0)))

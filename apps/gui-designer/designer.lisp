@@ -209,7 +209,9 @@ true as a second value."
 
 (defun selection (view selected drafts)
   "The selected node's kind, its id and its options, to change. Returns the view as the changes
-leave it, and the selection (which an id changed changes)."
+leave it, the selection (which an id changed changes), and, if an option was changed, which: the
+widget's id and the option's name, as a cons."
+  (let ((edit nil))
   (bolt:panel (:id :selection :all 14 :radius 0)
     (bolt:column (:gap 8 :min-width 300)
       (bolt:label "Selected" :id :selection-heading :size 17)
@@ -246,8 +248,9 @@ leave it, and the selection (which an id changed changes)."
                   (when changed
                     (setf view (with-option view (node-id node) (option-name option) value
                                             (option-default option))
+                          edit (cons (node-id node) (option-name option))
                           node (find-by-id view (node-id node)))))))))))
-    (values view selected))
+    (values view selected edit)))
 
 (defun added (view selected kind)
   "VIEW with a new widget of KIND: at the end of the selected container, after the selected widget,
@@ -267,17 +270,50 @@ or at the end of the view if nothing is selected. Returns the view and the new w
                    (drafts (make-hash-table :test 'equal))
                    (saving nil)
                    (opening nil)
-                   (status ""))
+                   (status "")
+                   ;; The views before this one, the last first, and those undone, the next first.
+                   ;; A view is never changed, so each is the whole of what it was.
+                   (undo '())
+                   (redo '())
+                   ;; What the last change was, if it was an option's: another change of the same
+                   ;; option (typing a word) is one step with it.
+                   (last-edit nil))
     (lambda ()
-      (flet ((select (id)
-               (unless (eq id selected)
+      (labels ((select (id)
+                 (unless (eq id selected)
+                   (clrhash drafts)
+                   (setf selected id
+                         ;; Coming back to an option later is another step.
+                         last-edit nil)))
+               (change (new &optional edit)
+                 "Make NEW the view, as a step that Undo takes back."
+                 (unless (eq new view)
+                   (unless (and edit (equal edit last-edit))
+                     (push view undo))
+                   (setf redo '()
+                         view new
+                         last-edit edit)))
+               (go-to (new)
+                 "Show NEW, a view from the history, keeping the selection if it has the widget."
+                 (setf view new
+                       last-edit nil)
                  (clrhash drafts)
-                 (setf selected id))))
+                 (unless (and selected (find-by-id view selected))
+                   (select nil)))
+               (step-back ()
+                 (when undo
+                   (push view redo)
+                   (go-to (pop undo))))
+               (step-forward ()
+                 (when redo
+                   (push view undo)
+                   (go-to (pop redo)))))
         (bolt:column (:id :designer :fill t :cross-align :stretch)
           (bolt:panel (:id :toolbar :all 10 :radius 0)
             (bolt:row (:gap 8 :cross-align :center)
               (when (bolt:button "New" :id :new)
-                (setf view (form-node +empty+) status "")
+                (change (form-node +empty+))
+                (setf status "")
                 (select nil))
               (when (bolt:button "Open…" :id :open)
                 (setf opening t))
@@ -286,8 +322,12 @@ or at the end of the view if nothing is selected. Returns the view and the new w
               (when (bolt:button "Remove" :id :remove
                                           :enabled (and selected (not (eq selected (node-id view)))
                                                         t))
-                (setf view (remove-node view selected))
+                (change (remove-node view selected))
                 (select nil))
+              (when (bolt:button "Undo" :id :undo :enabled (and undo t))
+                (step-back))
+              (when (bolt:button "Redo" :id :redo :enabled (and redo t))
+                (step-forward))
               (bolt:label status :id :status)))
           (let ((path (bolt:save-file-dialog :id :save-panel :show saving :types '("view")
                                              :name (format nil "~(~a~).view" (node-id view)))))
@@ -301,8 +341,8 @@ or at the end of the view if nothing is selected. Returns the view and the new w
             (when path
               (handler-case
                   (with-open-file (in path)
-                    (setf view (read-view in)
-                          status (format nil "Opened ~a." path))
+                    (change (read-view in))
+                    (setf status (format nil "Opened ~a." path))
                     (select nil))
                 (error (condition)
                   (setf status (format nil "Could not open ~a: ~a" path condition))))))
@@ -312,7 +352,7 @@ or at the end of the view if nothing is selected. Returns the view and the new w
                 (let ((kind (palette)))
                   (when kind
                     (multiple-value-bind (new id) (added view selected kind)
-                      (setf view new)
+                      (change new)
                       (select id))))
                 (let ((chosen (outline view selected)))
                   (when chosen
@@ -322,10 +362,15 @@ or at the end of the view if nothing is selected. Returns the view and the new w
                                (draw-node view))))
                 (when pressed
                   (select pressed))))
-            (multiple-value-bind (new now) (selection view selected drafts)
-              (setf view new)
+            (multiple-value-bind (new now edit) (selection view selected drafts)
+              (change new edit)
               (unless (eq now selected)
-                (select now)))))))))
+                (select now))))
+          ;; After everything, so that a text field with the keyboard undoes its own typing first.
+          (when (bolt:shortcut #\z :command)
+            (step-back))
+          (when (bolt:shortcut #\z :command :shift)
+            (step-forward)))))))
 
 (defun open-designer ()
   "Open the GUI designer in a window, from the REPL."

@@ -37,6 +37,7 @@
                 #:+phase-all-builds+
                 #:take-frame-request
                 #:accessibility-tree
+                #:*show-frame-errors*
                 #:deliver-event
                 #:take-events
                 #:context-font
@@ -449,7 +450,10 @@ after that is retired."
   (let ((previous (host-previous host))
         (display-list (host-display-list host)))
     (cond ((null previous)
-           (settle-frame (host-app host) context display-list))
+           ;; A frame of the app that fails shows the last one that did not, with the error over it:
+           ;; the window answers still, and a press on what was there can put the app right.
+           (let ((*show-frame-errors* t))
+             (settle-frame (host-app host) context display-list)))
           (t
            (setf (host-previous host) nil)
            (let ((builds nil) (capped nil) (failure nil))

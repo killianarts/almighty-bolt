@@ -5,6 +5,7 @@
                 #:real-time-source)
   (:export #:app-instance
            #:handle-event
+           #:*show-frame-errors*
            #:frame
            #:hit-target
            #:lookup-target
@@ -90,6 +91,12 @@ every frame keeps the event in a list of its own for FRAME to read.")
   (:method ((instance app-instance) event)
     (declare (ignore instance event))
     nil))
+
+(defvar *show-frame-errors* nil
+  "True while a frame is made for a window that should go on showing when the frame fails: an app
+whose FRAME signals an error then shows its last frame with the error over it, says what the error
+was, and the error goes no further. The host binds it round a window's frames; a test and the REPL
+leave it false and see the error.")
 
 (defgeneric frame (instance context display-list)
   (:documentation "Build a frame: lay out and append drawing commands to

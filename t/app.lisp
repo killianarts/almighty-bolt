@@ -3677,6 +3677,54 @@ released unless RELEASE."
     (multiple-value-bind (x y) (core:lookup-target (screen-app screen) :days)
       (assert-eql ring (color-at screen (+ x 20) (- y 1))))))
 
+;;; --- a frame that fails ---
+
+(defun make-breakable ()
+  (state-let ((align :start))
+    (lambda ()
+      (column (:id :page :gap 8 :main-align align)
+        (label "Still here" :id :still)
+        ;; :stretch is a cross-align; as a main-align, layout fails in every frame.
+        (when (button "Break" :id :break)
+          (setf align :stretch))
+        (when (button "Mend" :id :mend)
+          (setf align :start))))))
+
+(defun all-text (screen)
+  "Every character drawn, in order."
+  (let ((list (screen-list screen)))
+    (coerce (loop :for index :below (core:display-list-count list)
+                  :when (= (core:display-list-kind list index) core:+command-glyph+)
+                    :collect (code-char (round (core:display-list-parameter list index))))
+            'string)))
+
+(define-test a-window-whose-frame-fails-shows-the-last-good-one-and-can-be-mended ()
+  ;; As a window's host makes its frames: the app's state makes layout fail in every frame, which
+  ;; showed the error again on each move of the pointer and nothing else. The last good frame is
+  ;; shown, with the error along the bottom; it is said once; and what was there still works.
+  (let ((core:*show-frame-errors* t)
+        (said (make-string-output-stream)))
+    (let ((screen (show 'make-breakable))
+          (*error-output* said))
+      (click screen :break)
+      (let ((text (all-text screen)))
+        (assert-true (search "Still here" text) text)
+        (assert-true (search "Frame failed: " text) text)
+        (assert-true (search "STRETCH" text) text))
+      (draw screen)
+      (draw screen)
+      ;; A press taken while it fails builds again before laying out; that is not a frame mended.
+      (click screen :break)
+      (let ((log (get-output-stream-string said)))
+        (assert-eql 1 (count #\Newline log) log)
+        (assert-true (search "STRETCH" log) log))
+      (click screen :mend)
+      (assert-false (search "failed" (all-text screen)))
+      (assert-equal "Still here" (text-in screen :still))))
+  ;; In a test or at the REPL, the error is the caller's, as before.
+  (let ((screen (show 'make-breakable)))
+    (assert-error 'error (click screen :break))))
+
 ;;; --- the app's own window ---
 
 (defvar *seen-window* :unset

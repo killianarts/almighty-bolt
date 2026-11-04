@@ -42,6 +42,7 @@ While you develop an app (`open-app`, or `run-app` with `:hot`), Command-Option-
 - The outline lists every widget of the view in order, by its kind and id, indented by how deep it is. A row selects its widget, as a press in the view does, which is how a container whose children fill it (a row of buttons) is selected; the selected widget's row is chosen in it.
 - A widget from the left goes at the end of the selected column or row, or just after the selected widget, or at the end of the view; it is called by its kind and a number (`:button-1`), and selected.
 - On the right, the selected widget's options, each with an editor of its kind: a field for text and for numbers (a number that is not one is shown as wrong and changes nothing), a check box, a menu of choices. What is changed shows in the view at once. Its id is changed with Return, to one no other widget in the view has. Remove takes it out, with what is in it.
+- Undo and Redo, in the toolbar and as Command-Z and Command-Shift-Z, take back every change to the view and put it back: a widget added or removed, an option changed (a word typed into one is one step), an id, a view opened or begun. A text field with the keyboard undoes its own typing first.
 - New starts an empty view, Save… writes the view to a `.view` file and Open… reads one back. The file is the view's form: each widget as its kind, its id and the options that are not the default, by the widget's own names, then what is in it, such as `(:row :actions (:gap 8) (:button :sign-in (:text "Sign in")))`. It is read with `*read-eval*` off, and a file that is not a view is not opened, with what is wrong said: a kind of widget the designer does not have, an option a widget does not have or a value it cannot have, an id two widgets have, or something inside a widget that holds nothing.
 
 It is built on a new container, `design-surface`, which any designer can use: what is in it is drawn but does not work, the pointer and the keyboard do not reach it, and a press on it returns the id of the thing it was on. `(bolt:design-surface (:id :canvas :selected picked) ...)` outlines the thing whose id is `picked`.
@@ -88,6 +89,7 @@ A theme that gives the spacing works out every size again, except those it gives
 
 #### Windowing
 
+- A window whose frame fails no longer stops: it shows the last frame that did not fail, with the error along its bottom, says the error once (not on every move of the pointer), and goes on, so that a press on what it shows can put the app right. Tests and the REPL still get the error. See [When a frame fails](../reference.md#when-a-frame-fails).
 - [`symbol`](../reference/page.md#symbol) now does X.
 
 #### Rendering

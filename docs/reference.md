@@ -494,6 +494,17 @@ Each window's app is an app of its own, with its own `state-let`. What two windo
 
 Where a window opens is given to `open-app`, `open-window` and `run-app`. `:top`, `:left`, `:bottom` and `:right` are points from that edge of the screen's usable area (below the menu bar and beside the Dock), as CSS's absolute positioning has them: `(bolt:open-window 'make-palette :top 0 :right 0)` opens in the top right corner. When both `:left` and `:right` are given `:left` is taken, and `:top` before `:bottom`; along an axis that has neither, the window is in the middle. `:beside window` (one that `open-app` or `open-window` returned) opens it next to that window, on its `:side` (`:right`, the default, `:left`, `:above` or `:below`), `:gap` points away (12), with the edges lined up, or on the other side if there is no room. With none of these, the first window opens in the middle of the screen and each after it below and to the right of the last one opened. Wherever a window goes, it is kept on the screen. The inspector opens beside the app's window.
 
+## When a frame fails
+
+If the app's function, or the layout or painting of what it described, signals an error while a
+window is open, the window shows the last frame that did not fail, with the error along its bottom,
+and says the error once on the error output. The window goes on: what was shown is where it was, so
+a press on it reaches the app, and a frame that lays out again is shown as any other. A layout that
+fails because of what the app holds (an option it was given that the layout does not take) can be
+put right that way, by a button that changes it back or an Undo. While frames fail, the machine
+interface and VoiceOver see what the failing frame described, which has no places yet. In a test,
+and when an app's frame is made from the REPL, the error is the caller's, as before.
+
 ## The inspector
 
 While an app is developed (opened with `open-app`, or with `run-app` and `:hot` or `:watch-systems`), Command-Option-I in its window opens the inspector, in a window of its own beside it that closes with it; the keys again, in the app's window, close it. In an app that is delivered (`run-app` alone) the keys are the app's. Its Pick button makes the next press in the app's window pick the widget under the pointer instead of pressing it (Escape, in either window, stops), and an outline follows the pointer while it picks and stays round what it picked. It says what the picked widget is: its kind and role, its id, its name and value, where it is and how big, the theme it is drawn in, whether it is enabled, and what the tree says of its state (a check box's `:checked`, a list's items). It says it as of the app's last frame, and the pick is kept while the widget is described in the same place, through hot reloads.

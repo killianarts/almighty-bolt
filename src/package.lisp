@@ -182,6 +182,7 @@
   (:import-from #:almighty-bolt/app-instance
                 #:app-instance
                 #:handle-event
+                #:*show-frame-errors*
                 #:frame
                 #:hit-target
                 #:lookup-target
@@ -482,6 +483,7 @@
            #:display-list-hash
            #:app-instance
            #:handle-event
+           #:*show-frame-errors*
            #:frame
            #:hit-target
            #:lookup-target

@@ -352,3 +352,47 @@ event changed shows in it."
                                   (intern (format nil "~a-1" (catalogue:entry-kind entry)) :keyword))
                           (shown-name session :selected-what)
                           (catalogue:entry-kind entry) (catalogue:option-name option) value)))))))
+
+;;; --- undo ---
+
+(define-test undo-takes-back-each-change-and-redo-puts-it-back ()
+  (multiple-value-bind (screen session) (open-designer)
+    (declare (ignore screen))
+    (flet ((enabled-p (id)
+             (not (s:node-property (m:find-node session :id id :within :toolbar) :disabled))))
+      (assert-false (enabled-p :undo))
+      ;; Three changes: a word typed into an option (one step, not one for each key), a widget
+      ;; added, a widget removed.
+      (m:click session :id :sign-in :within :canvas)
+      (m:set-value session "Log in" :id :option-text)
+      (m:click session :id :add-button :within :left)
+      (m:click session :id :forgot :within :canvas)
+      (m:click session :id :remove :within :toolbar)
+      (assert-false (in-view session :forgot))
+      (m:click session :id :undo :within :toolbar)
+      (assert-true (in-view session :forgot))
+      (m:click session :id :undo :within :toolbar)
+      (assert-false (in-view session :button-1))
+      (m:click session :id :undo :within :toolbar)
+      (assert-equal "Sign in" (s:node-name (in-view session :sign-in)))
+      (assert-false (enabled-p :undo))
+      ;; And forward again.
+      (m:click session :id :redo :within :toolbar)
+      (assert-equal "Log in" (s:node-name (in-view session :sign-in)))
+      (m:click session :id :redo :within :toolbar)
+      (assert-true (in-view session :button-1))
+      ;; A change after an undo is the way on: what was undone cannot be redone.
+      (m:click session :id :heading :within :canvas)
+      (m:set-value session "Welcome" :id :option-text)
+      (assert-false (enabled-p :redo))
+      (assert-true (in-view session :forgot)))))
+
+(define-test command-z-undoes-and-command-shift-z-redoes ()
+  (multiple-value-bind (screen session) (open-designer)
+    (declare (ignore screen))
+    (m:click session :id :forgot :within :canvas)
+    (m:click session :id :remove :within :toolbar)
+    (m:press-key session :z :modifiers '(:super))
+    (assert-true (in-view session :forgot))
+    (m:press-key session :z :modifiers '(:super :shift))
+    (assert-false (in-view session :forgot))))

@@ -25,7 +25,12 @@
                 #:display-list-capacity
                 #:display-list-count
                 #:replace-display-list
-                #:+max-builds+)
+                #:+max-builds+
+                #:*show-frame-errors*
+                #:pack-color
+                #:context-font
+                #:context-measure
+                #:context-push-text)
   (:import-from #:almighty-bolt/ui/theme
                 #:*theme*
                 #:find-theme
@@ -127,6 +132,7 @@
            #:make-immediate-app
            #:immediate-app-ui
            #:immediate-app-tools
+           #:immediate-app-failure
            #:now
            #:current-context
            #:this-window
@@ -149,7 +155,9 @@
    ;; True if events were left in the queue by the last frame.
    (more-input :initform nil :accessor more-input)
    ;; True if the tools for developing the app (the inspector) can be opened from its window.
-   (tools :initform nil :accessor immediate-app-tools))
+   (tools :initform nil :accessor immediate-app-tools)
+   ;; What the last frame's error said, while frames fail, so that it is reported once.
+   (failure :initform nil :accessor immediate-app-failure))
   (:documentation "An app whose interface is a function that is called every frame."))
 
 (defun make-immediate-app (app)
@@ -432,6 +440,57 @@ menu), turned to the other side or moved in where it would go out of the window.
   "The theme of a window whose app gives none: dark or light, as the system is."
   (find-theme (context-appearance context)))
 
+(defun one-line (condition)
+  "What CONDITION says, on one line."
+  (let ((words (with-output-to-string (out)
+                 (let ((space nil))
+                   (loop :for character :across (princ-to-string condition)
+                         :do (if (member character '(#\Space #\Tab #\Newline #\Return))
+                                 (setf space t)
+                                 (progn (when space (write-char #\Space out) (setf space nil))
+                                        (write-char character out))))))))
+    (string-trim " " words)))
+
+(defun show-failure (instance context list condition)
+  "Put in LIST the last frame that did not fail, with a band along the bottom of the window that
+says CONDITION, and report CONDITION if it is not the one the frame before failed with. The places
+of things stay those of that frame, so the pointer finds what is shown."
+  (let* ((ui (immediate-app-ui instance))
+         (said (one-line condition))
+         (width (context-width context))
+         (height (context-height context))
+         (font (context-font context "Helvetica" 13))
+         ;; The error first: in a narrow window it is all there is room for.
+         (text (format nil "Frame failed: ~a (the last good frame is shown)" said)))
+    (unless (equal said (immediate-app-failure instance))
+      (format *error-output* "~&The app failed in a frame (the last good one is shown): ~a~%" said)
+      (finish-output *error-output*))
+    (setf (immediate-app-failure instance) said)
+    (end-frame-input ui)
+    ;; What has come and not been looked at (the release after a press) has a frame of its own.
+    (when (more-input instance)
+      (request-frame context))
+    (replace-display-list list (ui-last-list ui))
+    ;; Before any frame has been drawn there is nothing to show but the window's background.
+    (when (zerop (display-list-count list))
+      (push-rect list 0 0 width height (theme-background (window-theme context))))
+    ;; As much of the words as fits, on a dark red band.
+    (loop :while (and (> (length text) 1)
+                      (> (context-measure context font text) (- width 24)))
+          :do (setf text (subseq text 0 (- (length text) 2))))
+    (push-rect list 0 (- height 36) width 36 (pack-color 140 24 32))
+    (context-push-text context list font text 12 (- height 13) (pack-color 255 255 255))))
+
+(defmethod frame :around ((instance immediate-app) context list)
+  "While *SHOW-FRAME-ERRORS*, a frame that signals an error shows the last one that did not, with the
+error over it (SHOW-FAILURE), and the window goes on: the next frame is made as any other."
+  (if (not *show-frame-errors*)
+      (call-next-method)
+      (handler-case (call-next-method)
+        (error (condition)
+          (show-failure instance context list condition)
+          nil))))
+
 (defmethod frame ((instance immediate-app) context list)
   (let ((ui (immediate-app-ui instance))
         (inspected nil))
@@ -466,6 +525,9 @@ menu), turned to the other side or moved in where it would go out of the window.
          t)
         (t
          (lay-out-and-paint instance context list)
+         ;; A frame laid out and painted: what failed before is mended. (A build that took input
+         ;; and builds again has not got this far.)
+         (setf (immediate-app-failure instance) nil)
          (setf (ui-started ui) t)
          (end-frame-input ui)
          (when (more-input instance)
