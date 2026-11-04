@@ -335,7 +335,7 @@ event changed shows in it."
   ;; A choice the layout does not take would fail in every frame after it was chosen, and the window
   ;; with it (main-align once offered :stretch, which only cross-align takes). So every value of every
   ;; option of every kind is chosen, through its editor, in a view that is then drawn.
-  (dolist (entry catalogue:+catalogue+)
+  (dolist (entry (catalogue:catalogue))
     (multiple-value-bind (screen session) (open-designer)
       (declare (ignore screen))
       (m:click session :id :new :within :toolbar)
@@ -345,6 +345,7 @@ event changed shows in it."
         (let ((editor (intern (format nil "OPTION-~a" (catalogue:option-name option)) :keyword))
               (type (catalogue:option-type option)))
           (dolist (value (cond ((eq type :string) '("" "Some words"))
+                               ((eq type :list) (list (format nil "A~%B~%C")))
                                ((eq type :number) '("0" "12"))
                                ((eq type :boolean) '(nil t))
                                (t (mapcar (lambda (choice) (string-downcase (prin1-to-string choice)))

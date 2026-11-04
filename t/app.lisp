@@ -3806,6 +3806,47 @@ released unless RELEASE."
              (assert-error 'error (draw screen)))
         (define before)))))
 
+;; An app's own widget, in the catalogue as the library's are.
+(define-widget-entry :t-stars (:title "Stars"
+                               :options ((:count :number 3) (:of :number 5))
+                               :value :count)
+  (row (:id id :gap 4)
+    (dotimes (i (round of))
+      (when (button (if (< i count) "*" ".") :id i)
+        (when set-value (funcall set-value (1+ i)))))))
+
+(define-view t-settings
+  (:column :settings (:gap 8)
+   (:slider :volume (:value 50))
+   (:checkbox :mute (:label "Mute"))
+   (:list-box :device (:items ("Speakers" "Headphones" "HDMI")))
+   (:t-stars :rating nil)
+   (:label :summary (:text "-"))))
+
+(defun make-wired-settings ()
+  (state-let ((volume 20) (mute nil) (device 0) (rating 2))
+    (lambda ()
+      (view t-settings
+        (slider :volume :value volume)
+        (checkbox :mute :value mute)
+        (list-box :device :value device)
+        (t-stars :rating :value rating)
+        (label :summary :text (format nil "~d ~a ~d ~d" (round volume) (if mute "muted" "on")
+                                      device rating))))))
+
+(define-test every-widget-that-holds-a-value-can-be-wired-to-a-place-and-so-can-your-own ()
+  (let* ((screen (show 'make-wired-settings))
+         (session (screen-session screen)))
+    (assert-equal "20 on 0 2" (text-in screen :summary))
+    (m:set-value session 80 :id :volume)
+    (m:set-value session t :id :mute)
+    (m:set-value session 2 :id :device)
+    (m:click session :id 3 :within :rating)
+    (assert-equal "80 muted 2 4" (text-in screen :summary))
+    ;; The app's own widget is in the catalogue, where a designer lists it.
+    (assert-true (find :t-stars (almighty-bolt/ui/catalogue:catalogue)
+                       :key #'almighty-bolt/ui/catalogue:entry-kind))))
+
 (define-view t-person
   (:row :person (:gap 4)
    (:label :who nil)

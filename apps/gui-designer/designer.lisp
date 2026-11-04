@@ -18,7 +18,7 @@
                 #:with-option
                 #:with-id)
   (:import-from #:almighty-bolt/ui/catalogue
-                #:+catalogue+
+                #:catalogue
                 #:entry-kind
                 #:entry-title
                 #:entry-options
@@ -155,11 +155,12 @@ its kind and id, for what the app gives it."
 (defun palette ()
   "The widgets that can be added. Returns the kind of the one pressed, or NIL."
   (let ((pressed nil))
-    (bolt:column (:id :palette :gap 8 :cross-align :start)
+    (bolt:column (:id :palette :gap 8 :cross-align :stretch)
       (bolt:label "Add" :id :palette-heading :size 17)
-      (dolist (entry +catalogue+)
-        (when (bolt:button (entry-title entry) :id (id "add" (entry-kind entry)))
-          (setf pressed (entry-kind entry)))))
+      (bolt:grid (:id :palette-grid :columns 2 :gap 6)
+        (dolist (entry (catalogue))
+          (when (bolt:button (entry-title entry) :id (id "add" (entry-kind entry)))
+            (setf pressed (entry-kind entry))))))
     pressed))
 
 (defun outline-rows (view)
@@ -219,6 +220,18 @@ true as a second value."
                      (setf (gethash key drafts) text)
                      (let ((number (number-text text)))
                        (when number (setf result number changed t)))))))
+              ((eq type :list)
+               ;; One item to a line.
+               ;; A draft while it is typed, so that a line just begun is not taken away.
+               (multiple-value-bind (text edited)
+                   (bolt:text-area (gethash key drafts (format nil "~{~a~^~%~}" value))
+                                   :id editor :width 200 :rows 3
+                                   :labelled-by (id "option" name "label"))
+                 (when edited
+                   (setf (gethash key drafts) text
+                         result (remove "" (uiop:split-string text :separator '(#\Newline))
+                                        :test #'string=)
+                         changed t))))
               ((eq type :boolean)
                (multiple-value-bind (on moved)
                    (bolt:checkbox (string-downcase (string name)) value :id editor)

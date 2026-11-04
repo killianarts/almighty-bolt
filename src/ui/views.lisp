@@ -6,7 +6,8 @@
                 #:entry-options
                 #:entry-wires
                 #:option-name
-                #:+catalogue+
+                #:catalogue
+                #:entry-value
                 #:check-view-form
                 #:draw-form)
   (:export #:define-view
@@ -165,9 +166,9 @@ defined when compiled too, so that the code that wires it, compiled after, is ch
   (unless (and (consp clause) (symbolp (first clause)) (keywordp (second clause)))
     (error "~s is not wiring: (kind id key value ...), as (button :sign-in :on-press (go))." clause))
   (let ((kind (intern (symbol-name (first clause)) :keyword)))
-    (or (find kind +catalogue+ :key #'entry-kind)
+    (or (find kind (catalogue) :key #'entry-kind)
         (error "~s: there is no widget of the kind ~(~a~); there are ~{~(~a~)~^, ~}." clause kind
-               (mapcar #'entry-kind +catalogue+)))))
+               (mapcar #'entry-kind (catalogue))))))
 
 (defmacro view (name-and-id &body clauses)
   "Draw the view NAME, wired to the code by CLAUSES. NAME-AND-ID is the view's name (a symbol), or
@@ -175,7 +176,8 @@ defined when compiled too, so that the code that wires it, compiled after, is ch
 container more than once. Each clause is a widget of the view, by its kind and id, and what the
 code gives it: (button :sign-in :enabled (plusp (length name)) :on-press (sign-in name)). An option
 is given as the widget's own (its value is worked out each frame); :on-press is what a press of a
-button does, :value is a place that a text field shows and that typing sets, :contents is what is
+button does, :value is a place that a widget that holds a value (a text field, a slider, a check
+box, a list) shows and that the person sets, :contents is what is
 drawn in a column or row after what the view has there. What is not wired is as the view has it.
 
 Checked when compiled: a kind there is no widget of, an option or a wire that kind does not take,
@@ -193,7 +195,10 @@ defined then is a style warning, and the wiring is checked when the view is draw
           (when (find wire-id spec :key #'first)
             (error "~s is wired twice in one VIEW." wire-id))
           (loop :for (key value) :on (cddr clause) :by #'cddr
-                :do (cond ((find key (entry-options entry) :key #'option-name)
+                ;; :value is the place a widget that holds a value shows and sets, even where it
+                ;; also names one of its options (a slider's).
+                :do (cond ((and (find key (entry-options entry) :key #'option-name)
+                                (not (and (eq key :value) (entry-value entry))))
                            (setf options (list* value key options)))
                           ((not (member key (entry-wires entry)))
                            (error "~s: a ~(~a~) takes ~{~(~s~)~^, ~}, and not ~s." clause kind
@@ -203,7 +208,7 @@ defined then is a style warning, and the wiring is checked when the view is draw
                           ((eq key :value)
                            ;; What the field shows, and a function that sets the place.
                            (let ((function (gensym "SET")) (new (gensym "NEW")))
-                             (setf options (list* value :text options))
+                             (setf options (list* value (entry-value entry) options))
                              (push `(,function (,new) (setf ,value ,new)) functions)
                              (setf wired (list* `(function ,function) key wired))))
                           (t

@@ -54,6 +54,10 @@ A view made in the GUI designer is a file of Lisp that defines it, `(bolt:define
 
 A view is named by a symbol of the app's package, as a function is, so that views of two apps or libraries do not take each other's names. It takes no parameters: what differs from one place it is drawn to the next is given by the wiring there.
 
+### Every widget in the catalogue, and yours
+
+A view, and the GUI designer, can have every widget and container of the library (but the spacer), not five: a paragraph, a text area, a combo box, a slider, a choice, a check box, a switch, a dropdown, a list box, a progress bar, a spinner, a grid, a stack, a padding, a panel, a center, a scroll and a pressable besides. `:value` wires a place to whatever widget holds a value (a slider's value, a check box's state, a list's selected index). And an app adds its own with `(bolt:define-widget-entry :stars (:title "Stars" :options ((:count :number 3)) :value :count) ...)`, its options, what can be wired to it and how it is drawn; the designer lists it and a view can have it. Options can be lists of strings (a dropdown's options), edited in the designer one to a line.
+
 ### The GUI designer, begun
 
 `apps/gui-designer` is the start of the GUI designer on the [roadmap](../roadmap.md): `(almighty-bolt-gui-designer:open-designer)` after loading the system `almighty-bolt-gui-designer`. It shows the widgets it knows and an outline of the view on the left (a label, a button, a text field, a column and a row), the view being designed in the middle, and the selected widget on the right.

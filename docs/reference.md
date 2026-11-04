@@ -511,14 +511,35 @@ have, an id two widgets have, or something inside a widget that holds nothing. A
 when its file is compiled too, so the code that draws it, compiled after it, is checked against it:
 put the view's file before that code in the system.
 
+The kinds are those of the catalogue, every widget and container of the library (a label, a
+paragraph, a button, a text field, a text area, a combo box, a slider, a choice, a check box, a
+switch, a dropdown, a list box, a progress bar, a spinner; a column, a row, a grid, a stack, a
+padding, a panel, a center, a scroll, a pressable) but the spacer, which needs a row or column whose
+size is bounded, and whatever an app adds. `(bolt:define-widget-entry :kind (:title :options :wires
+:value :container) body)` adds one: OPTIONS are `(name type default)`, the type `:string`,
+`:number`, `:boolean`, `:list` (of strings) or `(:choice keyword ...)`; WIRES are what code can give
+it besides (`:on-press`); VALUE names the option that a place wired as `:value` shows; a CONTAINER
+holds what the view puts in it. BODY draws one each frame, with each option a variable of its name,
+each wire a variable holding the function wired there or `nil`, `id`, `set-value` (the setter of
+the wired place, or `nil`) and, in a container, `(contents)`:
+
+```lisp
+(bolt:define-widget-entry :stars (:title "Stars" :options ((:count :number 3)) :value :count)
+  (bolt:row (:id id :gap 4)
+    (dotimes (i 5)
+      (when (bolt:button (if (< i count) "*" ".") :id i)
+        (when set-value (funcall set-value (1+ i)))))))
+```
+
 `(bolt:view login clause ...)` draws the view where it is called, wired to the code by its
 clauses. Each clause is one widget of the view, by its kind and id, then what the code gives it:
 
 - an option, by the widget's own name for it, worked out each frame: `(label :greeting :text
   (format nil "Hello ~a" name))`, `(button :sign-in :enabled (plusp (length name)))`;
 - `:on-press` on a button: what a press does;
-- `:value` on a text field: a place (a variable of `state-let`, say) that the field shows and
-  that typing sets;
+- `:value` on a widget that holds a value (a text field, a slider, a check box, a switch, a choice,
+  a dropdown, a list box, your own): a place (a variable of `state-let`, say) that it shows and
+  that the person sets;
 - `:contents` on a column or row: what is drawn in it, after what the view has there.
 
 What is not wired is as the view has it. `(bolt:view (message-row :id (message-id m)) ...)` gives
