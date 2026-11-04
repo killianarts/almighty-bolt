@@ -169,3 +169,50 @@
         (assert-eql 1.5f0 (bolt:theme-setting (bolt:find-theme (defined session)) :spacing))
         ;; The sample button's padding at the sides is 21 for 14.
         (assert-eql 14f0 (- (width :sample-button) before))))))
+
+(defun press-keys (screen key &rest modifiers)
+  "KEY pressed with MODIFIERS (:command, :shift), and the frames after it."
+  (core:handle-event (screen-app screen)
+                     (core:make-key-event :timestamp 0 :kind :down :logical-key key
+                                          :modifiers (logior (if (member :command modifiers)
+                                                                 core:+modifier-super+ 0)
+                                                             (if (member :shift modifiers)
+                                                                 core:+modifier-shift+ 0))))
+  (dotimes (i 3) (draw screen)))
+
+(define-test every-change-is-undone-and-redone-a-run-of-changes-to-one-control-as-one-step ()
+  (multiple-value-bind (screen session) (open-designer)
+    (let ((dark (bolt:theme-setting (bolt:find-theme :dark) :button))
+          (light (bolt:theme-setting (bolt:find-theme :light) :button)))
+      (assert-false (s:node-property (m:find-node session :id :undo) :enabled))
+      ;; Two changes to the accent's hue, one after the other, are one step; the start is another.
+      (m:set-value session 140 :id :accent-hue)
+      (m:set-value session 200 :id :accent-hue)
+      (let ((blue (middle-color screen :sample-button)))
+        (m:set-value session 1 :id :base)
+        (assert-eql light (middle-color screen :sample-button))
+        (m:click session :id :undo)
+        (assert-eql blue (middle-color screen :sample-button))
+        (assert-true (search "#" (shown-text session :source)))
+        (m:click session :id :undo)
+        (assert-eql dark (middle-color screen :sample-button))
+        (assert-equal "(almighty-bolt:define-theme :my-theme (:base :dark))"
+                      (shown-text session :source))
+        (assert-false (s:node-property (m:find-node session :id :undo) :enabled))
+        ;; Redo, by its key, puts them back in order.
+        (press-keys screen #\z :command :shift)
+        (assert-eql blue (middle-color screen :sample-button))
+        (press-keys screen #\z :command :shift)
+        (assert-eql light (middle-color screen :sample-button))
+        ;; And Undo by its key; a change after it leaves nothing to redo.
+        (press-keys screen #\z :command)
+        (assert-eql blue (middle-color screen :sample-button))
+        (m:set-value session 12 :id :radius)
+        (assert-false (s:node-property (m:find-node session :id :redo) :enabled))
+        ;; The hue changed again after another step: undone, it is as it was then, and not as the
+        ;; slider moved it since.
+        (let ((then (shown-text session :accent-hex)))
+          (m:set-value session 300 :id :accent-hue)
+          (assert-false (equal then (shown-text session :accent-hex)))
+          (m:click session :id :undo)
+          (assert-equal then (shown-text session :accent-hex)))))))

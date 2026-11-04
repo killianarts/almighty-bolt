@@ -150,7 +150,6 @@ the GUI designer, and where on this roadmap each is closed.
 - **Type and effects.** No italic, no weights between regular and bold, no
   shadow, grain or scanlines: the design system's chrome cannot be drawn by the
   library yet ([Text and layout, Effects](#later)).
-- **Undo only in the GUI designer.** The theme designer cannot undo.
 - **No code editor.** A text area is plain text: no colouring, no structural
   editing, no large files. A code widget, or a bridge to Emacs through the
   image.
@@ -161,7 +160,7 @@ the GUI designer, and where on this roadmap each is closed.
 ### Stages
 
 1. **One window.** Docked panes. The app drawn in a pane, hit-tested through
-   the zoom. The theme designer as a pane, with undo.
+   the zoom. The theme designer as a pane.
 2. **Code and time.** A code editor, or the bridge to Emacs. The timeline,
    replay and state panes over the frame ring. The semantic and accessibility
    panes. Tests made from recordings.

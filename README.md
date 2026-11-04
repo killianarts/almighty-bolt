@@ -282,7 +282,8 @@ what comes first, is in [docs/roadmap.md](docs/roadmap.md).
   :height 760)` after loading [`load-examples.lisp`](load-examples.lisp).
 - [`apps/theme-designer/`](apps/theme-designer): a theme designer. Pick a
   theme's colours, font and corners, see every kind of widget in it as you do,
-  check that its text is readable, and save it as a `define-theme` form:
+  check that its text is readable, undo and redo, and save it as a
+  `define-theme` form:
   `(almighty-bolt-theme-designer:open-designer)` after loading the system
   `almighty-bolt-theme-designer`.
 - [`apps/gui-designer/`](apps/gui-designer): the start of a GUI designer. A

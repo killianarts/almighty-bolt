@@ -27,6 +27,7 @@ are not listed.
 - `app-menu`: an app's own menus in the menu bar, with shortcuts ([0.3](docs/releases/dev.md#the-apps-own-menus)).
 - Every widget and container in the catalogue of views and of the GUI designer, and `define-widget-entry` for an app's own ([0.3](docs/releases/dev.md#every-widget-in-the-catalogue-and-yours)).
 - A view inside another, `(:view id (:name other))`, and in the GUI designer the views defined, to put in the one designed ([0.3](docs/releases/dev.md#every-widget-in-the-catalogue-and-yours)).
+- Undo and Redo in the theme designer ([0.3](docs/releases/dev.md#examples)).
 - Undo and Redo in the GUI designer ([0.3](docs/releases/dev.md#the-gui-designer-begun)).
 - `this-window`: in an app's function, the window it is in, to close it or open another beside it ([0.3](docs/releases/dev.md#more-than-one-window)).
 - `:cursor` on `canvas`: the shape the pointer has over it ([0.3](docs/releases/dev.md#input)).

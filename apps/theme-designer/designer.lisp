@@ -119,6 +119,13 @@ colours)."
                      (list :spacing (/ spacing 100f0)))
                    overrides))))
 
+;;; A design is changed in place (the editors are structures the sliders move), so undo keeps a copy
+;;; of the whole of it as it was before each step: a list of the design's parts, editors copied.
+
+(defun design-copy (name base editors changed font-name font-size radius spacing overrides)
+  (list name base (mapcar #'copy-seed-editor editors) (copy-list changed) font-name font-size radius
+        spacing (copy-list overrides)))
+
 (defun spacing-percent (theme)
   "THEME's spacing as a percentage, a whole number."
   (round (* 100 (bolt:theme-setting theme :spacing))))
@@ -254,7 +261,14 @@ package: a setting to a line."
                    (saving nil)
                    (saved "Not saved yet.")
                    (samples (vector 0 "Some text" t nil 1 40d0 0 1
-                                    (format nil "Several lines~%of text."))))
+                                    (format nil "Several lines~%of text.")))
+                   ;; The designs before this one, the last first, and those undone, the next
+                   ;; first; the design as it was after the last step; and what that step changed
+                   ;; (a seed, a slider, a field), since more changes to it are the same step.
+                   (undo '())
+                   (redo '())
+                   (now nil)
+                   (last-edit nil))
     ;; The theme, worked out from the design when it changes (and so not state: it is made again
     ;; with the code).
     (let ((theme nil))
@@ -262,17 +276,43 @@ package: a setting to a line."
         (unless theme
           (setf theme (design-theme name (nth base +bases+) editors changed font-name font-size
                                     radius spacing overrides)))
+        (unless now
+          (setf now (design-copy name base editors changed font-name font-size radius spacing
+                                 overrides)))
         (let ((dirty nil))
+         (labels ((go-to (design)
+                    ;; Show DESIGN, a copy from the history, keeping it as it is.
+                    (destructuring-bind (n b e c fn fs r sp o) design
+                      (setf name n base b editors (mapcar #'copy-seed-editor e) changed (copy-list c)
+                            font-name fn font-size fs radius r spacing sp overrides (copy-list o)
+                            override-hex "" now design last-edit nil))
+                    ;; Worked out now: the rest of this frame draws with it.
+                    (setf theme (design-theme name (nth base +bases+) editors changed font-name
+                                              font-size radius spacing overrides))
+                    (bolt:ask-for-frame))
+                  (step-back ()
+                    (when undo
+                      (push now redo)
+                      (go-to (pop undo))))
+                  (step-forward ()
+                    (when redo
+                      (push now undo)
+                      (go-to (pop redo)))))
           (bolt:row (:id :designer :fill t :cross-align :stretch)
             (bolt:scroll (:id :settings)
               (bolt:padding (:all 18)
                 (bolt:column (:gap 16)
-                  (bolt:label "Theme designer" :id :heading :size 24)
+                  (bolt:row (:gap 8 :cross-align :center)
+                    (bolt:label "Theme designer" :id :heading :size 24)
+                    (when (bolt:button "Undo" :id :undo :enabled (and undo t))
+                      (step-back))
+                    (when (bolt:button "Redo" :id :redo :enabled (and redo t))
+                      (step-forward)))
                   (section ("Theme" :theme)
                     (bolt:row (:gap 8 :cross-align :center)
                       (bolt:label "Name" :id :name-label)
                       (multiple-value-bind (text edited) (bolt:text-field name :id :name :width 200)
-                        (when edited (setf name text dirty t))))
+                        (when edited (setf name text dirty :name))))
                     (bolt:row (:gap 8 :cross-align :center)
                       (bolt:label "Start from" :id :base-label)
                       (multiple-value-bind (index moved) (bolt:choice '("Dark" "Light") base :id :base)
@@ -287,30 +327,30 @@ package: a setting to a line."
                                   font-size (bolt:theme-setting theme :font-size)
                                   radius (bolt:theme-setting theme :radius)
                                   spacing (spacing-percent theme)
-                                  dirty t))))))
+                                  dirty :base))))))
                   (section ("Colours" :colours)
                     (dolist (editor editors)
                       (when (seed-section editor)
                         (pushnew (seed-editor-seed editor) changed)
-                        (setf dirty t))))
+                        (setf dirty (seed-editor-seed editor)))))
                   (section ("Font, corners and spacing" :font)
                     (bolt:row (:gap 8 :cross-align :center)
                       (bolt:label "Font" :id :font-label)
                       (multiple-value-bind (text edited) (bolt:text-field font-name :id :font-name)
-                        (when edited (setf font-name text dirty t))))
+                        (when edited (setf font-name text dirty :font-name))))
                     (bolt:row (:gap 8 :cross-align :center)
                       (bolt:label (format nil "Size ~d" font-size) :id :size-label)
                       (multiple-value-bind (value moved) (bolt:slider font-size 10 24 :id :font-size)
-                        (when moved (setf font-size (round value) dirty t))))
+                        (when moved (setf font-size (round value) dirty :font-size))))
                     (bolt:row (:gap 8 :cross-align :center)
                       (bolt:label (format nil "Corners ~d" radius) :id :radius-label)
                       (multiple-value-bind (value moved) (bolt:slider radius 0 14 :id :radius)
-                        (when moved (setf radius (round value) dirty t))))
+                        (when moved (setf radius (round value) dirty :radius))))
                     ;; How much room there is in and round the controls, in steps of 5%.
                     (bolt:row (:gap 8 :cross-align :center)
                       (bolt:label (format nil "Spacing ~d%" spacing) :id :spacing-label)
                       (multiple-value-bind (value moved) (bolt:slider spacing 50 200 :id :spacing)
-                        (when moved (setf spacing (* 5 (round value 5)) dirty t)))))
+                        (when moved (setf spacing (* 5 (round value 5)) dirty :spacing)))))
                   (section ("Other colours" :others)
                     (bolt:paragraph "Each is worked out from the colours above. Give one to use it instead."
                                     :id :others-note)
@@ -339,11 +379,11 @@ package: a setting to a line."
                             (setf override-hex text)
                             (let ((color (ignore-errors (bolt:parse-color text))))
                               (when color
-                                (setf (getf overrides setting) color dirty t)))))
+                                (setf (getf overrides setting) color dirty (list :override setting))))))
                         (when (bolt:button "Use the worked-out one" :id :override-clear
                                            :enabled (and (getf overrides setting) t))
                           (remf overrides setting)
-                          (setf dirty t
+                          (setf dirty (list :override-clear setting)
                                 override-hex "")))))
                   (readability-section theme)
                   (section ("Definition" :definition)
@@ -367,8 +407,20 @@ package: a setting to a line."
               (bolt:scroll (:id :preview-page)
                 (preview theme samples))))
           (when dirty
-            (setf theme nil)
-            (bolt:ask-for-frame)))))))
+            ;; A step that Undo takes back, unless it goes on changing what the last one did.
+            (unless (equal dirty last-edit)
+              (push now undo))
+            (setf redo '()
+                  last-edit dirty
+                  now (design-copy name base editors changed font-name font-size radius spacing
+                                   overrides)
+                  theme nil)
+            (bolt:ask-for-frame))
+          ;; After everything, so that a text field with the keyboard undoes its own typing first.
+          (when (bolt:shortcut #\z :command)
+            (step-back))
+          (when (bolt:shortcut #\z :command :shift)
+            (step-forward))))))))
 
 (defun open-designer ()
   "Open the theme designer in a window, from the REPL."
