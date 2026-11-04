@@ -43,7 +43,8 @@
            #:view-appearance
            #:set-view-cursor
            #:metal-view-cursor
-           #:cursor-object))
+           #:cursor-object
+           #:end-composition))
 
 (in-package #:almighty-bolt/platform/macos/view)
 
@@ -330,6 +331,21 @@ this is a place for it that is not allocated again for each call.")
               (metal-view-marked-text view) "")
         (funcall (metal-view-event-handler view)
                  (make-composition-event :timestamp (now-ns) :kind :committed :text text))))))
+
+;;; When the app stops taking text with a composition going on (what had the keyboard lost it), the
+;;; input method is told to drop what it was composing, at once: otherwise it goes on showing its
+;;; candidates, and what it commits later goes to whatever takes text then.
+
+(defun end-composition (view)
+  "Drop the input method's composition in VIEW, if there is one. The host calls it after a frame in
+which nothing takes text."
+  (when (metal-view-marked view)
+    (setf (metal-view-marked view) nil
+          (metal-view-marked-text view) "")
+    (let ((input (msg-send :id (metal-view-object view) "inputContext")))
+      (unless (zerop input)
+        (msg-send :void input "discardMarkedText"))))
+  nil)
 
 (define-callback view-has-marked-text sb-alien:unsigned-char
     ((self sb-alien:unsigned-long) (cmd sb-alien:unsigned-long))

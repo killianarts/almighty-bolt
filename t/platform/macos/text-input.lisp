@@ -121,6 +121,18 @@ clears them. The app takes text if ACTIVE, with its caret at 10, 20, 2 by 16."
     (mark object "" 0 0)
     (assert-equal '() (events))))
 
+(define-test a-composition-ended-by-the-app-is-dropped-and-commits-nothing ()
+  ;; What the host does after a frame in which nothing takes text.
+  (with-view (view object events)
+    (mark object "に" 1 0)
+    (events)
+    (view:end-composition view)
+    (assert-false (objc:msg-send :bool object "hasMarkedText"))
+    (assert-false (events))
+    ;; Ending none does nothing.
+    (view:end-composition view)
+    (assert-false (events))))
+
 (define-test unmarking-commits-the-text-as-it-is ()
   (with-view (view object events)
     (mark object "かな" 2 0)

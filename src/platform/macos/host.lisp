@@ -88,7 +88,8 @@
                 #:metal-view-object
                 #:metal-view-bridge
                 #:request-draw
-                #:set-view-cursor)
+                #:set-view-cursor
+                #:end-composition)
   (:import-from #:almighty-bolt/platform/macos/file-panel
                 #:make-file-panel
                 #:run-file-panel)
@@ -507,6 +508,9 @@ frame: more than once if what it was given (a press, a key) changed what the app
            (multiple-value-bind (builds capped)
                (settle-host host context)
              (setf made builds)
+             ;; Nothing takes text now: a composition that was going on is over.
+             (when (and (host-view host) (not (context-text-input-p context)))
+               (end-composition (host-view host)))
              (let ((built (real-time-source)))
                (wait-for-last-frame (host-renderer host))
                ;; The frame before has finished, and its command buffer says how long it took.

@@ -122,8 +122,17 @@
                 #:context-clipboard-text
                 #:context-set-clipboard-text
                 #:context-choose-file
+                #:key-event
                 #:key-event-kind
                 #:key-event-modifiers
+                #:text-input-event
+                #:text-input-event-text
+                #:composition-event
+                #:composition-event-kind
+                #:composition-event-text
+                #:composition-event-selection-start
+                #:composition-event-selection-length
+                #:set-text-input-caret
                 #:modifier-down-p
                 #:+modifier-super+
                 #:+modifier-control+
@@ -247,6 +256,10 @@
            #:field-state
            #:field-state-state
            #:field-state-view-start
+           #:editable-marked-selection
+           #:editable-marked-selection-length
+           #:shown-text-state
+           #:marked-range
            #:choice-state
            #:choice-state-lefts
            #:choice-state-widths
@@ -982,15 +995,100 @@ made spaces if SINGLE-LINE and line feeds if not."
   (undo '() :type list)
   (redo '() :type list)
   ;; :typing or :deleting while a run of them goes on, which the next of the same kind joins.
-  (run nil))
+  (run nil)
+  ;; What the input method is composing (MARKED), or NIL: shown at the caret, underlined, but not
+  ;; in the text until it is committed. The part of it that the input method has selected (the
+  ;; clause it is converting) starts at MARKED-SELECTION and is MARKED-SELECTION-LENGTH long.
+  (marked nil :type (or null string))
+  (marked-selection 0 :type fixnum)
+  (marked-selection-length 0 :type fixnum))
 
 (defun forget-edits (editable)
   (setf (editable-undo editable) '()
         (editable-redo editable) '()
-        (editable-run editable) nil))
+        (editable-run editable) nil
+        (editable-marked editable) nil))
+
+;;; --- text from the input method ---
+;;;
+;;; While an editable text has the keyboard it says so to the context, with where its caret is in
+;;; the window (SAY-TEXT-INPUT-CARET), and a window then sends what is typed through the system's
+;;; input method: text comes as text events (a letter, an accent made with a dead key, a character
+;;; chosen from a palette), and keys that are commands (an arrow, Return, Delete) as keys. What the
+;;; input method composes (the reading of Japanese or Chinese before it is converted) comes as
+;;; composition events: it is shown at the caret, underlined, and goes into the text only when it is
+;;; committed, which is one edit to undo. The app is given only text that is committed.
+
+(defun shown-text-state (editable state)
+  "The text STATE of EDITABLE as it is shown: with what the input method is composing at the caret,
+and the caret where the input method has it in that."
+  (let ((marked (editable-marked editable)))
+    (if (null marked)
+        state
+        (let ((at (text-state-caret state))
+              (string (text-state-string state)))
+          (make-text-state (concatenate 'string (subseq string 0 at) marked (subseq string at))
+                           :caret (+ at (editable-marked-selection editable)))))))
+
+(defun marked-range (editable state)
+  "Where what the input method composes is in the text of EDITABLE as it is shown (SHOWN-TEXT-STATE
+of STATE): its start and end, and the start and end of the part the input method has selected; NIL
+if nothing is being composed."
+  (let ((marked (editable-marked editable)))
+    (when marked
+      (let* ((at (text-state-caret state))
+             (from (+ at (editable-marked-selection editable))))
+        (values at (+ at (length marked))
+                from (+ from (editable-marked-selection-length editable)))))))
+
+(defun type-input (editable state event single-line)
+  "What EVENT, text that the input method gives or a step of what it composes, does to the text
+STATE of EDITABLE, as two values: the new state and T. Only text that is committed goes into the
+state; what is composed is kept in EDITABLE until then. Line breaks are made spaces if SINGLE-LINE."
+  (flet ((clean (text) (if single-line (one-line text) (newlines text))))
+    (etypecase event
+      (text-input-event
+       (setf (editable-marked editable) nil)
+       (values (text-insert state (clean (text-input-event-text event))) t))
+      (composition-event
+       (let ((text (composition-event-text event)))
+         (cond ((or (eq (composition-event-kind event) :committed) (zerop (length text)))
+                (setf (editable-marked editable) nil)
+                (values (if (zerop (length text)) state (text-insert state (clean text))) t))
+               (t
+                ;; What is composed takes the place of the selection, as what is typed does.
+                (let* ((state (if (text-state-selection-p state) (text-insert state "") state))
+                       (start (min (length text) (composition-event-selection-start event)))
+                       (length (min (- (length text) start)
+                                    (composition-event-selection-length event))))
+                  (setf (editable-marked editable) text
+                        (editable-marked-selection editable) start
+                        (editable-marked-selection-length editable) length)
+                  (values state t)))))))))
+
+(defun take-text-input (ui editable state event single-line)
+  "Take EVENT, a text or composition event, for EDITABLE, whose text is STATE: the new state, as
+TYPE-INPUT gives it, with the edit noted to be undone."
+  (consume-input ui event)
+  (values (edit-with-history editable state event
+                             (lambda (state event) (type-input editable state event single-line)))))
+
+(defun say-text-input-caret (ui x y height)
+  "Say that what is being described takes text, with its caret at X, Y in the window and HEIGHT
+tall: the window sends what is typed through the input method, and puts its candidates there."
+  (let ((context (ui-context ui)))
+    (when context
+      (set-text-input-caret context (float x 1f0) (float y 1f0) 1.5f0 (float height 1f0)))))
 
 (defun edit-kind (event)
-  "What the key EVENT does to text, if it edits it: :typing, :deleting or :other."
+  "What the key EVENT does to text, if it edits it: :typing, :deleting or :other. Text from the input
+method is typing, and what it composes, once committed, an edit of its own."
+  (typecase event
+    (text-input-event :typing)
+    (composition-event :other)
+    (t (key-edit-kind event))))
+
+(defun key-edit-kind (event)
   (let ((key (key-event-logical-key event))
         (modifiers (key-event-modifiers event)))
     (cond ((or (modifier-down-p modifiers +modifier-super+)
@@ -1001,10 +1099,11 @@ made spaces if SINGLE-LINE and line feeds if not."
           (t :other))))
 
 (defun undo-key (event)
-  "The key EVENT as :undo (Command-Z) or :redo (Command-Shift-Z), or NIL."
-  (let ((key (key-event-logical-key event))
-        (modifiers (key-event-modifiers event)))
-    (and (eq (key-event-kind event) :down)
+  "The key EVENT as :undo (Command-Z) or :redo (Command-Shift-Z), or NIL (for any other event too)."
+  (let ((key (and (typep event 'key-event) (key-event-logical-key event)))
+        (modifiers (if (typep event 'key-event) (key-event-modifiers event) 0)))
+    (and (typep event 'key-event)
+         (eq (key-event-kind event) :down)
          (characterp key)
          (char-equal key #\z)
          (modifier-down-p modifiers +modifier-super+)
@@ -1019,13 +1118,15 @@ that it can be undone."
   (let ((undo (undo-key event)))
     (cond
       ((eq undo :undo)
-       (setf (editable-run editable) nil)
+       (setf (editable-run editable) nil
+             (editable-marked editable) nil)
        (let ((before (pop (editable-undo editable))))
          (cond (before (push state (editable-redo editable))
                        (values before t))
                (t (values state t)))))
       ((eq undo :redo)
-       (setf (editable-run editable) nil)
+       (setf (editable-run editable) nil
+             (editable-marked editable) nil)
        (let ((after (pop (editable-redo editable))))
          (cond (after (push state (editable-undo editable))
                       (values after t))
@@ -1070,8 +1171,9 @@ index of the character it is over."
   (let ((context (ui-context ui)))
     (when context
       (let* ((font (ui-font context))
-             (string (text-state-string (field-state-state state)))
-             (caret (text-state-caret (field-state-state state)))
+             (shown (shown-text-state state (field-state-state state)))
+             (string (text-state-string shown))
+             (caret (text-state-caret shown))
              (start (min (field-state-view-start state) caret))
              (inner (- width (* 2 (theme-field-padding-x *theme*)))))
         (loop :while (and (< start caret)
@@ -1079,6 +1181,23 @@ index of the character it is over."
                              inner))
               :do (incf start))
         (setf (field-state-view-start state) start)))))
+
+(defun say-field-caret (ui key field)
+  "Say where the caret of the text field KEY, whose state is FIELD, is in the window, from where the
+field was laid out last."
+  (let ((rect (rect-of ui key))
+        (context (ui-context ui)))
+    (if (not (and rect context))
+        (say-text-input-caret ui 0f0 0f0 0f0)
+        (let* ((shown (shown-text-state field (field-state-state field)))
+               (start (field-state-view-start field))
+               (pad (theme-field-padding-y *theme*))
+               (x (context-caret-x context (ui-font context)
+                                   (subseq (text-state-string shown) start)
+                                   (max 0 (- (text-state-caret shown) start)))))
+          (say-text-input-caret ui (+ (rect-x rect) (theme-field-padding-x *theme*) x)
+                                (+ (rect-y rect) pad -1)
+                                (max 0f0 (- (rect-h rect) (* 2 (- pad 1)))))))))
 
 (defun text-field (string
                    &key (id (required-id 'text-field)) tooltip labelled-by
@@ -1127,9 +1246,18 @@ application passes something else, that is what is shown."
         (when (and (= (ui-active ui) key) (ui-released ui))
           (consume-release ui)
           (setf (ui-active ui) 0)))
+      ;; What was typed, in the order it came: keys (those another widget did not take) and text
+      ;; and compositions from the input method.
       (when (= (ui-focus ui) key)
-        (dolist (event (copy-list (ui-keys ui)))
+        (dolist (event (copy-list (ui-inputs ui)))
           (cond
+            ((not (typep event 'key-event))
+             (let ((new (take-text-input ui state (field-state-state state) event t)))
+               (unless (string= (text-state-string new)
+                                (text-state-string (field-state-state state)))
+                 (setf changed t))
+               (setf (field-state-state state) new)))
+            ((not (member event (ui-keys ui) :test #'eq)))
             ((eql (key-event-logical-key event) #\Return)
              (consume-key ui event)
              (setf submitted t))
@@ -1149,9 +1277,14 @@ application passes something else, that is what is shown."
                                   (text-state-string (field-state-state state)))
                    (setf changed t))
                  (setf (field-state-state state) new))))))))
+    ;; What is composed is the field's only while it has the keyboard.
+    (unless (and enabled (= (ui-focus ui) key))
+      (setf (editable-marked state) nil))
     (keep-caret-visible ui state (float width 1f0))
+    (when (and enabled (= (ui-focus ui) key))
+      (say-field-caret ui key state))
     (setf (box-look box) (look-of ui key enabled)
-          (box-text box) (text-state-string (field-state-state state)))
+          (box-text box) (text-state-string (shown-text-state state (field-state-state state))))
     (close-box ui)
     (values (text-state-string (field-state-state state)) changed submitted)))
 
@@ -1309,7 +1442,8 @@ key was one for the area."
 lay the lines out with."
   (let ((context (ui-context ui)))
     (when context
-      (let ((lines (area-lines context area (text-state-string (area-state-state area))
+      (let ((lines (area-lines context area
+                               (text-state-string (shown-text-state area (area-state-state area)))
                                (area-inner-width area width)))
             (height (area-line-height context))
             (inner (if (plusp (area-state-inner-height area))
@@ -1320,7 +1454,7 @@ lay the lines out with."
 (defun keep-area-caret-visible (ui area width rows)
   (let ((context (ui-context ui)))
     (when context
-      (let* ((state (area-state-state area))
+      (let* ((state (shown-text-state area (area-state-state area)))
              (lines (area-lines context area (text-state-string state) (area-inner-width area width)))
              (height (area-line-height context))
              (inner (if (plusp (area-state-inner-height area))
@@ -1332,6 +1466,26 @@ lay the lines out with."
               ((> (+ top height) (+ offset inner)) (setf offset (- (+ top height) inner))))
         (setf (area-state-offset area)
               (max 0f0 (min offset (max 0f0 (- (* (length lines) height) inner)))))))))
+
+(defun say-area-caret (ui key area width)
+  "Say where the caret of the text area KEY, whose state is AREA and which is WIDTH wide, is in the
+window, from where the area was laid out last."
+  (let ((rect (rect-of ui key))
+        (context (ui-context ui)))
+    (if (not (and rect context))
+        (say-text-input-caret ui 0f0 0f0 0f0)
+        (let* ((shown (shown-text-state area (area-state-state area)))
+               (string (text-state-string shown))
+               (lines (area-lines context area string (area-inner-width area width)))
+               (height (area-line-height context))
+               (row (area-line-of lines (text-state-caret shown)))
+               (line (svref lines row))
+               (x (context-caret-x context (ui-font context) (subseq string (car line) (cdr line))
+                                   (- (text-state-caret shown) (car line)))))
+          (say-text-input-caret ui (+ (rect-x rect) (theme-field-padding-x *theme*) x)
+                                (+ (rect-y rect) (theme-field-padding-y *theme*)
+                                   (* row height) (- (area-state-offset area)) 1)
+                                (- height 2))))))
 
 (defun text-area (string
                   &key (id (required-id 'text-area)) tooltip labelled-by
@@ -1395,30 +1549,45 @@ else, that is what is shown."
             (when (/= dy 0f0)
               (decf (area-state-offset area) (* dy (float +points-per-line+ 1f0)))))))
       (when (= (ui-focus ui) key)
-        (dolist (event (copy-list (ui-keys ui)))
-          (let ((vertical (member (key-event-logical-key event) (list +key-up+ +key-down+))))
-            (multiple-value-bind (new edited)
-                (edit-with-history area (area-state-state area) event
-                                   (lambda (text event)
-                                     (declare (ignore text))
-                                     (area-key ui area event width)))
-              (when edited
-                (consume-key ui event)
-                (unless vertical
-                  (setf (area-state-goal-x area) nil))
-                (unless (string= (text-state-string new)
-                                 (text-state-string (area-state-state area)))
-                  (setf changed t))
-                (setf (area-state-state area) new
-                      moved t)))))))
+        (dolist (event (copy-list (ui-inputs ui)))
+          (cond
+            ((not (typep event 'key-event))
+             (let ((new (take-text-input ui area (area-state-state area) event nil)))
+               (unless (string= (text-state-string new)
+                                (text-state-string (area-state-state area)))
+                 (setf changed t))
+               (setf (area-state-state area) new
+                     (area-state-goal-x area) nil
+                     moved t)))
+            ((not (member event (ui-keys ui) :test #'eq)))
+            (t
+             (let ((vertical (member (key-event-logical-key event) (list +key-up+ +key-down+))))
+               (multiple-value-bind (new edited)
+                   (edit-with-history area (area-state-state area) event
+                                      (lambda (text event)
+                                        (declare (ignore text))
+                                        (area-key ui area event width)))
+                 (when edited
+                   (consume-key ui event)
+                   (unless vertical
+                     (setf (area-state-goal-x area) nil))
+                   (unless (string= (text-state-string new)
+                                    (text-state-string (area-state-state area)))
+                     (setf changed t))
+                   (setf (area-state-state area) new
+                         moved t)))))))))
+    (unless (and enabled (= (ui-focus ui) key))
+      (setf (editable-marked area) nil))
     (if moved
         (keep-area-caret-visible ui area width rows)
         ;; Only kept inside the lines; the wheel may leave the caret out of sight.
         (let ((most (area-most-offset ui area width rows)))
           (when most
             (setf (area-state-offset area) (max 0f0 (min (area-state-offset area) most))))))
+    (when (and enabled (= (ui-focus ui) key))
+      (say-area-caret ui key area width))
     (setf (box-look box) (look-of ui key enabled)
-          (box-text box) (text-state-string (area-state-state area))
+          (box-text box) (text-state-string (shown-text-state area (area-state-state area)))
           (box-n1 box) (area-state-offset area))
     (close-box ui)
     (values (text-state-string (area-state-state area)) changed)))
@@ -2541,13 +2710,20 @@ counting its children."
                               (hash-of (box-enabled box)))))
     (setf paint
           (case (box-kind box)
+            ;; The input method can move the part of what it composes that it has selected without
+            ;; changing the text.
             ((:text-field :combo-box) (let ((state (box-data box)))
                            (hash-numbers paint
                                          (text-state-caret (field-state-state state))
                                          (text-state-anchor (field-state-state state))
-                                         (field-state-view-start state))))
-            (:text-area (let ((state (area-state-state (box-data box))))
-                          (hash-numbers paint (text-state-caret state) (text-state-anchor state))))
+                                         (field-state-view-start state)
+                                         (editable-marked-selection state)
+                                         (editable-marked-selection-length state))))
+            (:text-area (let* ((area (box-data box))
+                               (state (area-state-state area)))
+                          (hash-numbers paint (text-state-caret state) (text-state-anchor state)
+                                        (editable-marked-selection area)
+                                        (editable-marked-selection-length area))))
             ((:label :paragraph)
              (let ((selection (box-data box)))
                (if (selection-state-p selection)

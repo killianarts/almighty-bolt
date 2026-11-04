@@ -67,6 +67,7 @@ are not listed.
 
 ### Fixed
 
+- Text fields, combo boxes and text areas take what is typed through the system's input method: Japanese, Chinese and Korean, accents made with dead keys, and the Character Viewer ([0.3](docs/releases/dev.md#bug-fixes)).
 - Two things at the top of an app, with ids of their own, are an error instead of the last alone being shown ([0.3](docs/releases/dev.md#bug-fixes)).
 - Command-Z and Command-Shift-Z undo and redo in text fields, combo boxes and text areas ([0.3](docs/releases/dev.md#bug-fixes)).
 - An app that is only a dialog, with nothing under it, shows the dialog instead of an empty window ([0.3](docs/releases/dev.md#bug-fixes)).

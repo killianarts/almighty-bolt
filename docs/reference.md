@@ -29,6 +29,15 @@ a triple-click all of the field, and a drag after a double- or triple-click goes
 on by whole words or lines. A host made without a window (in a test or a replay)
 keeps what is copied to itself, and never touches the clipboard.
 
+While a text field, a combo box or a text area has the keyboard, what is typed
+goes through the system's input method, as in a Mac text field. Text comes as it
+is made (a letter, an accent made with a dead key, a character chosen in the
+Character Viewer), and what Japanese, Chinese or Korean composes is shown at the
+caret, underlined, until it is committed. Only committed text is the app's: the
+value the field returns, and what VoiceOver and the machine interface read.
+Committed text is undone as one edit. A replay script records them as its
+`:text` and `:composition` events.
+
 A `label` or `paragraph` takes `:weight`, `:regular` (the default) or `:bold`,
 and `:font`, the name of a font family (the theme's if not given), such as
 `"Menlo"`: `(bolt:label "16:22" :id :candles :size 34 :weight :bold)`. A family
@@ -398,7 +407,7 @@ zoom and drawn `:zoom` times larger, its text in fonts that size so that it is
 sharp. The pointer and the wheel over it, and the keys while it has the
 keyboard (a press gives it), are the inner app's, in its own points. It returns
 the inner app. To the window's semantic tree and VoiceOver it is a canvas, and
-the input method's composition does not reach it.
+the input method's composition does not reach it yet.
 
 `inspector-pane` (`target &key id flex`) is the inspector, in this window, of
 TARGET, an app in an `app-pane` as it returns it (or `nil`): Pick, then a press

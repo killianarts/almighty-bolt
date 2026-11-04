@@ -64,6 +64,8 @@
                 #:area-line-of
                 #:field-state-state
                 #:field-state-view-start
+                #:shown-text-state
+                #:marked-range
                 #:choice-state-lefts
                 #:choice-state-widths
                 #:choice-state-tops
@@ -205,7 +207,7 @@ is when its selection shows."
 (defun draw-text-field (box context list x y)
   (let* ((w (box-w box)) (h (box-h box))
          (field (box-data box))
-         (state (field-state-state field))
+         (state (shown-text-state field (field-state-state field)))
          (font (ui-font context))
          (string (text-state-string state))
          (start (field-state-view-start field))
@@ -236,6 +238,17 @@ is when its selection shows."
                            (theme-selection *theme*)))))
           (context-push-text context list font shown left (+ y pad ascent)
                              (if enabled (theme-text *theme*) (theme-dim-text *theme*)))
+          ;; What the input method is composing, underlined, and the part it has selected more so.
+          (multiple-value-bind (from to chosen-from chosen-to)
+              (marked-range field (field-state-state field))
+            (when from
+              (flet ((underline (a b thickness)
+                       (let ((a (max a start)) (b (min b end)))
+                         (when (< a b)
+                           (push-rect list (x-at a) (+ y pad ascent 2) (- (x-at b) (x-at a))
+                                      thickness (theme-text *theme*))))))
+                (underline from to 1f0)
+                (underline chosen-from chosen-to 2f0))))
           (when (and focused (not (text-state-selection-p state))
                      (<= start (text-state-caret state) end))
             (push-rect list (x-at (text-state-caret state)) (+ y pad -1) 1.5f0
@@ -245,7 +258,7 @@ is when its selection shows."
 (defun draw-text-area (box context list x y)
   (let* ((w (box-w box)) (h (box-h box))
          (area (box-data box))
-         (state (area-state-state area))
+         (state (shown-text-state area (area-state-state area)))
          (string (text-state-string state))
          (lines (area-state-lines area))
          (offset (area-state-offset area))
@@ -281,7 +294,18 @@ is when its selection shows."
                             (push-rect list (x-at a) top (+ (- (x-at (max a b)) (x-at a)) more)
                                        height (theme-selection *theme*)))))
                       (context-push-text context list font text left (+ top ascent)
-                                         (if enabled (theme-text *theme*) (theme-dim-text *theme*))))))
+                                         (if enabled (theme-text *theme*) (theme-dim-text *theme*)))
+                      ;; What the input method is composing, underlined where it is on this line.
+                      (multiple-value-bind (marked-from marked-to chosen-from chosen-to)
+                          (marked-range area (area-state-state area))
+                        (when marked-from
+                          (flet ((underline (a b thickness)
+                                   (let ((a (max a start)) (b (min b end)))
+                                     (when (< a b)
+                                       (push-rect list (x-at a) (+ top ascent 2) (- (x-at b) (x-at a))
+                                                  thickness (theme-text *theme*))))))
+                            (underline marked-from marked-to 1f0)
+                            (underline chosen-from chosen-to 2f0)))))))
       (when (and focused (not (text-state-selection-p state)) (plusp (length lines)))
         (let* ((caret (text-state-caret state))
                (row (area-line-of lines caret))

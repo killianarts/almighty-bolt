@@ -3016,6 +3016,214 @@ released unless RELEASE."
     (key screen #\z :command)
     (assert-equal "reset" (value-of screen :line))))
 
+;;; --- text from the input method ---
+;;;
+;;; In a window, what is typed into a field goes through the system's input method, which gives it
+;;; back as text and, for Japanese or Chinese, as a composition shown in the field before it is
+;;; committed. Here those events are sent as the window sends them.
+
+(defun make-composing ()
+  (state-let ((first "") (second "") (notes ""))
+    (lambda ()
+      (column (:gap 6)
+        (setf first (text-field first :id :first :width 200))
+        (setf second (text-field second :id :second :width 200))
+        (setf notes (text-area notes :id :notes :width 200 :rows 3))
+        (button "Done" :id :done)
+        (label (format nil "[~a]" first) :id :got)))))
+
+(defun send (screen event)
+  (core:handle-event (screen-app screen) event)
+  (draw screen))
+
+(defun typed (screen text)
+  "Text from the input method, as it comes for a key that types (or a dead key and the next)."
+  (send screen (core:make-text-input-event :timestamp 0 :text text)))
+
+(defun compose (screen kind text &optional (start (length text)) (length 0))
+  "A step of what the input method composes: KIND :started, :changed or :committed."
+  (send screen (core:make-composition-event :timestamp 0 :kind kind :text text
+                                            :selection-start start :selection-length length)))
+
+(defun underlines-in (screen id)
+  "The lines no more than 2 points tall drawn inside the control ID, as (x width height) from its
+left, left to right."
+  (multiple-value-bind (left top width height) (core:lookup-target (screen-app screen) id)
+    (let ((list (screen-list screen)))
+      (stable-sort (loop :for index :below (core:display-list-count list)
+                  :when (and (= (core:display-list-kind list index) core:+command-rect+)
+                             (<= (core:display-list-height list index) 2f0)
+                             (<= left (core:display-list-x list index) (+ left width -1))
+                             (<= top (core:display-list-y list index) (+ top height -1)))
+                    :collect (list (- (core:display-list-x list index) left)
+                                   (core:display-list-width list index)
+                                   (core:display-list-height list index)))
+            #'< :key #'first))))
+
+(define-test text-from-the-input-method-goes-into-a-field-and-a-text-area-and-is-undone-as-typing ()
+  (let ((screen (show 'make-composing)))
+    (click screen :first)
+    (typed screen "é")
+    (typed screen "t")
+    (assert-equal "ét" (value-of screen :first))
+    (assert-equal "[ét]" (text-in screen :got))
+    ;; Typing that came as text is one run, as typing that came as keys is.
+    (key screen #\z :command)
+    (assert-equal "" (value-of screen :first))
+    (click screen :notes)
+    (typed screen (format nil "a~%b"))
+    (assert-equal (format nil "a~%b") (value-of screen :notes))))
+
+(define-test what-is-composed-is-shown-in-the-field-and-the-app-has-it-once-it-is-committed ()
+  (let ((screen (show 'make-composing)))
+    (click screen :first)
+    (typed screen "a")
+    (compose screen :started "にほ")
+    (assert-equal "aにほ" (text-in screen :first))
+    (assert-equal "[a]" (text-in screen :got))
+    ;; The input method selects the first two characters, to convert them: they are underlined more.
+    (compose screen :changed "にほん" 0 2)
+    (assert-equal "aにほん" (text-in screen :first))
+    (assert-equal "[a]" (text-in screen :got))
+    (assert-equal '((8f0 24f0 1f0) (8f0 16f0 2f0))
+                  (mapcar (lambda (line) (list (- (first line) 8f0) (second line) (third line)))
+                          (underlines-in screen :first))
+                  (underlines-in screen :first))
+    ;; It moves on to the last character, and only that changes.
+    (compose screen :changed "にほん" 2 1)
+    (assert-equal '((8f0 24f0 1f0) (24f0 8f0 2f0))
+                  (mapcar (lambda (line) (list (- (first line) 8f0) (second line) (third line)))
+                          (underlines-in screen :first))
+                  (underlines-in screen :first))
+    (compose screen :committed "日本")
+    (assert-equal "[a日本]" (text-in screen :got))
+    (assert-equal "a日本" (text-in screen :first))
+    (assert-false (underlines-in screen :first))
+    ;; What was committed is one edit, undone whole, and what is typed after it another.
+    (typed screen "x")
+    (key screen #\z :command)
+    (assert-equal "[a日本]" (text-in screen :got))
+    (key screen #\z :command)
+    (assert-equal "[a]" (text-in screen :got))))
+
+(define-test a-composition-committed-empty-leaves-the-field-as-it-was ()
+  (let ((screen (show 'make-composing)))
+    (click screen :first)
+    (typed screen "ab")
+    (compose screen :started "に")
+    (assert-equal "abに" (text-in screen :first))
+    (compose screen :committed "")
+    (assert-equal "ab" (text-in screen :first))
+    (assert-equal "[ab]" (text-in screen :got))))
+
+(define-test a-field-that-loses-the-keyboard-drops-what-was-being-composed-in-it ()
+  (let ((screen (show 'make-composing)))
+    (click screen :first)
+    (compose screen :started "に")
+    (key screen #\Tab)
+    (assert-equal "" (text-in screen :first))
+    ;; What the input method commits now is the field's that has the keyboard.
+    (compose screen :committed "日")
+    (assert-equal "" (value-of screen :first))
+    (assert-equal "日" (value-of screen :second))))
+
+(define-test what-is-composed-in-a-text-area-is-shown-and-the-app-has-it-once-committed ()
+  (let ((screen (show 'make-composing)))
+    (click screen :notes)
+    (typed screen (format nil "one~%"))
+    (compose screen :started "かな")
+    (assert-equal "oneかな" (text-in screen :notes))
+    (assert-equal (format nil "one~%") (value-of screen :notes))
+    (assert-equal 1 (length (underlines-in screen :notes)))
+    (compose screen :committed "仮名")
+    (assert-equal (format nil "one~%仮名") (value-of screen :notes))
+    ;; Dropped when the area loses the keyboard.
+    (compose screen :started "か")
+    (key screen #\Tab)
+    (assert-equal "one仮名" (text-in screen :notes))))
+
+(defun text-input-rect (screen)
+  "Whether the app takes text now, and where its caret is in the window, as x and y."
+  (let ((context (screen-context screen)))
+    (values (core:context-text-input-p context)
+            (aref (core:context-text-input-rect context) 0)
+            (aref (core:context-text-input-rect context) 1))))
+
+(define-test what-has-the-keyboard-and-takes-text-tells-the-window-where-its-caret-is ()
+  (let ((screen (show 'make-composing)))
+    (assert-false (text-input-rect screen))
+    (click screen :first)
+    (type-text screen "ab")
+    (multiple-value-bind (left top) (core:lookup-target (screen-app screen) :first)
+      (multiple-value-bind (on x y) (text-input-rect screen)
+        (assert-true on)
+        ;; Inside its padding of 8, after two characters of 8.
+        (assert-eql (+ left 8f0 16f0) x)
+        (assert-eql (+ top 6f0 -1f0) y)))
+    ;; What is being composed moves it, to where the input method has its caret.
+    (compose screen :started "にほ" 1)
+    (multiple-value-bind (left) (core:lookup-target (screen-app screen) :first)
+      (assert-eql (+ left 8f0 24f0) (nth-value 1 (text-input-rect screen))))
+    (compose screen :committed "")
+    (click screen :notes)
+    (type-text screen "xyz")
+    (key screen #\Return)
+    (type-text screen "q")
+    (multiple-value-bind (left top) (core:lookup-target (screen-app screen) :notes)
+      (multiple-value-bind (on x y) (text-input-rect screen)
+        (assert-true on)
+        ;; One character into the second line, of 14.
+        (assert-eql (+ left 8f0 8f0) x)
+        (assert-eql (+ top 6f0 14f0 1f0) y)))
+    ;; A button has the keyboard now, which takes no text.
+    (key screen #\Tab)
+    (assert-false (text-input-rect screen))))
+
+(defun ns-key-down (characters key-code)
+  "An NSEvent of a key going down that typed CHARACTERS, with no modifier."
+  (objc:msg-send :id (objc:objc-class "NSEvent")
+                 "keyEventWithType:location:modifierFlags:timestamp:windowNumber:context:characters:charactersIgnoringModifiers:isARepeat:keyCode:"
+                 (:ulong 10) (:point 0 0) (:ulong 0) (:double 0d0) (:long 0) (:id 0)
+                 (:id (objc:ns-string characters)) (:id (objc:ns-string characters)) (:bool nil)
+                 (:ushort key-code)))
+
+(define-test a-key-pressed-in-a-window-reaches-a-field-through-the-input-method ()
+  ;; The view of a window that is not shown, asking the app's context whether it takes text, as a
+  ;; window's does; a key goes to its keyDown: as AppKit sends it.
+  (objc:with-masked-float-traps
+    (objc:with-autorelease-pool
+      (objc:msg-send :id (objc:objc-class "NSApplication") "sharedApplication")
+      (let* ((screen (show 'make-composing))
+             (context (screen-context screen))
+             (seen '())
+             (view (view:make-metal-view
+                    :width 200 :height 100
+                    :event-handler (lambda (event)
+                                     (push event seen)
+                                     (core:handle-event (screen-app screen) event)
+                                     (draw screen))
+                    :text-input (lambda ()
+                                  (let ((rect (core:context-text-input-rect context)))
+                                    (values (core:context-text-input-p context)
+                                            (float (aref rect 0) 1d0) (float (aref rect 1) 1d0)
+                                            (float (aref rect 2) 1d0) (float (aref rect 3) 1d0))))))
+             (object (view:metal-view-object view))
+             (window (window:make-window :title "test" :width 200 :height 100)))
+        (window:set-content-view window object)
+        (click screen :first)
+        (objc:msg-send :void object "keyDown:" (:id (ns-key-down "a" 0)))
+        (assert-equal "a" (value-of screen :first))
+        ;; It came as text from the input method, not as a key.
+        (assert-true (typep (first seen) 'core:text-input-event) (first seen))
+        ;; Delete is a command, which comes as the key.
+        (objc:msg-send :void object "keyDown:" (:id (ns-key-down (string (code-char #x7F)) 51)))
+        (assert-equal "" (value-of screen :first))
+        ;; With a button that has the keyboard, a key is a key.
+        (click screen :done)
+        (setf seen '())
+        (objc:msg-send :void object "keyDown:" (:id (ns-key-down "b" 11)))
+        (assert-true (typep (first seen) 'core:key-event) (first seen))))))
+
 (defun make-only-a-dialog ()
   (lambda ()
     (dialog (:id :code :open t :title "Your code")

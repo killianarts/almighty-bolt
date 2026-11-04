@@ -186,7 +186,10 @@ The whole frame is searched last, for a label in a float (a dialog's title) or e
 
 (defun value-of (box)
   (case (box-kind box)
-    ((:text-field :combo-box :text-area :dropdown) (box-text box))
+    ;; What is typed, without what the input method is still composing (which is shown).
+    ((:text-field :combo-box) (text-state-string (field-state-state (box-data box))))
+    (:text-area (text-state-string (area-state-state (box-data box))))
+    (:dropdown (box-text box))
     (:slider (let ((aux (box-aux box)))
                (and aux (aref aux 0))))
     (:progress (float (box-n1 box) 1d0))

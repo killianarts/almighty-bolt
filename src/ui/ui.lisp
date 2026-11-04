@@ -40,6 +40,7 @@
                 #:menu-event-menu
                 #:menu-event-item
                 #:composition-event
+                #:context-text-input-p
                 #:modifier-down-p
                 #:+modifier-shift+
                 #:make-display-list
@@ -476,7 +477,10 @@ box that was open, which CLOSE-FLOAT is given back."
   (setf (ui-parent ui) open))
 
 (defun begin-build (ui context)
-  "Get UI ready for the interface to be described: no boxes yet."
+  "Get UI ready for the interface to be described: no boxes yet. Nothing takes text input until
+something described says so (an editable text with the keyboard, a canvas that paints a caret)."
+  (when context
+    (setf (context-text-input-p context) nil))
   (setf (ui-context ui) context
         (ui-count ui) 0
         (ui-build-stamp ui) (1+ (ui-build-stamp ui))
