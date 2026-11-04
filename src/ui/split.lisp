@@ -72,7 +72,9 @@ middle is thin, and the rest is there to be pressed.")
   ;; How wide (or tall) the first pane is: NIL until the split is first described.
   (size nil :type (or null single-float))
   ;; Where in the divider it was pressed, so that it does not jump under the pointer.
-  (grab 0f0 :type single-float))
+  (grab 0f0 :type single-float)
+  ;; The :size it was given last: one that is not this is taken up, as a size the app keeps.
+  (given nil :type (or null single-float)))
 
 (defun open-pane (ui id)
   (let ((pane (open-box ui :pane :id id)))
@@ -89,8 +91,13 @@ middle is thin, and the rest is there to be pressed.")
           (box-fill box) t
           (box-n3 box) (if (eq direction :vertical) 1 0)
           (box-flex box) (float flex 1f0))
-    (unless (split-state-size state)
-      (setf (split-state-size state) (float size 1f0)))
+    ;; The size the split was first given, and a new one it is given after, wins over the one it
+    ;; keeps; the same one given again does not, so a split given a constant is moved by its
+    ;; divider, and one given back what it returned is the app's.
+    (let ((size (float size 1f0)))
+      (unless (eql size (split-state-given state))
+        (setf (split-state-size state) size
+              (split-state-given state) size)))
     (values box state (open-pane ui :first))))
 
 (defun divide (box state pane direction least most)
@@ -163,7 +170,9 @@ the second pane."
                  first second)
   "Two panes, FIRST and SECOND, side by side (or with DIRECTION :VERTICAL one over the other), with a
 divider between them that the pointer drags and the arrow keys move. The first pane starts SIZE
-points wide (or tall) and is kept no smaller than MIN, no larger than MAX, and leaving the second at
+points wide (or tall), and is moved by the divider from there; a SIZE other than the one given
+the frame before is taken up, so an app that keeps the size gives back what is returned. It is
+kept no smaller than MIN, no larger than MAX, and leaving the second at
 least MIN; the second has the rest. Each pane is a column, :FIRST and :SECOND by id, whose children are
 as wide as it is; what does not fit is cut at its edge. Returns how wide (or tall) the first pane is.
 FLEX, WIDTH and HEIGHT are the container's own. The :id is required: the size is kept by it."

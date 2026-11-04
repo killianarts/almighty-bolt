@@ -15,7 +15,7 @@ the order inside a section is not a schedule. What has shipped is in the
 - **Text and layout.**
   - Italic, weights between regular and bold, a font for each widget besides
     labels and paragraphs (which have `:weight :bold` and `:font`); rich text.
-  - Wrapping layouts, and panes that can be docked, put in tabs and moved.
+  - Wrapping layouts.
   - A table, and date and colour pickers.
 - **Effects.** Shadows, glows, blur, opacity and other filters.
   - An effect can reach past the edges of the widget it belongs to, by as far as
@@ -139,12 +139,13 @@ planned.
 What stands between the library today and the studio, as found while building
 the GUI designer, and where on this roadmap each is closed.
 
-- **Tabs, not docked panes.** The studio has the GUI designer and the theme
-  designer in one window, one at a time behind a tab bar, and the inspector is a
-  window of its own. Docked panes need a pane to keep what is in it when it is
-  moved (a widget's state is kept by where it is), a split's size the app's to
-  keep, and a shortcut to go to the pane with the keyboard rather than to every
-  pane ([Text and layout](#later)).
+- **The designers are not panes yet.** The library has docked panes (`dock`),
+  but the studio shows each designer whole, one at a time behind a tab bar, and
+  the inspector is a window of its own. The designers' parts (the outline, the
+  canvas, the options, the seeds, the preview) as panes of one dock need a
+  shortcut to go to the pane with the keyboard rather than to every pane: both
+  designers take Command-Z from the whole window. A pane is moved only by the
+  pointer.
 - **The app is not in a pane.** Drawing the app inside the studio needs its
   display list scaled and placed, the pointer hit-tested through the zoom, and
   keys sent on to it.
@@ -163,8 +164,9 @@ the GUI designer, and where on this roadmap each is closed.
 
 ### Stages
 
-1. **One window.** Docked panes. The app drawn in a pane, hit-tested through
-   the zoom.
+1. **One window.** The designers' parts as panes of one dock, with shortcuts
+   that go to the pane with the keyboard. The app drawn in a pane, hit-tested
+   through the zoom.
 2. **Code and time.** A code editor, or the bridge to Emacs. The timeline,
    replay and state panes over the frame ring. The semantic and accessibility
    panes. Tests made from recordings.

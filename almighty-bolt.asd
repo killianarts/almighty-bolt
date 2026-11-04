@@ -99,6 +99,7 @@
                  (:file "drag")
                  (:file "split")
                  (:file "tree")
+                 (:file "dock")
                  (:file "design-surface")
                  (:file "catalogue")
                  (:file "views")

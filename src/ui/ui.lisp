@@ -392,10 +392,12 @@ but the last, which is being opened)."
            :container (and parent
                            (format nil "the ~(~a~)~@[ ~s~]" (box-kind parent) (box-id parent))))))
 
-(defun open-box (ui kind &key id labelled-by tooltip)
+(defun open-box (ui kind &key id labelled-by tooltip rooted-at)
   "Start a box of KIND inside the one that is open. Its key is made from its parent's and
 its ID (or, with none, its place among its parent's children), so it is the same from one
-frame to the next as long as it is described in the same place. Two boxes of one build with
+frame to the next as long as it is described in the same place. With ROOTED-AT, a key, it is made
+from that key in place of its parent's: the box, and what is in it, keep their keys (and so their
+state) wherever in that key's box they are described, as a pane of a dock moved to another group. Two boxes of one build with
 the same key are an error (DUPLICATE-ID): the ui could not tell them apart."
   (let* ((box (reset-box (next-box ui) kind))
          (parent (ui-parent ui)))
@@ -403,7 +405,9 @@ the same key are an error (DUPLICATE-ID): the ui could not tell them apart."
           (box-labelled-by box) labelled-by
           (box-tooltip box) tooltip
           (box-parent box) parent)
-    (let ((key (mix (if parent (box-key parent) +seed+)
+    (let ((key (mix (cond (rooted-at (mix rooted-at (hash-of :rooted)))
+                          (parent (box-key parent))
+                          (t +seed+))
                     (if id (hash-of id) (if parent (fill-pointer (box-children parent)) 0)))))
       (setf (box-key box) (if (zerop key) 1 key)))
     (when (> (* 2 (ui-count ui)) (length (ui-seen-keys ui)))

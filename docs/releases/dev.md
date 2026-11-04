@@ -54,6 +54,10 @@ A view made in the GUI designer is a file of Lisp that defines it, `(bolt:define
 
 A view is named by a symbol of the app's package, as a function is, so that views of two apps or libraries do not take each other's names. It takes no parameters: what differs from one place it is drawn to the next is given by the wiring there.
 
+### Docked panes
+
+`(bolt:dock (:id :studio :layout layout) (:outline "Outline" ...) (:canvas "Canvas" ...))` is panes in groups of tabs, side by side or one over the other, that the person arranges: a tab dragged to another group's tabs puts its pane there, and to a group's edge splits the group. What is in a pane keeps its state when it moves. The layout is a list, returned each frame, for the app to keep and give back. A `split` given a new `:size` now takes it up, so an app can keep a split's width too.
+
 ### The studio, begun
 
 `apps/studio` has the GUI designer and the theme designer in one window, a tab for each: `(almighty-bolt-studio:open-studio)` after loading the system `almighty-bolt-studio`. Each is as it is in a window of its own, and keeps what it holds (the view, the theme being made, the undo of each) while the other is shown. The menu bar has the GUI designer's File menu while it is shown. It is built of the library's own widgets: a tab bar, and each designer drawn in a container of its own, so that their ids do not meet.

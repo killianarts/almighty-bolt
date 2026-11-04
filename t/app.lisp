@@ -3819,6 +3819,68 @@ released unless RELEASE."
     (assert-true condition)
     (assert-true (search "Put them in a container" (princ-to-string condition)))))
 
+;;; --- docked panes ---
+
+(defun make-docked ()
+  (state-let ((layout '(:split :horizontal 150 (:tabs :alpha :alpha :beta) (:tabs :gamma :gamma))))
+    (lambda ()
+      (column (:id :page :fill t :cross-align :stretch)
+        (setf layout
+              (dock (:id :panes :layout layout :flex 1)
+                (:alpha "Alpha"
+                 (tree +garden+ :id :garden :children #'rest :label #'first :key #'garden-key))
+                (:beta "Beta" (label "In beta" :id :beta-words))
+                (:gamma "Gamma" (label "In gamma" :id :gamma-words))))
+        (label (format nil "~(~s~)" layout) :id :layout)))))
+
+(define-test a-pane-dragged-by-its-tab-goes-in-a-group-or-splits-one-and-keeps-what-it-holds ()
+  (let ((screen (show 'make-docked)))
+    (labels ((shown-p (id) (and (core:lookup-target (screen-app screen) id) t))
+             (middle (id)
+               (destructuring-bind (x y w h) (bounds-of screen id)
+                 (values (+ x (/ w 2)) (+ y (/ h 2)))))
+             (press-at (x y)
+               (pointer screen :move x y)
+               (pointer screen :down x y :button 0 :buttons 1)
+               (pointer screen :up x y :button 0)
+               (draw screen))
+             (drag (from x1 y1)
+               (multiple-value-bind (x0 y0) (middle from)
+                 (pointer screen :move x0 y0)
+                 (pointer screen :down x0 y0 :button 0 :buttons 1)
+                 (pointer screen :move (+ x0 10) (+ y0 10) :buttons 1)
+                 (pointer screen :move x1 y1 :buttons 1)
+                 (pointer screen :move x1 y1 :buttons 1)
+                 (pointer screen :up x1 y1 :button 0)
+                 (dotimes (i 3) (draw screen))))
+             (layout () (s:node-name (node-of screen :layout))))
+      ;; A tab shows its pane.
+      (assert-true (shown-p :garden))
+      (multiple-value-call #'press-at (middle :beta))
+      (assert-true (shown-p :beta-words))
+      (assert-false (shown-p :garden))
+      (multiple-value-call #'press-at (middle :alpha))
+      ;; Something closed in the tree, which must stay closed when its pane moves.
+      (destructuring-bind (x y w h) (bounds-of screen :fruit)
+        (declare (ignore w))
+        (press-at (+ x 12) (+ y (/ h 2))))
+      (assert-false (shown-p :apple))
+      ;; Alpha let go of on Gamma's tabs: it is in Gamma's group, and shown.
+      (multiple-value-bind (x y) (middle :gamma)
+        (drag :alpha (+ x 30) y))
+      (assert-true (search "(:tabs :alpha :gamma :alpha)" (layout)) (layout))
+      (assert-true (shown-p :fruit))
+      (assert-false (shown-p :apple))
+      ;; Beta, alone in its group, let go of in the middle of the other: its group and the divider
+      ;; go.
+      (multiple-value-bind (x y) (middle :fruit)
+        (drag :beta x (+ y 100)))
+      (assert-equal "(:tabs :beta :gamma :alpha :beta)" (layout))
+      ;; Gamma let go of near the bottom edge: the group is split, one over the other.
+      (drag :gamma 180 300)
+      (assert-equal "(:split :vertical 153.0 (:tabs :beta :alpha :beta) (:tabs :gamma :gamma))"
+                    (layout)))))
+
 ;;; --- a tree in a view ---
 
 (define-view t-plants

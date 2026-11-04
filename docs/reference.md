@@ -346,7 +346,9 @@ second in the second:
 The panes are side by side, or one over the other with `:direction :vertical`.
 The first is `:size` points wide (240 if not given) until the divider is
 dragged, or moved by the arrow keys once Tab or a press has given it the
-keyboard; the width is kept by the split's id, and returned. It is no less than
+keyboard; the width is kept by the split's id, and returned. A `:size` other
+than the one given the frame before is taken up, so an app that keeps the width
+itself gives back what was returned. It is no less than
 `:min` (80), no more than `:max`, and leaves the second pane `:min` too; the
 second has the rest. Each pane, `:first` and `:second` by id, is a column whose
 children are as wide as it is, and what does not fit in it is cut at its edge
@@ -356,6 +358,33 @@ along its panes, so it needs a parent that bounds it (a window's column, a
 in the semantic tree, whose value is the first pane's width, and a splitter to
 VoiceOver. In a view, the first widget in a split is in the first pane and the
 others are in the second.
+
+`dock` (`:id :layout :flex :width :height`) is panes that the person arranges,
+each `(key title body...)`, in groups of tabs side by side or one over the
+other:
+
+```lisp
+(setf layout
+      (bolt:dock (:id :studio :layout layout :flex 1)
+        (:outline "Outline" (outline view))
+        (:canvas "Canvas" (canvas view))
+        (:theme "Theme" (theme-pane))))
+```
+
+A group shows the pane of the tab chosen. A tab dragged and let go of on
+another group's tabs, or the middle of a group, puts its pane in that group; let
+go of near a group's edge (a quarter of the way in), it splits the group there,
+the pane in a group of its own; an outline shows where it would go. A group left
+empty goes, and the divider with it. What is in a pane keeps its state when the
+pane moves: a caret, a scroll, the items of a tree that are closed. The layout
+is data, returned each frame: `(:tabs selected key ...)` for a group, and
+`(:split direction size first second)` for two side by side (`:horizontal`) or
+one over the other (`:vertical`), the first `size` points. Give it back as
+`:layout` to keep it, in `state-let` or a file; a `:layout` other than the one
+given the frame before is taken up. With none, every pane is a tab of one
+group; a pane the layout does not have goes in its first group, and one the
+dock is not given is left out. The tabs are buttons in the semantic tree. A
+pane is moved only by the pointer for now.
 
 `design-surface` (`:id :selected :flex`) is for a designer, which draws the view being designed in
 it: what is in it is drawn as it looks, one under another, and none of it works. The pointer, a press
@@ -567,8 +596,8 @@ put the view's file before that code in the system.
 The kinds are those of the catalogue, every widget and container of the library (a label, a
 paragraph, a button, a text field, a text area, a combo box, a slider, a choice, a tab bar, a tree
 view, a check box, a switch, a dropdown, a list box, a progress bar, a spinner; a column, a row, a grid, a stack,
-a padding, a panel, a center, a scroll, a pressable, a split) but the spacer, which needs a row or
-column whose size is bounded, and whatever an app adds. `(:view :card (:name my-app::card))` is another view
+a padding, a panel, a center, a scroll, a pressable, a split) and whatever an app adds; not the
+spacer, which needs a row or column whose size is bounded, or the dock, whose panes are code. `(:view :card (:name my-app::card))` is another view
 drawn inside this one, by its name, with the node's id for its outermost widget: changed when that
 view is defined again, and said in its place (not drawn for ever) if it is inside itself. It is not
 wired from outside: the code that draws a view inside another wires it with a `view` of its own, or
