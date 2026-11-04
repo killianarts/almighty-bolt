@@ -24,6 +24,8 @@
                 #:center
                 #:scroll
                 #:pressable)
+  (:import-from #:almighty-bolt/ui/split
+                #:split)
   (:export #:entry
            #:catalogue
            #:define-widget-entry
@@ -111,7 +113,9 @@ or NIL."
 TYPE one of :string, :number, :boolean, :list (of strings) or (:choice keyword ...). WIRES are what
 an app's code can give it besides its options (:on-press). VALUE, if given, names the option that a
 place wired as :value shows, and that the widget sets by calling SET-VALUE. A CONTAINER holds what
-the view puts in it, which BODY draws by calling (CONTENTS).
+the view puts in it, which BODY draws by calling (CONTENTS); (CONTENTS :FIRST) draws only the first
+of it, and (CONTENTS :REST) the others and what the app wired as :contents, for a container of two
+parts (a split).
 
 It is in the catalogue when it is compiled too, so that a view defined after it in the same file
 can have it. BODY draws one, with the real widget, each frame: in it ID is its id, each option is a variable of
@@ -144,9 +148,10 @@ wired there or NIL, and SET-VALUE the function that sets the place wired as :val
                         (declare (ignorable ,@(mapcar (lambda (o) (var (first o))) options)
                                             ,@(mapcar #'var wires)
                                             ,@(and value (list set-value))))
-                        (flet ((,contents ()
-                                 (funcall ,children)
-                                 (call-wired ,wired :contents)))
+                        (flet ((,contents (&optional part)
+                                 (funcall ,children part)
+                                 (unless (eq part :first)
+                                   (call-wired ,wired :contents))))
                           (declare (dynamic-extent #',contents) (ignorable #',contents))
                           ,@body)))
                     ,(and container t)))))))
@@ -308,6 +313,17 @@ wired there or NIL, and SET-VALUE the function that sets the place wired as :val
   (scroll (:id id :height height)
     (contents)))
 
+;; Bounded, as a split must be where its parent gives it as much room as it likes (a view's column):
+;; the first widget in it is in the first pane, and the others in the second.
+(define-widget-entry :split (:title "Split"
+                             :options ((:direction (:choice :horizontal :vertical) :horizontal)
+                                       (:size :number 160) (:least :number 60)
+                                       (:width :number 480) (:height :number 240))
+                             :container t)
+  (split (:id id :direction direction :size size :min least :width width :height height)
+    (contents :first)
+    (contents :rest)))
+
 (define-widget-entry :pressable (:title "Pressable"
                                  :options ((:look (:choice :plain :button) :plain)
                                            (:enabled :boolean t))
@@ -382,9 +398,14 @@ drawn more than once in one container."
              (destructuring-bind (kind id* options &rest children) form
                (declare (ignore options))
                (let ((wire (and wires (assoc id* wires))))
-                 (flet ((children ()
-                          (dolist (child children)
-                            (draw child nil)))
+                 (flet ((children (&optional part)
+                          ;; PART :FIRST is the first child only, and :REST the others.
+                          (case part
+                            (:first (when children (draw (first children) nil)))
+                            (:rest (dolist (child (rest children))
+                                     (draw child nil)))
+                            (t (dolist (child children)
+                                 (draw child nil)))))
                         (value (name)
                           (let ((wired (getf (second wire) name '%none)))
                             (if (eq wired '%none)

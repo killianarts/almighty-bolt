@@ -26,7 +26,8 @@
                 #:choice
                 #:list-box
                 #:canvas
-                #:scrim)
+                #:scrim
+                #:split)
   (:import-from #:almighty-bolt/machine/host-session
                 #:open-session)
   (:local-nicknames (#:m #:almighty-bolt/machine)
@@ -67,6 +68,9 @@
                         (declare (ignore list context width height))
                         nil)
                 :id :drawing)
+        (split (:id :sides :size 50 :min 40 :width 160 :height 20)
+          (label "Left" :id :left-words)
+          (label "Right" :id :right-words))
         (stack ()
           (label "Under" :id :under)
           (scrim :id :veil))))))
@@ -249,6 +253,12 @@ them, and what pressing and adjusting them does."
              (and (ax-perform volume "AXIncrement")
                   (progn (wait-for-idle host) t)
                   (about 35 (number-of (fresh application "volume") "AXValue"))))
+      (let ((divider (named elements "divider")))
+        (check "a split's divider is a splitter that says how wide the pane before it is"
+               (and divider
+                    (equal "AXSplitter" (said divider "AXRole"))
+                    (about 50 (number-of divider "AXValue")))
+               (and divider (list (said divider "AXRole") (number-of divider "AXValue")))))
       (check "a progress bar is a progress bar, between 0 and 1"
              (and (equal "AXProgressIndicator" (said progress "AXRole"))
                   (about 0.25 (number-of progress "AXValue"))

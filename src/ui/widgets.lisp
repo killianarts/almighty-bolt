@@ -2503,6 +2503,8 @@ counting its children."
                    (:choice (mix layout (hash-options (car (box-data box)))))
                    ((:list-box :text-area) (mix layout (box-n3 box)))
                    (:scroll (mix layout (hash-of (box-n1 box))))
+                   ;; Side by side or one over the other.
+                   (:split (mix layout (box-n3 box)))
                    (:lazy-list (hash-numbers layout (hash-of (box-n1 box)) (hash-of (box-n2 box))
                                              (box-n3 box)))
                    ;; A row of a lazy list is placed by its index.

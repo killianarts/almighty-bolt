@@ -394,7 +394,9 @@ them in the boxes, and return the width and height."
                 (constrain (theme-control-height *theme*) min-h max-h)))
       (:scrim
        (set-box box (if (< max-w +unbounded+) max-w min-w) (if (< max-h +unbounded+) max-h min-h)))
-      ((:column :row :context-area :surface :drag-source)
+      (:splitter
+       (set-box box (constrain (box-pref-w box) min-w max-w) (constrain (box-pref-h box) min-h max-h)))
+      ((:column :row :context-area :surface :drag-source :pane :split)
        (let ((children (box-children box)))
          (flet ((measure (i a b c d)
                   (layout-box (aref children i) context a b c d))
@@ -406,7 +408,9 @@ them in the boxes, and return the width and height."
                   (values (box-flex (aref children i)) t)))
            (declare (dynamic-extent #'measure #'place #'flex-of))
            (multiple-value-bind (w h)
-               (layout-flex (if (eq (box-kind box) :row) :horizontal :vertical)
+               (layout-flex (if (or (eq (box-kind box) :row)
+                                    (and (eq (box-kind box) :split) (zerop (box-n3 box))))
+                                :horizontal :vertical)
                             min-w max-w min-h max-h (length children)
                             #'measure #'place
                             :flex-of #'flex-of :gap (box-gap box)

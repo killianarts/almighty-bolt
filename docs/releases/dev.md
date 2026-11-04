@@ -54,6 +54,10 @@ A view made in the GUI designer is a file of Lisp that defines it, `(bolt:define
 
 A view is named by a symbol of the app's package, as a function is, so that views of two apps or libraries do not take each other's names. It takes no parameters: what differs from one place it is drawn to the next is given by the wiring there.
 
+### Two panes and a divider
+
+`(bolt:split (:id :sides :size 240) left right)` puts LEFT and RIGHT side by side (or, with `:direction :vertical`, one over the other) with a divider between them that the pointer drags and the arrow keys move. The first pane's width is kept by the split's id and returned, within `:min` and `:max`; what does not fit in a pane is cut at its edge. VoiceOver reads the divider as a splitter. A view, and the GUI designer, can have one: the first widget in it goes in the first pane, the others in the second.
+
 ### Dragging
 
 `(bolt:drag-source (:id :new-card :payload card :label "Card") ...)` drags what is in it, carrying PAYLOAD, with a ghost under the pointer; a press in place is still a click (`:clicked`). `(bolt:drop-target (:id :list) ...)` shows where among its children a drop would go and returns what was dropped and its index. In the GUI designer, a widget is dragged from the list on the left to where it goes in the view, and a widget of the view is dragged to another place in it; a click on the list still adds one.
@@ -64,7 +68,7 @@ A view is named by a symbol of the app's package, as a function is, so that view
 
 ### Every widget in the catalogue, and yours
 
-A view, and the GUI designer, can have every widget and container of the library (but the spacer), not five: a paragraph, a text area, a combo box, a slider, a choice, a check box, a switch, a dropdown, a list box, a progress bar, a spinner, a grid, a stack, a padding, a panel, a center, a scroll and a pressable besides. `:value` wires a place to whatever widget holds a value (a slider's value, a check box's state, a list's selected index). And an app adds its own with `(bolt:define-widget-entry :stars (:title "Stars" :options ((:count :number 3)) :value :count) ...)`, its options, what can be wired to it and how it is drawn; the designer lists it and a view can have it. Options can be lists of strings (a dropdown's options), edited in the designer one to a line.
+A view, and the GUI designer, can have every widget and container of the library (but the spacer), not five: a paragraph, a text area, a combo box, a slider, a choice, a check box, a switch, a dropdown, a list box, a progress bar, a spinner, a grid, a stack, a padding, a panel, a center, a scroll, a pressable and a split besides. `:value` wires a place to whatever widget holds a value (a slider's value, a check box's state, a list's selected index). And an app adds its own with `(bolt:define-widget-entry :stars (:title "Stars" :options ((:count :number 3)) :value :count) ...)`, its options, what can be wired to it and how it is drawn; the designer lists it and a view can have it. Options can be lists of strings (a dropdown's options), edited in the designer one to a line.
 
 A view can be inside another: `(:view :card (:name card))` in a view's form draws the view `card` there. The GUI designer lists the views defined in the running Lisp under Views, to drag or click into the one being designed as any widget is, and a view's option on the right is a menu of them. A view inside itself says so in its place.
 

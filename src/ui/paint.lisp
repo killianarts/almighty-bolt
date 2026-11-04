@@ -558,7 +558,20 @@ behind it fading."
     (:tooltip (draw-tooltip box context list x y))
     (:toast (draw-toast box context list x y))
     (:spinner (draw-spinner box list x y))
+    (:splitter (draw-splitter box list x y))
     (:list-box (draw-list-box box context list x y))))
+
+;; The divider of a split: a hairline down (or across) its middle, the ring's colour and wider under
+;; the pointer, pressed, or with the keyboard.
+(defun draw-splitter (box list x y)
+  (multiple-value-bind (state focused) (look-state box)
+    (let* ((w (box-w box)) (h (box-h box))
+           (strong (or focused (member state '(:hover :pressed))))
+           (thick (if strong 2f0 1f0))
+           (color (if strong (theme-ring *theme*) (theme-field-border *theme*))))
+      (if (zerop (box-n3 box))
+          (push-rect list (+ x (/ (- w thick) 2)) y thick h color)
+          (push-rect list x (+ y (/ (- h thick) 2)) w thick color)))))
 
 (defun draw-menu-bar (box list x y)
   "The bar at the right edge of a menu that shows some of its rows, which says where they are among
@@ -626,7 +639,7 @@ kept, and otherwise afresh, which is then kept."
       (ecase (box-kind box)
         ((:label :paragraph :button :text-field :combo-box :text-area :slider :progress :choice :checkbox :switch :spinner
           :list-box :dropdown :menu-button :menu-item :tooltip
-          :toast)
+          :toast :splitter)
          (paint-cached ui box context list x y))
         (:canvas
          (let ((scale (context-scale context))
@@ -650,6 +663,11 @@ kept, and otherwise afresh, which is then kept."
          (push-rounded-rect list x y (box-w box) (box-h box) 6 (theme-panel *theme*))
          (paint-children ui box context list x y)
          (draw-menu-bar box list x y))
+        (:pane
+         ;; A pane of a split cuts what does not fit at its edges.
+         (push-clip list x y (box-w box) (box-h box))
+         (paint-contents ui box context list x y)
+         (push-unclip list))
         ((:scroll :lazy-list)
          (push-clip list x y (box-w box) (box-h box))
          (paint-children ui box context list x y)
@@ -672,7 +690,7 @@ kept, and otherwise afresh, which is then kept."
          (draw-pressable box list x y)
          (draw-border box list x y)
          (paint-contents ui box context list x y))
-        ((:column :row :padding :center :stack :context-area :grid :surface :drag-source)
+        ((:column :row :padding :center :stack :context-area :grid :surface :drag-source :split)
          (paint-contents ui box context list x y))))))
 
 (defun draw-pressable (box list x y)

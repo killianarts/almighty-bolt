@@ -124,7 +124,8 @@
     (:canvas :canvas)
     (:scrim :overlay)
     ((:scroll :lazy-list) :scroll-area)
-    ((:column :row :stack :padding :panel :center :context-area :surface) :group)
+    ((:column :row :stack :padding :panel :center :context-area :surface :pane :split) :group)
+    (:splitter :splitter)
     (:grid :grid)
     (:pressable (if (zerop (box-n3 box)) :button :toggle-button))
     (:drag-source :button)))
@@ -187,6 +188,8 @@ The whole frame is searched last, for a label in a float (a dialog's title) or e
     (:slider (let ((aux (box-aux box)))
                (and aux (aref aux 0))))
     (:progress (float (box-n1 box) 1d0))
+    ;; How wide (or tall) the pane before it is.
+    (:splitter (float (box-n1 box) 1d0))
     ((:checkbox :switch) (= (box-n3 box) 1))
     (:choice (let ((options (car (box-data box))))
                (nth (box-n3 box) options)))

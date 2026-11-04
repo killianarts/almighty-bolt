@@ -149,6 +149,7 @@ element (that a client still holds) answers."
     (:radio-button (foreign-constant "NSAccessibilityRadioButtonRole"))
     (:list (foreign-constant "NSAccessibilityListRole"))
     (:row (foreign-constant "NSAccessibilityRowRole"))
+    (:splitter (foreign-constant "NSAccessibilitySplitterRole"))
     (:group (foreign-constant "NSAccessibilityGroupRole"))))
 
 (defun object-for (thing)
@@ -370,6 +371,7 @@ thing that is not told yet."
     (:menu-item :menu-item)
     (:progress-bar :progress-bar)
     (:slider :slider)
+    (:splitter :splitter)
     (:radio-group :radio-group)
     (:list :list)
     ((:canvas :overlay :grid) :group)))
@@ -415,6 +417,9 @@ thing that is not told yet."
                          (item-value item) (or (getf node :value) "")))
       (:checkbox (setf (item-label item) name
                        (item-value item) (if (getf node :value) 1 0)))
+      ;; A divider says where it is: how wide the pane before it is.
+      (:splitter (setf (item-label item) name
+                       (item-value item) (getf node :value)))
       (:busy-indicator (setf (item-label item) name
                              (item-value item) nil))
       ;; A pop-up button says the option it shows; a row of a menu is called by its words.

@@ -3738,6 +3738,70 @@ released unless RELEASE."
     (draw screen)
     (assert-equal "a new b c 1" (text-in screen :state))))
 
+;;; --- two panes and a divider ---
+
+(defun make-split ()
+  (state-let ((presses 0))
+    (lambda ()
+      (column (:id :page :fill t :cross-align :stretch)
+        (let ((size (split (:id :sides :size 120 :min 60 :flex 1)
+                      (column (:id :left)
+                        (label "Left" :id :left-words)
+                        (row (:id :buttons :gap 8)
+                          (button "One" :id :one)
+                          (button "Two" :id :two)
+                          (when (button "Three" :id :three)
+                            (incf presses))))
+                      (label "Right" :id :right-words))))
+          (label (format nil "~d ~d" (round size) presses) :id :said))))))
+
+(define-test a-divider-dragged-or-moved-by-the-keys-sizes-the-panes-and-a-pane-cuts-what-overflows ()
+  (let ((screen (show 'make-split)))
+    (flet ((left-of (id) (nth-value 0 (core:lookup-target (screen-app screen) id)))
+           (width-of (id) (nth-value 2 (core:lookup-target (screen-app screen) id)))
+           (drag-divider (to)
+             (multiple-value-bind (x y w h) (core:lookup-target (screen-app screen) :divider)
+               (let ((x0 (+ x (/ w 2))) (y0 (+ y (/ h 2))))
+                 (pointer screen :move x0 y0)
+                 (pointer screen :down x0 y0 :button 0 :buttons 1)
+                 (pointer screen :move to y0 :buttons 1)
+                 (pointer screen :up to y0 :button 0)
+                 (draw screen)))))
+      (assert-equal "120 0" (text-in screen :said))
+      (assert-equal 120 (round (width-of :first)))
+      (assert-equal 126 (round (left-of :right-words)))
+      ;; Dragged by its middle: the first pane is as wide as where the middle was let go, less half
+      ;; the divider.
+      (drag-divider 203)
+      (assert-equal "200 0" (text-in screen :said))
+      (assert-equal 200 (round (width-of :first)))
+      (assert-equal 206 (round (left-of :right-words)))
+      ;; It leaves the second pane its least, and the first its own.
+      (drag-divider 500)
+      (assert-equal "294 0" (text-in screen :said))
+      (drag-divider 0)
+      (assert-equal "60 0" (text-in screen :said))
+      ;; The press gave it the keyboard: an arrow moves it.
+      (key screen core:+key-right+)
+      (assert-equal "76 0" (text-in screen :said))
+      ;; What does not fit in the first pane is cut at its edge: not shown, so not a target, and a
+      ;; press where it would be is not on it.
+      (assert-false (core:lookup-target (screen-app screen) :three))
+      (drag-divider 300)
+      (multiple-value-bind (x y w h) (core:lookup-target (screen-app screen) :three)
+        (let ((x (+ x (/ w 2))) (y (+ y (/ h 2))))
+          (flet ((press ()
+                   (pointer screen :move x y)
+                   (pointer screen :down x y :button 0 :buttons 1)
+                   (pointer screen :up x y :button 0)
+                   (draw screen)))
+            (press)
+            (assert-equal "294 1" (text-in screen :said))
+            (drag-divider 0)
+            (assert-true (> x 66))
+            (press)
+            (assert-equal "60 1" (text-in screen :said))))))))
+
 ;;; --- the app's own menus ---
 
 (defun make-with-menus ()

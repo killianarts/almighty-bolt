@@ -168,7 +168,9 @@ Containers take their options in a list and their children after it:
 (a container pressed as a button is, which returns true when clicked), `scroll` (a window onto what is inside
 it, moved by the wheel: `(bolt:scroll (:id :log :height 300) ...)`) and
 `lazy-list` (a scrolling list that describes only the rows that show:
-`(bolt:lazy-list (task tasks :id :tasks :key #'task-id) ...)`), and
+`(bolt:lazy-list (task tasks :id :tasks :key #'task-id) ...)`), `split` (two
+panes with a divider between them that is dragged: `(bolt:split (:id :sides
+:size 240) left right)`), and
 `context-menu` (a menu on a right-click anywhere in it, which returns the item
 chosen: `(bolt:context-menu (:id :menu :items '("Cut" "Copy")) ...)`), and
 `design-surface` (what is in it is drawn but does not work, and a press on it

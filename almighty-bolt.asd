@@ -97,6 +97,7 @@
                  (:file "widgets")
                  (:file "inspection")
                  (:file "drag")
+                 (:file "split")
                  (:file "design-surface")
                  (:file "catalogue")
                  (:file "views")

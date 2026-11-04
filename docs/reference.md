@@ -204,7 +204,7 @@ Containers take their options in a list and their children after it:
 (`:gap :main-align :cross-align :fill :flex`), `stack` (children on top of each
 other), `padding` (`:all :left :top :right :bottom`), `panel` (padding with a
 background: `:color :radius`, and an edge, `:border-color` and `:border-width`,
-1 if not given), `center`, `grid`, `pressable`, `scroll`, `lazy-list`,
+1 if not given), `center`, `grid`, `pressable`, `scroll`, `lazy-list`, `split`,
 `context-menu`, `popover`, `dialog` and `design-surface`.
 
 `pressable` (`:id :tooltip :enabled :selected :name :look :color :border-color
@@ -303,6 +303,30 @@ to be. A wheel tick costs the same with a million rows as with a hundred, about
 described. In the semantic tree it is a `:scroll-area` whose state also has
 `:row-count` and `:first-row`, and whose children are the rows that were
 described.
+
+`split` (`:id :direction :size :min :max :flex :width :height`) is two panes
+with a divider between them, the first form of its body in the first and the
+second in the second:
+
+```lisp
+(bolt:split (:id :sides :size 240 :min 120 :flex 1)
+  (bolt:column (:id :outline) ...)
+  (bolt:column (:id :canvas) ...))
+```
+
+The panes are side by side, or one over the other with `:direction :vertical`.
+The first is `:size` points wide (240 if not given) until the divider is
+dragged, or moved by the arrow keys once Tab or a press has given it the
+keyboard; the width is kept by the split's id, and returned. It is no less than
+`:min` (80), no more than `:max`, and leaves the second pane `:min` too; the
+second has the rest. Each pane, `:first` and `:second` by id, is a column whose
+children are as wide as it is, and what does not fit in it is cut at its edge
+and cannot be pressed there. A split takes all the room its parent gives it
+along its panes, so it needs a parent that bounds it (a window's column, a
+`:width`) or a `:width` and `:height` of its own. The divider is a `:splitter`
+in the semantic tree, whose value is the first pane's width, and a splitter to
+VoiceOver. In a view, the first widget in a split is in the first pane and the
+others are in the second.
 
 `design-surface` (`:id :selected :flex`) is for a designer, which draws the view being designed in
 it: what is in it is drawn as it looks, one under another, and none of it works. The pointer, a press
@@ -514,7 +538,7 @@ put the view's file before that code in the system.
 The kinds are those of the catalogue, every widget and container of the library (a label, a
 paragraph, a button, a text field, a text area, a combo box, a slider, a choice, a check box, a
 switch, a dropdown, a list box, a progress bar, a spinner; a column, a row, a grid, a stack, a
-padding, a panel, a center, a scroll, a pressable) but the spacer, which needs a row or column whose
+padding, a panel, a center, a scroll, a pressable, a split) but the spacer, which needs a row or column whose
 size is bounded, and whatever an app adds. `(:view :card (:name my-app::card))` is another view
 drawn inside this one, by its name, with the node's id for its outermost widget: changed when that
 view is defined again, and said in its place (not drawn for ever) if it is inside itself. It is not
@@ -525,7 +549,8 @@ the outer one's `:contents`. `(bolt:define-widget-entry :kind (:title :options :
 it besides (`:on-press`); VALUE names the option that a place wired as `:value` shows; a CONTAINER
 holds what the view puts in it. BODY draws one each frame, with each option a variable of its name,
 each wire a variable holding the function wired there or `nil`, `id`, `set-value` (the setter of
-the wired place, or `nil`) and, in a container, `(contents)`:
+the wired place, or `nil`) and, in a container, `(contents)` (or, for a container of two parts,
+`(contents :first)` and `(contents :rest)`, the first thing in it and the others):
 
 ```lisp
 (bolt:define-widget-entry :stars (:title "Stars" :options ((:count :number 3)) :value :count)
