@@ -35,6 +35,7 @@
                 #:set-view
                 #:view-names)
   (:export #:make-designer
+           #:designer-parts
            #:open-designer
            #:write-view
            #:read-view
@@ -336,7 +337,12 @@ widget's id."
                   (t (add-node view new :after selected)))
             (node-id new))))
 
-(defun make-designer ()
+(defun designer-parts ()
+  "The GUI designer's parts, each a function that draws one, all of one design and its history:
+(values toolbar left canvas right keys). LEFT is the widgets to add and the outline, CANVAS the view
+drawn, RIGHT the selected widget's options and the wiring, KEYS the shortcuts (Command-Z and
+Command-Shift-Z), described after the part that has the keyboard so that a text field undoes its
+own typing first. MAKE-DESIGNER puts them in a window; the studio puts them in panes."
   (bolt:state-let ((view (form-node +sample+))
                    ;; What the view is called, which an app draws it by (the file's name, once
                    ;; saved), and the package that name is in (the app's), as written.
@@ -354,139 +360,156 @@ widget's id."
                    ;; What the last change was, if it was an option's: another change of the same
                    ;; option (typing a word) is one step with it.
                    (last-edit nil))
-    (lambda ()
-      (labels ((select (id)
-                 (unless (eq id selected)
-                   (clrhash drafts)
-                   (setf selected id
-                         ;; Coming back to an option later is another step.
-                         last-edit nil)))
-               (change (new &optional edit)
-                 "Make NEW the view, as a step that Undo takes back."
-                 (unless (eq new view)
-                   (unless (and edit (equal edit last-edit))
-                     (push view undo))
-                   (setf redo '()
-                         view new
-                         last-edit edit)))
-               (go-to (new)
-                 "Show NEW, a view from the history, keeping the selection if it has the widget."
-                 (setf view new
-                       last-edit nil)
+    (labels ((select (id)
+               (unless (eq id selected)
                  (clrhash drafts)
-                 (unless (and selected (find-by-id view selected))
-                   (select nil)))
-               (step-back ()
-                 (when undo
-                   (push view redo)
-                   (go-to (pop undo))))
-               (step-forward ()
-                 (when redo
-                   (push view undo)
-                   (go-to (pop redo)))))
-        (bolt:column (:id :designer :fill t :cross-align :stretch)
-         (let ((menu (bolt:app-menu "File" '(("New" :key #\n) ("Open…" :key #\o) :separator
-                                             ("Save…" :key #\s)))))
-          (bolt:panel (:id :toolbar :all 10 :radius 0)
-            (bolt:row (:gap 8 :cross-align :center)
-              (when (or (bolt:button "New" :id :new) (equal menu "New"))
-                (change (form-node +empty+))
-                (setf status "" name "view")
-                (select nil))
-              (when (or (bolt:button "Open…" :id :open) (equal menu "Open…"))
-                (setf opening t))
-              (when (or (bolt:button "Save…" :id :save) (equal menu "Save…"))
-                (setf saving t))
-              (when (bolt:button "Remove" :id :remove
-                                          :enabled (and selected (not (eq selected (node-id view)))
-                                                        t))
-                (change (remove-node view selected))
-                (select nil))
-              (when (bolt:button "Undo" :id :undo :enabled (and undo t))
-                (step-back))
-              (when (bolt:button "Redo" :id :redo :enabled (and redo t))
-                (step-forward))
-              (bolt:label "Package" :id :package-label)
-              (multiple-value-bind (text edited)
-                  (bolt:text-field package :id :package :width 180 :labelled-by :package-label
-                                           :invalid (not (find-package (string-upcase package))))
-                (when edited (setf package text)))
-              (bolt:label status :id :status))))
-          (let ((path (bolt:save-file-dialog :id :save-panel :show saving :types '("lisp")
-                                             :name (format nil "~(~a~).lisp" name))))
-            (setf saving nil)
-            (when path
-              ;; The view is called what the file is, in the package given.
-              (let ((home (find-package (string-upcase package))))
-                (if (null home)
-                    (setf status (format nil "Not saved: this Lisp has no package called ~a." package))
-                    (let ((symbol (intern (string-upcase (pathname-name path)) home)))
-                      (setf name (string-downcase (pathname-name path)))
-                      (with-open-file (out path :direction :output :if-exists :supersede)
-                        (write-view symbol view out))
-                      ;; Defined here too, so that a window that draws it shows it now; what the
-                      ;; code that wires it no longer fits is said.
-                      (let ((problems (handler-bind ((warning #'muffle-warning))
-                                        (set-view symbol (node-form view)))))
-                        (setf status (format nil "Saved to ~a~:[.~;; ~:*~{~a~^ ~}~]"
-                                             path problems))))))))
-          (let ((path (bolt:open-file-dialog :id :open-panel :show opening :types '("lisp"))))
-            (setf opening nil)
-            (when path
-              (handler-case
-                  (with-open-file (in path)
-                    (multiple-value-bind (opened new) (read-view in)
-                      (change new)
-                      (setf name (string-downcase (symbol-name opened))
-                            package (string-downcase (package-name (symbol-package opened)))
-                            status (format nil "Opened ~a." path)))
-                    (select nil))
-                (error (condition)
-                  (setf status (format nil "Could not open ~a: ~a" path condition))))))
-          (bolt:row (:id :panes :flex 1 :cross-align :stretch)
-            (bolt:panel (:id :left :all 14 :radius 0)
-              (bolt:column (:gap 20)
-                (let ((kind (palette)))
-                  (when kind
-                    (multiple-value-bind (new id) (added view selected kind)
-                      (change new)
-                      (select id))))
-                (let ((chosen (outline view selected)))
-                  (when chosen
-                    (select chosen)))))
-            (bolt:panel (:id :canvas-back :color :background :radius 0 :flex 1 :all 32)
-              (multiple-value-bind (pressed drop)
-                  (bolt:design-surface (:id :canvas :selected selected)
-                    (draw-form (node-form view)))
-                (when pressed
-                  (select pressed))
-                ;; A widget from the left, or one of the view's own, let go of where it goes.
-                (when drop
-                  (destructuring-bind (payload into at) drop
-                    (if (and (consp payload) (eq (first payload) :move))
-                        (change (move-node view (second payload) into at))
-                        (let ((new (new-node view payload)))
-                          (change (add-node view new :into into :at at))
-                          (select (node-id new))))))))
-            (let ((new view) (now selected) (edit nil))
-              (bolt:panel (:id :right :radius 0)
-               (bolt:column (:gap 0)
-                (multiple-value-setq (new now edit) (selection view selected drafts))
-                (bolt:padding (:id :wiring-pane :all 14)
-                  (bolt:column (:gap 8)
-                    (bolt:label "Wiring" :id :wiring-heading :size 17)
-                    (bolt:paragraph "The start of the code that draws this view, to copy."
-                                    :id :wiring-note :color :dim-text)
-                    (bolt:text-area (wiring-text name view) :id :wiring :width 300 :rows 8
-                                                            :labelled-by :wiring-heading)))))
-              (change new edit)
-              (unless (eq now selected)
-                (select now))))
-          ;; After everything, so that a text field with the keyboard undoes its own typing first.
+                 (setf selected id
+                       ;; Coming back to an option later is another step.
+                       last-edit nil)))
+             (change (new &optional edit)
+               "Make NEW the view, as a step that Undo takes back."
+               (unless (eq new view)
+                 (unless (and edit (equal edit last-edit))
+                   (push view undo))
+                 (setf redo '()
+                       view new
+                       last-edit edit)))
+             (go-to (new)
+               "Show NEW, a view from the history, keeping the selection if it has the widget."
+               (setf view new
+                     last-edit nil)
+               (clrhash drafts)
+               (unless (and selected (find-by-id view selected))
+                 (select nil)))
+             (step-back ()
+               (when undo
+                 (push view redo)
+                 (go-to (pop undo))))
+             (step-forward ()
+               (when redo
+                 (push view undo)
+                 (go-to (pop redo)))))
+      (values
+        (lambda ()
+          (bolt:column (:id :toolbar-part :cross-align :stretch)
+            (let ((menu (bolt:app-menu "File" '(("New" :key #\n) ("Open…" :key #\o) :separator
+                                                ("Save…" :key #\s)))))
+             (bolt:panel (:id :toolbar :all 10 :radius 0)
+               (bolt:row (:gap 8 :cross-align :center)
+                 (when (or (bolt:button "New" :id :new) (equal menu "New"))
+                   (change (form-node +empty+))
+                   (setf status "" name "view")
+                   (select nil))
+                 (when (or (bolt:button "Open…" :id :open) (equal menu "Open…"))
+                   (setf opening t))
+                 (when (or (bolt:button "Save…" :id :save) (equal menu "Save…"))
+                   (setf saving t))
+                 (when (bolt:button "Remove" :id :remove
+                                             :enabled (and selected (not (eq selected (node-id view)))
+                                                           t))
+                   (change (remove-node view selected))
+                   (select nil))
+                 (when (bolt:button "Undo" :id :undo :enabled (and undo t))
+                   (step-back))
+                 (when (bolt:button "Redo" :id :redo :enabled (and redo t))
+                   (step-forward))
+                 (bolt:label "Package" :id :package-label)
+                 (multiple-value-bind (text edited)
+                     (bolt:text-field package :id :package :width 180 :labelled-by :package-label
+                                              :invalid (not (find-package (string-upcase package))))
+                   (when edited (setf package text)))
+                 (bolt:label status :id :status))))
+            ;; The dialogs, which float.
+            (let ((path (bolt:save-file-dialog :id :save-panel :show saving :types '("lisp")
+                                               :name (format nil "~(~a~).lisp" name))))
+              (setf saving nil)
+              (when path
+                ;; The view is called what the file is, in the package given.
+                (let ((home (find-package (string-upcase package))))
+                  (if (null home)
+                      (setf status (format nil "Not saved: this Lisp has no package called ~a." package))
+                      (let ((symbol (intern (string-upcase (pathname-name path)) home)))
+                        (setf name (string-downcase (pathname-name path)))
+                        (with-open-file (out path :direction :output :if-exists :supersede)
+                          (write-view symbol view out))
+                        ;; Defined here too, so that a window that draws it shows it now; what the
+                        ;; code that wires it no longer fits is said.
+                        (let ((problems (handler-bind ((warning #'muffle-warning))
+                                          (set-view symbol (node-form view)))))
+                          (setf status (format nil "Saved to ~a~:[.~;; ~:*~{~a~^ ~}~]"
+                                               path problems))))))))
+            (let ((path (bolt:open-file-dialog :id :open-panel :show opening :types '("lisp"))))
+              (setf opening nil)
+              (when path
+                (handler-case
+                    (with-open-file (in path)
+                      (multiple-value-bind (opened new) (read-view in)
+                        (change new)
+                        (setf name (string-downcase (symbol-name opened))
+                              package (string-downcase (package-name (symbol-package opened)))
+                              status (format nil "Opened ~a." path)))
+                      (select nil))
+                  (error (condition)
+                    (setf status (format nil "Could not open ~a: ~a" path condition))))))))
+        (lambda ()
+          (bolt:panel (:id :left :all 14 :radius 0)
+            (bolt:column (:gap 20)
+              (let ((kind (palette)))
+                (when kind
+                  (multiple-value-bind (new id) (added view selected kind)
+                    (change new)
+                    (select id))))
+              (let ((chosen (outline view selected)))
+                (when chosen
+                  (select chosen))))))
+        (lambda ()
+          (bolt:panel (:id :canvas-back :color :background :radius 0 :flex 1 :all 32)
+            (multiple-value-bind (pressed drop)
+                (bolt:design-surface (:id :canvas :selected selected)
+                  (draw-form (node-form view)))
+              (when pressed
+                (select pressed))
+              ;; A widget from the left, or one of the view's own, let go of where it goes.
+              (when drop
+                (destructuring-bind (payload into at) drop
+                  (if (and (consp payload) (eq (first payload) :move))
+                      (change (move-node view (second payload) into at))
+                      (let ((new (new-node view payload)))
+                        (change (add-node view new :into into :at at))
+                        (select (node-id new)))))))))
+        (lambda ()
+          (let ((new view) (now selected) (edit nil))
+            (bolt:panel (:id :right :radius 0)
+             (bolt:column (:gap 0)
+              (multiple-value-setq (new now edit) (selection view selected drafts))
+              (bolt:padding (:id :wiring-pane :all 14)
+                (bolt:column (:gap 8)
+                  (bolt:label "Wiring" :id :wiring-heading :size 17)
+                  (bolt:paragraph "The start of the code that draws this view, to copy."
+                                  :id :wiring-note :color :dim-text)
+                  (bolt:text-area (wiring-text name view) :id :wiring :width 300 :rows 8
+                                                          :labelled-by :wiring-heading)))))
+            (change new edit)
+            (unless (eq now selected)
+              (select now))))
+        (lambda ()
           (when (bolt:shortcut #\z :command)
             (step-back))
           (when (bolt:shortcut #\z :command :shift)
             (step-forward)))))))
+
+(defun make-designer ()
+  "The GUI designer in a window of its own: its toolbar over its parts side by side."
+  (multiple-value-bind (toolbar left canvas right keys) (designer-parts)
+    (lambda ()
+      (bolt:column (:id :designer :fill t :cross-align :stretch)
+        (funcall toolbar)
+        (bolt:row (:id :panes :flex 1 :cross-align :stretch)
+          (funcall left)
+          (funcall canvas)
+          (funcall right))
+        ;; After everything, so that a text field with the keyboard undoes its own typing first.
+        (funcall keys)))))
 
 (defun open-designer ()
   "Open the GUI designer in a window, from the REPL."

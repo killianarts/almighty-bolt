@@ -139,10 +139,9 @@ planned.
 What stands between the library today and the studio, as found while building
 the GUI designer, and where on this roadmap each is closed.
 
-- **The designers are panes whole.** The studio's dock has a pane for each
-  designer, side by side or behind tabs, but not for their parts (the outline,
-  the canvas, the options, the seeds, the preview), and the inspector is a
-  window of its own. A pane is moved only by the pointer.
+- **The inspector is a window.** The studio's dock has the designers' parts as
+  panes, but the inspector is a window of its own, beside the app it inspects.
+  A pane is moved only by the pointer.
 - **The app is not in a pane.** Drawing the app inside the studio needs its
   display list scaled and placed, the pointer hit-tested through the zoom, and
   keys sent on to it.
@@ -161,8 +160,8 @@ the GUI designer, and where on this roadmap each is closed.
 
 ### Stages
 
-1. **One window.** The designers' parts as panes of one dock, and the
-   inspector as one. The app drawn in a pane, hit-tested through the zoom.
+1. **One window.** The inspector as a pane. The app drawn in a pane,
+   hit-tested through the zoom.
 2. **Code and time.** A code editor, or the bridge to Emacs. The timeline,
    replay and state panes over the frame ring. The semantic and accessibility
    panes. Tests made from recordings.

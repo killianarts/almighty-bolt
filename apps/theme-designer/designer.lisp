@@ -2,6 +2,7 @@
   (:use #:cl)
   (:local-nicknames (#:bolt #:almighty-bolt))
   (:export #:make-designer
+           #:designer-parts
            #:open-designer
            #:theme-source))
 
@@ -246,7 +247,12 @@ package: a setting to a line."
             (setf (aref state 8) (bolt:text-area (aref state 8) :id :sample-area :width 300
                                                                  :rows 3))))))))
 
-(defun make-designer ()
+(defun designer-parts ()
+  "The theme designer's parts, each a function that draws one, all of one theme and its history:
+(values settings preview keys). SETTINGS is everything that makes the theme, PREVIEW the widgets
+drawn in it, KEYS the shortcuts (Command-Z and Command-Shift-Z), described after the part that has
+the keyboard so that a text field undoes its own typing first. MAKE-DESIGNER puts them in a window;
+the studio puts them in panes."
   (bolt:state-let ((name "my-theme")
                    (base 0)
                    (editors (editors-of :dark))
@@ -272,155 +278,169 @@ package: a setting to a line."
     ;; The theme, worked out from the design when it changes (and so not state: it is made again
     ;; with the code).
     (let ((theme nil))
-      (lambda ()
-        (unless theme
-          (setf theme (design-theme name (nth base +bases+) editors changed font-name font-size
-                                    radius spacing overrides)))
-        (unless now
-          (setf now (design-copy name base editors changed font-name font-size radius spacing
-                                 overrides)))
-        (let ((dirty nil))
-         (labels ((go-to (design)
-                    ;; Show DESIGN, a copy from the history, keeping it as it is.
-                    (destructuring-bind (n b e c fn fs r sp o) design
-                      (setf name n base b editors (mapcar #'copy-seed-editor e) changed (copy-list c)
-                            font-name fn font-size fs radius r spacing sp overrides (copy-list o)
-                            override-hex "" now design last-edit nil))
-                    ;; Worked out now: the rest of this frame draws with it.
-                    (setf theme (design-theme name (nth base +bases+) editors changed font-name
-                                              font-size radius spacing overrides))
-                    (bolt:ask-for-frame))
-                  (step-back ()
-                    (when undo
-                      (push now redo)
-                      (go-to (pop undo))))
-                  (step-forward ()
-                    (when redo
-                      (push now undo)
-                      (go-to (pop redo)))))
-          (bolt:row (:id :designer :fill t :cross-align :stretch)
-            (bolt:scroll (:id :settings)
-              (bolt:padding (:all 18)
-                (bolt:column (:gap 16)
-                  (bolt:row (:gap 8 :cross-align :center)
-                    (bolt:label "Theme designer" :id :heading :size 24)
-                    (when (bolt:button "Undo" :id :undo :enabled (and undo t))
-                      (step-back))
-                    (when (bolt:button "Redo" :id :redo :enabled (and redo t))
-                      (step-forward)))
-                  (section ("Theme" :theme)
+      (labels ((ensure ()
+                 (unless theme
+                   (setf theme (design-theme name (nth base +bases+) editors changed font-name font-size
+                                             radius spacing overrides)))
+                 (unless now
+                   (setf now (design-copy name base editors changed font-name font-size radius spacing
+                                          overrides))))
+               (go-to (design)
+                 ;; Show DESIGN, a copy from the history, keeping it as it is.
+                 (destructuring-bind (n b e c fn fs r sp o) design
+                   (setf name n base b editors (mapcar #'copy-seed-editor e) changed (copy-list c)
+                         font-name fn font-size fs radius r spacing sp overrides (copy-list o)
+                         override-hex "" now design last-edit nil))
+                 ;; Worked out now: the rest of this frame draws with it.
+                 (setf theme (design-theme name (nth base +bases+) editors changed font-name
+                                           font-size radius spacing overrides))
+                 (bolt:ask-for-frame))
+               (step-back ()
+                 (when undo
+                   (push now redo)
+                   (go-to (pop undo))))
+               (step-forward ()
+                 (when redo
+                   (push now undo)
+                   (go-to (pop redo)))))
+        (values
+          (lambda ()
+            (ensure)
+            (let ((dirty nil))
+              (bolt:scroll (:id :settings)
+                (bolt:padding (:all 18)
+                  (bolt:column (:gap 16)
                     (bolt:row (:gap 8 :cross-align :center)
-                      (bolt:label "Name" :id :name-label)
-                      (multiple-value-bind (text edited) (bolt:text-field name :id :name :width 200)
-                        (when edited (setf name text dirty :name))))
-                    (bolt:row (:gap 8 :cross-align :center)
-                      (bolt:label "Start from" :id :base-label)
-                      (multiple-value-bind (index moved) (bolt:choice '("Dark" "Light") base :id :base)
-                        (when moved
-                          (let ((theme (bolt:find-theme (nth index +bases+))))
-                            (setf base index
-                                  editors (editors-of (nth index +bases+))
-                                  changed '()
-                                  overrides '()
-                                  override-hex ""
-                                  font-name (bolt:theme-setting theme :font-name)
-                                  font-size (bolt:theme-setting theme :font-size)
-                                  radius (bolt:theme-setting theme :radius)
-                                  spacing (spacing-percent theme)
-                                  dirty :base))))))
-                  (section ("Colours" :colours)
-                    (dolist (editor editors)
-                      (when (seed-section editor)
-                        (pushnew (seed-editor-seed editor) changed)
-                        (setf dirty (seed-editor-seed editor)))))
-                  (section ("Font, corners and spacing" :font)
-                    (bolt:row (:gap 8 :cross-align :center)
-                      (bolt:label "Font" :id :font-label)
-                      (multiple-value-bind (text edited) (bolt:text-field font-name :id :font-name)
-                        (when edited (setf font-name text dirty :font-name))))
-                    (bolt:row (:gap 8 :cross-align :center)
-                      (bolt:label (format nil "Size ~d" font-size) :id :size-label)
-                      (multiple-value-bind (value moved) (bolt:slider font-size 10 24 :id :font-size)
-                        (when moved (setf font-size (round value) dirty :font-size))))
-                    (bolt:row (:gap 8 :cross-align :center)
-                      (bolt:label (format nil "Corners ~d" radius) :id :radius-label)
-                      (multiple-value-bind (value moved) (bolt:slider radius 0 14 :id :radius)
-                        (when moved (setf radius (round value) dirty :radius))))
-                    ;; How much room there is in and round the controls, in steps of 5%.
-                    (bolt:row (:gap 8 :cross-align :center)
-                      (bolt:label (format nil "Spacing ~d%" spacing) :id :spacing-label)
-                      (multiple-value-bind (value moved) (bolt:slider spacing 50 200 :id :spacing)
-                        (when moved (setf spacing (* 5 (round value 5)) dirty :spacing)))))
-                  (section ("Other colours" :others)
-                    (bolt:paragraph "Each is worked out from the colours above. Give one to use it instead."
-                                    :id :others-note)
-                    (let ((setting (nth picked +derived-settings+)))
+                      (bolt:label "Theme designer" :id :heading :size 24)
+                      (when (bolt:button "Undo" :id :undo :enabled (and undo t))
+                        (step-back))
+                      (when (bolt:button "Redo" :id :redo :enabled (and redo t))
+                        (step-forward)))
+                    (section ("Theme" :theme)
                       (bolt:row (:gap 8 :cross-align :center)
-                        (multiple-value-bind (index moved)
-                            (bolt:dropdown (mapcar (lambda (s) (string-downcase (string s)))
-                                                   +derived-settings+)
-                                           picked :id :override-which :width 170)
+                        (bolt:label "Name" :id :name-label)
+                        (multiple-value-bind (text edited) (bolt:text-field name :id :name :width 200)
+                          (when edited (setf name text dirty :name))))
+                      (bolt:row (:gap 8 :cross-align :center)
+                        (bolt:label "Start from" :id :base-label)
+                        (multiple-value-bind (index moved) (bolt:choice '("Dark" "Light") base :id :base)
                           (when moved
-                            (setf picked index
-                                  setting (nth index +derived-settings+)
-                                  override-hex (bolt:color-hex (bolt:theme-setting theme setting)))))
-                        (swatch (bolt:theme-setting theme setting) :override-swatch))
-                      ;; Showing the colour the theme has, unless one is half typed.
-                      (when (or (string= override-hex "")
-                                (and (not (getf overrides setting))
-                                     (ignore-errors (bolt:parse-color override-hex))))
-                        (setf override-hex (bolt:color-hex (bolt:theme-setting theme setting))))
+                            (let ((theme (bolt:find-theme (nth index +bases+))))
+                              (setf base index
+                                    editors (editors-of (nth index +bases+))
+                                    changed '()
+                                    overrides '()
+                                    override-hex ""
+                                    font-name (bolt:theme-setting theme :font-name)
+                                    font-size (bolt:theme-setting theme :font-size)
+                                    radius (bolt:theme-setting theme :radius)
+                                    spacing (spacing-percent theme)
+                                    dirty :base))))))
+                    (section ("Colours" :colours)
+                      (dolist (editor editors)
+                        (when (seed-section editor)
+                          (pushnew (seed-editor-seed editor) changed)
+                          (setf dirty (seed-editor-seed editor)))))
+                    (section ("Font, corners and spacing" :font)
                       (bolt:row (:gap 8 :cross-align :center)
-                        (multiple-value-bind (text edited)
-                            (bolt:text-field override-hex :id :override-hex :width 110
-                                                          :invalid (not (ignore-errors
-                                                                         (bolt:parse-color override-hex))))
-                          (when edited
-                            (setf override-hex text)
-                            (let ((color (ignore-errors (bolt:parse-color text))))
-                              (when color
-                                (setf (getf overrides setting) color dirty (list :override setting))))))
-                        (when (bolt:button "Use the worked-out one" :id :override-clear
-                                           :enabled (and (getf overrides setting) t))
-                          (remf overrides setting)
-                          (setf dirty (list :override-clear setting)
-                                override-hex "")))))
-                  (readability-section theme)
-                  (section ("Definition" :definition)
-                    (bolt:text-area (theme-source theme) :id :source :width 380 :rows 12)
-                    (bolt:row (:gap 8 :cross-align :center)
-                      (when (bolt:button "Save…" :id :save)
-                        (setf saving t))
-                      (bolt:label saved :id :saved))
-                    (let ((path (bolt:save-file-dialog :id :save-panel :show saving :types '("lisp")
-                                                       :name (format nil "~(~a~).lisp"
-                                                                     (bolt:theme-name theme)))))
-                      (setf saving nil)
-                      (when path
-                        (with-open-file (out path :direction :output :if-exists :supersede)
-                          (format out ";;; A theme made with the theme designer of almighty-bolt.~%~a~%"
-                                  (theme-source theme)))
-                        (setf saved (format nil "Saved to ~a." path))))))))
-            ;; The preview on the theme's background, all down the right.
+                        (bolt:label "Font" :id :font-label)
+                        (multiple-value-bind (text edited) (bolt:text-field font-name :id :font-name)
+                          (when edited (setf font-name text dirty :font-name))))
+                      (bolt:row (:gap 8 :cross-align :center)
+                        (bolt:label (format nil "Size ~d" font-size) :id :size-label)
+                        (multiple-value-bind (value moved) (bolt:slider font-size 10 24 :id :font-size)
+                          (when moved (setf font-size (round value) dirty :font-size))))
+                      (bolt:row (:gap 8 :cross-align :center)
+                        (bolt:label (format nil "Corners ~d" radius) :id :radius-label)
+                        (multiple-value-bind (value moved) (bolt:slider radius 0 14 :id :radius)
+                          (when moved (setf radius (round value) dirty :radius))))
+                      ;; How much room there is in and round the controls, in steps of 5%.
+                      (bolt:row (:gap 8 :cross-align :center)
+                        (bolt:label (format nil "Spacing ~d%" spacing) :id :spacing-label)
+                        (multiple-value-bind (value moved) (bolt:slider spacing 50 200 :id :spacing)
+                          (when moved (setf spacing (* 5 (round value 5)) dirty :spacing)))))
+                    (section ("Other colours" :others)
+                      (bolt:paragraph "Each is worked out from the colours above. Give one to use it instead."
+                                      :id :others-note)
+                      (let ((setting (nth picked +derived-settings+)))
+                        (bolt:row (:gap 8 :cross-align :center)
+                          (multiple-value-bind (index moved)
+                              (bolt:dropdown (mapcar (lambda (s) (string-downcase (string s)))
+                                                     +derived-settings+)
+                                             picked :id :override-which :width 170)
+                            (when moved
+                              (setf picked index
+                                    setting (nth index +derived-settings+)
+                                    override-hex (bolt:color-hex (bolt:theme-setting theme setting)))))
+                          (swatch (bolt:theme-setting theme setting) :override-swatch))
+                        ;; Showing the colour the theme has, unless one is half typed.
+                        (when (or (string= override-hex "")
+                                  (and (not (getf overrides setting))
+                                       (ignore-errors (bolt:parse-color override-hex))))
+                          (setf override-hex (bolt:color-hex (bolt:theme-setting theme setting))))
+                        (bolt:row (:gap 8 :cross-align :center)
+                          (multiple-value-bind (text edited)
+                              (bolt:text-field override-hex :id :override-hex :width 110
+                                                            :invalid (not (ignore-errors
+                                                                           (bolt:parse-color override-hex))))
+                            (when edited
+                              (setf override-hex text)
+                              (let ((color (ignore-errors (bolt:parse-color text))))
+                                (when color
+                                  (setf (getf overrides setting) color dirty (list :override setting))))))
+                          (when (bolt:button "Use the worked-out one" :id :override-clear
+                                             :enabled (and (getf overrides setting) t))
+                            (remf overrides setting)
+                            (setf dirty (list :override-clear setting)
+                                  override-hex "")))))
+                    (readability-section theme)
+                    (section ("Definition" :definition)
+                      (bolt:text-area (theme-source theme) :id :source :width 380 :rows 12)
+                      (bolt:row (:gap 8 :cross-align :center)
+                        (when (bolt:button "Save…" :id :save)
+                          (setf saving t))
+                        (bolt:label saved :id :saved))
+                      (let ((path (bolt:save-file-dialog :id :save-panel :show saving :types '("lisp")
+                                                         :name (format nil "~(~a~).lisp"
+                                                                       (bolt:theme-name theme)))))
+                        (setf saving nil)
+                        (when path
+                          (with-open-file (out path :direction :output :if-exists :supersede)
+                            (format out ";;; A theme made with the theme designer of almighty-bolt.~%~a~%"
+                                    (theme-source theme)))
+                          (setf saved (format nil "Saved to ~a." path))))))))
+              (when dirty
+                ;; A step that Undo takes back, unless it goes on changing what the last one did.
+                (unless (equal dirty last-edit)
+                  (push now undo))
+                (setf redo '()
+                      last-edit dirty
+                      now (design-copy name base editors changed font-name font-size radius spacing
+                                       overrides)
+                      theme nil)
+                (bolt:ask-for-frame))))
+          (lambda ()
+            (ensure)
             (bolt:panel (:id :preview-back :color (bolt:theme-setting theme :background) :radius 0
                          :flex 1)
               (bolt:scroll (:id :preview-page)
                 (preview theme samples))))
-          (when dirty
-            ;; A step that Undo takes back, unless it goes on changing what the last one did.
-            (unless (equal dirty last-edit)
-              (push now undo))
-            (setf redo '()
-                  last-edit dirty
-                  now (design-copy name base editors changed font-name font-size radius spacing
-                                   overrides)
-                  theme nil)
-            (bolt:ask-for-frame))
-          ;; After everything, so that a text field with the keyboard undoes its own typing first.
-          (when (bolt:shortcut #\z :command)
-            (step-back))
-          (when (bolt:shortcut #\z :command :shift)
-            (step-forward))))))))
+          (lambda ()
+            (when (bolt:shortcut #\z :command)
+              (step-back))
+            (when (bolt:shortcut #\z :command :shift)
+              (step-forward))))))))
+
+(defun make-designer ()
+  "The theme designer in a window of its own: its settings beside its preview."
+  (multiple-value-bind (settings preview keys) (designer-parts)
+    (lambda ()
+      (bolt:row (:id :designer :fill t :cross-align :stretch)
+        (funcall settings)
+        ;; The preview on the theme's background, all down the right.
+        (funcall preview)
+        ;; After everything, so that a text field with the keyboard undoes its own typing first.
+        (funcall keys)))))
 
 (defun open-designer ()
   "Open the theme designer in a window, from the REPL."

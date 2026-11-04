@@ -8,31 +8,49 @@
 
 (in-package #:almighty-bolt-studio)
 
-;;; The studio of the roadmap, begun: the GUI designer and the theme designer in one window, as panes
-;;; of a dock, tabs of one group to begin with, which the person can put side by side. Each is the
-;;; app it is in a window of its own, made once and drawn in its pane; what each holds (the view,
-;;; the theme being made, their undo) is kept while the other is shown, when a pane is moved, and
-;;; when the code is compiled again. Each takes Command-Z, and the dock gives it to the pane last
-;;; pressed in or that has the keyboard.
+;;; The studio of the roadmap, begun: the parts of the GUI designer and of the theme designer in one
+;;; window, as panes of a dock, which the person arranges. Each designer is made once, its parts
+;;; sharing what it holds (the view, the theme being made, the undo of each), which is kept while a
+;;; part is hidden, when a pane is moved, and when the code is compiled again. Each designer takes
+;;; Command-Z, in each of its panes; the dock gives a shortcut to the pane last pressed in or that
+;;; has the keyboard, so it undoes in the designer last used.
+
+(defparameter +layout+
+  '(:split :horizontal 300 (:tabs :widgets-pane :widgets-pane)
+    (:split :horizontal 620 (:tabs :canvas-pane :canvas-pane :preview-pane)
+     (:tabs :options-pane :options-pane :theme-pane)))
+  "How the panes are first arranged: the widgets on the left, the canvas (and the theme's preview)
+in the middle, the selected widget's options (and the theme's settings) on the right.")
 
 (defun make-studio ()
-  (let ((views (gui-designer:make-designer))
-        (theme (theme-designer:make-designer)))
-    (bolt:state-let ((layout nil))
-      (lambda ()
-        (bolt:column (:id :studio :fill t :cross-align :stretch)
-          ;; Each in a container of its own id, so that the GUI designer's :heading and the theme
-          ;; designer's are two things; a stack, which gives what is in it the room it has (a
-          ;; column would give a child with no flex as much height as it likes, and the
-          ;; designer's own flex would then have nothing to share).
-          (setf layout
-                (bolt:dock (:id :panes :layout layout :flex 1)
-                  (:views-pane "Views"
-                   (bolt:stack (:id :views-page :flex 1)
-                     (funcall views)))
-                  (:theme-pane "Theme"
-                   (bolt:stack (:id :theme-page :flex 1)
-                     (funcall theme))))))))))
+  (multiple-value-bind (toolbar widgets canvas options view-keys) (gui-designer:designer-parts)
+    (multiple-value-bind (settings preview theme-keys) (theme-designer:designer-parts)
+      (bolt:state-let ((layout +layout+))
+        (lambda ()
+          (bolt:column (:id :studio :fill t :cross-align :stretch)
+            (funcall toolbar)
+            ;; Each part in a container of its own, so that ids of the two designers do not meet;
+            ;; a stack, which gives what is in it the room it has (a column would give a child with
+            ;; no flex as much height as it likes, and a part's own flex would then have nothing
+            ;; to share). A designer's keys come after its part, so that a text field with the
+            ;; keyboard undoes its own typing first.
+            (setf layout
+                  (bolt:dock (:id :panes :layout layout :flex 1)
+                    (:widgets-pane "Widgets"
+                     (bolt:stack (:id :widgets-part :flex 1) (funcall widgets))
+                     (funcall view-keys))
+                    (:canvas-pane "Canvas"
+                     (bolt:stack (:id :canvas-part :flex 1) (funcall canvas))
+                     (funcall view-keys))
+                    (:options-pane "Options"
+                     (bolt:stack (:id :options-part :flex 1) (funcall options))
+                     (funcall view-keys))
+                    (:theme-pane "Theme"
+                     (bolt:stack (:id :theme-part :flex 1) (funcall settings))
+                     (funcall theme-keys))
+                    (:preview-pane "Preview"
+                     (bolt:stack (:id :preview-part :flex 1) (funcall preview))
+                     (funcall theme-keys))))))))))
 
 (defun open-studio ()
   "Open the studio in a window, from the REPL."

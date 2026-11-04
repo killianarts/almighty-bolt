@@ -24,7 +24,7 @@ are not listed.
 - `dock`: panes in groups of tabs, moved by dragging their tabs, each keeping what it holds ([0.3](docs/releases/dev.md#docked-panes)).
 - A `shortcut` in a dock's pane is heard only in the active pane ([0.3](docs/releases/dev.md#docked-panes)).
 - A `split` given a new `:size` takes it up ([0.3](docs/releases/dev.md#docked-panes)).
-- The studio, `apps/studio`: the GUI designer and the theme designer in one window ([0.3](docs/releases/dev.md#the-studio-begun)).
+- The studio, `apps/studio`: the parts of the GUI designer and of the theme designer as panes of one window ([0.3](docs/releases/dev.md#the-studio-begun)).
 - `tree`: a tree of items that open and close; the GUI designer's outline is one ([0.3](docs/releases/dev.md#a-tree-view)).
 - `tabs`, and `choice` with `:style :tabs`: a tab bar ([0.3](docs/releases/dev.md#input)).
 - `split`: two panes with a divider that is dragged, and in a view ([0.3](docs/releases/dev.md#two-panes-and-a-divider)).

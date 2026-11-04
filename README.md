@@ -295,8 +295,9 @@ what comes first, is in [docs/roadmap.md](docs/roadmap.md).
   app to load and wire, which an open window shows at once:
   `(almighty-bolt-gui-designer:open-designer)` after loading the system
   `almighty-bolt-gui-designer`.
-- [`apps/studio/`](apps/studio): the start of the studio, the GUI designer and
-  the theme designer in one window, a tab for each:
+- [`apps/studio/`](apps/studio): the start of the studio, the parts of the GUI
+  designer and of the theme designer as panes of one window, arranged by
+  dragging their tabs:
   `(almighty-bolt-studio:open-studio)` after loading the system
   `almighty-bolt-studio`.
 - [`examples/7guis/`](examples/7guis): the seven 7GUIs tasks.

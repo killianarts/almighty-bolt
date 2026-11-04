@@ -60,7 +60,7 @@ A view is named by a symbol of the app's package, as a function is, so that view
 
 ### The studio, begun
 
-`apps/studio` has the GUI designer and the theme designer in one window, as panes of a dock, tabs of one group until one is dragged beside the other: `(almighty-bolt-studio:open-studio)` after loading the system `almighty-bolt-studio`. Each is as it is in a window of its own, and keeps what it holds (the view, the theme being made, the undo of each) while the other is shown. The menu bar has the GUI designer's File menu while it is shown. Side by side, Command-Z undoes in the one last used. It is built of the library's own widgets: a dock, and each designer drawn in a container of its own, so that their ids do not meet.
+`apps/studio` has the GUI designer and the theme designer in one window: `(almighty-bolt-studio:open-studio)` after loading the system `almighty-bolt-studio`. Their parts are panes of a dock, which the person arranges: the widgets to add and the outline, the canvas, the selected widget's options, the theme's settings and its preview, with the GUI designer's toolbar over them. Each designer keeps what it holds (the view, the theme being made, the undo of each) while a part is hidden or moved, and Command-Z undoes in the one last used. Each designer gives its parts as functions, `designer-parts`, which its own window puts side by side as before.
 
 ### A tree view
 
