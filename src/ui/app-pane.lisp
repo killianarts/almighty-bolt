@@ -3,6 +3,9 @@
   (:import-from #:almighty-bolt/event
                 #:key-event
                 #:text-input-event
+                #:composition-event
+                #:composition-event-kind
+                #:make-composition-event
                 #:make-pointer-event
                 #:make-wheel-event)
   (:import-from #:almighty-bolt/display-list
@@ -20,6 +23,9 @@
                 #:context-appearance
                 #:context-window
                 #:context-cursor
+                #:context-text-input-p
+                #:context-text-input-rect
+                #:set-text-input-caret
                 #:handle-event
                 #:request-frame
                 #:context-font
@@ -98,7 +104,9 @@
 ;;; draws text through the window's. The pointer over the pane, a press on it, the wheel and, while
 ;;; the pane has the keyboard, the keys are given to it as the window gives them, in its own points.
 ;;; It is laid out and drawn in its own points, and what it draws is made ZOOM times larger to show:
-;;; its text drawn with fonts ZOOM times the size, so that it is sharp.
+;;; its text drawn with fonts ZOOM times the size, so that it is sharp. While the pane has the
+;;; keyboard and something in the inner app takes text, the window does: the input method's text
+;;; and what it composes go to the inner app, and its candidates open by the inner app's caret.
 
 ;;; --- the inner app's context ---
 
@@ -165,7 +173,9 @@ ZOOMED, the same at the pane's zoom, which draws."
   (list (make-display-list :capacity 4096))
   (shown (make-display-list :capacity 4096))
   (zoom 0f0 :type single-float)
-  (was-hot nil))
+  (was-hot nil)
+  ;; Whether the input method is composing in the inner app: it began and has not been committed.
+  (composing nil))
 
 (defvar *pane-states* (make-weak-table)
   "The state of the pane each app in a pane is in, by the app.")
@@ -295,15 +305,33 @@ inner app (for a tool that looks at it, as the inspector does). The :id is requi
                (consume-key ui event)
                (consume-input ui event)
                (setf moved (deliver state event))))
-            (text-input-event
+            ((or text-input-event composition-event)
              (consume-input ui event)
+             (when (typep event 'composition-event)
+               (setf (app-pane-state-composing state)
+                     (not (eq (composition-event-kind event) :committed))))
              (setf moved (deliver state event))))))
+      ;; The keyboard went elsewhere while the inner app was composing: the window's input method
+      ;; drops what it composed, and so does the inner app.
+      (when (and (app-pane-state-composing state) (/= (ui-focus ui) key))
+        (setf (app-pane-state-composing state) nil
+              moved (deliver state (make-composition-event :timestamp 0 :kind :committed
+                                                           :text ""))))
       ;; Its frame, when something happened to it or it asked for one; then made ZOOM times larger.
       (when (or moved (context-frame-requested inner))
         (settle-pane state)
         (setf (ui-consumed ui) t))
       (when hot
-        (want-cursor ui key (context-cursor inner))))
+        (want-cursor ui key (context-cursor inner)))
+      ;; What takes text in the inner app takes it in the window, with its caret where the pane
+      ;; shows it.
+      (when (and rect (= (ui-focus ui) key) (context-text-input-p inner))
+        (let ((caret (context-text-input-rect inner)))
+          (set-text-input-caret outer
+                                (+ (rect-x rect) (* zoom (aref caret 0)))
+                                (+ (rect-y rect) (* zoom (aref caret 1)))
+                                (* zoom (aref caret 2))
+                                (* zoom (aref caret 3))))))
     (let ((shown (app-pane-state-shown state)))
       (setf (box-data box) shown
             (box-n3 box) (display-list-hash shown)

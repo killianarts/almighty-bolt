@@ -405,9 +405,10 @@ makes the app the first time (and again if the constructor is another) and
 keeps it by the pane's id. It is laid out in the pane's size divided by the
 zoom and drawn `:zoom` times larger, its text in fonts that size so that it is
 sharp. The pointer and the wheel over it, and the keys while it has the
-keyboard (a press gives it), are the inner app's, in its own points. It returns
-the inner app. To the window's semantic tree and VoiceOver it is a canvas, and
-the input method's composition does not reach it yet.
+keyboard (a press gives it), are the inner app's, in its own points, and so is
+what is typed through the input method, whose candidates open by the inner
+app's caret. It returns the inner app. To the window's semantic tree and
+VoiceOver it is a canvas.
 
 `inspector-pane` (`target &key id flex`) is the inspector, in this window, of
 TARGET, an app in an `app-pane` as it returns it (or `nil`): Pick, then a press

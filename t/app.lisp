@@ -4232,6 +4232,43 @@ left, left to right."
         (setf *inner* inner)
         (inspector-pane inner :id :inspecting)))))
 
+
+(define-test the-input-method-reaches-a-field-of-an-app-in-a-pane-with-its-caret-where-the-pane-shows-it ()
+  (let ((screen (show 'make-outer)))
+    ;; Twice as large, and the inner app's field given the keyboard through the pane.
+    (click screen :zoom)
+    (destructuring-bind (px py pw ph) (bounds-of screen :running)
+      (declare (ignore pw ph))
+      (destructuring-bind (x y w h) (multiple-value-list (core:lookup-target *inner* :words))
+        (let ((mx (+ px (* 2 (+ x (/ w 2))))) (my (+ py (* 2 (+ y (/ h 2))))))
+          (pointer screen :move mx my)
+          (pointer screen :down mx my :button 0 :buttons 1)
+          (pointer screen :up mx my :button 0))
+        (flet ((inner-value ()
+                 (s:node-value (first (s:find-nodes (core:accessibility-tree *inner*) :id :words)))))
+          (typed screen "ab")
+          (assert-equal "ab" (inner-value))
+          ;; The window takes text, with its caret where the pane shows the field's: after two
+          ;; characters of 8 inside the field's padding of 8, at twice the size.
+          (multiple-value-bind (on cx cy) (text-input-rect screen)
+            (assert-true on)
+            (assert-eql (+ px (* 2 (+ x 8f0 16f0))) cx)
+            (assert-eql (+ py (* 2 (+ y 6f0 -1f0))) cy))
+          ;; What the input method composes is shown in the field, and the inner app has it
+          ;; once it is committed.
+          (compose screen :started "に")
+          (assert-true (search "abに" (text-in screen :running)) (text-in screen :running))
+          (assert-equal "ab" (inner-value))
+          (compose screen :committed "日")
+          (assert-equal "ab日" (inner-value))
+          ;; The window's keyboard goes elsewhere while something is composed: it is dropped,
+          ;; and nothing takes text.
+          (compose screen :started "か")
+          (key screen #\Tab :shift)
+          (assert-false (search "か" (text-in screen :running)) (text-in screen :running))
+          (assert-false (text-input-rect screen))
+          (assert-equal "ab日" (inner-value)))))))
+
 (define-test the-inspector-in-a-pane-picks-and-presses-in-the-app-in-a-pane ()
   (let ((screen (show 'make-inspected)))
     (flet ((inner-name (id)

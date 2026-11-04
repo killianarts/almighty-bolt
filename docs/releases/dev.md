@@ -56,7 +56,7 @@ A view is named by a symbol of the app's package, as a function is, so that view
 
 ### An app in a pane
 
-`(bolt:app-pane 'my-app:make-app :id :running :zoom 2 :flex 1)` runs another app, working, in an area of this one, at a zoom, its text sharp at that size: the pointer, the wheel and the keys are its own there. `(bolt:inspector-pane app :id :inspector)` is the inspector of it, beside it in the same window. The studio has both: an App pane, which runs the app whose constructor is named in its field, at 50%, 100% or 200%, and an Inspector pane that looks at it.
+`(bolt:app-pane 'my-app:make-app :id :running :zoom 2 :flex 1)` runs another app, working, in an area of this one, at a zoom, its text sharp at that size: the pointer, the wheel and the keys are its own there, and so is what is typed through the input method, whose candidates open by the caret in the pane. `(bolt:inspector-pane app :id :inspector)` is the inspector of it, beside it in the same window. The studio has both: an App pane, which runs the app whose constructor is named in its field, at 50%, 100% or 200%, and an Inspector pane that looks at it.
 
 ### Docked panes
 

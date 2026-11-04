@@ -141,9 +141,8 @@ the GUI designer, and where on this roadmap each is closed.
 
 - **The app in a pane is a picture to the system.** The app running in the
   studio's pane is not in the window's semantic tree, so VoiceOver and the
-  machine interface do not see into it; the input method's composition does not
-  reach it; and it is not made again when its code is compiled. A pane is moved
-  only by the pointer.
+  machine interface do not see into it, and it is not made again when its code
+  is compiled. A pane is moved only by the pointer.
 - **Views take no parameters.** A view inside another is drawn as it was
   designed; wiring where a view is drawn gives what differs, which may be
   enough.
