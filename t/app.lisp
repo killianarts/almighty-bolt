@@ -3677,6 +3677,36 @@ released unless RELEASE."
     (multiple-value-bind (x y) (core:lookup-target (screen-app screen) :days)
       (assert-eql ring (color-at screen (+ x 20) (- y 1))))))
 
+;;; --- the app's own menus ---
+
+(defun make-with-menus ()
+  (state-let ((said "nothing"))
+    (lambda ()
+      (let ((file (app-menu "File" '(("New" :key #\n) ("Open…" :key #\o) :separator
+                                     ("Save" :key #\s) ("Save As…" :key #\s :shift t))))
+            (view (app-menu "View" '("Bigger" "Smaller"))))
+        (when file (setf said (format nil "File ~a" file)))
+        (when view (setf said (format nil "View ~a" view))))
+      (label said :id :said))))
+
+(define-test the-apps-own-menus-are-described-and-an-item-chosen-is-returned-by-its-menu ()
+  (let ((screen (show 'make-with-menus)))
+    ;; What the menu bar is given: each menu's title, then its items.
+    (let ((menus (core:app-menus (screen-app screen))))
+      (assert-equal '("File" "View") (list (aref menus 0) (aref menus 2)))
+      (assert-equal "Save" (first (nth 3 (aref menus 1)))))
+    (flet ((choose (menu item)
+             (core:handle-event (screen-app screen)
+                                (core:make-menu-event :timestamp 0 :menu menu :item item))
+             (draw screen)))
+      (choose "File" "Save As…")
+      (assert-equal "File Save As…" (text-in screen :said))
+      (choose "View" "Smaller")
+      (assert-equal "View Smaller" (text-in screen :said))
+      ;; A menu the app does not have is nothing to it.
+      (choose "Help" "About")
+      (assert-equal "View Smaller" (text-in screen :said)))))
+
 ;;; --- the tree while frames fail ---
 
 (define-test while-frames-fail-the-tree-is-that-of-the-frame-shown ()

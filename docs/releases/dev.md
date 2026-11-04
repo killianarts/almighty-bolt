@@ -54,6 +54,10 @@ A view made in the GUI designer is a file of Lisp that defines it, `(bolt:define
 
 A view is named by a symbol of the app's package, as a function is, so that views of two apps or libraries do not take each other's names. It takes no parameters: what differs from one place it is drawn to the next is given by the wiring there.
 
+### The app's own menus
+
+`(bolt:app-menu "File" '(("New" :key #\n) :separator ("Save" :key #\s)))`, in the app's function, puts a menu of its own in the menu bar, after the application's menu and before Edit and Window, and returns the item chosen, from the menu or by its shortcut, on the frame it is chosen. The menu bar has the menus of the window that has the keyboard. The GUI designer has a File menu: New, Open… and Save….
+
 ### Every widget in the catalogue, and yours
 
 A view, and the GUI designer, can have every widget and container of the library (but the spacer), not five: a paragraph, a text area, a combo box, a slider, a choice, a check box, a switch, a dropdown, a list box, a progress bar, a spinner, a grid, a stack, a padding, a panel, a center, a scroll and a pressable besides. `:value` wires a place to whatever widget holds a value (a slider's value, a check box's state, a list's selected index). And an app adds its own with `(bolt:define-widget-entry :stars (:title "Stars" :options ((:count :number 3)) :value :count) ...)`, its options, what can be wired to it and how it is drawn; the designer lists it and a view can have it. Options can be lists of strings (a dropdown's options), edited in the designer one to a line.

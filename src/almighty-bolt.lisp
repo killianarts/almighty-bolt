@@ -75,6 +75,7 @@
                 #:spacer
                 #:grid
                 #:pressable
+                #:app-menu
                 #:open-file-dialog
                 #:save-file-dialog
                 #:list-box
@@ -126,7 +127,7 @@
            #:label #:paragraph #:button #:text-field #:text-area #:combo-box #:slider #:choice #:checkbox
            #:switch #:spinner #:dropdown #:menu-button #:context-menu #:popover
            #:dialog #:toast #:shortcut #:spacer #:grid #:pressable #:open-file-dialog #:save-file-dialog #:list-box
-           #:progress #:canvas #:scrim #:design-surface
+           #:progress #:canvas #:scrim #:design-surface #:app-menu
            #:define-view #:view #:define-widget-entry
            #:column #:row #:stack #:padding #:panel #:center #:scroll #:lazy-list
            #:theme #:make-theme #:define-theme #:find-theme #:with-theme #:theme-names #:theme-name

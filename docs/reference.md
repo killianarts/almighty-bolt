@@ -558,6 +558,18 @@ again is drawn in every open window at once, with the code as it is.
 
 A view drawn this way allocates nothing beyond what the same widgets written by hand do.
 
+## Menus
+
+`(bolt:app-menu "File" '(("New" :key #\n) ("Open…" :key #\o) :separator ("Save" :key #\s)
+("Save As…" :key #\s :shift t)))`, described in the app's function each frame as a widget is,
+puts a menu of the app's own in the menu bar, after the application's menu and before Edit and
+Window. An item is a string, `:separator`, or `(string :key char :shift bool :option bool)` for
+one with a shortcut: Command and the key, with Shift or Option. It returns the item chosen (its
+string) on the frame it is chosen, from the menu or by its shortcut, and otherwise `nil`. The menu
+bar has the menus of the window that has the keyboard, as that window's last frame described them;
+it is made again only when they change. Edit and Window are the system's: Undo, Cut, Copy, Paste
+and Select All reach the app as their shortcuts' keys do.
+
 ## When a frame fails
 
 If the app's function, or the layout or painting of what it described, signals an error while a

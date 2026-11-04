@@ -15,7 +15,8 @@
   (:export #:run-application
            #:quit-application
            #:stop-application
-           #:*may-stop-p*))
+           #:*may-stop-p*
+           #:set-app-menus))
 
 (in-package #:almighty-bolt/platform/macos/app)
 
@@ -120,10 +121,35 @@ shortcut KEY (\"\" for none) and MODIFIERS (an NSEventModifierFlags mask) held w
     (msg-send :void menu-bar "addItem:" (:id item))
     menu))
 
-(defun install-menu (app)
+(defun app-menu-item (spec)
+  "A menu item of the app's own (see APP-MENU): :SEPARATOR, a string, or (string &key key shift
+option). It sends appMenuItem: to what has the keyboard, the view of the key window."
+  (if (eq spec :separator)
+      :separator
+      (destructuring-bind (title &key key shift option) (if (stringp spec) (list spec) spec)
+        (menu-item title "appMenuItem:" (if key (string (char-downcase key)) "")
+                   (if key
+                       (logior +command-key+ (if shift +shift-key+ 0) (if option +option-key+ 0))
+                       0)))))
+
+(defvar *installed-menus* :none
+  "The app's own menus in the menu bar now, as SET-APP-MENUS was last given them, or :NONE.")
+
+(defun set-app-menus (menus)
+  "Put the app's own MENUS (a vector of each menu's title then its items) in the menu bar, between
+the application's menu and Edit, if they are not the ones there. Called on the main thread after a
+frame of the key window."
+  (let ((menus (coerce (or menus #()) 'list)))
+    (unless (equal menus *installed-menus*)
+      (setf *installed-menus* (copy-tree menus))
+      (install-menu (shared-application)
+                    (loop :for (title items) :on menus :by #'cddr
+                          :collect (apply #'make-menu title (mapcar #'app-menu-item items)))))))
+
+(defun install-menu (app &optional own)
   "The main menu every Mac app has: the application's menu (hiding it and the others, and Quit),
-Edit (undo, redo, cut, copy, paste and select all, which reach the app as their shortcuts' keys do)
-and Window (minimize, zoom and close). When the application does not end the process, Quit closes
+the app's OWN menus (NSMenu objects), Edit (undo, redo, cut, copy, paste and select all, which reach
+the app as their shortcuts' keys do) and Window (minimize, zoom and close). When the application does not end the process, Quit closes
 the windows instead: it may not take the Lisp that a person is working in with it."
   (let ((menu-bar (msg-send :id (msg-send :id (objc-class "NSMenu") "alloc") "init")))
     (add-menu menu-bar
@@ -134,6 +160,8 @@ the windows instead: it may not take the Lisp that a person is working in with i
                          (menu-item "Show All" "unhideAllApplications:" "" 0)
                          :separator
                          (menu-item "Quit" "terminate:" "q")))
+    (dolist (menu own)
+      (add-menu menu-bar menu))
     (add-menu menu-bar
               (make-menu "Edit"
                          (menu-item "Undo" "undo:" "z")

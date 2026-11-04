@@ -110,6 +110,7 @@ is what the window runs.
 | `(bolt:define-view login form)`                             | Defines a view made in the GUI designer, which saves a file of this form. See [Views](#views).                                                                                                                                                       |
 | `(bolt:view login clause ...)`                              | Draws a view, with the code wired to its widgets by their ids: options, `:on-press`, `:value`, `:contents`.                                                                                                                                          |
 | `(bolt:define-widget-entry :kind (...) ...)`                | Puts a widget of your own in the catalogue: its options, what can be wired to it, how it is drawn.                                                                                                                                                   |
+| `(bolt:app-menu "File" items)`                              | A menu of the app's own in the menu bar, with shortcuts; returns the item chosen. See [Menus](docs/reference.md#menus).                                                                                                                              |
 
 ## State
 

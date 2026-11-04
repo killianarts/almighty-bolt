@@ -47,6 +47,8 @@
   (:import-from #:almighty-bolt/ui/ui
                 #:*ui*
                 #:ui-inert
+                #:ui-menus
+                #:ui-menu-chosen
                 #:ui-context
                 #:ui-parent
                 #:ui-consumed
@@ -223,6 +225,7 @@
            #:describe-toasts
            #:toast
            #:shortcut
+           #:app-menu
            #:spacer
            #:grid
            #:pressable
@@ -2403,6 +2406,22 @@ after the app's function, with the build's boxes made."
 ;;; on time; a screen reader reads each out as it comes.
 
 ;;; --- shortcuts ---
+
+(defun app-menu (title items)
+  "A menu of the app's own in the menu bar, called TITLE, of ITEMS: each a string, :SEPARATOR, or
+(string &key key shift option) for one with a shortcut, Command and KEY (a character), with Shift
+and Option if they are true. Described in every frame, as a widget is; the menu bar has the menus
+of the window that has the keyboard, after the application's menu and before Edit and Window.
+Returns the item chosen (its string), on the frame it is chosen by the menu or its shortcut, and
+otherwise NIL."
+  (let ((ui *ui*))
+    (vector-push-extend title (ui-menus ui))
+    (vector-push-extend items (ui-menus ui))
+    (let ((chosen (ui-menu-chosen ui)))
+      (when (and chosen (string= (car chosen) title))
+        (setf (ui-menu-chosen ui) nil
+              (ui-consumed ui) t)
+        (cdr chosen)))))
 
 (defun shortcut (key &rest modifiers)
   "True in the frame KEY (a character, or one of the +KEY-...+ codes) is pressed with exactly

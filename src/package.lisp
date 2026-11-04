@@ -99,6 +99,10 @@
                 #:text-input-event
                 #:make-text-input-event
                 #:text-input-event-text
+                #:menu-event
+                #:make-menu-event
+                #:menu-event-menu
+                #:menu-event-item
                 #:composition-event
                 #:make-composition-event
                 #:composition-event-kind
@@ -187,6 +191,7 @@
                 #:hit-target
                 #:lookup-target
                 #:accessibility-tree
+                #:app-menus
                 #:inherit-state
                 #:retire-app
            #:forget-painting
@@ -415,6 +420,10 @@
            #:text-input-event
            #:make-text-input-event
            #:text-input-event-text
+           #:menu-event
+           #:make-menu-event
+           #:menu-event-menu
+           #:menu-event-item
            #:composition-event
            #:make-composition-event
            #:composition-event-kind
@@ -488,6 +497,7 @@
            #:hit-target
            #:lookup-target
            #:accessibility-tree
+           #:app-menus
            #:inherit-state
            #:retire-app
            #:context

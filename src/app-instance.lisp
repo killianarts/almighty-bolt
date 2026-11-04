@@ -10,6 +10,7 @@
            #:hit-target
            #:lookup-target
            #:accessibility-tree
+           #:app-menus
            #:inherit-state
            #:retire-app
            #:forget-painting
@@ -119,6 +120,12 @@ last frame that was presented.")
 width, height), or NIL if there is none. Replay uses it to find where to click.")
   (:method ((instance app-instance) test-id)
     (declare (ignore instance test-id))
+    nil))
+
+(defgeneric app-menus (instance)
+  (:documentation "The app's own menus as its last frame described them, for the menu bar while its
+window has the keyboard: a vector of each menu's title then its items (see APP-MENU), or NIL.")
+  (:method ((instance app-instance))
     nil))
 
 (defgeneric accessibility-tree (instance)

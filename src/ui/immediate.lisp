@@ -8,6 +8,7 @@
                 #:frame
                 #:handle-event
                 #:hit-target
+                #:app-menus
                 #:lookup-target
                 #:inherit-state
                 #:forget-painting
@@ -114,6 +115,7 @@
                 #:hit-moves
                 #:hit-layer
                 #:ui-modal-layer
+                #:ui-menus
                 #:begin-build
                 #:enqueue-event
                 #:begin-frame-input
@@ -562,6 +564,9 @@ hashes say: the code that changed may be the library's, which the hashes do not 
     (clrhash (ui-paint-cache ui))))
 
 ;;; --- asking where things are ---
+
+(defmethod app-menus ((instance immediate-app))
+  (ui-menus (immediate-app-ui instance)))
 
 (defmethod hit-target ((instance immediate-app) x y)
   (let ((ui (immediate-app-ui instance)))

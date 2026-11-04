@@ -35,6 +35,8 @@
                 #:host-idle-p
                 #:host-owner
                 #:host-deliver-event
+                #:host-window
+                #:request-host-frame
                 #:wait-for-idle
                 #:open-hosts
                 #:host-open-p
@@ -249,6 +251,55 @@ at once and without the window's code being compiled again."
     (bolt:close-window window)
     (wait-for (lambda () (not (host-open-p window))))))
 
+(defvar *saved* 0)
+
+(defun make-with-file-menu ()
+  (lambda ()
+    (when (equal (bolt:app-menu "File" '(("New" :key #\n) :separator ("Save" :key #\s))) "Save")
+      (incf *saved*))
+    (bolt:label (format nil "Saved ~d" *saved*) :id :saved)))
+
+(defun menu-titles (menu)
+  (loop :for i :below (msg-send :long menu "numberOfItems")
+        :collect (almighty-bolt/platform/macos/objc:lisp-string
+                  (msg-send :id (msg-send :id menu "itemAtIndex:" (:long i)) "title"))))
+
+(defun menu-checks ()
+  "The app's own menus are in the menu bar while its window has the keyboard, and an item chosen
+there reaches it."
+  (let ((window (bolt:open-window 'make-with-file-menu :title "Menus" :width 240 :height 80)))
+    (wait-for (lambda () (plusp (frames window))))
+    (call-on-main (lambda () (msg-send :void (almighty-bolt/platform/macos/window:window-object
+                                               (host-window window))
+                                       "makeKeyAndOrderFront:" (:id 0))))
+    (request-host-frame window)
+    (check "the menu bar has the app's File menu, between the application's and Edit"
+           (wait-for (lambda ()
+                       (call-on-main
+                        (lambda ()
+                          (let ((titles (menu-titles (msg-send :id (msg-send :id (objc-class "NSApplication") "sharedApplication") "mainMenu"))))
+                            (let ((file (position "File" titles :test #'string=))
+                                  (edit (position "Edit" titles :test #'string=)))
+                              (and file edit (< 0 file edit))))))))
+           (call-on-main (lambda () (menu-titles (msg-send :id (msg-send :id (objc-class "NSApplication") "sharedApplication") "mainMenu")))))
+    (let ((before *saved*))
+      (call-on-main
+       (lambda ()
+         (let* ((bar (msg-send :id (msg-send :id (objc-class "NSApplication") "sharedApplication") "mainMenu"))
+                (file (msg-send :id (msg-send :id bar "itemAtIndex:" (:long (position "File" (menu-titles bar) :test #'string=))) "submenu"))
+                (save (position "Save" (menu-titles file) :test #'string=)))
+           (msg-send :void file "performActionForItemAtIndex:" (:long save)))))
+      (check "and choosing Save there reaches the app" (wait-for (lambda () (> *saved* before)))))
+    (check "its shortcut is Command-S"
+           (call-on-main
+            (lambda ()
+              (let* ((bar (msg-send :id (msg-send :id (objc-class "NSApplication") "sharedApplication") "mainMenu"))
+                     (file (msg-send :id (msg-send :id bar "itemAtIndex:" (:long (position "File" (menu-titles bar) :test #'string=))) "submenu"))
+                     (save (msg-send :id file "itemAtIndex:" (:long (position "Save" (menu-titles file) :test #'string=)))))
+                (string= "s" (almighty-bolt/platform/macos/objc:lisp-string (msg-send :id save "keyEquivalent")))))))
+    (bolt:close-window window)
+    (wait-for (lambda () (not (host-open-p window))))))
+
 (defun this-window-checks ()
   "A window that the second opens beside itself, and that closes itself, both by THIS-WINDOW."
   (m:click (open-session *second*) :id :below)
@@ -297,6 +348,7 @@ at once and without the window's code being compiled again."
     (this-window-checks)
     (failing-frame-checks)
     (view-checks)
+    (menu-checks)
     ;; Another, from the REPL, closed again.
     (let ((third (bolt:open-window 'make-third :title "Third" :width 200 :height 80
                                                :top 0 :right 0)))

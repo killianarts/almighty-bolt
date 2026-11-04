@@ -6,8 +6,8 @@ the order inside a section is not a schedule. What has shipped is in the
 
 ## Next
 
-- **Windows.** Control over a window's title, size limits and full screen, and
-  an app's own menus in the menu bar. (More than one window is in 0.3.)
+- **Windows.** Control over a window's title, size limits and full screen.
+  (More than one window, and an app's own menus, are in 0.3.)
 
 ## Later
 
@@ -141,10 +141,6 @@ planned.
 What stands between the library today and the studio, as found while building
 the GUI designer, and where on this roadmap each is closed.
 
-- **The catalogue has five widgets** (label, button, text field, column, row).
-  Every widget has to say what its options are and of what kind: an API for
-  writing your own widgets, which says how a widget appears in the semantic tree
-  and in the catalogue.
 - **No dragging.** The library has drags inside one widget only. It needs a drag
   with a source, what is carried, drop targets, and an insertion marker worked
   out from the layout ([Interaction](#later)).
@@ -159,9 +155,7 @@ the GUI designer, and where on this roadmap each is closed.
 - **Type and effects.** No italic, no weights between regular and bold, no
   shadow, grain or scanlines: the design system's chrome cannot be drawn by the
   library yet ([Text and layout, Effects](#later)).
-- **No menus, and undo only in the GUI designer.** An app's own menus (File,
-  Edit) are not in the menu bar ([Windows](#next)), and the theme designer
-  cannot undo.
+- **Undo only in the GUI designer.** The theme designer cannot undo.
 - **No code editor.** A text area is plain text: no colouring, no structural
   editing, no large files. A code widget, or a bridge to Emacs through the
   image.
@@ -171,11 +165,10 @@ the GUI designer, and where on this roadmap each is closed.
 
 ### Stages
 
-1. **Finish the designer.** Every widget in the catalogue, through the widget
-   API. Dragging. Views in the catalogue.
+1. **Finish the designer.** Dragging. Views in the catalogue.
 2. **One window.** Splitters, docked panes, tabs and a tree view. The app drawn
-   in a pane, hit-tested through the zoom. The app's menus. The theme designer
-   as a pane, with undo.
+   in a pane, hit-tested through the zoom. The theme designer as a pane, with
+   undo.
 3. **Code and time.** A code editor, or the bridge to Emacs. The timeline,
    replay and state panes over the frame ring. The semantic and accessibility
    panes. Tests made from recordings.

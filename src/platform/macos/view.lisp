@@ -23,6 +23,7 @@
                 #:make-key-event
                 #:+modifier-shift+
                 #:make-text-input-event
+                #:make-menu-event
                 #:make-composition-event
                 #:key-event-modifiers
                 #:modifier-down-p
@@ -152,6 +153,15 @@ high-contrast dark appearance is dark too.)"
                 (make-key-event :timestamp (now-ns) :kind :down :logical-key ,character
                                 :physical-key ,physical-key
                                 :modifiers (logior +modifier-super+ ,@modifiers))))))
+
+(define-callback view-app-menu-item sb-alien:void
+    ((self sb-alien:unsigned-long) (cmd sb-alien:unsigned-long) (sender sb-alien:unsigned-long))
+  "An item of the app's own menus was chosen: the app is told which, by the menu's title and its."
+  (let ((view (view-of self)))
+    (funcall (metal-view-event-handler view)
+             (make-menu-event :timestamp (now-ns)
+                              :menu (lisp-string (msg-send :id (msg-send :id sender "menu") "title"))
+                              :item (lisp-string (msg-send :id sender "title"))))))
 
 (define-edit-command view-undo #\z 6)
 (define-edit-command view-redo #\z 6 +modifier-shift+)
@@ -445,6 +455,7 @@ out when it is asked, so that a window that was moved is where it is."
              ("keyDown:" "v@:@" view-key-down)
              ("keyUp:" "v@:@" view-key-up)
              ;; The Edit menu
+             ("appMenuItem:" "v@:@" view-app-menu-item)
              ("undo:" "v@:@" view-undo)
              ("redo:" "v@:@" view-redo)
              ("cut:" "v@:@" view-cut)

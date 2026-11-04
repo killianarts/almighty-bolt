@@ -47,6 +47,10 @@
            #:text-input-event
            #:make-text-input-event
            #:text-input-event-text
+           #:menu-event
+           #:make-menu-event
+           #:menu-event-menu
+           #:menu-event-item
            #:composition-event
            #:make-composition-event
            #:composition-event-kind
@@ -161,6 +165,12 @@ produce none."
 (defstruct (text-input-event (:include event))
   "Text to insert, after the operating system's input handling."
   (text (required 'text) :type string :read-only t))
+
+(defstruct (menu-event (:include event))
+  "An item of one of the app's own menus was chosen, by the menu or its shortcut: MENU is the menu's
+title and ITEM the item's."
+  (menu (required 'menu) :type string :read-only t)
+  (item (required 'item) :type string :read-only t))
 
 (defstruct (composition-event (:include event))
   "Input method composition: it started, its preedit text changed, or it was

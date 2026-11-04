@@ -38,6 +38,7 @@
                 #:take-frame-request
                 #:accessibility-tree
                 #:*show-frame-errors*
+                #:app-menus
                 #:deliver-event
                 #:take-events
                 #:context-font
@@ -68,6 +69,7 @@
                 #:watch-redefinitions
                 #:stop-watching-redefinitions)
   (:import-from #:almighty-bolt/platform/macos/app
+                #:set-app-menus
                 #:run-application
                 #:*may-stop-p*)
   (:import-from #:almighty-bolt/platform/macos/window
@@ -616,6 +618,9 @@ the other windows for one (see above)."
                                   (if (plusp width) (float (/ pixel-width width) 1f0) 1f0))))
           ;; The pointer takes the shape the frame said, for what is under it.
           (set-view-cursor view (context-cursor (host-context host)))
+          ;; The menu bar has the menus of the window that has the keyboard.
+          (when (msg-send :bool (window-object (host-window host)) "isKeyWindow")
+            (set-app-menus (app-menus (host-app host))))
           ;; What a screen reader reads is out of date now, and is made when it is asked for.
           (let ((bridge (metal-view-bridge view)))
             (when bridge

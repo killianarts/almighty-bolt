@@ -36,6 +36,9 @@
                 #:key-event-logical-key
                 #:key-event-modifiers
                 #:text-input-event
+                #:menu-event
+                #:menu-event-menu
+                #:menu-event-item
                 #:composition-event
                 #:modifier-down-p
                 #:+modifier-shift+
@@ -60,6 +63,8 @@
            #:float-spec-tool
            #:ui-inspection
            #:ui-inert
+           #:ui-menus
+           #:ui-menu-chosen
            #:inspection
            #:make-inspection
            #:inspection-picking
@@ -223,6 +228,10 @@
   ;; What the inspector, in a window of its own, has asked of this window (see inspection.lisp), or
   ;; NIL while no inspector looks at it.
   (inspection nil)
+  ;; The app's own menus this build described (APP-MENU), each title then its items, kept and
+  ;; reused from build to build; and the menu and item chosen this frame, or NIL.
+  (menus (make-array 4 :adjustable t :fill-pointer 0))
+  (menu-chosen nil)
   ;; How many design surfaces the build is inside (see design-surface.lisp): what is described there
   ;; is drawn and takes no input, and a float opened there is inert too.
   (inert 0 :type fixnum)
@@ -451,6 +460,7 @@ box that was open, which CLOSE-FLOAT is given back."
         (ui-consumed ui) nil
         ;; A surface whose body failed has put its input back (it unwinds), and is closed.
         (ui-inert ui) 0
+        (fill-pointer (ui-menus ui)) 0
         (ui-cursor ui) :arrow
         (ui-frame-layout-hash ui) +seed+
         (ui-frame-paint-hash ui) +seed+))
@@ -515,7 +525,7 @@ over nothing in particular is not, and everything that a widget could use is."
      (when (eq (key-event-kind event) :down)
        (enqueue ui event)
        t))
-    ((or text-input-event composition-event)
+    ((or text-input-event composition-event menu-event)
      (enqueue ui event)
      t)
     (t nil)))
@@ -607,7 +617,9 @@ were left."
                (setf (ui-keys ui) (nconc (ui-keys ui) (list event))
                      (ui-inputs ui) (nconc (ui-inputs ui) (list event)))))
           ((or text-input-event composition-event)
-           (setf (ui-inputs ui) (nconc (ui-inputs ui) (list event))))))
+           (setf (ui-inputs ui) (nconc (ui-inputs ui) (list event))))
+          (menu-event
+           (setf (ui-menu-chosen ui) (cons (menu-event-menu event) (menu-event-item event))))))
       (pop queue))
     (setf (ui-queue ui) queue)
     (let ((before (ui-hot ui)))
@@ -632,6 +644,7 @@ were left."
         (ui-moved ui) nil
         (ui-keys ui) '()
         (ui-inputs ui) '()
+        (ui-menu-chosen ui) nil
         (ui-wheel-dx ui) 0f0
         (ui-wheel-dy ui) 0f0))
 
