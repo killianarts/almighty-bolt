@@ -7,7 +7,8 @@
                     (#:s #:almighty-bolt/ui/semantics)
                     (#:fake #:almighty-bolt/test-support/fake-context)
                     (#:designer #:almighty-bolt-gui-designer)
-                    (#:catalogue #:almighty-bolt-gui-designer/catalogue)))
+                    (#:catalogue #:almighty-bolt/ui/catalogue)
+                    (#:views #:almighty-bolt/ui/views)))
 
 (in-package #:almighty-bolt-gui-designer/t/designer)
 
@@ -202,14 +203,14 @@ event changed shows in it."
 
 (define-test a-view-saved-opens-again-as-it-was ()
   (multiple-value-bind (screen session) (open-designer)
-    (let ((path (merge-pathnames (format nil "view-~d.view" (random 1000000000))
+    (let ((path (merge-pathnames (format nil "view-~d.lisp" (random 1000000000))
                                  (uiop:temporary-directory))))
       (unwind-protect
            (progn
              (setf (core:context-file-chooser (screen-context screen))
                    (lambda (kind types offered)
                      (declare (ignore kind offered))
-                     (assert-equal '("view") types)
+                     (assert-equal '("lisp") types)
                      (namestring path)))
              (m:click session :id :sign-in :within :canvas)
              (m:set-value session "Log in" :id :option-text)
@@ -237,16 +238,17 @@ event changed shows in it."
   ;; Each would open and then fail in every frame, or (two widgets with one id) select and change
   ;; the wrong one.
   ;; Each says what is wrong.
-  (loop :for (text why) :in '(("(:slab :nope ())" "no widget of the kind :SLAB")
-                              ("(:column :v () (:label :x (:size \"big\")))" "of the option :SIZE")
-                              ("(:column :v () (:label :x (:colour 3)))" "has no option :COLOUR")
-                              ("(:column :v () (:button :x (:enabled maybe)))" "of the option :ENABLED")
-                              ("(:column :v () (:label :x ()) (:row :r () (:label :x ())))"
+  (loop :for (text why) :in '(("(:column :v ())" "defines no view")
+                              ("(almighty-bolt:define-view :x (:slab :nope ()))" "no widget of the kind :SLAB")
+                              ("(almighty-bolt:define-view :x (:column :v () (:label :x (:size \"big\"))))" "of the option :SIZE")
+                              ("(almighty-bolt:define-view :x (:column :v () (:label :x (:colour 3))))" "has no option :COLOUR")
+                              ("(almighty-bolt:define-view :x (:column :v () (:button :x (:enabled maybe))))" "of the option :ENABLED")
+                              ("(almighty-bolt:define-view :x (:column :v () (:label :x ()) (:row :r () (:label :x ()))))"
                                "Two widgets have the id :X")
-                              ("(:column :v () (:label :x () (:label :y ())))" "holds nothing"))
+                              ("(almighty-bolt:define-view :x (:column :v () (:label :x () (:label :y ()))))" "holds nothing"))
         :do
     (multiple-value-bind (screen session) (open-designer)
-      (let ((path (merge-pathnames (format nil "not-~d.view" (random 1000000000))
+      (let ((path (merge-pathnames (format nil "not-~d.lisp" (random 1000000000))
                                    (uiop:temporary-directory))))
         (unwind-protect
              (progn
@@ -264,7 +266,7 @@ event changed shows in it."
 
 (define-test a-view-with-an-option-set-to-false-opens-again-as-it-was ()
   (multiple-value-bind (screen session) (open-designer)
-    (let ((path (merge-pathnames (format nil "view-~d.view" (random 1000000000))
+    (let ((path (merge-pathnames (format nil "view-~d.lisp" (random 1000000000))
                                  (uiop:temporary-directory))))
       (unwind-protect
            (progn
@@ -396,3 +398,69 @@ event changed shows in it."
     (assert-true (in-view session :forgot))
     (m:press-key session :z :modifiers '(:super :shift))
     (assert-false (in-view session :forgot))))
+
+;;; --- the view in the app ---
+
+(defun find-form (form id)
+  "The widget called ID in the view FORM."
+  (if (eq (second form) id)
+      form
+      (loop :for child :in (cdddr form) :thereis (find-form child id))))
+
+(defun saving-to (screen name)
+  "Make the save panel answer with a file called NAME.lisp; its path."
+  (let ((path (merge-pathnames (format nil "~a.lisp" name) (uiop:temporary-directory))))
+    (setf (core:context-file-chooser (screen-context screen))
+          (lambda (kind types offered)
+            (declare (ignore kind types offered))
+            (namestring path)))
+    path))
+
+(define-test saving-defines-the-view-by-the-files-name-and-the-file-defines-it-again ()
+  (multiple-value-bind (screen session) (open-designer)
+    (let* ((name (format nil "login-~d" (random 1000000000)))
+           (keyword (intern (string-upcase name) :keyword))
+           (path (saving-to screen name)))
+      (unwind-protect
+           (progn
+             (m:click session :id :sign-in :within :canvas)
+             (m:set-value session "Log in" :id :option-text)
+             (m:click session :id :save :within :toolbar)
+             ;; Defined here as it is saved, so a window that draws it shows it now.
+             (assert-equal "Log in" (catalogue:form-option
+                                     (find-form (views:find-view keyword) :sign-in) :text))
+             (assert-true (search (format nil "(almighty-bolt:define-view ~(~s~)" keyword)
+                                  (uiop:read-file-string path)))
+             ;; Loaded, the file defines it: as an app's system loads it.
+             (remhash keyword views::*views*)
+             (load path)
+             (assert-true (views:find-view keyword)))
+        (remhash keyword views::*views*)
+        (when (probe-file path) (delete-file path))))))
+
+(define-test saving-a-view-that-no-longer-fits-its-wiring-says-so ()
+  (multiple-value-bind (screen session) (open-designer)
+    (let* ((name (format nil "wired-~d" (random 1000000000)))
+           (keyword (intern (string-upcase name) :keyword))
+           (path (saving-to screen name)))
+      (unwind-protect
+           (progn
+             ;; Code that wires the view's Forgot button, compiled and so noted.
+             (handler-bind ((warning #'muffle-warning))
+               (compile nil `(lambda () (bolt:view ,keyword (button :forgot :on-press (print 1))))))
+             (m:click session :id :forgot :within :canvas)
+             (m:click session :id :remove :within :toolbar)
+             (m:click session :id :save :within :toolbar)
+             (assert-true (search ":FORGOT is wired" (shown-name session :status))
+                          (shown-name session :status)))
+        (remhash keyword views::*views*)
+        (remhash keyword views::*wirings*)
+        (when (probe-file path) (delete-file path))))))
+
+(define-test the-start-of-the-wiring-names-every-widget-by-its-kind-and-id ()
+  (multiple-value-bind (screen session) (open-designer)
+    (declare (ignore screen))
+    (let ((text (shown-value session :wiring)))
+      (assert-true (search "(bolt:view :sign-in" text) text)
+      (assert-true (search "(button :forgot)" text) text)
+      (assert-true (search "(text-field :password)" text) text))))

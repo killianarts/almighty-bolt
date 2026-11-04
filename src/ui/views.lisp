@@ -1,0 +1,214 @@
+(defpackage #:almighty-bolt/ui/views
+  (:use #:cl)
+  (:import-from #:almighty-bolt/ui/catalogue
+                #:find-entry
+                #:entry-kind
+                #:entry-options
+                #:entry-wires
+                #:option-name
+                #:+catalogue+
+                #:check-view-form
+                #:draw-form)
+  (:export #:define-view
+           #:view
+           #:set-view
+           #:find-view
+           #:view-names
+           #:wiring-problems
+           #:*view-defined-hook*))
+
+(in-package #:almighty-bolt/ui/views)
+
+;;; A view is a piece of a window that a designer made: a form of widgets, kept by its name (a
+;;; keyword, as a theme's is), which DEFINE-VIEW gives. An app draws it with VIEW and wires its own
+;;; code to it by the ids the designer gave: what a widget shows (its options, by their names), what
+;;; a press does (:on-press), the variable a field shows and sets (:value), what goes in a container
+;;; (:contents). The design and the code are each whole without the other, and the ids are what they
+;;; share.
+;;;
+;;; The wiring is checked against the design when the app's code is compiled (VIEW is a macro, and
+;;; the view is known then if its file was loaded first), when a view is defined again (every VIEW
+;;; that was loaded is noted, and checked against the new design), and when it is drawn. A view
+;;; defined again is drawn in every window at once, without the code that wires it being compiled
+;;; again: VIEW finds the view by its name when it draws.
+
+(defvar *views* (make-hash-table)
+  "The views defined, each a form, by name.")
+
+(defvar *wirings* (make-hash-table)
+  "For each view's name, what each VIEW form that was loaded wires to it: a list of specs, each a
+list of (id kind key ...), the keys being the options and wires it gives.")
+
+(defvar *checked* (make-hash-table :test 'eq)
+  "For each spec, the form it was last found to fit, so that a view is checked again only when it
+has changed.")
+
+(defvar *view-defined-hook* nil
+  "A function called with no arguments after a view has been defined, or NIL: the host sets it so
+that an open window shows a view changed in a designer.")
+
+(defun find-view (name)
+  "The form of the view called NAME, or NIL."
+  (values (gethash name *views*)))
+
+(defun view-names ()
+  (sort (loop :for name :being :the :hash-keys :of *views* :collect name) #'string<))
+
+(defun spec-problems (spec form)
+  "What does not fit in the wiring SPEC and the view FORM, as a list of sentences."
+  (let ((problems '()))
+    (labels ((find-id (form id)
+               (if (eq (second form) id)
+                   form
+                   (loop :for child :in (cdddr form)
+                           :thereis (find-id child id)))))
+      (dolist (clause spec)
+        (destructuring-bind (id kind &rest keys) clause
+          (declare (ignore keys))
+          (let ((found (find-id form id)))
+            (cond ((null found)
+                   (push (format nil "~s is wired, and the view has no widget with that id." id)
+                         problems))
+                  ((not (eq (first found) kind))
+                   (push (format nil "~s is wired as a ~(~a~), and in the view it is a ~(~a~)."
+                                 id kind (first found))
+                         problems)))))))
+    (nreverse problems)))
+
+(defun wiring-problems (name)
+  "What does not fit between the view called NAME and the code that wires it, as it was loaded: a
+list of sentences, empty if all is well. Wiring that was loaded and then compiled again without a
+clause is noted still, until the Lisp is started again, so this can name a clause that no code has
+now; drawing the view checks the code that runs."
+  (let ((form (find-view name)))
+    (and form
+         (remove-duplicates (loop :for spec :in (gethash name *wirings*)
+                                  :append (spec-problems spec form))
+                            :test #'string=))))
+
+(define-condition view-wiring-mismatch (style-warning)
+  ((name :initarg :name :reader view-wiring-mismatch-name)
+   (problem :initarg :problem :reader view-wiring-mismatch-problem))
+  (:report (lambda (condition stream)
+             (format stream "The view ~s is wired by code that does not fit it: ~a"
+                     (view-wiring-mismatch-name condition) (view-wiring-mismatch-problem condition))))
+  (:documentation "A view defined that the code wiring it, as loaded, does not fit. A style warning,
+so that compiling a view's file does not fail for it: the code may have been changed and compiled
+since it was loaded (the wiring that was is noted until the Lisp is started again), and drawing
+the view checks the code that runs, and is an error if it does not fit."))
+
+(defun set-view (name form)
+  "Make FORM, checked (CHECK-VIEW-FORM), the view called NAME, and show it in every window. Returns
+what does not fit between it and the code that wires it (WIRING-PROBLEMS), and signals a style
+warning (VIEW-WIRING-MISMATCH) of each."
+  (check-type name keyword)
+  (check-view-form form)
+  (setf (gethash name *views*) form)
+  (when *view-defined-hook* (funcall *view-defined-hook*))
+  (let ((problems (wiring-problems name)))
+    (dolist (problem problems)
+      (warn 'view-wiring-mismatch :name name :problem problem))
+    problems))
+
+(defmacro define-view (name form)
+  "Define the view NAME (a keyword) as FORM: (kind id (option value ...) what-is-in-it ...), as
+a designer writes it. An error when compiled if FORM cannot be drawn (CHECK-VIEW-FORM). It is
+defined when compiled too, so that the code that wires it, compiled after, is checked against it."
+  (check-type name keyword)
+  (check-view-form form)
+  `(eval-when (:compile-toplevel :load-toplevel :execute)
+     (set-view ,name ',form)))
+
+(define-condition view-not-defined (style-warning)
+  ((name :initarg :name :reader view-not-defined-name))
+  (:report (lambda (condition stream)
+             (format stream "No view is called ~s when this is compiled, so its wiring is checked ~
+                             only when it is drawn. Load the file that defines it (DEFINE-VIEW) ~
+                             first."
+                     (view-not-defined-name condition))))
+  (:documentation "A VIEW form compiled before the view it draws is defined."))
+
+(defun note-wiring (name spec)
+  "Note that a VIEW form wires SPEC to the view NAME; called when that form is loaded."
+  (pushnew spec (gethash name *wirings*) :test #'equal)
+  spec)
+
+(defun draw-view (name id spec wires)
+  (let ((form (or (find-view name)
+                  (error "No view is called ~s. Load the file that defines it (DEFINE-VIEW) before ~
+                          the code that draws it." name))))
+    (unless (eq (gethash spec *checked*) form)
+      (let ((problems (spec-problems spec form)))
+        (when problems
+          (error "The view ~s and the code that wires it do not fit: ~{~a~^ ~}" name problems)))
+      (setf (gethash spec *checked*) form))
+    (draw-form form :wires wires :id id)))
+
+(defun clause-entry (clause)
+  "The catalogue's entry for the kind CLAUSE names: (button :sign-in ...) is a :button."
+  (unless (and (consp clause) (symbolp (first clause)) (keywordp (second clause)))
+    (error "~s is not wiring: (kind id key value ...), as (button :sign-in :on-press (go))." clause))
+  (let ((kind (intern (symbol-name (first clause)) :keyword)))
+    (or (find kind +catalogue+ :key #'entry-kind)
+        (error "~s: there is no widget of the kind ~(~a~); there are ~{~(~a~)~^, ~}." clause kind
+               (mapcar #'entry-kind +catalogue+)))))
+
+(defmacro view (name-and-id &body clauses)
+  "Draw the view NAME, wired to the code by CLAUSES. NAME-AND-ID is the view's name (a keyword), or
+(name :id id) to give its outermost widget ID in place of its own, so that it can be in one
+container more than once. Each clause is a widget of the view, by its kind and id, and what the
+code gives it: (button :sign-in :enabled (plusp (length name)) :on-press (sign-in name)). An option
+is given as the widget's own (its value is worked out each frame); :on-press is what a press of a
+button does, :value is a place that a text field shows and that typing sets, :contents is what is
+drawn in a column or row after what the view has there. What is not wired is as the view has it.
+
+Checked when compiled: a kind there is no widget of, an option or a wire that kind does not take,
+and, if the view is defined then, an id it does not have or a widget of another kind. A view not
+defined then is a style warning, and the wiring is checked when the view is drawn."
+  (destructuring-bind (name &key id) (if (listp name-and-id) name-and-id (list name-and-id))
+    (check-type name keyword)
+    (let ((spec '()) (wires '()) (functions '()))
+      (dolist (clause clauses)
+        (let* ((entry (clause-entry clause))
+               (kind (entry-kind entry))
+               (wire-id (second clause))
+               (options '())
+               (wired '()))
+          (when (find wire-id spec :key #'first)
+            (error "~s is wired twice in one VIEW." wire-id))
+          (loop :for (key value) :on (cddr clause) :by #'cddr
+                :do (cond ((find key (entry-options entry) :key #'option-name)
+                           (setf options (list* value key options)))
+                          ((not (member key (entry-wires entry)))
+                           (error "~s: a ~(~a~) takes ~{~(~s~)~^, ~}, and not ~s." clause kind
+                                  (append (mapcar #'option-name (entry-options entry))
+                                          (entry-wires entry))
+                                  key))
+                          ((eq key :value)
+                           ;; What the field shows, and a function that sets the place.
+                           (let ((function (gensym "SET")) (new (gensym "NEW")))
+                             (setf options (list* value :text options))
+                             (push `(,function (,new) (setf ,value ,new)) functions)
+                             (setf wired (list* `(function ,function) key wired))))
+                          (t
+                           (let ((function (gensym (symbol-name key))))
+                             (push `(,function () ,value) functions)
+                             (setf wired (list* `(function ,function) key wired))))))
+          (push (list* wire-id kind (loop :for (key) :on (cddr clause) :by #'cddr :collect key))
+                spec)
+          (push `(list* ,wire-id (list ,@(reverse options)) (list ,@(reverse wired))) wires)))
+      (setf spec (nreverse spec))
+      ;; Against the view as it is when the code is compiled.
+      (let ((form (find-view name)))
+        (if form
+            (let ((problems (spec-problems spec form)))
+              (when problems
+                (error "The view ~s and this wiring do not fit: ~{~a~^ ~}" name problems)))
+            (warn 'view-not-defined :name name)))
+      (let ((list (gensym "WIRES")))
+        `(flet ,(reverse functions)
+           (declare (dynamic-extent ,@(mapcar (lambda (f) `(function ,(first f))) functions)))
+           (let ((,list (list ,@(reverse wires))))
+             (declare (dynamic-extent ,list))
+             (draw-view ,name ,id (load-time-value (note-wiring ,name ',spec)) ,list)
+             nil))))))

@@ -97,6 +97,8 @@
                  (:file "widgets")
                  (:file "inspection")
                  (:file "design-surface")
+                 (:file "catalogue")
+                 (:file "views")
                  (:file "layout")
                  (:file "paint")
                  (:file "immediate")

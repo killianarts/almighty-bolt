@@ -107,6 +107,8 @@ is what the window runs.
 | `(bolt:open-window 'make-y :title "Y")`                     | Opens another window with an app of its own, from a button or the REPL, and returns it; a press in one window draws the others. `:top`, `:left`, `:bottom`, `:right` (from the screen's edges) or `:beside window` say where it opens. See [Windows](docs/reference.md#windows). |
 | `(bolt:close-window window)`                                | Closes a window that `open-window` returned.                                                                                                                                                                                                         |
 | `(bolt:this-window)`                                        | In an app's function, the window it is in: for `close-window`, or for `open-window`'s `:beside`.                                                                                                                                                     |
+| `(bolt:define-view :login form)`                            | Defines a view made in the GUI designer, which saves a file of this form. See [Views](#views).                                                                                                                                                       |
+| `(bolt:view :login clause ...)`                             | Draws a view, with the code wired to its widgets by their ids: options, `:on-press`, `:value`, `:contents`.                                                                                                                                          |
 
 ## State
 
@@ -191,6 +193,29 @@ part's:
 Compile a `define-theme` again and the open window shows it at once.
 [The reference](docs/reference.md#themes) has what a theme sets.
 
+## Views
+
+A view is a piece of a window made in the GUI designer and saved as a file that
+defines it, `(bolt:define-view :login (:column :form (:gap 12) ...))`. The app
+loads that file before its own code and wires its code to the view by the ids
+the designer gave, naming each widget as a call to it would:
+
+```lisp
+(bolt:state-let ((name "") (password ""))
+  (lambda ()
+    (bolt:view :login
+      (text-field :name :value name)                 ; shows NAME, and typing sets it
+      (button :sign-in :enabled (plusp (length name))
+                       :on-press (sign-in name password)))))
+```
+
+What is not wired is as the designer left it. Wiring that does not fit the
+view (an id it does not have, a widget of another kind, an option the widget
+does not take) is an error when the code is compiled, and the designer says so
+when a view is saved that no longer fits its code. Saving a view in the
+designer shows it in an open window at once, without the code being compiled
+again. [The reference](docs/reference.md#views) has the rest.
+
 ## Canvas
 
 `bolt:canvas` is an area that you draw in and handle the pointer and keyboard
@@ -255,8 +280,10 @@ what comes first, is in [docs/roadmap.md](docs/roadmap.md).
 - [`apps/gui-designer/`](apps/gui-designer): the start of a GUI designer. A
   view made of labels, buttons, text fields, columns and rows is drawn as it
   will look; add widgets to it, select one in it or in its outline to change
-  its id and options, undo and redo, and save it as a file to open again: `(almighty-bolt-gui-designer:open-designer)`
-  after loading the system `almighty-bolt-gui-designer`.
+  its id and options, undo and redo, and save it as a `define-view` file for an
+  app to load and wire, which an open window shows at once:
+  `(almighty-bolt-gui-designer:open-designer)` after loading the system
+  `almighty-bolt-gui-designer`.
 - [`examples/7guis/`](examples/7guis): the seven 7GUIs tasks.
   [`bench/stress/`](bench/stress) has a dashboard, a million-row list and a text
   editor with input-method support.

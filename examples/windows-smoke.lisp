@@ -1,8 +1,8 @@
 ;;;; Check, in real windows, what an app with more than one window gets: a second window opened by a
 ;;;; button of the first, which shows what the first holds and changes it; another opened from the
 ;;;; REPL and closed; both made again when code is compiled; a window that belongs to another closing
-;;;; with it; a window whose frames fail going on, and mended by a press; Quit closing them all and
-;;;; leaving the Lisp; and the loop starting again. From the
+;;;; with it; a window whose frames fail going on, and mended by a press; a view defined again shown
+;;;; in its window at once; Quit closing them all and leaving the Lisp; and the loop starting again. From the
 ;;;; repository root:
 ;;;;   make windows-smoke
 ;;;; The main thread waits, as a REPL's waits for the editor, and another thread does what the
@@ -225,6 +225,30 @@ what is shown mends it."
     (bolt:close-window window)
     (wait-for (lambda () (not (host-open-p window))))))
 
+(bolt:define-view :smoke-greeting
+  (:column :greeting nil
+   (:label :hello (:text "Hello"))))
+
+(defun make-greeting ()
+  (lambda ()
+    (bolt:view :smoke-greeting)))
+
+(defun view-checks ()
+  "A view defined again, as the GUI designer does when it saves, is shown in a window that draws it,
+at once and without the window's code being compiled again."
+  (let ((window (bolt:open-window 'make-greeting :title "Greeting" :width 200 :height 80)))
+    (wait-for (lambda () (plusp (frames window))))
+    (wait-for-idle window)
+    (flet ((says ()
+             (s:node-name (m:find-node (open-session window) :id :hello))))
+      (check "a window draws a view" (equal "Hello" (says)) (says))
+      (almighty-bolt/ui/views:set-view :smoke-greeting
+                                       '(:column :greeting nil (:label :hello (:text "Hi there"))))
+      (check "and shows it defined again, without anything else happening"
+             (wait-for (lambda () (equal "Hi there" (says)))) (says)))
+    (bolt:close-window window)
+    (wait-for (lambda () (not (host-open-p window))))))
+
 (defun this-window-checks ()
   "A window that the second opens beside itself, and that closes itself, both by THIS-WINDOW."
   (m:click (open-session *second*) :id :below)
@@ -272,6 +296,7 @@ what is shown mends it."
     (inspector-checks first)
     (this-window-checks)
     (failing-frame-checks)
+    (view-checks)
     ;; Another, from the REPL, closed again.
     (let ((third (bolt:open-window 'make-third :title "Third" :width 200 :height 80
                                                :top 0 :right 0)))

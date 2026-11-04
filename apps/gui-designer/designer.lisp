@@ -5,6 +5,7 @@
                 #:make-node
                 #:node-kind
                 #:node-id
+                #:node-options
                 #:node-children
                 #:form-node
                 #:node-form
@@ -16,7 +17,7 @@
                 #:remove-node
                 #:with-option
                 #:with-id)
-  (:import-from #:almighty-bolt-gui-designer/catalogue
+  (:import-from #:almighty-bolt/ui/catalogue
                 #:+catalogue+
                 #:entry-kind
                 #:entry-title
@@ -26,22 +27,27 @@
                 #:option-type
                 #:option-default
                 #:find-entry
-                #:option-value-p
-                #:node-option
-                #:draw-node)
+                #:check-view-form
+                #:form-option
+                #:draw-form)
+  (:import-from #:almighty-bolt/ui/views
+                #:set-view)
   (:export #:make-designer
            #:open-designer
            #:write-view
-           #:read-view))
+           #:read-view
+           #:wiring-text))
 
 (in-package #:almighty-bolt-gui-designer)
 
 ;;; A GUI designer: the widgets it knows and an outline of the view on the left, the view being
 ;;; designed in the middle, drawn with the real widgets but not working (a press there selects what
 ;;; it was on, as a row of the outline does), and the selected widget's id and options on the right,
-;;; to change. A widget from the left goes into the selected
-;;; container, or after the selected widget. The view is saved as its form, in a file of its own.
-;;; It uses the public package only.
+;;; to change, with the start of the code that wires it below. A widget from the left goes into the
+;;; selected container, or after the selected widget. The view is saved as a file of Lisp that
+;;; defines it (DEFINE-VIEW), which an app loads before the code that draws it (VIEW), and is defined
+;;; in the image as it is saved, so that an open window shows it at once. It uses the public package,
+;;; and the library's catalogue of widgets, which it draws the view with as an app does.
 ;;;
 ;;;   (almighty-bolt-gui-designer:open-designer)
 
@@ -62,51 +68,60 @@
 
 ;;; --- the file ---
 
-(defun write-view (view stream)
-  "Write VIEW to STREAM as the file the designer saves: its form, read in a package that uses CL, so
-that NIL and T are written as they are and every widget's kind, id and options as keywords."
-  (format stream ";;; A view made with the GUI designer of almighty-bolt: ~
-                  (kind id (option value ...) what-is-in-it ...).~%")
-  (with-standard-io-syntax
-    (let ((*package* (find-package :cl-user))
-          (*print-case* :downcase)
-          (*print-pretty* t)
-          (*print-right-margin* 100))
-      (prin1 (node-form view) stream)
-      (terpri stream))))
+(defun write-view (name view stream)
+  "Write VIEW to STREAM as the file the designer saves: Lisp that defines it as the view NAME, to be
+loaded before the code that draws it. It is written in a package that uses CL, so that NIL and T
+are as they are and every widget's kind, id and options are keywords."
+  (format stream ";;; A view made with the GUI designer of almighty-bolt. Load it before the code ~
+                  that draws it,~%;;; (almighty-bolt:view ~(~s~) ...).~%" name)
+  ;; The operator is written as the public package names it (its home is another package).
+  (let ((form (with-standard-io-syntax
+                (let ((*package* (find-package :cl-user))
+                      (*print-case* :downcase)
+                      (*print-pretty* t)
+                      (*print-right-margin* 98))
+                  (prin1-to-string (node-form view))))))
+    (format stream "(almighty-bolt:define-view ~(~s~)~%  ~a)~%"
+            name
+            (with-output-to-string (out)
+              (loop :for character :across form
+                    :do (write-char character out)
+                        (when (char= character #\Newline)
+                          (write-string "  " out)))))))
 
 (defun read-view (stream)
-  "The view in STREAM, a file the designer saved. An error, saying what is wrong, if it is not one:
-a widget of a kind the catalogue does not have, an option its kind does not have or a value that
-option cannot have, or an id that two widgets have. A view that opens can be drawn."
-  (let ((form (with-standard-io-syntax
-                (let ((*read-eval* nil)
-                      (*package* (find-package :cl-user)))
-                  (read stream))))
-        (ids '()))
-    (labels ((check (form)
-               (unless (and (consp form) (keywordp (first form)) (keywordp (second form))
-                            (listp (third form)) (evenp (length (third form))))
-                 (error "~s is not a widget of a view." form))
-               (destructuring-bind (kind id options &rest children) form
-                 (let ((entry (find-entry kind)))
-                   (when (member id ids)
-                     (error "Two widgets have the id ~s." id))
-                   (push id ids)
-                   (loop :for (name value) :on options :by #'cddr
-                         :do (let ((option (find name (entry-options entry) :key #'option-name)))
-                               (unless option
-                                 (error "A ~(~a~) has no option ~s." kind name))
-                               (unless (option-value-p option value)
-                                 (error "~s is not a value of the option ~s of a ~(~a~)."
-                                        value name kind))))
-                   (when (and children (not (entry-container-p entry)))
-                     (error "A ~(~a~) holds nothing, and ~s has something in it." kind id))
-                   (mapc #'check children)))))
-      (check form))
-    (form-node form)))
+  "The view that STREAM, a file the designer saved, defines: its name and the view, as two values.
+An error that says what is wrong if it defines none, or one that cannot be drawn
+(CHECK-VIEW-FORM). Nothing in the file is evaluated."
+  (with-standard-io-syntax
+    (let ((*read-eval* nil)
+          (*package* (find-package :cl-user)))
+      (loop :for form = (read stream nil stream)
+            :until (eq form stream)
+            :do (when (and (consp form) (eq (first form) 'bolt:define-view))
+                  (destructuring-bind (name view) (rest form)
+                    (unless (keywordp name)
+                      (error "The view's name, ~s, is not a keyword." name))
+                    (check-view-form view)
+                    (return-from read-view (values name (form-node view))))))
+      (error "The file defines no view (DEFINE-VIEW)."))))
+
+(defun wiring-text (name view)
+  "The start of the code that draws the view NAME: a line for each widget, by its kind and id, for
+what the app gives it."
+  (with-output-to-string (out)
+    (format out "(bolt:view ~(~s~)" name)
+    (labels ((walk (node)
+               (format out "~%  (~(~a ~s~))" (node-kind node) (node-id node))
+               (mapc #'walk (node-children node))))
+      (walk view))
+    (format out ")")))
 
 ;;; --- pieces of the screen ---
+
+(defun node-option (node name)
+  "The value of NODE's option NAME: what it was given, or its kind's default."
+  (form-option (list (node-kind node) (node-id node) (node-options node)) name))
 
 (defun id (&rest parts)
   "A keyword made of PARTS."
@@ -212,7 +227,7 @@ true as a second value."
 leave it, the selection (which an id changed changes), and, if an option was changed, which: the
 widget's id and the option's name, as a cons."
   (let ((edit nil))
-  (bolt:panel (:id :selection :all 14 :radius 0)
+  (bolt:padding (:id :selection :all 14)
     (bolt:column (:gap 8 :min-width 300)
       (bolt:label "Selected" :id :selection-heading :size 17)
       (let ((node (and selected (find-by-id view selected))))
@@ -266,6 +281,8 @@ or at the end of the view if nothing is selected. Returns the view and the new w
 
 (defun make-designer ()
   (bolt:state-let ((view (form-node +sample+))
+                   ;; What the view is called, which an app draws it by: the file's name, once saved.
+                   (name :sign-in)
                    (selected nil)
                    (drafts (make-hash-table :test 'equal))
                    (saving nil)
@@ -313,7 +330,7 @@ or at the end of the view if nothing is selected. Returns the view and the new w
             (bolt:row (:gap 8 :cross-align :center)
               (when (bolt:button "New" :id :new)
                 (change (form-node +empty+))
-                (setf status "")
+                (setf status "" name :view)
                 (select nil))
               (when (bolt:button "Open…" :id :open)
                 (setf opening t))
@@ -329,20 +346,28 @@ or at the end of the view if nothing is selected. Returns the view and the new w
               (when (bolt:button "Redo" :id :redo :enabled (and redo t))
                 (step-forward))
               (bolt:label status :id :status)))
-          (let ((path (bolt:save-file-dialog :id :save-panel :show saving :types '("view")
-                                             :name (format nil "~(~a~).view" (node-id view)))))
+          (let ((path (bolt:save-file-dialog :id :save-panel :show saving :types '("lisp")
+                                             :name (format nil "~(~a~).lisp" name))))
             (setf saving nil)
             (when path
+              ;; The view is called what the file is.
+              (setf name (intern (string-upcase (pathname-name path)) :keyword))
               (with-open-file (out path :direction :output :if-exists :supersede)
-                (write-view view out))
-              (setf status (format nil "Saved to ~a." path))))
-          (let ((path (bolt:open-file-dialog :id :open-panel :show opening :types '("view"))))
+                (write-view name view out))
+              ;; Defined here too, so that a window that draws it shows it now; what the code that
+              ;; wires it no longer fits is said.
+              (let ((problems (handler-bind ((warning #'muffle-warning))
+                                (set-view name (node-form view)))))
+                (setf status (format nil "Saved to ~a~:[.~;; ~:*~{~a~^ ~}~]" path problems)))))
+          (let ((path (bolt:open-file-dialog :id :open-panel :show opening :types '("lisp"))))
             (setf opening nil)
             (when path
               (handler-case
                   (with-open-file (in path)
-                    (change (read-view in))
-                    (setf status (format nil "Opened ~a." path))
+                    (multiple-value-bind (opened new) (read-view in)
+                      (change new)
+                      (setf name opened
+                            status (format nil "Opened ~a." path)))
                     (select nil))
                 (error (condition)
                   (setf status (format nil "Could not open ~a: ~a" path condition))))))
@@ -359,10 +384,20 @@ or at the end of the view if nothing is selected. Returns the view and the new w
                     (select chosen)))))
             (bolt:panel (:id :canvas-back :color :background :radius 0 :flex 1 :all 32)
               (let ((pressed (bolt:design-surface (:id :canvas :selected selected)
-                               (draw-node view))))
+                               (draw-form (node-form view)))))
                 (when pressed
                   (select pressed))))
-            (multiple-value-bind (new now edit) (selection view selected drafts)
+            (let ((new view) (now selected) (edit nil))
+              (bolt:panel (:id :right :radius 0)
+               (bolt:column (:gap 0)
+                (multiple-value-setq (new now edit) (selection view selected drafts))
+                (bolt:padding (:id :wiring-pane :all 14)
+                  (bolt:column (:gap 8)
+                    (bolt:label "Wiring" :id :wiring-heading :size 17)
+                    (bolt:paragraph "The start of the code that draws this view, to copy."
+                                    :id :wiring-note :color :dim-text)
+                    (bolt:text-area (wiring-text name view) :id :wiring :width 300 :rows 8
+                                                            :labelled-by :wiring-heading)))))
               (change new edit)
               (unless (eq now selected)
                 (select now))))

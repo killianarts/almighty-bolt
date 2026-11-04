@@ -494,6 +494,45 @@ Each window's app is an app of its own, with its own `state-let`. What two windo
 
 Where a window opens is given to `open-app`, `open-window` and `run-app`. `:top`, `:left`, `:bottom` and `:right` are points from that edge of the screen's usable area (below the menu bar and beside the Dock), as CSS's absolute positioning has them: `(bolt:open-window 'make-palette :top 0 :right 0)` opens in the top right corner. When both `:left` and `:right` are given `:left` is taken, and `:top` before `:bottom`; along an axis that has neither, the window is in the middle. `:beside window` (one that `open-app` or `open-window` returned) opens it next to that window, on its `:side` (`:right`, the default, `:left`, `:above` or `:below`), `:gap` points away (12), with the edges lined up, or on the other side if there is no room. With none of these, the first window opens in the middle of the screen and each after it below and to the right of the last one opened. Wherever a window goes, it is kept on the screen. The inspector opens beside the app's window.
 
+## Views
+
+A view is a piece of a window, from all of it down to a row of a list, made in the GUI designer
+(`apps/gui-designer`) and kept by its name, a keyword. `(bolt:define-view :login form)` defines it;
+the designer writes a file of that form when it saves a view, named after the file. FORM is
+`(kind id (option value ...) what-is-in-it ...)`, the kinds being `:label`, `:button`,
+`:text-field`, `:column` and `:row` and the options the widgets' own: `(:row :actions (:gap 8)
+(:button :sign-in (:text "Sign in")))`. A form that cannot be drawn is an error when the file is
+compiled: a kind there is no widget of, an option the widget does not take or a value it cannot
+have, an id two widgets have, or something inside a widget that holds nothing. A view is defined
+when its file is compiled too, so the code that draws it, compiled after it, is checked against it:
+put the view's file before that code in the system.
+
+`(bolt:view :login clause ...)` draws the view where it is called, wired to the code by its
+clauses. Each clause is one widget of the view, by its kind and id, then what the code gives it:
+
+- an option, by the widget's own name for it, worked out each frame: `(label :greeting :text
+  (format nil "Hello ~a" name))`, `(button :sign-in :enabled (plusp (length name)))`;
+- `:on-press` on a button: what a press does;
+- `:value` on a text field: a place (a variable of `state-let`, say) that the field shows and
+  that typing sets;
+- `:contents` on a column or row: what is drawn in it, after what the view has there.
+
+What is not wired is as the view has it. `(bolt:view (:message-row :id (message-id m)) ...)` gives
+the view's outermost widget that id in place of its own, so that one view can be in one container
+more than once, each wired to its own; ids inside it are its own.
+
+The wiring is checked three times. When the code is compiled, a kind, an option or a wire that does
+not exist is an error, and so, if the view is defined then, is an id it does not have or a widget of
+another kind; a view not defined then is a style warning, and the check is made when it is drawn.
+When a view is defined again (the designer saves it), the code that draws it, as loaded, is checked
+against it: what no longer fits is a style warning, which the designer shows. (The wiring of code
+loaded and then compiled again without a clause is still noted until the Lisp is started again, so
+this can name a clause that no code has now.) And when it is drawn, a
+wiring that does not fit is an error, which a window shows over its last good frame. A view defined
+again is drawn in every open window at once, with the code as it is.
+
+A view drawn this way allocates nothing beyond what the same widgets written by hand do.
+
 ## When a frame fails
 
 If the app's function, or the layout or painting of what it described, signals an error while a

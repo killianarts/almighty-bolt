@@ -3677,6 +3677,149 @@ released unless RELEASE."
     (multiple-value-bind (x y) (core:lookup-target (screen-app screen) :days)
       (assert-eql ring (color-at screen (+ x 20) (- y 1))))))
 
+;;; --- views: a design, and the code wired to it ---
+
+(define-view :t-login
+  (:column :form (:gap 8)
+   (:label :heading (:text "Sign in"))
+   (:text-field :name nil)
+   (:row :actions (:gap 8)
+    (:button :go (:text "Go"))
+    (:button :later (:text "Later")))
+   (:column :recent nil)))
+
+(defun make-wired-login ()
+  (state-let ((name "") (presses 0))
+    (lambda ()
+      (column (:id :page :gap 8)
+        (view :t-login
+          (label :heading :text (format nil "Hello ~a" name))
+          (text-field :name :value name)
+          (button :go :enabled (plusp (length name)) :on-press (incf presses))
+          (column :recent :contents (label (format nil "~d" presses) :id :count)))
+        (when (button "Clear" :id :clear)
+          (setf name ""))))))
+
+(define-test a-view-is-drawn-as-designed-and-does-what-the-code-wired-to-it ()
+  (let* ((screen (show 'make-wired-login))
+         (session (screen-session screen)))
+    ;; An option worked out by the code, each frame.
+    (assert-equal "Hello " (text-in screen :heading))
+    ;; What is not wired is as the view has it.
+    (assert-equal "Later" (text-in screen :later))
+    (assert-true (s:node-property (m:find-node session :id :go) :disabled))
+    ;; :value: typing sets the variable (the heading shows it), and the variable is what it shows.
+    (m:type-text session "Ann" :id :name)
+    (assert-equal "Hello Ann" (text-in screen :heading))
+    (assert-false (s:node-property (m:find-node session :id :go) :disabled))
+    (m:click session :id :clear)
+    (assert-equal "" (s:node-value (m:find-node session :id :name)))
+    ;; :on-press runs on a press, and :contents is drawn in its container.
+    (m:type-text session "Bo" :id :name)
+    (m:click session :id :go)
+    (m:click session :id :go)
+    (assert-equal "2" (text-in screen :count))
+    (assert-true (m:find-node session :id :count :within :recent))))
+
+(define-test a-view-defined-again-is-drawn-without-the-code-being-compiled-again ()
+  (let ((before (almighty-bolt/ui/views:find-view :t-login))
+        (screen (show 'make-wired-login)))
+    (flet ((define (form)
+             (handler-bind ((warning #'muffle-warning))
+               (almighty-bolt/ui/views:set-view :t-login form))))
+      (unwind-protect
+           (progn
+             (assert-equal '() (define (subst "Not now" "Later" before :test #'equal)))
+             (draw screen)
+             (assert-equal "Not now" (text-in screen :later))
+             ;; A design without a widget the code wires: said when it is defined, and an error
+             ;; when it is drawn (which a window shows over its last good frame).
+             (let ((problems (define (list :column :form '(:gap 8)
+                                           '(:label :heading ()) '(:text-field :name ())
+                                           '(:column :recent ())))))
+               (assert-true (some (lambda (p) (search ":GO is wired" p)) problems) problems))
+             (assert-error 'error (draw screen)))
+        (define before)))))
+
+(define-view :t-person
+  (:row :person (:gap 4)
+   (:label :who nil)
+   (:button :remove (:text "Remove"))))
+
+(defun make-people ()
+  (state-let ((removed "nobody"))
+    (lambda ()
+      (column (:id :people :gap 4)
+        (dolist (person '("Ann" "Bo"))
+          (view (:t-person :id (intern (string-upcase person) :keyword))
+            (label :who :text person)
+            (button :remove :on-press (setf removed person))))
+        (label (format nil "Removed ~a" removed) :id :removed)))))
+
+(define-test one-view-can-be-drawn-more-than-once-in-a-container-each-wired-to-its-own ()
+  (let* ((screen (show 'make-people))
+         (session (screen-session screen)))
+    (assert-equal "Ann" (s:node-name (m:find-node session :id :who :within :ann)))
+    (assert-equal "Bo" (s:node-name (m:find-node session :id :who :within :bo)))
+    (m:click session :id :remove :within :bo)
+    (assert-equal "Removed Bo" (text-in screen :removed))
+    (m:click session :id :remove :within :ann)
+    (assert-equal "Removed Ann" (text-in screen :removed))))
+
+(defun compiling (form)
+  "What is said when FORM is compiled, as a user's code is: the errors and warnings, as strings."
+  (let ((said '()))
+    ;; SBCL reports an error in a macro's expansion as a condition of its own, which is not an
+    ;; ERROR, so every condition is heard but the compiler's notes on speed.
+    (handler-bind ((condition (lambda (condition)
+                                (unless (typep condition 'sb-ext:compiler-note)
+                                  (push (princ-to-string condition) said)
+                                  (when (typep condition 'warning)
+                                    (muffle-warning condition))))))
+      (compile nil form))
+    (nreverse said)))
+
+(define-test wiring-that-does-not-fit-is-an-error-when-it-is-compiled ()
+  (loop :for (wiring why) :in '(((button :nope) ":NOPE is wired, and the view has no widget")
+                                ((text-field :go) ":GO is wired as a text-field, and in the view it is a button")
+                                ((button :go :colour 3) "a button takes")
+                                ((label :heading :on-press (print 1)) "a label takes")
+                                ((slab :go) "no widget of the kind slab"))
+        :do (let ((said (compiling `(lambda () (view :t-login ,wiring)))))
+              (assert-true (some (lambda (s) (search why s :test #'char-equal)) said) why said)))
+  ;; Wiring that fits says nothing.
+  (assert-equal '() (compiling '(lambda () (view :t-login (button :go :on-press (print 1)))))))
+
+(define-test a-view-file-compiles-while-code-loaded-before-does-not-fit-it ()
+  ;; A view saved in the designer, its file compiled again (by ASDF, say) while code that wired the
+  ;; old design is loaded: a style warning, not a failure, which would stop the system loading.
+  (let ((source (merge-pathnames (format nil "view-~d.lisp" (random 1000000000))
+                                 (uiop:temporary-directory)))
+        (fasl (merge-pathnames (format nil "view-~d.fasl" (random 1000000000))
+                               (uiop:temporary-directory))))
+    (unwind-protect
+         (progn
+           (handler-bind ((warning #'muffle-warning))
+             (almighty-bolt/ui/views:set-view :t-recompiled '(:column :c () (:button :gone ())))
+             (compile nil '(lambda () (view :t-recompiled (button :gone :on-press (print 1))))))
+           (with-open-file (out source :direction :output)
+             (write-string "(almighty-bolt:define-view :t-recompiled (:column :c ()))" out))
+           ;; Not muffled: a warning muffled is not counted by COMPILE-FILE.
+           (multiple-value-bind (output warnings failure)
+               (let ((*error-output* (make-broadcast-stream)))
+                 (compile-file source :output-file fasl))
+             (declare (ignore output))
+             (assert-true warnings)
+             (assert-false failure)))
+      (remhash :t-recompiled almighty-bolt/ui/views::*views*)
+      (remhash :t-recompiled almighty-bolt/ui/views::*wirings*)
+      (dolist (file (list source fasl))
+        (when (probe-file file) (delete-file file))))))
+
+(define-test wiring-to-a-view-not-yet-defined-is-a-style-warning ()
+  (let ((said (compiling '(lambda () (view :t-not-defined (button :go))))))
+    (assert-true (some (lambda (s) (search "Load the file that defines it" s)) said) said)))
+
 ;;; --- a frame that fails ---
 
 (defun make-breakable ()

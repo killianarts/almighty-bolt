@@ -7,7 +7,6 @@
   :serial t
   :depends-on ("almighty-bolt")
   :components ((:file "view")
-               (:file "catalogue")
                (:file "designer"))
   :in-order-to ((test-op (test-op "almighty-bolt-gui-designer/tests"))))
 

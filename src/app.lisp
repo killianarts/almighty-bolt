@@ -19,6 +19,8 @@
                 #:host-kept-state)
   (:import-from #:almighty-bolt/ui/theme
                 #:*theme-defined-hook*)
+  (:import-from #:almighty-bolt/ui/views
+                #:*view-defined-hook*)
   (:import-from #:almighty-bolt/ui/immediate
                 #:make-immediate-app
                 #:immediate-app-ui
@@ -57,7 +59,8 @@
 
 ;;; A theme defined again (DEFINE-THEME, compiled in the editor) is drawn at once in the open windows:
 ;;; its new id is in the hashes of the boxes drawn in them, so a frame is all that is needed.
-(setf *theme-defined-hook* #'request-all-frames)
+(setf *theme-defined-hook* #'request-all-frames
+      *view-defined-hook* #'request-all-frames)
 
 (defvar *development* nil
   "True while the app is being developed: opened by OPEN-APP, or by RUN-APP with :HOT or

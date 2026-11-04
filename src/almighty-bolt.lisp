@@ -90,6 +90,9 @@
                 #:scroll
                 #:lazy-list
                 #:with-theme)
+  (:import-from #:almighty-bolt/ui/views
+                #:define-view
+                #:view)
   (:import-from #:almighty-bolt/ui/design-surface
                 #:design-surface)
   (:import-from #:almighty-bolt/ui/theme
@@ -122,6 +125,7 @@
            #:switch #:spinner #:dropdown #:menu-button #:context-menu #:popover
            #:dialog #:toast #:shortcut #:spacer #:grid #:pressable #:open-file-dialog #:save-file-dialog #:list-box
            #:progress #:canvas #:scrim #:design-surface
+           #:define-view #:view
            #:column #:row #:stack #:padding #:panel #:center #:scroll #:lazy-list
            #:theme #:make-theme #:define-theme #:find-theme #:with-theme #:theme-names #:theme-name
            #:theme-setting #:theme-color #:theme-form #:+theme-settings+ #:+theme-seeds+ #:+theme-colors+ #:+theme-sizes+
