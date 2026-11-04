@@ -126,7 +126,8 @@
     ((:scroll :lazy-list) :scroll-area)
     ((:column :row :stack :padding :panel :center :context-area :surface) :group)
     (:grid :grid)
-    (:pressable (if (zerop (box-n3 box)) :button :toggle-button))))
+    (:pressable (if (zerop (box-n3 box)) :button :toggle-button))
+    (:drag-source :button)))
 
 (defun find-box (ui id)
   "The box of the frame with the id ID, or NIL."
@@ -173,6 +174,7 @@ The whole frame is searched last, for a label in a float (a dialog's title) or e
   "What the thing is called: its own words, or the words of the widget that its :labelled-by names."
   (case (box-kind box)
     (:pressable (or (box-data box) (words-inside box)))
+    (:drag-source (words-inside box))
     ((:label :paragraph :button :checkbox :switch :menu-item :menu-button :tooltip :dialog
       :toast)
      (box-text box))

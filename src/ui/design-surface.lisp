@@ -3,6 +3,7 @@
   (:import-from #:almighty-bolt/ui/box
                 #:box-key
                 #:box-id
+                #:box-kind
                 #:box-parent
                 #:box-flex
                 #:box-color
@@ -38,6 +39,14 @@
                 #:*theme*
                 #:theme-ring
                 #:theme-dim-text)
+  (:import-from #:almighty-bolt/ui/drag
+                #:begin-drag
+                #:follow-drag
+                #:drag-ghost
+                #:insertion-place
+                #:show-insertion
+                #:take-drop
+                #:dragging)
   (:import-from #:almighty-bolt/ui/widgets
                 #:required-id)
   (:export #:design-surface))
@@ -118,25 +127,66 @@ under the point X, Y in the last frame, or NIL."
           :for box = (svref boxes index)
             :thereis (and (equal (box-id box) id) (inside-p box surface) box))))
 
+(defparameter +containers+ '(:column :row :grid :stack :padding :panel :center :scroll :pressable)
+  "The kinds of box that hold others, which a drop on a surface goes into.")
+
+(defun container-under (ui surface first x y)
+  "The innermost box with an id inside SURFACE that holds others and was under X, Y in the last
+frame, or the surface's first box if none was (the view's outermost), or NIL."
+  (let ((boxes (ui-boxes ui))
+        (found nil))
+    (loop :for index :from first :below (ui-count ui)
+          :for box = (svref boxes index)
+          :do (when (and (box-id box) (member (box-kind box) +containers+) (inside-p box surface))
+                (let ((rect (rect-of ui (box-key box))))
+                  (when (and rect
+                             (<= (rect-x rect) x) (< x (+ (rect-x rect) (rect-w rect)))
+                             (<= (rect-y rect) y) (< y (+ (rect-y rect) (rect-h rect))))
+                    (setf found box)))))
+    (or found
+        (let ((first-box (and (< first (ui-count ui)) (svref boxes first))))
+          (and first-box (box-id first-box) (member (box-kind first-box) +containers+)
+               first-box)))))
+
 (defun end-design-surface (surface first selected)
   "Close SURFACE, take a press on it, and outline what the pointer is over and what is SELECTED.
-Returns the id of the thing the press was on, on the frame of the press, or NIL."
+Returns the id of the thing the press was on, on the frame of the press, or NIL; and what was
+dropped on it this frame, as a list of what was dragged, the id of the container it goes into and
+the index among that container's children, or NIL. A press on a thing and a move drags it, as
+(:move id)."
   (let* ((ui *ui*)
-         (hot (= (ui-hot ui) (box-key surface)))
-         (pressed nil))
+         (key (box-key surface))
+         (hot (= (ui-hot ui) key))
+         (pressed nil)
+         (drop nil))
     (close-box ui)
     (let ((under (and hot
                       (thing-under ui surface first (ui-pointer-x ui) (ui-pointer-y ui))))
           (chosen (and selected (thing-with-id ui surface first selected))))
       (when (and hot (ui-pressed ui))
         (consume-press ui)
-        (setf pressed (and under (box-id under))))
+        (setf pressed (and under (box-id under)))
+        (when pressed
+          (begin-drag key (list :move pressed) (format nil "~(~s~)" pressed))))
+      (follow-drag key)
+      ;; What is dragged over the surface goes into the container under the pointer, where it is.
+      (when (and hot (dragging))
+        (let ((container (container-under ui surface first (ui-pointer-x ui) (ui-pointer-y ui))))
+          (when container
+            (multiple-value-bind (index mx my mw mh)
+                (insertion-place container (eq (box-kind container) :row)
+                                 (ui-pointer-x ui) (ui-pointer-y ui))
+              (let ((payload (take-drop)))
+                (if payload
+                    (setf drop (list payload (box-id container) index))
+                    (show-insertion key mx my mw mh)))))))
+      (drag-ghost key)
       ;; Where the pointer is over is found in the last frame's places, which is where the person
       ;; saw things; the outlines are put where things are now.
       (outline-over ui surface :hover (and under (not (eq under chosen)) under)
                     (theme-dim-text *theme*))
       (outline-over ui surface :selected chosen (theme-ring *theme*)))
-    pressed))
+    (values pressed drop)))
 
 (defmacro design-surface ((&key id selected (flex 0)) &body body)
   "What BODY describes, one under another, drawn as it looks but with none of it working: the

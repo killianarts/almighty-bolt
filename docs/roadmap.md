@@ -35,7 +35,7 @@ the order inside a section is not a schedule. What has shipped is in the
   - The cached frames are compared with frames painted without the cache, and
     must match exactly.
 - **Interaction.**
-  - Drag and drop, inside an app and from the Finder.
+  - Drag and drop from the Finder (inside an app, it is in 0.3).
   - Animation helpers (easing and tweens).
   - Undo and redo of the app's own changes (text fields undo their own already).
 - **Tools.** The designers, the inspector and the tester become one app: see
@@ -91,7 +91,7 @@ planned.
     views and widgets beside them.
   - Widgets dragged from the catalogue into the view, and moved within it, with
     a marker where they will land: into this column, before its third child.
-    (0.3 adds them with a click.)
+    (In 0.3.)
   - Handles that change a container's gap, alignment and flex and a widget's
     size limits, never x and y, since the layout places things. Widgets put in a
     column, row, grid or panel with a key (Command-G), and taken out of one.
@@ -141,9 +141,6 @@ planned.
 What stands between the library today and the studio, as found while building
 the GUI designer, and where on this roadmap each is closed.
 
-- **No dragging.** The library has drags inside one widget only. It needs a drag
-  with a source, what is carried, drop targets, and an insertion marker worked
-  out from the layout ([Interaction](#later)).
 - **Windows, not panes.** The GUI designer, the inspector and the theme designer
   are separate windows. One window needs splitters, docked panes, tabs and a
   tree view ([Text and layout](#later)).
@@ -165,7 +162,7 @@ the GUI designer, and where on this roadmap each is closed.
 
 ### Stages
 
-1. **Finish the designer.** Dragging. Views in the catalogue.
+1. **Finish the designer.** Views in the catalogue.
 2. **One window.** Splitters, docked panes, tabs and a tree view. The app drawn
    in a pane, hit-tested through the zoom. The theme designer as a pane, with
    undo.

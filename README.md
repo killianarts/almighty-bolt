@@ -111,6 +111,7 @@ is what the window runs.
 | `(bolt:view login clause ...)`                              | Draws a view, with the code wired to its widgets by their ids: options, `:on-press`, `:value`, `:contents`.                                                                                                                                          |
 | `(bolt:define-widget-entry :kind (...) ...)`                | Puts a widget of your own in the catalogue: its options, what can be wired to it, how it is drawn.                                                                                                                                                   |
 | `(bolt:app-menu "File" items)`                              | A menu of the app's own in the menu bar, with shortcuts; returns the item chosen. See [Menus](docs/reference.md#menus).                                                                                                                              |
+| `(bolt:drag-source (:id :x :payload p) ...)`                | Drags what is in it, carrying P; `drop-target` takes it where it is let go. See [Dragging](docs/reference.md#dragging).                                                                                                                              |
 
 ## State
 

@@ -91,6 +91,10 @@
                 #:scroll
                 #:lazy-list
                 #:with-theme)
+  (:import-from #:almighty-bolt/ui/drag
+                #:drag-source
+                #:drop-target
+                #:dragging)
   (:import-from #:almighty-bolt/ui/catalogue
                 #:define-widget-entry)
   (:import-from #:almighty-bolt/ui/views
@@ -127,7 +131,7 @@
            #:label #:paragraph #:button #:text-field #:text-area #:combo-box #:slider #:choice #:checkbox
            #:switch #:spinner #:dropdown #:menu-button #:context-menu #:popover
            #:dialog #:toast #:shortcut #:spacer #:grid #:pressable #:open-file-dialog #:save-file-dialog #:list-box
-           #:progress #:canvas #:scrim #:design-surface #:app-menu
+           #:progress #:canvas #:scrim #:design-surface #:app-menu #:drag-source #:drop-target #:dragging
            #:define-view #:view #:define-widget-entry
            #:column #:row #:stack #:padding #:panel #:center #:scroll #:lazy-list
            #:theme #:make-theme #:define-theme #:find-theme #:with-theme #:theme-names #:theme-name

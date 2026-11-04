@@ -558,6 +558,19 @@ again is drawn in every open window at once, with the code as it is.
 
 A view drawn this way allocates nothing beyond what the same widgets written by hand do.
 
+## Dragging
+
+`(bolt:drag-source (:id :new-card :payload card :label "Card") ...)` is a container whose contents
+can be dragged: a press on it and a move of the pointer (four points) begins a drag that carries
+PAYLOAD, and a ghost under the pointer says LABEL. A press and a release in place is a click, and
+then it returns `:clicked`. `(bolt:drop-target (:id :list :direction :vertical :gap 4 :accepts
+fn) ...)` is a container, one under another (or side by side), that what is dragged can be let go
+on: while it is over it, a bar shows where among its children it would go, and on the frame it is
+let go it returns what was dragged and the index it goes at (the number of children with ids before
+the place). `(bolt:dragging)` is what is being dragged, or `nil`. A design surface takes drops too:
+its second value is what was dropped, the id of the container it goes into and the index there, and
+a press on a thing in it and a move drags `(:move id)`.
+
 ## Menus
 
 `(bolt:app-menu "File" '(("New" :key #\n) ("Open…" :key #\o) :separator ("Save" :key #\s)

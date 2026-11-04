@@ -672,7 +672,7 @@ kept, and otherwise afresh, which is then kept."
          (draw-pressable box list x y)
          (draw-border box list x y)
          (paint-contents ui box context list x y))
-        ((:column :row :padding :center :stack :context-area :grid :surface)
+        ((:column :row :padding :center :stack :context-area :grid :surface :drag-source)
          (paint-contents ui box context list x y))))))
 
 (defun draw-pressable (box list x y)

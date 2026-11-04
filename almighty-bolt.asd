@@ -96,6 +96,7 @@
                  (:file "ui")
                  (:file "widgets")
                  (:file "inspection")
+                 (:file "drag")
                  (:file "design-surface")
                  (:file "catalogue")
                  (:file "views")

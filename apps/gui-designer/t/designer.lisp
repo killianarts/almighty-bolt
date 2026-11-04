@@ -536,3 +536,51 @@ collector sees, where a local one that is not used again may not be.")
              (progn (choose "Save…")
                     (assert-true (search "Saved to" (shown-name session :status))))
           (when (probe-file path) (delete-file path)))))))
+
+;;; --- dragging ---
+
+(defun middle-of (screen id)
+  (multiple-value-bind (x y w h) (core:lookup-target (screen-app screen) id)
+    (values (+ x (/ w 2)) (+ y (/ h 2)))))
+
+(defun drag-to (screen x0 y0 x1 y1)
+  "A press at X0, Y0, the pointer moved in steps to X1, Y1, and let go there: a frame for each."
+  (pointer screen :move x0 y0)
+  (pointer screen :down x0 y0)
+  (loop :for step :from 1 :to 4
+        :do (pointer screen :move (+ x0 (* (- x1 x0) (/ step 4))) (+ y0 (* (- y1 y0) (/ step 4)))))
+  (pointer screen :up x1 y1)
+  (dotimes (i 2) (draw screen)))
+
+(defun left-of (session id) (first (s:node-bounds (m:find-node session :id id :within :canvas))))
+
+(define-test a-widget-dragged-from-the-left-goes-where-it-is-let-go ()
+  (multiple-value-bind (screen session) (open-designer)
+    ;; Into the row of actions, between its two buttons.
+    (multiple-value-bind (sx sy) (middle-of screen :add-button)
+      (multiple-value-bind (ax ay aw ah) (core:lookup-target (screen-app screen) :sign-in)
+        (let ((fx (core:lookup-target (screen-app screen) :forgot)))
+          (drag-to screen sx sy (/ (+ ax aw fx) 2) (+ ay (/ ah 2))))))
+    (assert-equal "Button :button-1" (shown-name session :selected-what))
+    (assert-true (< (left-of session :sign-in) (left-of session :button-1)
+                    (left-of session :forgot)))))
+
+(define-test a-widget-of-the-view-dragged-moves-to-where-it-is-let-go ()
+  (multiple-value-bind (screen session) (open-designer)
+    ;; Forgot, from the row of actions to under the heading.
+    (multiple-value-bind (fx fy) (middle-of screen :forgot)
+      (multiple-value-bind (hx hy hw hh) (core:lookup-target (screen-app screen) :heading)
+        (let ((ny (nth-value 1 (core:lookup-target (screen-app screen) :name-label))))
+          (drag-to screen fx fy (+ hx (/ hw 2)) (/ (+ hy hh ny) 2)))))
+    (assert-true (< (top-of session :heading) (top-of session :forgot)
+                    (top-of session :name-label)))))
+
+(define-test a-container-let-go-of-inside-itself-stays-where-it-was ()
+  (multiple-value-bind (screen session) (open-designer)
+    (let ((before (top-of session :actions)))
+      (multiple-value-bind (ax ay aw ah) (core:lookup-target (screen-app screen) :sign-in)
+        (let ((fx (core:lookup-target (screen-app screen) :forgot)))
+          (multiple-value-bind (sx sy) (middle-of screen :sign-in)
+            ;; Pressed on the row itself (in the gap between its buttons), let go on its button.
+            (drag-to screen (/ (+ ax aw fx) 2) (+ ay (/ ah 2)) sx sy))))
+      (assert-equal before (top-of session :actions)))))

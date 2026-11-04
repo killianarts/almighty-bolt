@@ -64,6 +64,16 @@
            #:ui-inspection
            #:ui-inert
            #:ui-menus
+           #:ui-drag
+           #:drag
+           #:make-drag
+           #:drag-origin
+           #:drag-payload
+           #:drag-label
+           #:drag-x
+           #:drag-y
+           #:drag-moving
+           #:drag-dropping
            #:ui-menu-chosen
            #:inspection
            #:make-inspection
@@ -168,6 +178,12 @@
 (defvar *ui* nil
   "The UI whose frame is being described.")
 
+(defstruct (drag (:constructor make-drag (origin payload label x y)))
+  "Something being dragged: what is carried (PAYLOAD), what the ghost under the pointer says
+(LABEL), the key of the box it came from (ORIGIN), and where the press was. MOVING once the
+pointer has gone far enough from there; DROPPING in the frame it is let go of, while it is moving."
+  origin payload label (x 0f0) (y 0f0) (moving nil) (dropping nil))
+
 (defstruct (rect (:constructor make-rect ()))
   (x 0f0 :type single-float)
   (y 0f0 :type single-float)
@@ -232,6 +248,8 @@
   ;; reused from build to build; and the menu and item chosen this frame, or NIL.
   (menus (make-array 4 :adjustable t :fill-pointer 0))
   (menu-chosen nil)
+  ;; What is being dragged (a DRAG), or NIL.
+  (drag nil)
   ;; How many design surfaces the build is inside (see design-surface.lisp): what is described there
   ;; is drawn and takes no input, and a float opened there is inert too.
   (inert 0 :type fixnum)
@@ -631,6 +649,13 @@ were left."
       (setf (ui-tooltip-dismissed ui) t))
     ;; A press takes the keyboard from what a press gave it to; a widget that wants it gives
     ;; it back as it takes the press.
+    ;; A drag that is moving is let go of by the release, which is for the drop and not for a widget:
+    ;; whatever is under the pointer, described before or after the source, takes it this frame.
+    (let ((drag (ui-drag ui)))
+      (when (and drag (drag-moving drag) (ui-released ui))
+        (setf (drag-dropping drag) t
+              (ui-released ui) nil
+              (ui-active ui) 0)))
     (when (and (ui-pressed ui) (ui-click-focused ui))
       (setf (ui-focus ui) 0
             (ui-click-focused ui) nil))
@@ -645,6 +670,8 @@ were left."
         (ui-keys ui) '()
         (ui-inputs ui) '()
         (ui-menu-chosen ui) nil
+        ;; A drop that nothing took is over.
+        (ui-drag ui) (let ((drag (ui-drag ui))) (and drag (not (drag-dropping drag)) drag))
         (ui-wheel-dx ui) 0f0
         (ui-wheel-dy ui) 0f0))
 

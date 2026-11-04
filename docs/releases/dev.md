@@ -54,6 +54,10 @@ A view made in the GUI designer is a file of Lisp that defines it, `(bolt:define
 
 A view is named by a symbol of the app's package, as a function is, so that views of two apps or libraries do not take each other's names. It takes no parameters: what differs from one place it is drawn to the next is given by the wiring there.
 
+### Dragging
+
+`(bolt:drag-source (:id :new-card :payload card :label "Card") ...)` drags what is in it, carrying PAYLOAD, with a ghost under the pointer; a press in place is still a click (`:clicked`). `(bolt:drop-target (:id :list) ...)` shows where among its children a drop would go and returns what was dropped and its index. In the GUI designer, a widget is dragged from the list on the left to where it goes in the view, and a widget of the view is dragged to another place in it; a click on the list still adds one.
+
 ### The app's own menus
 
 `(bolt:app-menu "File" '(("New" :key #\n) :separator ("Save" :key #\s)))`, in the app's function, puts a menu of its own in the menu bar, after the application's menu and before Edit and Window, and returns the item chosen, from the menu or by its shortcut, on the frame it is chosen. The menu bar has the menus of the window that has the keyboard. The GUI designer has a File menu: New, Open… and Save….

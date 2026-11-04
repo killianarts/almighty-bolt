@@ -3677,6 +3677,41 @@ released unless RELEASE."
     (multiple-value-bind (x y) (core:lookup-target (screen-app screen) :days)
       (assert-eql ring (color-at screen (+ x 20) (- y 1))))))
 
+;;; --- dragging ---
+
+(defun make-drag-and-drop ()
+  (state-let ((items (list "a" "b" "c")) (clicks 0))
+    (lambda ()
+      (column (:id :page :gap 20)
+        (when (drag-source (:id :new :payload "new" :label "New")
+                (label "Drag me" :id :words))
+          (incf clicks))
+        (multiple-value-bind (payload at)
+            (drop-target (:id :list :gap 4)
+              (dolist (item items)
+                (label item :id (intern (string-upcase item) :keyword))))
+          (when payload
+            (setf items (append (subseq items 0 at) (list payload) (nthcdr at items)))))
+        (label (format nil "~{~a~^ ~} ~d" items clicks) :id :state)))))
+
+(define-test what-is-dragged-is-dropped-where-it-is-let-go-and-a-press-in-place-is-a-click ()
+  (let ((screen (show 'make-drag-and-drop)))
+    (click screen :new)
+    (assert-equal "a b c 1" (text-in screen :state))
+    ;; Pressed on the source, moved and let go between a and b.
+    (multiple-value-bind (sx sy sw sh) (core:lookup-target (screen-app screen) :new)
+      (multiple-value-bind (ax ay aw ah) (core:lookup-target (screen-app screen) :a)
+        (declare (ignore aw))
+        (let* ((x0 (+ sx (/ sw 2))) (y0 (+ sy (/ sh 2)))
+               (x1 (+ ax 4)) (y1 (+ ay ah 2)))
+          (pointer screen :move x0 y0)
+          (pointer screen :down x0 y0 :button 0 :buttons 1)
+          (pointer screen :move (+ x0 10) (+ y0 10))
+          (pointer screen :move x1 y1)
+          (pointer screen :up x1 y1 :button 0))))
+    (draw screen)
+    (assert-equal "a new b c 1" (text-in screen :state))))
+
 ;;; --- the app's own menus ---
 
 (defun make-with-menus ()

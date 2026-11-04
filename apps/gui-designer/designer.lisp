@@ -15,6 +15,7 @@
                 #:fresh-id
                 #:add-node
                 #:remove-node
+                #:move-node
                 #:with-option
                 #:with-id)
   (:import-from #:almighty-bolt/ui/catalogue
@@ -158,8 +159,12 @@ its kind and id, for what the app gives it."
     (bolt:column (:id :palette :gap 8 :cross-align :stretch)
       (bolt:label "Add" :id :palette-heading :size 17)
       (bolt:grid (:id :palette-grid :columns 2 :gap 6)
+        ;; Each is pressed to add it, or dragged to where it goes.
         (dolist (entry (catalogue))
-          (when (bolt:button (entry-title entry) :id (id "add" (entry-kind entry)))
+          (when (bolt:drag-source (:id (id "add" (entry-kind entry)) :payload (entry-kind entry)
+                                   :label (entry-title entry))
+                  (bolt:panel (:id :tile :all 6 :radius 4)
+                    (bolt:label (entry-title entry) :id :title)))
             (setf pressed (entry-kind entry))))))
     pressed))
 
@@ -420,10 +425,19 @@ or at the end of the view if nothing is selected. Returns the view and the new w
                   (when chosen
                     (select chosen)))))
             (bolt:panel (:id :canvas-back :color :background :radius 0 :flex 1 :all 32)
-              (let ((pressed (bolt:design-surface (:id :canvas :selected selected)
-                               (draw-form (node-form view)))))
+              (multiple-value-bind (pressed drop)
+                  (bolt:design-surface (:id :canvas :selected selected)
+                    (draw-form (node-form view)))
                 (when pressed
-                  (select pressed))))
+                  (select pressed))
+                ;; A widget from the left, or one of the view's own, let go of where it goes.
+                (when drop
+                  (destructuring-bind (payload into at) drop
+                    (if (keywordp payload)
+                        (let ((new (make-node payload (fresh-id view payload))))
+                          (change (add-node view new :into into :at at))
+                          (select (node-id new)))
+                        (change (move-node view (second payload) into at)))))))
             (let ((new view) (now selected) (edit nil))
               (bolt:panel (:id :right :radius 0)
                (bolt:column (:gap 0)

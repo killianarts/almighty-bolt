@@ -15,6 +15,7 @@
            #:replace-node
            #:add-node
            #:remove-node
+           #:move-node
            #:with-option
            #:with-id))
 
@@ -91,13 +92,17 @@ is not on the way to it is shared with TREE."
 (defun copy-with-children (node children)
   (make-node (node-kind node) (node-id node) :options (node-options node) :children children))
 
-(defun add-node (tree node &key into after)
-  "TREE with NODE put at the end of the node called INTO, or just after the node called AFTER."
+(defun add-node (tree node &key into after at)
+  "TREE with NODE put in the node called INTO (AT its AT'th place, or at its end), or just after the
+node called AFTER."
   (cond (into
          (replace-node tree into (lambda (container)
-                                   (copy-with-children container
-                                                       (append (node-children container)
-                                                               (list node))))))
+                                   (let* ((children (node-children container))
+                                          (at (min (or at (length children)) (length children))))
+                                     (copy-with-children container
+                                                         (append (subseq children 0 at)
+                                                                 (list node)
+                                                                 (nthcdr at children)))))))
         (t
          (let ((parent (parent-of tree after)))
            (replace-node tree (node-id parent)
@@ -107,6 +112,19 @@ is not on the way to it is shared with TREE."
                             (loop :for child :in (node-children container)
                                   :collect child
                                   :when (eq (node-id child) after) :collect node))))))))
+
+(defun move-node (tree id into at)
+  "TREE with the node called ID moved into the node called INTO, at its AT'th place (counted as the
+children are before the move), or TREE as it is if INTO is that node or inside it."
+  (let ((node (find-by-id tree id))
+        (parent (parent-of tree id)))
+    (if (or (null node) (null parent) (find-by-id node into))
+        tree
+        (let ((at (if (and (eq (node-id parent) into)
+                           (< (position id (node-children parent) :key #'node-id) at))
+                      (1- at)
+                      at)))
+          (add-node (remove-node tree id) node :into into :at at)))))
 
 (defun remove-node (tree id)
   "TREE without the node called ID, and what is in it."
