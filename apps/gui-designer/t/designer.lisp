@@ -6,7 +6,8 @@
                     (#:m #:almighty-bolt/machine)
                     (#:s #:almighty-bolt/ui/semantics)
                     (#:fake #:almighty-bolt/test-support/fake-context)
-                    (#:designer #:almighty-bolt-gui-designer)))
+                    (#:designer #:almighty-bolt-gui-designer)
+                    (#:catalogue #:almighty-bolt-gui-designer/catalogue)))
 
 (in-package #:almighty-bolt-gui-designer/t/designer)
 
@@ -325,3 +326,29 @@ event changed shows in it."
     (assert-equal "Row :actions" (shown-name session :selected-what))
     (m:click session :id :password :within :canvas)
     (assert-equal "   Text field :password" (shown-value session :outline-list))))
+
+;;; --- the catalogue ---
+
+(define-test every-value-the-editors-offer-can-be-drawn ()
+  ;; A choice the layout does not take would fail in every frame after it was chosen, and the window
+  ;; with it (main-align once offered :stretch, which only cross-align takes). So every value of every
+  ;; option of every kind is chosen, through its editor, in a view that is then drawn.
+  (dolist (entry catalogue:+catalogue+)
+    (multiple-value-bind (screen session) (open-designer)
+      (declare (ignore screen))
+      (m:click session :id :new :within :toolbar)
+      (m:click session :id (intern (format nil "ADD-~a" (catalogue:entry-kind entry)) :keyword)
+                       :within :left)
+      (dolist (option (catalogue:entry-options entry))
+        (let ((editor (intern (format nil "OPTION-~a" (catalogue:option-name option)) :keyword))
+              (type (catalogue:option-type option)))
+          (dolist (value (cond ((eq type :string) '("" "Some words"))
+                               ((eq type :number) '("0" "12"))
+                               ((eq type :boolean) '(nil t))
+                               (t (mapcar (lambda (choice) (string-downcase (prin1-to-string choice)))
+                                          (rest type)))))
+            (m:set-value session value :id editor)
+            (assert-equal (format nil "~a ~(~s~)" (catalogue:entry-title entry)
+                                  (intern (format nil "~a-1" (catalogue:entry-kind entry)) :keyword))
+                          (shown-name session :selected-what)
+                          (catalogue:entry-kind entry) (catalogue:option-name option) value)))))))

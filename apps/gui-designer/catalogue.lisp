@@ -44,7 +44,11 @@ node, a function that draws its children, and the node's option values by name."
   (draw nil :read-only t)
   (container-p nil :read-only t))
 
-(defparameter +alignments+ '(:choice :start :center :end :stretch))
+(defparameter +main-alignments+ '(:choice :start :center :end :space-between :space-around :space-evenly)
+  "Where a column's or a row's children go along it, as the layout takes it.")
+
+(defparameter +cross-alignments+ '(:choice :start :center :end :stretch)
+  "Where they go across it.")
 
 (defparameter +catalogue+
   (list (entry :label "Label"
@@ -71,8 +75,8 @@ node, a function that draws its children, and the node's option values by name."
                                                         :enabled (funcall value :enabled))))
         (entry :column "Column"
                (list (option :gap :number 0)
-                     (option :main-align +alignments+ :start)
-                     (option :cross-align +alignments+ :start))
+                     (option :main-align +main-alignments+ :start)
+                     (option :cross-align +cross-alignments+ :start))
                (lambda (id children value)
                  (bolt:column (:id id :gap (funcall value :gap)
                                :main-align (funcall value :main-align)
@@ -81,8 +85,8 @@ node, a function that draws its children, and the node's option values by name."
                :container-p t)
         (entry :row "Row"
                (list (option :gap :number 0)
-                     (option :main-align +alignments+ :start)
-                     (option :cross-align +alignments+ :start))
+                     (option :main-align +main-alignments+ :start)
+                     (option :cross-align +cross-alignments+ :start))
                (lambda (id children value)
                  (bolt:row (:id id :gap (funcall value :gap)
                             :main-align (funcall value :main-align)
