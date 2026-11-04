@@ -32,7 +32,8 @@
                 #:form-option
                 #:draw-form)
   (:import-from #:almighty-bolt/ui/views
-                #:set-view)
+                #:set-view
+                #:view-names)
   (:export #:make-designer
            #:open-designer
            #:write-view
@@ -165,7 +166,19 @@ its kind and id, for what the app gives it."
                                    :label (entry-title entry))
                   (bolt:panel (:id :tile :all 6 :radius 4)
                     (bolt:label (entry-title entry) :id :title)))
-            (setf pressed (entry-kind entry))))))
+            (setf pressed (entry-kind entry)))))
+      ;; The views defined, each to put inside this one.
+      (let ((names (view-names)))
+        (when names
+          (bolt:label "Views" :id :views-heading :size 17)
+          (bolt:grid (:id :views-grid :columns 2 :gap 6)
+            (dolist (name names)
+              (when (bolt:drag-source (:id (id "add-view" (symbol-name name))
+                                       :payload (list :view name)
+                                       :label (string-downcase (symbol-name name)))
+                      (bolt:panel (:id :tile :all 6 :radius 4)
+                        (bolt:label (string-downcase (symbol-name name)) :id :title)))
+                (setf pressed (list :view name))))))))
     pressed))
 
 (defun outline-rows (view)
@@ -237,6 +250,15 @@ true as a second value."
                          result (remove "" (uiop:split-string text :separator '(#\Newline))
                                         :test #'string=)
                          changed t))))
+              ((eq type :view)
+               ;; The views defined, by name.
+               (let* ((names (view-names))
+                      (shown (mapcar (lambda (n) (string-downcase (symbol-name n))) names)))
+                 (multiple-value-bind (index moved)
+                     (bolt:dropdown (or shown '("No view yet")) (position value names)
+                                    :id editor :labelled-by (id "option" name "label"))
+                   (when (and moved names)
+                     (setf result (nth index names) changed t)))))
               ((eq type :boolean)
                (multiple-value-bind (on moved)
                    (bolt:checkbox (string-downcase (string name)) value :id editor)
@@ -294,10 +316,17 @@ widget's id and the option's name, as a cons."
                           node (find-by-id view (node-id node)))))))))))
     (values view selected edit)))
 
+(defun new-node (view what)
+  "A node to add to VIEW for WHAT: a kind of widget, or (:view name) for that view inside it."
+  (if (consp what)
+      (make-node :view (fresh-id view :view) :options (list :name (second what)))
+      (make-node what (fresh-id view what))))
+
 (defun added (view selected kind)
-  "VIEW with a new widget of KIND: at the end of the selected container, after the selected widget,
-or at the end of the view if nothing is selected. Returns the view and the new widget's id."
-  (let* ((new (make-node kind (fresh-id view kind)))
+  "VIEW with a new widget of KIND (or (:view name)): at the end of the selected container, after the
+selected widget, or at the end of the view if nothing is selected. Returns the view and the new
+widget's id."
+  (let* ((new (new-node view kind))
          (node (and selected (find-by-id view selected))))
     (values (cond ((null node)
                    (add-node view new :into (node-id view)))
@@ -433,11 +462,11 @@ or at the end of the view if nothing is selected. Returns the view and the new w
                 ;; A widget from the left, or one of the view's own, let go of where it goes.
                 (when drop
                   (destructuring-bind (payload into at) drop
-                    (if (keywordp payload)
-                        (let ((new (make-node payload (fresh-id view payload))))
+                    (if (and (consp payload) (eq (first payload) :move))
+                        (change (move-node view (second payload) into at))
+                        (let ((new (new-node view payload)))
                           (change (add-node view new :into into :at at))
-                          (select (node-id new)))
-                        (change (move-node view (second payload) into at)))))))
+                          (select (node-id new))))))))
             (let ((new view) (now selected) (edit nil))
               (bolt:panel (:id :right :radius 0)
                (bolt:column (:gap 0)

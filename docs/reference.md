@@ -515,9 +515,13 @@ The kinds are those of the catalogue, every widget and container of the library 
 paragraph, a button, a text field, a text area, a combo box, a slider, a choice, a check box, a
 switch, a dropdown, a list box, a progress bar, a spinner; a column, a row, a grid, a stack, a
 padding, a panel, a center, a scroll, a pressable) but the spacer, which needs a row or column whose
-size is bounded, and whatever an app adds. `(bolt:define-widget-entry :kind (:title :options :wires
+size is bounded, and whatever an app adds. `(:view :card (:name my-app::card))` is another view
+drawn inside this one, by its name, with the node's id for its outermost widget: changed when that
+view is defined again, and said in its place (not drawn for ever) if it is inside itself. It is not
+wired from outside: the code that draws a view inside another wires it with a `view` of its own, or
+the outer one's `:contents`. `(bolt:define-widget-entry :kind (:title :options :wires
 :value :container) body)` adds one: OPTIONS are `(name type default)`, the type `:string`,
-`:number`, `:boolean`, `:list` (of strings) or `(:choice keyword ...)`; WIRES are what code can give
+`:number`, `:boolean`, `:list` (of strings), `:view` (a view's name) or `(:choice keyword ...)`; WIRES are what code can give
 it besides (`:on-press`); VALUE names the option that a place wired as `:value` shows; a CONTAINER
 holds what the view puts in it. BODY draws one each frame, with each option a variable of its name,
 each wire a variable holding the function wired there or `nil`, `id`, `set-value` (the setter of

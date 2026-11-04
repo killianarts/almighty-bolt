@@ -12,6 +12,11 @@
 
 (in-package #:almighty-bolt-gui-designer/t/designer)
 
+;; A view defined, which the designer lists to put inside the one it designs.
+(bolt:define-view t-nested
+  (:column :nested (:gap 4)
+   (:label :inner (:text "Inside"))))
+
 ;;; The GUI designer worked as a person works it, through the machine interface and the pointer, in
 ;;; a context with no window. The view it designs is drawn with the real widgets, so the machine
 ;;; interface finds them (inside the canvas); a press or typing on them is the designer's, not
@@ -346,6 +351,8 @@ event changed shows in it."
               (type (catalogue:option-type option)))
           (dolist (value (cond ((eq type :string) '("" "Some words"))
                                ((eq type :list) (list (format nil "A~%B~%C")))
+                               ((eq type :view) (list (string-downcase
+                                                       (symbol-name (first (views:view-names))))))
                                ((eq type :number) '("0" "12"))
                                ((eq type :boolean) '(nil t))
                                (t (mapcar (lambda (choice) (string-downcase (prin1-to-string choice)))
@@ -584,3 +591,14 @@ collector sees, where a local one that is not used again may not be.")
             ;; Pressed on the row itself (in the gap between its buttons), let go on its button.
             (drag-to screen (/ (+ ax aw fx) 2) (+ ay (/ ah 2)) sx sy))))
       (assert-equal before (top-of session :actions)))))
+
+;;; --- views inside views ---
+
+(define-test a-view-defined-is-listed-and-drawn-inside-the-view-being-designed ()
+  (multiple-value-bind (screen session) (open-designer)
+    (declare (ignore screen))
+    (m:click session :id :add-view-t-nested :within :left)
+    (assert-equal "View :view-1" (shown-name session :selected-what))
+    (assert-equal "t-nested" (shown-value session :option-name))
+    ;; Its widgets, drawn inside, the outermost with the node's id.
+    (assert-equal "Inside" (s:node-name (m:find-node session :id :inner :within :view-1)))))

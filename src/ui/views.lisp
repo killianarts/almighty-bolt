@@ -1,6 +1,9 @@
 (defpackage #:almighty-bolt/ui/views
   (:use #:cl)
+  (:import-from #:almighty-bolt/ui/widgets
+                #:label)
   (:import-from #:almighty-bolt/ui/catalogue
+                #:define-widget-entry
                 #:find-entry
                 #:entry-kind
                 #:entry-options
@@ -55,6 +58,10 @@ again, and the old code no longer held), so is its entry.")
 (defvar *checked* (make-weak-table)
   "For each spec, the form it was last found to fit, so that a view is checked again only when it
 has changed. Weak, as *WIRINGS* is.")
+
+(defvar *views-drawn* '()
+  "The names of the views being drawn, the innermost first, so that a view inside itself is said
+and not drawn for ever.")
 
 (defvar *view-defined-hook* nil
   "A function called with no arguments after a view has been defined, or NIL: the host sets it so
@@ -159,7 +166,17 @@ defined when compiled too, so that the code that wires it, compiled after, is ch
         (when problems
           (error "The view ~s and the code that wires it do not fit: ~{~a~^ ~}" name problems)))
       (setf (gethash spec *checked*) form))
-    (draw-form form :wires wires :id id)))
+    (let ((*views-drawn* (cons name *views-drawn*)))
+      (draw-form form :wires wires :id id))))
+
+;; A view inside another: the view of that name, drawn with the node's id for its outermost.
+(define-widget-entry :view (:title "View" :options ((:name :view nil)))
+  (let ((form (and name (find-view name))))
+    (cond ((null name) (label "A view: choose which" :id id))
+          ((null form) (label (format nil "No view is called ~(~s~)" name) :id id))
+          ((member name *views-drawn*) (label (format nil "~(~s~) is inside itself" name) :id id))
+          (t (let ((*views-drawn* (cons name *views-drawn*)))
+               (draw-form form :id id))))))
 
 (defun clause-entry (clause)
   "The catalogue's entry for the kind CLAUSE names: (button :sign-in ...) is a :button."

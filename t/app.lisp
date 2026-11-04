@@ -3677,6 +3677,32 @@ released unless RELEASE."
     (multiple-value-bind (x y) (core:lookup-target (screen-app screen) :days)
       (assert-eql ring (color-at screen (+ x 20) (- y 1))))))
 
+;;; --- a view inside a view ---
+
+(define-view t-card
+  (:row :card (:gap 4)
+   (:label :who (:text "Card"))))
+
+(define-view t-cards
+  (:column :cards (:gap 4)
+   (:view :first (:name t-card))
+   (:view :second (:name t-card))
+   (:view :loop (:name t-cards))
+   (:view :missing (:name t-nowhere))))
+
+(defun make-cards ()
+  (lambda () (view t-cards)))
+
+(define-test a-view-is-drawn-inside-another-and-one-inside-itself-says-so ()
+  (let* ((screen (show 'make-cards))
+         (session (screen-session screen)))
+    ;; Twice, each with its own id outermost.
+    (assert-equal "Card" (s:node-name (m:find-node session :id :who :within :first)))
+    (assert-equal "Card" (s:node-name (m:find-node session :id :who :within :second)))
+    ;; Inside itself, and not defined: said, in its place.
+    (assert-true (search "inside itself" (text-in screen :loop)))
+    (assert-true (search "No view is called" (text-in screen :missing)))))
+
 ;;; --- dragging ---
 
 (defun make-drag-and-drop ()

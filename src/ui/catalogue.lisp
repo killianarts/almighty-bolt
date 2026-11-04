@@ -58,8 +58,8 @@
 ;; Here when what follows is compiled, since an entry is put in the catalogue then too.
 (eval-when (:compile-toplevel :load-toplevel :execute)
 (defstruct (option (:constructor option (name type default)))
-  "An option called NAME, of TYPE: :string, :number, :boolean, :list (of strings) or
-(:choice keyword ...)."
+  "An option called NAME, of TYPE: :string, :number, :boolean, :list (of strings), :view (the name
+of a view, or NIL) or (:choice keyword ...)."
   (name :text :type keyword :read-only t)
   (type :string :read-only t)
   (default nil :read-only t))
@@ -328,6 +328,7 @@ wired there or NIL, and SET-VALUE the function that sets the place wired as :val
           ((eq type :number) (realp value))
           ((eq type :boolean) (member value '(t nil)))
           ((eq type :list) (and (listp value) (every #'stringp value)))
+          ((eq type :view) (symbolp value))
           ((and (consp type) (eq (first type) :choice)) (member value (rest type)))
           (t nil))))
 

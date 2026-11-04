@@ -147,8 +147,9 @@ the GUI designer, and where on this roadmap each is closed.
 - **The app is not in a pane.** Drawing the app inside the studio needs its
   display list scaled and placed, the pointer hit-tested through the zoom, and
   keys sent on to it.
-- **Views do not nest in the designer,** and views take no parameters. Wiring
-  where a view is drawn gives what differs, which may be enough.
+- **Views take no parameters.** A view inside another is drawn as it was
+  designed; wiring where a view is drawn gives what differs, which may be
+  enough.
 - **Type and effects.** No italic, no weights between regular and bold, no
   shadow, grain or scanlines: the design system's chrome cannot be drawn by the
   library yet ([Text and layout, Effects](#later)).
@@ -162,13 +163,12 @@ the GUI designer, and where on this roadmap each is closed.
 
 ### Stages
 
-1. **Finish the designer.** Views in the catalogue.
-2. **One window.** Splitters, docked panes, tabs and a tree view. The app drawn
+1. **One window.** Splitters, docked panes, tabs and a tree view. The app drawn
    in a pane, hit-tested through the zoom. The theme designer as a pane, with
    undo.
-3. **Code and time.** A code editor, or the bridge to Emacs. The timeline,
+2. **Code and time.** A code editor, or the bridge to Emacs. The timeline,
    replay and state panes over the frame ring. The semantic and accessibility
    panes. Tests made from recordings.
-4. **Craft and agents.** Effects for the chrome: shadow, grain, scanlines. The
+3. **Craft and agents.** Effects for the chrome: shadow, grain, scanlines. The
    agent pane over the MCP server. The theme and the Figma variables kept in
    step. Shipping an `.app`.
