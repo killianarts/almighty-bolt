@@ -389,6 +389,23 @@ tab was last chosen, or that has the keyboard (the first, until one is): only
 its shortcuts are heard. The tabs are buttons in the semantic tree. A
 pane is moved only by the pointer for now.
 
+`app-pane` (`constructor &key id zoom width height flex` and the size limits)
+is another app, working, in an area of this one: a designer showing the app
+being made. `(bolt:app-pane 'my-app:make-app :id :running :zoom 2 :flex 1)`
+makes the app the first time (and again if the constructor is another) and
+keeps it by the pane's id. It is laid out in the pane's size divided by the
+zoom and drawn `:zoom` times larger, its text in fonts that size so that it is
+sharp. The pointer and the wheel over it, and the keys while it has the
+keyboard (a press gives it), are the inner app's, in its own points. It returns
+the inner app. To the window's semantic tree and VoiceOver it is a canvas, and
+the input method's composition does not reach it.
+
+`inspector-pane` (`target &key id flex`) is the inspector, in this window, of
+TARGET, an app in an `app-pane` as it returns it (or `nil`): Pick, then a press
+on the app in the pane, says what the widget there is, and the inspector
+changes its value and theme as it does in a window of its own, at the start of
+the next frame.
+
 `design-surface` (`:id :selected :flex`) is for a designer, which draws the view being designed in
 it: what is in it is drawn as it looks, one under another, and none of it works. The pointer, a press
 and the keyboard do not reach it, so a button in it is not hovered or pressed and a text field in it
@@ -600,7 +617,8 @@ The kinds are those of the catalogue, every widget and container of the library 
 paragraph, a button, a text field, a text area, a combo box, a slider, a choice, a tab bar, a tree
 view, a check box, a switch, a dropdown, a list box, a progress bar, a spinner; a column, a row, a grid, a stack,
 a padding, a panel, a center, a scroll, a pressable, a split) and whatever an app adds; not the
-spacer, which needs a row or column whose size is bounded, or the dock, whose panes are code. `(:view :card (:name my-app::card))` is another view
+spacer, which needs a row or column whose size is bounded, the dock, whose panes are code, or an
+app pane or an inspector pane, which run code. `(:view :card (:name my-app::card))` is another view
 drawn inside this one, by its name, with the node's id for its outermost widget: changed when that
 view is defined again, and said in its place (not drawn for ever) if it is inside itself. It is not
 wired from outside: the code that draws a view inside another wires it with a `view` of its own, or

@@ -3928,6 +3928,123 @@ released unless RELEASE."
       (key screen #\z :command)
       (assert-equal "3 2" (text-in screen :undone)))))
 
+;;; --- an app in a pane ---
+
+(defvar *inner* nil "The app in the pane of the last frame of an app with one.")
+
+(defun make-inner ()
+  (state-let ((count 0) (words ""))
+    (lambda ()
+      (column (:id :inner-page :gap 8)
+        (when (button "Add one" :id :plus) (incf count))
+        (label (format nil "Count ~d" count) :id :count)
+        (multiple-value-bind (text edited) (text-field words :id :words :width 120)
+          (when edited (setf words text)))))))
+
+(defun make-outer ()
+  (state-let ((zoom 1))
+    (lambda ()
+      (column (:id :page :fill t :cross-align :stretch)
+        (when (button "Zoom" :id :zoom) (setf zoom (if (= zoom 1) 2 1)))
+        (let ((inner (app-pane 'make-inner :id :running :zoom zoom :flex 1)))
+          (setf *inner* inner))))))
+
+(define-test an-app-in-a-pane-works-through-the-pane-at-its-zoom ()
+  (let ((screen (show 'make-outer)))
+    (labels ((inner-bounds (id) (multiple-value-list (core:lookup-target *inner* id)))
+             (inner-name (id)
+               (s:node-name (first (s:find-nodes (core:accessibility-tree *inner*) :id id))))
+             (inner-value (id)
+               (s:node-value (first (s:find-nodes (core:accessibility-tree *inner*) :id id))))
+             (pane () (bounds-of screen :running))
+             (press-inner (id zoom)
+               ;; The middle of the inner app's ID, through the pane at ZOOM.
+               (destructuring-bind (px py pw ph) (pane)
+                 (declare (ignore pw ph))
+                 (destructuring-bind (x y w h) (inner-bounds id)
+                   (let ((x (+ px (* zoom (+ x (/ w 2))))) (y (+ py (* zoom (+ y (/ h 2))))))
+                     (pointer screen :move x y)
+                     (pointer screen :down x y :button 0 :buttons 1)
+                     (pointer screen :up x y :button 0)
+                     (draw screen))))))
+      ;; It is laid out in the pane, as wide as it is.
+      (assert-true *inner*)
+      (assert-equal "Count 0" (inner-name :count))
+      ;; A press on its button, through the pane, is its own.
+      (press-inner :plus 1)
+      (assert-equal "Count 1" (inner-name :count))
+      ;; The press gave the pane the keyboard; a press on its field gives the field it, and typing
+      ;; goes there.
+      (press-inner :words 1)
+      (dolist (character (coerce "hi" 'list))
+        (core:handle-event (screen-app screen)
+                           (core:make-key-event :timestamp 0 :kind :down :logical-key character
+                                                :modifiers 0))
+        (draw screen))
+      (assert-equal "hi" (inner-value :words))
+      ;; Twice as large: the pane's app is laid out in half the room, drawn twice the size, and
+      ;; pressed through the zoom.
+      (click screen :zoom)
+      (flet ((drawn-p (x y w h)
+               ;; A rectangle of the window's list, nearly at X, Y, W by H.
+               (let ((list (screen-list screen)))
+                 (loop :for i :below (core:display-list-count list)
+                       :thereis (and (< (abs (- (core:display-list-x list i) x)) 1)
+                                     (< (abs (- (core:display-list-y list i) y)) 1)
+                                     (< (abs (- (core:display-list-width list i) w)) 1)
+                                     (< (abs (- (core:display-list-height list i) h)) 1))))))
+        (destructuring-bind (px py pw ph) (pane)
+          (declare (ignore pw ph))
+          (destructuring-bind (x y w h) (inner-bounds :plus)
+            (assert-true (drawn-p (+ px (* 2 x)) (+ py (* 2 y)) (* 2 w) (* 2 h))
+                         (list px py x y w h)))))
+      (press-inner :plus 2)
+      (assert-equal "Count 2" (inner-name :count))
+      ;; Its text is drawn with fonts twice the size, from where the zoom puts each pen: the fake
+      ;; context's characters are 8 points at every size, so the second of the count's words is 8
+      ;; points after the first at the zoom (with real fonts, twice as wide, 16).
+      (let* ((list (screen-list screen))
+             (top (second (pane)))
+             ;; The C of the count, in the pane (the window's own words are above it), and the
+             ;; glyph after it.
+             (c (loop :for i :below (core:display-list-count list)
+                      :when (and (= (core:display-list-kind list i) core:+command-glyph+)
+                                 (>= (core:display-list-y list i) top)
+                                 (= (round (core:display-list-parameter list i)) (char-code #\C)))
+                        :return i)))
+        (assert-true c)
+        (assert-eql 8 (round (- (core:display-list-x list (1+ c)) (core:display-list-x list c))))))))
+
+;;; --- the inspector beside an app in a pane ---
+
+(defun make-inspected ()
+  (lambda ()
+    (row (:id :page :fill t :cross-align :stretch)
+      (let ((inner (app-pane 'make-inner :id :running :width 150)))
+        (setf *inner* inner)
+        (inspector-pane inner :id :inspecting)))))
+
+(define-test the-inspector-in-a-pane-picks-and-presses-in-the-app-in-a-pane ()
+  (let ((screen (show 'make-inspected)))
+    (flet ((inner-name (id)
+             (s:node-name (first (s:find-nodes (core:accessibility-tree *inner*) :id id)))))
+      (click screen :inspector-pick)
+      ;; The press on the app's button, through its pane, picks it, and does not press it.
+      (destructuring-bind (px py pw ph) (bounds-of screen :running)
+        (declare (ignore pw ph))
+        (multiple-value-bind (x y w h) (core:lookup-target *inner* :plus)
+          (let ((x (+ px x (/ w 2))) (y (+ py y (/ h 2))))
+            (pointer screen :move x y)
+            (pointer screen :down x y :button 0 :buttons 1)
+            (pointer screen :up x y :button 0)
+            (dotimes (i 3) (draw screen)))))
+      (assert-equal "Count 0" (inner-name :count))
+      (assert-equal "Kind: button" (s:node-name (node-of screen (list :inspector-fact 0))))
+      ;; Press, in the inspector: done to the app in the pane, at the next frame.
+      (click screen :inspector-press)
+      (dotimes (i 3) (draw screen))
+      (assert-equal "Count 1" (inner-name :count)))))
+
 ;;; --- a tree in a view ---
 
 (define-view t-plants

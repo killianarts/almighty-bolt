@@ -174,7 +174,9 @@ it, moved by the wheel: `(bolt:scroll (:id :log :height 300) ...)`) and
 panes with a divider between them that is dragged: `(bolt:split (:id :sides
 :size 240) left right)`), `dock` (panes in groups of tabs that are dragged to
 other groups or split them: `(bolt:dock (:id :studio) (:outline "Outline" ...)
-(:canvas "Canvas" ...))`), and
+(:canvas "Canvas" ...))`), `app-pane` (another app, working, in an area of this
+one, at a zoom: `(bolt:app-pane 'my-app:make-app :id :running :zoom 2)`) and
+`inspector-pane` (the inspector of it, beside it), and
 `context-menu` (a menu on a right-click anywhere in it, which returns the item
 chosen: `(bolt:context-menu (:id :menu :items '("Cut" "Copy")) ...)`), and
 `design-surface` (what is in it is drawn but does not work, and a press on it

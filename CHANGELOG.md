@@ -21,6 +21,7 @@ are not listed.
 - The start of a GUI designer, in `apps/gui-designer`: a view drawn with the real widgets and listed as an outline, to which widgets are added, whose ids and options are changed, and which is saved as a `define-view` file and opened again ([0.3](docs/releases/dev.md#the-gui-designer-begun)).
 - `define-view` and `view`: a view made in the GUI designer, drawn by an app with its own code wired to it by the designer's ids, checked when the code is compiled ([0.3](docs/releases/dev.md#views-a-design-wired-to-code)).
 - `drag-source`, `drop-target` and `dragging`: dragging within an app; widgets dragged into the GUI designer's view and within it ([0.3](docs/releases/dev.md#dragging)).
+- `app-pane`: another app, working, in an area of this one, at a zoom; and `inspector-pane`, the inspector of it in the same window ([0.3](docs/releases/dev.md#an-app-in-a-pane)).
 - `dock`: panes in groups of tabs, moved by dragging their tabs, each keeping what it holds ([0.3](docs/releases/dev.md#docked-panes)).
 - A `shortcut` in a dock's pane is heard only in the active pane ([0.3](docs/releases/dev.md#docked-panes)).
 - A `split` given a new `:size` takes it up ([0.3](docs/releases/dev.md#docked-panes)).

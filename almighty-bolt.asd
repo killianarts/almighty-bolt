@@ -106,6 +106,7 @@
                  (:file "layout")
                  (:file "paint")
                  (:file "immediate")
+                 (:file "app-pane")
                  (:file "semantics")
                  (:file "inspector")))
                ;; How a program or an agent looks at an app and works it.
@@ -114,6 +115,7 @@
                 :components
                 ((:file "png")
                  (:file "protocol")
+                 (:file "inspector-pane")
                  (:file "host-session" :if-feature :darwin)))
                ;; How an app is started, and the face of the library.
                (:file "app" :if-feature :darwin)

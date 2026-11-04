@@ -54,13 +54,17 @@ A view made in the GUI designer is a file of Lisp that defines it, `(bolt:define
 
 A view is named by a symbol of the app's package, as a function is, so that views of two apps or libraries do not take each other's names. It takes no parameters: what differs from one place it is drawn to the next is given by the wiring there.
 
+### An app in a pane
+
+`(bolt:app-pane 'my-app:make-app :id :running :zoom 2 :flex 1)` runs another app, working, in an area of this one, at a zoom, its text sharp at that size: the pointer, the wheel and the keys are its own there. `(bolt:inspector-pane app :id :inspector)` is the inspector of it, beside it in the same window. The studio has both: an App pane, which runs the app whose constructor is named in its field, at 50%, 100% or 200%, and an Inspector pane that looks at it.
+
 ### Docked panes
 
 `(bolt:dock (:id :studio :layout layout) (:outline "Outline" ...) (:canvas "Canvas" ...))` is panes in groups of tabs, side by side or one over the other, that the person arranges: a tab dragged to another group's tabs puts its pane there, and to a group's edge splits the group. What is in a pane keeps its state when it moves, and a `shortcut` in a pane is heard only while it is the pane last pressed in or that has the keyboard. The layout is a list, returned each frame, for the app to keep and give back. A `split` given a new `:size` now takes it up, so an app can keep a split's width too.
 
 ### The studio, begun
 
-`apps/studio` has the GUI designer and the theme designer in one window: `(almighty-bolt-studio:open-studio)` after loading the system `almighty-bolt-studio`. Their parts are panes of a dock, which the person arranges: the widgets to add and the outline, the canvas, the selected widget's options, the theme's settings and its preview, with the GUI designer's toolbar over them. Each designer keeps what it holds (the view, the theme being made, the undo of each) while a part is hidden or moved, and Command-Z undoes in the one last used. Each designer gives its parts as functions, `designer-parts`, which its own window puts side by side as before.
+`apps/studio` has the GUI designer and the theme designer in one window: `(almighty-bolt-studio:open-studio)` after loading the system `almighty-bolt-studio`. Their parts are panes of a dock, which the person arranges: the widgets to add and the outline, the canvas, the selected widget's options, the theme's settings and its preview, the app being made, running, and the inspector of it, with the GUI designer's toolbar over them. Each designer keeps what it holds (the view, the theme being made, the undo of each) while a part is hidden or moved, and Command-Z undoes in the one last used. Each designer gives its parts as functions, `designer-parts`, which its own window puts side by side as before.
 
 ### A tree view
 

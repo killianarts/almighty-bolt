@@ -139,12 +139,11 @@ planned.
 What stands between the library today and the studio, as found while building
 the GUI designer, and where on this roadmap each is closed.
 
-- **The inspector is a window.** The studio's dock has the designers' parts as
-  panes, but the inspector is a window of its own, beside the app it inspects.
-  A pane is moved only by the pointer.
-- **The app is not in a pane.** Drawing the app inside the studio needs its
-  display list scaled and placed, the pointer hit-tested through the zoom, and
-  keys sent on to it.
+- **The app in a pane is a picture to the system.** The app running in the
+  studio's pane is not in the window's semantic tree, so VoiceOver and the
+  machine interface do not see into it; the input method's composition does not
+  reach it; and it is not made again when its code is compiled. A pane is moved
+  only by the pointer.
 - **Views take no parameters.** A view inside another is drawn as it was
   designed; wiring where a view is drawn gives what differs, which may be
   enough.
@@ -160,11 +159,9 @@ the GUI designer, and where on this roadmap each is closed.
 
 ### Stages
 
-1. **One window.** The inspector as a pane. The app drawn in a pane,
-   hit-tested through the zoom.
-2. **Code and time.** A code editor, or the bridge to Emacs. The timeline,
+1. **Code and time.** A code editor, or the bridge to Emacs. The timeline,
    replay and state panes over the frame ring. The semantic and accessibility
    panes. Tests made from recordings.
-3. **Craft and agents.** Effects for the chrome: shadow, grain, scanlines. The
+2. **Craft and agents.** Effects for the chrome: shadow, grain, scanlines. The
    agent pane over the MCP server. The theme and the Figma variables kept in
    step. Shipping an `.app`.

@@ -9,6 +9,8 @@
            #:clear-display-list
            #:replace-display-list
            #:append-display-list
+           #:zoom-display-list
+           #:unzoom-glyphs
            #:+command-rect+
            #:+command-rounded-rect+
            #:+command-glyph+
@@ -273,3 +275,50 @@ does not allocate (a full 64-bit result would be boxed as a bignum)."
         (mix (aref colors i))))
     ;; Fold the top bits in, then keep 62 so the result is an immediate fixnum.
     (ldb (byte 62 0) (logxor hash (ash hash -62)))))
+
+;;; --- zoom ---
+;;;
+;;; An app drawn at a zoom (an app in a pane of a designer, larger or smaller than it is) is laid out
+;;; and drawn in its own points, and the list is then made ZOOM times larger. Its text is drawn with
+;;; fonts ZOOM times the size, so that it is as sharp as text of that size, and UNZOOM-GLYPHS puts
+;;; those glyphs back in the app's points about where they were drawn from; the zoom then makes them
+;;; what they were drawn as.
+
+(defun zoom-display-list (target source zoom)
+  "Make TARGET hold SOURCE's commands ZOOM times larger, about the top left, and return TARGET: each
+rectangle and corner radius, and the width of each stroke (to the nearest quarter point, at least
+one). A glyph keeps its atlas index. Signals DISPLAY-LIST-FULL, before changing TARGET, if TARGET
+has not room for them."
+  (declare (type display-list target source) (type single-float zoom))
+  (replace-display-list target source)
+  (let ((kinds (display-list-kinds target)) (xs (display-list-xs target))
+        (ys (display-list-ys target)) (ws (display-list-widths target))
+        (hs (display-list-heights target)) (ps (display-list-parameters target)))
+    (dotimes (i (display-list-count target) target)
+      (let ((kind (aref kinds i)))
+        (setf (aref xs i) (* (aref xs i) zoom)
+              (aref ys i) (* (aref ys i) zoom)
+              (aref ws i) (* (aref ws i) zoom)
+              (aref hs i) (* (aref hs i) zoom))
+        (cond ((= kind +command-glyph+))
+              ((> kind +command-rounded-stroke+)
+               (setf (aref ps i) (* (aref ps i) zoom)
+                     (aref kinds i) (+ +command-rounded-stroke+
+                                       (max 1 (min 239 (round (* (- kind +command-rounded-stroke+)
+                                                                 zoom)))))))
+              (t (setf (aref ps i) (* (aref ps i) zoom))))))))
+
+(defun unzoom-glyphs (list start x baseline zoom)
+  "Put the glyphs of LIST from the command START on, drawn ZOOM times their size from the pen at X
+and the BASELINE, back in unzoomed points about that place."
+  (declare (type display-list list) (type single-float x baseline zoom))
+  (let ((kinds (display-list-kinds list)) (xs (display-list-xs list))
+        (ys (display-list-ys list)) (ws (display-list-widths list))
+        (hs (display-list-heights list)))
+    (loop :for i :from start :below (display-list-count list)
+          :when (= (aref kinds i) +command-glyph+)
+            :do (setf (aref xs i) (+ x (/ (- (aref xs i) x) zoom))
+                      (aref ys i) (+ baseline (/ (- (aref ys i) baseline) zoom))
+                      (aref ws i) (/ (aref ws i) zoom)
+                      (aref hs i) (/ (aref hs i) zoom)))
+    list))
