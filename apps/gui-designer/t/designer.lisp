@@ -419,7 +419,7 @@ event changed shows in it."
 (define-test saving-defines-the-view-by-the-files-name-and-the-file-defines-it-again ()
   (multiple-value-bind (screen session) (open-designer)
     (let* ((name (format nil "login-~d" (random 1000000000)))
-           (keyword (intern (string-upcase name) :keyword))
+           (keyword (intern (string-upcase name) :cl-user))
            (path (saving-to screen name)))
       (unwind-protect
            (progn
@@ -429,8 +429,10 @@ event changed shows in it."
              ;; Defined here as it is saved, so a window that draws it shows it now.
              (assert-equal "Log in" (catalogue:form-option
                                      (find-form (views:find-view keyword) :sign-in) :text))
-             (assert-true (search (format nil "(almighty-bolt:define-view ~(~s~)" keyword)
-                                  (uiop:read-file-string path)))
+             ;; In the package given (CL-USER, until another is), with the name as the file's.
+             (let ((saved (uiop:read-file-string path)))
+               (assert-true (search "(in-package #:common-lisp-user)" saved) saved)
+               (assert-true (search (format nil "(almighty-bolt:define-view ~a" name) saved) saved))
              ;; Loaded, the file defines it: as an app's system loads it.
              (remhash keyword views::*views*)
              (load path)
@@ -441,7 +443,7 @@ event changed shows in it."
 (define-test saving-a-view-that-no-longer-fits-its-wiring-says-so ()
   (multiple-value-bind (screen session) (open-designer)
     (let* ((name (format nil "wired-~d" (random 1000000000)))
-           (keyword (intern (string-upcase name) :keyword))
+           (keyword (intern (string-upcase name) :cl-user))
            (path (saving-to screen name)))
       (unwind-protect
            (progn
@@ -461,6 +463,56 @@ event changed shows in it."
   (multiple-value-bind (screen session) (open-designer)
     (declare (ignore screen))
     (let ((text (shown-value session :wiring)))
-      (assert-true (search "(bolt:view :sign-in" text) text)
+      (assert-true (search "(bolt:view sign-in" text) text)
       (assert-true (search "(button :forgot)" text) text)
       (assert-true (search "(text-field :password)" text) text))))
+
+(define-test a-view-is-named-in-the-package-given ()
+  (multiple-value-bind (screen session) (open-designer)
+    (let* ((name (format nil "card-~d" (random 1000000000)))
+           (path (saving-to screen name))
+           (here (find-package :almighty-bolt-gui-designer/t/designer))
+           (symbol (intern (string-upcase name) here)))
+      (unwind-protect
+           (progn
+             ;; A package this Lisp does not have: shown as wrong, and the view is not saved.
+             (m:set-value session "no-such-package" :id :package)
+             (assert-true (s:node-property (m:find-node session :id :package) :invalid))
+             (m:click session :id :save :within :toolbar)
+             (assert-true (search "no package called" (shown-name session :status)))
+             (assert-false (probe-file path))
+             ;; The tests' own package: the name is a symbol of it, and the file is in it.
+             (m:set-value session "almighty-bolt-gui-designer/t/designer" :id :package)
+             (m:click session :id :save :within :toolbar)
+             (assert-true (views:find-view symbol))
+             (let ((saved (uiop:read-file-string path)))
+               (assert-true (search "(in-package #:almighty-bolt-gui-designer/t/designer)" saved) saved)
+               (assert-true (search (format nil "(almighty-bolt:define-view ~a~%" name) saved) saved))
+             (assert-true (search (format nil "(bolt:view ~a" name) (shown-value session :wiring)))
+             ;; Opened again, its name and package are the file's.
+             (m:click session :id :new :within :toolbar)
+             (m:set-value session "cl-user" :id :package)
+             (m:click session :id :open :within :toolbar)
+             (assert-equal "almighty-bolt-gui-designer/t/designer" (shown-value session :package)))
+        (remhash symbol views::*views*)
+        (when (probe-file path) (delete-file path))))))
+
+(define-test a-view-in-a-package-this-lisp-does-not-have-is-not-opened ()
+  (multiple-value-bind (screen session) (open-designer)
+    (let ((path (merge-pathnames (format nil "elsewhere-~d.lisp" (random 1000000000))
+                                 (uiop:temporary-directory))))
+      (unwind-protect
+           (progn
+             (with-open-file (out path :direction :output)
+               (write-string "(in-package #:no-such-app) (almighty-bolt:define-view v (:column :v ()))"
+                             out))
+             (setf (core:context-file-chooser (screen-context screen))
+                   (lambda (kind types offered)
+                     (declare (ignore kind types offered))
+                     (namestring path)))
+             (m:click session :id :open :within :toolbar)
+             (assert-true (search "NO-SUCH-APP, which this Lisp does not have"
+                                  (shown-name session :status))
+                          (shown-name session :status))
+             (assert-false (find-package :no-such-app)))
+        (when (probe-file path) (delete-file path))))))

@@ -20,7 +20,8 @@
 (in-package #:almighty-bolt/ui/views)
 
 ;;; A view is a piece of a window that a designer made: a form of widgets, kept by its name (a
-;;; keyword, as a theme's is), which DEFINE-VIEW gives. An app draws it with VIEW and wires its own
+;;; symbol, of the app's package, so that two apps' or libraries' views do not take each other's
+;;; names), which DEFINE-VIEW gives. An app draws it with VIEW and wires its own
 ;;; code to it by the ids the designer gave: what a widget shows (its options, by their names), what
 ;;; a press does (:on-press), the variable a field shows and sets (:value), what goes in a container
 ;;; (:contents). The design and the code are each whole without the other, and the ids are what they
@@ -52,7 +53,7 @@ that an open window shows a view changed in a designer.")
   (values (gethash name *views*)))
 
 (defun view-names ()
-  (sort (loop :for name :being :the :hash-keys :of *views* :collect name) #'string<))
+  (loop :for name :being :the :hash-keys :of *views* :collect name))
 
 (defun spec-problems (spec form)
   "What does not fit in the wiring SPEC and the view FORM, as a list of sentences."
@@ -101,7 +102,7 @@ the view checks the code that runs, and is an error if it does not fit."))
   "Make FORM, checked (CHECK-VIEW-FORM), the view called NAME, and show it in every window. Returns
 what does not fit between it and the code that wires it (WIRING-PROBLEMS), and signals a style
 warning (VIEW-WIRING-MISMATCH) of each."
-  (check-type name keyword)
+  (check-type name (and symbol (not null)))
   (check-view-form form)
   (setf (gethash name *views*) form)
   (when *view-defined-hook* (funcall *view-defined-hook*))
@@ -111,13 +112,13 @@ warning (VIEW-WIRING-MISMATCH) of each."
     problems))
 
 (defmacro define-view (name form)
-  "Define the view NAME (a keyword) as FORM: (kind id (option value ...) what-is-in-it ...), as
+  "Define the view NAME (a symbol, as a function's name is) as FORM: (kind id (option value ...) what-is-in-it ...), as
 a designer writes it. An error when compiled if FORM cannot be drawn (CHECK-VIEW-FORM). It is
 defined when compiled too, so that the code that wires it, compiled after, is checked against it."
-  (check-type name keyword)
+  (check-type name (and symbol (not null)))
   (check-view-form form)
   `(eval-when (:compile-toplevel :load-toplevel :execute)
-     (set-view ,name ',form)))
+     (set-view ',name ',form)))
 
 (define-condition view-not-defined (style-warning)
   ((name :initarg :name :reader view-not-defined-name))
@@ -154,7 +155,7 @@ defined when compiled too, so that the code that wires it, compiled after, is ch
                (mapcar #'entry-kind +catalogue+)))))
 
 (defmacro view (name-and-id &body clauses)
-  "Draw the view NAME, wired to the code by CLAUSES. NAME-AND-ID is the view's name (a keyword), or
+  "Draw the view NAME, wired to the code by CLAUSES. NAME-AND-ID is the view's name (a symbol), or
 (name :id id) to give its outermost widget ID in place of its own, so that it can be in one
 container more than once. Each clause is a widget of the view, by its kind and id, and what the
 code gives it: (button :sign-in :enabled (plusp (length name)) :on-press (sign-in name)). An option
@@ -166,7 +167,7 @@ Checked when compiled: a kind there is no widget of, an option or a wire that ki
 and, if the view is defined then, an id it does not have or a widget of another kind. A view not
 defined then is a style warning, and the wiring is checked when the view is drawn."
   (destructuring-bind (name &key id) (if (listp name-and-id) name-and-id (list name-and-id))
-    (check-type name keyword)
+    (check-type name (and symbol (not null)))
     (let ((spec '()) (wires '()) (functions '()))
       (dolist (clause clauses)
         (let* ((entry (clause-entry clause))
@@ -210,5 +211,5 @@ defined then is a style warning, and the wiring is checked when the view is draw
            (declare (dynamic-extent ,@(mapcar (lambda (f) `(function ,(first f))) functions)))
            (let ((,list (list ,@(reverse wires))))
              (declare (dynamic-extent ,list))
-             (draw-view ,name ,id (load-time-value (note-wiring ,name ',spec)) ,list)
+             (draw-view ',name ,id (load-time-value (note-wiring ',name ',spec)) ,list)
              nil))))))

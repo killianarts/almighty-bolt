@@ -3679,7 +3679,7 @@ released unless RELEASE."
 
 ;;; --- views: a design, and the code wired to it ---
 
-(define-view :t-login
+(define-view t-login
   (:column :form (:gap 8)
    (:label :heading (:text "Sign in"))
    (:text-field :name nil)
@@ -3692,7 +3692,7 @@ released unless RELEASE."
   (state-let ((name "") (presses 0))
     (lambda ()
       (column (:id :page :gap 8)
-        (view :t-login
+        (view t-login
           (label :heading :text (format nil "Hello ~a" name))
           (text-field :name :value name)
           (button :go :enabled (plusp (length name)) :on-press (incf presses))
@@ -3722,11 +3722,11 @@ released unless RELEASE."
     (assert-true (m:find-node session :id :count :within :recent))))
 
 (define-test a-view-defined-again-is-drawn-without-the-code-being-compiled-again ()
-  (let ((before (almighty-bolt/ui/views:find-view :t-login))
+  (let ((before (almighty-bolt/ui/views:find-view 't-login))
         (screen (show 'make-wired-login)))
     (flet ((define (form)
              (handler-bind ((warning #'muffle-warning))
-               (almighty-bolt/ui/views:set-view :t-login form))))
+               (almighty-bolt/ui/views:set-view 't-login form))))
       (unwind-protect
            (progn
              (assert-equal '() (define (subst "Not now" "Later" before :test #'equal)))
@@ -3741,7 +3741,7 @@ released unless RELEASE."
              (assert-error 'error (draw screen)))
         (define before)))))
 
-(define-view :t-person
+(define-view t-person
   (:row :person (:gap 4)
    (:label :who nil)
    (:button :remove (:text "Remove"))))
@@ -3751,7 +3751,7 @@ released unless RELEASE."
     (lambda ()
       (column (:id :people :gap 4)
         (dolist (person '("Ann" "Bo"))
-          (view (:t-person :id (intern (string-upcase person) :keyword))
+          (view (t-person :id (intern (string-upcase person) :keyword))
             (label :who :text person)
             (button :remove :on-press (setf removed person))))
         (label (format nil "Removed ~a" removed) :id :removed)))))
@@ -3785,10 +3785,10 @@ released unless RELEASE."
                                 ((button :go :colour 3) "a button takes")
                                 ((label :heading :on-press (print 1)) "a label takes")
                                 ((slab :go) "no widget of the kind slab"))
-        :do (let ((said (compiling `(lambda () (view :t-login ,wiring)))))
+        :do (let ((said (compiling `(lambda () (view t-login ,wiring)))))
               (assert-true (some (lambda (s) (search why s :test #'char-equal)) said) why said)))
   ;; Wiring that fits says nothing.
-  (assert-equal '() (compiling '(lambda () (view :t-login (button :go :on-press (print 1)))))))
+  (assert-equal '() (compiling '(lambda () (view t-login (button :go :on-press (print 1)))))))
 
 (define-test a-view-file-compiles-while-code-loaded-before-does-not-fit-it ()
   ;; A view saved in the designer, its file compiled again (by ASDF, say) while code that wired the
@@ -3800,10 +3800,10 @@ released unless RELEASE."
     (unwind-protect
          (progn
            (handler-bind ((warning #'muffle-warning))
-             (almighty-bolt/ui/views:set-view :t-recompiled '(:column :c () (:button :gone ())))
-             (compile nil '(lambda () (view :t-recompiled (button :gone :on-press (print 1))))))
+             (almighty-bolt/ui/views:set-view 't-recompiled '(:column :c () (:button :gone ())))
+             (compile nil '(lambda () (view t-recompiled (button :gone :on-press (print 1))))))
            (with-open-file (out source :direction :output)
-             (write-string "(almighty-bolt:define-view :t-recompiled (:column :c ()))" out))
+             (write-string "(in-package #:almighty-bolt/t/app) (almighty-bolt:define-view t-recompiled (:column :c ()))" out))
            ;; Not muffled: a warning muffled is not counted by COMPILE-FILE.
            (multiple-value-bind (output warnings failure)
                (let ((*error-output* (make-broadcast-stream)))
@@ -3811,13 +3811,13 @@ released unless RELEASE."
              (declare (ignore output))
              (assert-true warnings)
              (assert-false failure)))
-      (remhash :t-recompiled almighty-bolt/ui/views::*views*)
-      (remhash :t-recompiled almighty-bolt/ui/views::*wirings*)
+      (remhash 't-recompiled almighty-bolt/ui/views::*views*)
+      (remhash 't-recompiled almighty-bolt/ui/views::*wirings*)
       (dolist (file (list source fasl))
         (when (probe-file file) (delete-file file))))))
 
 (define-test wiring-to-a-view-not-yet-defined-is-a-style-warning ()
-  (let ((said (compiling '(lambda () (view :t-not-defined (button :go))))))
+  (let ((said (compiling '(lambda () (view t-not-defined (button :go))))))
     (assert-true (some (lambda (s) (search "Load the file that defines it" s)) said) said)))
 
 ;;; --- a frame that fails ---

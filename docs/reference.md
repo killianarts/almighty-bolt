@@ -497,8 +497,10 @@ Where a window opens is given to `open-app`, `open-window` and `run-app`. `:top`
 ## Views
 
 A view is a piece of a window, from all of it down to a row of a list, made in the GUI designer
-(`apps/gui-designer`) and kept by its name, a keyword. `(bolt:define-view :login form)` defines it;
-the designer writes a file of that form when it saves a view, named after the file. FORM is
+(`apps/gui-designer`) and kept by its name, a symbol of the app's package, so that two apps' or
+libraries' views do not take each other's names. `(bolt:define-view login form)` defines it; the
+designer writes a file of that form when it saves a view, named after the file and in the package
+given in its Package field (the file begins with that `in-package`). FORM is
 `(kind id (option value ...) what-is-in-it ...)`, the kinds being `:label`, `:button`,
 `:text-field`, `:column` and `:row` and the options the widgets' own: `(:row :actions (:gap 8)
 (:button :sign-in (:text "Sign in")))`. A form that cannot be drawn is an error when the file is
@@ -507,7 +509,7 @@ have, an id two widgets have, or something inside a widget that holds nothing. A
 when its file is compiled too, so the code that draws it, compiled after it, is checked against it:
 put the view's file before that code in the system.
 
-`(bolt:view :login clause ...)` draws the view where it is called, wired to the code by its
+`(bolt:view login clause ...)` draws the view where it is called, wired to the code by its
 clauses. Each clause is one widget of the view, by its kind and id, then what the code gives it:
 
 - an option, by the widget's own name for it, worked out each frame: `(label :greeting :text
@@ -517,7 +519,7 @@ clauses. Each clause is one widget of the view, by its kind and id, then what th
   that typing sets;
 - `:contents` on a column or row: what is drawn in it, after what the view has there.
 
-What is not wired is as the view has it. `(bolt:view (:message-row :id (message-id m)) ...)` gives
+What is not wired is as the view has it. `(bolt:view (message-row :id (message-id m)) ...)` gives
 the view's outermost widget that id in place of its own, so that one view can be in one container
 more than once, each wired to its own; ids inside it are its own.
 

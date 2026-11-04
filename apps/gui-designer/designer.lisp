@@ -69,48 +69,57 @@
 ;;; --- the file ---
 
 (defun write-view (name view stream)
-  "Write VIEW to STREAM as the file the designer saves: Lisp that defines it as the view NAME, to be
-loaded before the code that draws it. It is written in a package that uses CL, so that NIL and T
-are as they are and every widget's kind, id and options are keywords."
-  (format stream ";;; A view made with the GUI designer of almighty-bolt. Load it before the code ~
-                  that draws it,~%;;; (almighty-bolt:view ~(~s~) ...).~%" name)
-  ;; The operator is written as the public package names it (its home is another package).
-  (let ((form (with-standard-io-syntax
-                (let ((*package* (find-package :cl-user))
-                      (*print-case* :downcase)
-                      (*print-pretty* t)
-                      (*print-right-margin* 98))
-                  (prin1-to-string (node-form view))))))
-    (format stream "(almighty-bolt:define-view ~(~s~)~%  ~a)~%"
-            name
-            (with-output-to-string (out)
-              (loop :for character :across form
-                    :do (write-char character out)
-                        (when (char= character #\Newline)
-                          (write-string "  " out)))))))
+  "Write VIEW to STREAM as the file the designer saves: Lisp that defines it as the view NAME (a
+symbol), in NAME's package, to be loaded before the code that draws it."
+  (let ((package (symbol-package name)))
+    (flet ((written (thing)
+             (with-standard-io-syntax
+               (let ((*package* package)
+                     (*print-case* :downcase)
+                     (*print-pretty* t)
+                     (*print-right-margin* 98))
+                 (prin1-to-string thing)))))
+      (format stream ";;; A view made with the GUI designer of almighty-bolt. Load it before the code ~
+                      that draws it,~%;;; (almighty-bolt:view ~a ...).~%~%(in-package #:~(~a~))~%~%"
+              (written name) (package-name package))
+      ;; The operator is written as the public package names it (its home is another package).
+      (format stream "(almighty-bolt:define-view ~a~%  ~a)~%"
+              (written name)
+              (with-output-to-string (out)
+                (loop :for character :across (written (node-form view))
+                      :do (write-char character out)
+                          (when (char= character #\Newline)
+                            (write-string "  " out))))))))
 
 (defun read-view (stream)
-  "The view that STREAM, a file the designer saved, defines: its name and the view, as two values.
-An error that says what is wrong if it defines none, or one that cannot be drawn
-(CHECK-VIEW-FORM). Nothing in the file is evaluated."
+  "The view that STREAM, a file the designer saved, defines: its name (a symbol, of the package the
+file is in) and the view, as two values. An error that says what is wrong if it defines none, or
+one that cannot be drawn (CHECK-VIEW-FORM), or if it is in a package this Lisp does not have.
+Nothing in the file is evaluated: IN-PACKAGE is followed, as LOAD would."
   (with-standard-io-syntax
     (let ((*read-eval* nil)
           (*package* (find-package :cl-user)))
       (loop :for form = (read stream nil stream)
             :until (eq form stream)
-            :do (when (and (consp form) (eq (first form) 'bolt:define-view))
-                  (destructuring-bind (name view) (rest form)
-                    (unless (keywordp name)
-                      (error "The view's name, ~s, is not a keyword." name))
-                    (check-view-form view)
-                    (return-from read-view (values name (form-node view))))))
+            :do (cond ((and (consp form) (eq (first form) 'in-package))
+                       (setf *package*
+                             (or (find-package (second form))
+                                 (error "The file is in the package ~a, which this Lisp does not ~
+                                         have: load the app's system first."
+                                        (string (second form))))))
+                      ((and (consp form) (eq (first form) 'bolt:define-view))
+                       (destructuring-bind (name view) (rest form)
+                         (unless (and name (symbolp name))
+                           (error "The view's name, ~s, is not a symbol." name))
+                         (check-view-form view)
+                         (return-from read-view (values name (form-node view)))))))
       (error "The file defines no view (DEFINE-VIEW)."))))
 
 (defun wiring-text (name view)
-  "The start of the code that draws the view NAME: a line for each widget, by its kind and id, for
-what the app gives it."
+  "The start of the code that draws the view called NAME (as written): a line for each widget, by
+its kind and id, for what the app gives it."
   (with-output-to-string (out)
-    (format out "(bolt:view ~(~s~)" name)
+    (format out "(bolt:view ~a" name)
     (labels ((walk (node)
                (format out "~%  (~(~a ~s~))" (node-kind node) (node-id node))
                (mapc #'walk (node-children node))))
@@ -281,8 +290,10 @@ or at the end of the view if nothing is selected. Returns the view and the new w
 
 (defun make-designer ()
   (bolt:state-let ((view (form-node +sample+))
-                   ;; What the view is called, which an app draws it by: the file's name, once saved.
-                   (name :sign-in)
+                   ;; What the view is called, which an app draws it by (the file's name, once
+                   ;; saved), and the package that name is in (the app's), as written.
+                   (name "sign-in")
+                   (package "cl-user")
                    (selected nil)
                    (drafts (make-hash-table :test 'equal))
                    (saving nil)
@@ -330,7 +341,7 @@ or at the end of the view if nothing is selected. Returns the view and the new w
             (bolt:row (:gap 8 :cross-align :center)
               (when (bolt:button "New" :id :new)
                 (change (form-node +empty+))
-                (setf status "" name :view)
+                (setf status "" name "view")
                 (select nil))
               (when (bolt:button "Open…" :id :open)
                 (setf opening t))
@@ -345,20 +356,30 @@ or at the end of the view if nothing is selected. Returns the view and the new w
                 (step-back))
               (when (bolt:button "Redo" :id :redo :enabled (and redo t))
                 (step-forward))
+              (bolt:label "Package" :id :package-label)
+              (multiple-value-bind (text edited)
+                  (bolt:text-field package :id :package :width 180 :labelled-by :package-label
+                                           :invalid (not (find-package (string-upcase package))))
+                (when edited (setf package text)))
               (bolt:label status :id :status)))
           (let ((path (bolt:save-file-dialog :id :save-panel :show saving :types '("lisp")
                                              :name (format nil "~(~a~).lisp" name))))
             (setf saving nil)
             (when path
-              ;; The view is called what the file is.
-              (setf name (intern (string-upcase (pathname-name path)) :keyword))
-              (with-open-file (out path :direction :output :if-exists :supersede)
-                (write-view name view out))
-              ;; Defined here too, so that a window that draws it shows it now; what the code that
-              ;; wires it no longer fits is said.
-              (let ((problems (handler-bind ((warning #'muffle-warning))
-                                (set-view name (node-form view)))))
-                (setf status (format nil "Saved to ~a~:[.~;; ~:*~{~a~^ ~}~]" path problems)))))
+              ;; The view is called what the file is, in the package given.
+              (let ((home (find-package (string-upcase package))))
+                (if (null home)
+                    (setf status (format nil "Not saved: this Lisp has no package called ~a." package))
+                    (let ((symbol (intern (string-upcase (pathname-name path)) home)))
+                      (setf name (string-downcase (pathname-name path)))
+                      (with-open-file (out path :direction :output :if-exists :supersede)
+                        (write-view symbol view out))
+                      ;; Defined here too, so that a window that draws it shows it now; what the
+                      ;; code that wires it no longer fits is said.
+                      (let ((problems (handler-bind ((warning #'muffle-warning))
+                                        (set-view symbol (node-form view)))))
+                        (setf status (format nil "Saved to ~a~:[.~;; ~:*~{~a~^ ~}~]"
+                                             path problems))))))))
           (let ((path (bolt:open-file-dialog :id :open-panel :show opening :types '("lisp"))))
             (setf opening nil)
             (when path
@@ -366,7 +387,8 @@ or at the end of the view if nothing is selected. Returns the view and the new w
                   (with-open-file (in path)
                     (multiple-value-bind (opened new) (read-view in)
                       (change new)
-                      (setf name opened
+                      (setf name (string-downcase (symbol-name opened))
+                            package (string-downcase (package-name (symbol-package opened)))
                             status (format nil "Opened ~a." path)))
                     (select nil))
                 (error (condition)

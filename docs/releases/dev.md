@@ -36,10 +36,10 @@ While you develop an app (`open-app`, or `run-app` with `:hot`), Command-Option-
 
 ### Views: a design wired to code
 
-A view made in the GUI designer is a file of Lisp that defines it, `(bolt:define-view :login (:column :form (:gap 12) ...))`, and the app draws it with `bolt:view`, wiring its own code to it by the ids the designer gave:
+A view made in the GUI designer is a file of Lisp that defines it, `(bolt:define-view login (:column :form (:gap 12) ...))`, and the app draws it with `bolt:view`, wiring its own code to it by the ids the designer gave:
 
 ```lisp
-(bolt:view :login
+(bolt:view login
   (label :greeting :text (format nil "Hello ~a" name))
   (text-field :name :value name)
   (button :sign-in :enabled (plusp (length name)) :on-press (sign-in name password))
@@ -49,10 +49,10 @@ A view made in the GUI designer is a file of Lisp that defines it, `(bolt:define
 - A clause names a widget of the view by its kind and id, and gives it options by the widget's own names, `:on-press` (a button), `:value` (a place a text field shows and typing sets) or `:contents` (what goes in a column or row). What is not wired is as the designer left it.
 - Wiring that does not fit is an error when the code is compiled: an id the view does not have, a widget of another kind, an option or a wire the widget does not take. A view not yet defined then is a style warning, and the check is made when it is drawn.
 - A view defined again (the designer saves it) is shown in every open window at once, without the app's code being compiled again, and the code that draws it is checked against it.
-- `(bolt:view (:message-row :id (message-id m)) ...)` draws one view many times in one container, each wired to its own.
+- `(bolt:view (message-row :id (message-id m)) ...)` draws one view many times in one container, each wired to its own.
 - Drawing a view allocates nothing beyond the same widgets written by hand.
 
-A view is named by a keyword, as a theme is. It takes no parameters: what differs from one place it is drawn to the next is given by the wiring there.
+A view is named by a symbol of the app's package, as a function is, so that views of two apps or libraries do not take each other's names. It takes no parameters: what differs from one place it is drawn to the next is given by the wiring there.
 
 ### The GUI designer, begun
 
@@ -63,9 +63,9 @@ A view is named by a keyword, as a theme is. It takes no parameters: what differ
 - A widget from the left goes at the end of the selected column or row, or just after the selected widget, or at the end of the view; it is called by its kind and a number (`:button-1`), and selected.
 - On the right, the selected widget's options, each with an editor of its kind: a field for text and for numbers (a number that is not one is shown as wrong and changes nothing), a check box, a menu of choices. What is changed shows in the view at once. Its id is changed with Return, to one no other widget in the view has. Remove takes it out, with what is in it.
 - Undo and Redo, in the toolbar and as Command-Z and Command-Shift-Z, take back every change to the view and put it back: a widget added or removed, an option changed (a word typed into one is one step), an id, a view opened or begun. A text field with the keyboard undoes its own typing first.
-- New starts an empty view, Save… writes it to a `.lisp` file that defines it, `(almighty-bolt:define-view :login (:column ...))`, named after the file, and Open… reads one back. The view is each widget as its kind, its id and the options that are not the default, by the widget's own names, then what is in it, such as `(:row :actions (:gap 8) (:button :sign-in (:text "Sign in")))`. A file is read with `*read-eval*` off and nothing in it is evaluated, and one that is not a view is not opened, with what is wrong said: a kind of widget the designer does not have, an option a widget does not have or a value it cannot have, an id two widgets have, or something inside a widget that holds nothing.
+- New starts an empty view, Save… writes it to a `.lisp` file that defines it, `(almighty-bolt:define-view login (:column ...))`, named after the file and in the package given in the toolbar's Package field (the file begins with its `in-package`), and Open… reads one back, its name and package with it. The view is each widget as its kind, its id and the options that are not the default, by the widget's own names, then what is in it, such as `(:row :actions (:gap 8) (:button :sign-in (:text "Sign in")))`. A file is read with `*read-eval*` off and nothing in it is evaluated, and one that is not a view is not opened, with what is wrong said: a kind of widget the designer does not have, an option a widget does not have or a value it cannot have, an id two widgets have, or something inside a widget that holds nothing.
 - Save also defines the view in the running Lisp, so an app's window that draws it shows it at once, and says if the app's code that wires it no longer fits (an id it wires that the view has lost).
-- Below the selected widget, the start of the code that draws the view: `(bolt:view :login (column :sign-in-form) (label :heading) ...)`, a line for each widget, to copy.
+- Below the selected widget, the start of the code that draws the view: `(bolt:view login (column :sign-in-form) (label :heading) ...)`, a line for each widget, to copy.
 
 It is built on a new container, `design-surface`, which any designer can use: what is in it is drawn but does not work, the pointer and the keyboard do not reach it, and a press on it returns the id of the thing it was on. `(bolt:design-surface (:id :canvas :selected picked) ...)` outlines the thing whose id is `picked`.
 

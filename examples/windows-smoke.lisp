@@ -225,13 +225,13 @@ what is shown mends it."
     (bolt:close-window window)
     (wait-for (lambda () (not (host-open-p window))))))
 
-(bolt:define-view :smoke-greeting
+(bolt:define-view smoke-greeting
   (:column :greeting nil
    (:label :hello (:text "Hello"))))
 
 (defun make-greeting ()
   (lambda ()
-    (bolt:view :smoke-greeting)))
+    (bolt:view smoke-greeting)))
 
 (defun view-checks ()
   "A view defined again, as the GUI designer does when it saves, is shown in a window that draws it,
@@ -242,7 +242,7 @@ at once and without the window's code being compiled again."
     (flet ((says ()
              (s:node-name (m:find-node (open-session window) :id :hello))))
       (check "a window draws a view" (equal "Hello" (says)) (says))
-      (almighty-bolt/ui/views:set-view :smoke-greeting
+      (almighty-bolt/ui/views:set-view 'smoke-greeting
                                        '(:column :greeting nil (:label :hello (:text "Hi there"))))
       (check "and shows it defined again, without anything else happening"
              (wait-for (lambda () (equal "Hi there" (says)))) (says)))
