@@ -250,7 +250,7 @@ them in the boxes, and return the width and height."
        (let* ((options (car (box-data box)))
               (state (cdr (box-data box)))
               (vertical (eq (box-main-align box) :vertical))
-              (segmented (eq (box-main-align box) :segmented))
+              (segmented (member (box-main-align box) '(:segmented :tabs)))
               (count (length options))
               (lefts (make-array count))
               (tops (make-array count))

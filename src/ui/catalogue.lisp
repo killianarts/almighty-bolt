@@ -9,6 +9,7 @@
                 #:combo-box
                 #:slider
                 #:choice
+                #:tabs
                 #:checkbox
                 #:switch
                 #:dropdown
@@ -217,12 +218,21 @@ wired there or NIL, and SET-VALUE the function that sets the place wired as :val
                               :options ((:options :list ("One" "Two" "Three"))
                                         (:selected :number 0)
                                         (:direction (:choice :horizontal :vertical) :horizontal)
-                                        (:style (:choice :radio :segmented) :radio)
+                                        (:style (:choice :radio :segmented :tabs) :radio)
                                         (:enabled :boolean t))
                               :value :selected)
   (multiple-value-bind (now moved)
       (choice (or options '("")) (index-in selected (or options '(""))) :id id
               :direction direction :style style :enabled enabled)
+    (when (and moved set-value) (funcall set-value now))))
+
+(define-widget-entry :tabs (:title "Tabs"
+                            :options ((:titles :list ("One" "Two" "Three"))
+                                      (:selected :number 0)
+                                      (:enabled :boolean t))
+                            :value :selected)
+  (multiple-value-bind (now moved)
+      (tabs (or titles '("")) (index-in selected (or titles '(""))) :id id :enabled enabled)
     (when (and moved set-value) (funcall set-value now))))
 
 (define-widget-entry :checkbox (:title "Check box"

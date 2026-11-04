@@ -3602,6 +3602,47 @@ released unless RELEASE."
     (m:set-value session "Readings" :id :view)
     (assert-equal "Readings" (text-in screen :view-shown))))
 
+;;; --- a tab bar ---
+
+(defun make-tabbed ()
+  (state-let ((page 0))
+    (lambda ()
+      (column (:gap 8)
+        (multiple-value-bind (index changed) (tabs '("Design" "Wire" "Theme") page :id :pages)
+          (when changed (setf page index)))
+        (label (nth page '("Designing" "Wiring" "Theming")) :id :page-shown)))))
+
+(define-test a-tab-bar-chooses-the-page-shown-and-marks-the-tab-chosen ()
+  (let* ((screen (show 'make-tabbed))
+         (session (screen-session screen))
+         (theme (theme:find-theme :dark))
+         (node (node-of screen :pages)))
+    (assert-eq :radio-group (s:node-role node))
+    (assert-eq :tabs (s:node-property node :style))
+    (destructuring-bind (design wire theme-tab) (s:node-property node :option-bounds)
+      (declare (ignore theme-tab))
+      (flet ((under (bounds)
+               ;; Under the middle of a tab's words, where the chosen one is marked.
+               (color-at screen (+ (first bounds) (/ (third bounds) 2))
+                         (+ (second bounds) (fourth bounds) -2))))
+        (assert-eql (theme:theme-row-selected theme) (under design))
+        (assert-false (eql (theme:theme-row-selected theme) (under wire)))
+        ;; A press on the second chooses it, and the mark goes with it.
+        (let ((x (+ (first wire) 10)) (y (+ (second wire) 6)))
+          (pointer screen :move x y)
+          (pointer screen :down x y :button 0 :buttons 1)
+          (pointer screen :up x y :button 0))
+        (draw screen)
+        (assert-equal "Wiring" (text-in screen :page-shown))
+        (assert-eql (theme:theme-row-selected theme) (under wire))
+        (assert-false (eql (theme:theme-row-selected theme) (under design)))))
+    ;; Tab gives it the keyboard (a press does not, as on a Mac), and Right goes to the next tab.
+    (key screen #\Tab)
+    (key screen core:+key-right+)
+    (assert-equal "Theming" (text-in screen :page-shown))
+    (m:set-value session "Design" :id :pages)
+    (assert-equal "Designing" (text-in screen :page-shown))))
+
 ;;; --- the weight of text ---
 
 (defun make-weighted ()

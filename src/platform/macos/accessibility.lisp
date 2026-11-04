@@ -146,6 +146,7 @@ element (that a client still holds) answers."
     (:progress-bar (foreign-constant "NSAccessibilityProgressIndicatorRole"))
     (:slider (foreign-constant "NSAccessibilitySliderRole"))
     (:radio-group (foreign-constant "NSAccessibilityRadioGroupRole"))
+    (:tab-group (foreign-constant "NSAccessibilityTabGroupRole"))
     (:radio-button (foreign-constant "NSAccessibilityRadioButtonRole"))
     (:list (foreign-constant "NSAccessibilityListRole"))
     (:row (foreign-constant "NSAccessibilityRowRole"))
@@ -372,7 +373,8 @@ thing that is not told yet."
     (:progress-bar :progress-bar)
     (:slider :slider)
     (:splitter :splitter)
-    (:radio-group :radio-group)
+    ;; A tab bar is a tab group, whose tabs are radio buttons, as AppKit's own is.
+    (:radio-group (if (eq (getf (getf node :state) :style) :tabs) :tab-group :radio-group))
     (:list :list)
     ((:canvas :overlay :grid) :group)))
 
@@ -436,7 +438,7 @@ thing that is not told yet."
                      (item-minimum item) (getf state :minimum)
                      (item-maximum item) (getf state :maximum)))
       ;; What a choice or a list holds is in the things inside it; the group is called by its label.
-      ((:radio-group :list :group) (setf (item-label item) name
+      ((:radio-group :tab-group :list :group) (setf (item-label item) name
                                          (item-value item) nil)))
     (not (and (equal old-value (item-value item))
               (equal old-label (item-label item))))))
@@ -544,7 +546,8 @@ that were already there and have moved and the ones that have a new size."
                              (push item changed))))
                        (setf (item-children item)
                              (case role
-                               (:radio-group (parts item path :radio-button (option-specs node)))
+                               ((:radio-group :tab-group)
+                                (parts item path :radio-button (option-specs node)))
                                (:list (parts item path :row (row-specs node)))
                                (t (visit-children node path item))))
                        (list item))

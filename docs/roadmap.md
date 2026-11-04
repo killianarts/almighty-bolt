@@ -15,10 +15,8 @@ the order inside a section is not a schedule. What has shipped is in the
 - **Text and layout.**
   - Italic, weights between regular and bold, a font for each widget besides
     labels and paragraphs (which have `:weight :bold` and `:font`); rich text.
-  - Wrapping layouts and splitters, and panes that can be docked, resized, put
-    in tabs and moved.
-  - Tabs, a tree view, a table, and date and colour pickers (a segmented
-    `choice` switches between views until there are tabs).
+  - Wrapping layouts, and panes that can be docked, put in tabs and moved.
+  - A tree view, a table, and date and colour pickers.
 - **Effects.** Shadows, glows, blur, opacity and other filters.
   - An effect can reach past the edges of the widget it belongs to, by as far as
     it needs.
@@ -142,7 +140,7 @@ What stands between the library today and the studio, as found while building
 the GUI designer, and where on this roadmap each is closed.
 
 - **Windows, not panes.** The GUI designer, the inspector and the theme designer
-  are separate windows. One window needs docked panes, tabs and a tree view
+  are separate windows. One window needs docked panes and a tree view
   ([Text and layout](#later)).
 - **The app is not in a pane.** Drawing the app inside the studio needs its
   display list scaled and placed, the pointer hit-tested through the zoom, and
@@ -163,7 +161,7 @@ the GUI designer, and where on this roadmap each is closed.
 
 ### Stages
 
-1. **One window.** Docked panes, tabs and a tree view. The app drawn in a pane,
+1. **One window.** Docked panes and a tree view. The app drawn in a pane,
    hit-tested through the zoom. The theme designer as a pane, with undo.
 2. **Code and time.** A code editor, or the bridge to Emacs. The timeline,
    replay and state panes over the frame ring. The semantic and accessibility

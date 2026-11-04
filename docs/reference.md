@@ -49,7 +49,11 @@ control is: for switching between views, `(bolt:choice '("Readings" "Calendar")
 view :id :view :style :segmented)`. It works as any choice does, by the pointer,
 the arrows and `set-value`, and is a `:radio-group` in the semantic tree (with
 `:style :segmented` in its state), as AppKit's segmented control is to
-VoiceOver. A `switch` is a check box that looks like a light switch, for a
+VoiceOver. `(bolt:tabs '("Design" "Wire") page :id :pages)` is a tab bar, a
+choice with `:style :tabs`: the tabs' words side by side over a hairline, the
+chosen one marked under its words, and the app draws the page of the tab
+chosen. It is a `:radio-group` with `:style :tabs` in the semantic tree, and a
+tab group of radio buttons to VoiceOver. A `switch` is a check box that looks like a light switch, for a
 setting that takes effect at once. A `spinner` (`:size`, 18 points) is a ring of
 dots that goes round, for work whose end is not known; it asks for a frame about
 ten times a second while it is shown, so show it only while the work goes on.
@@ -536,10 +540,10 @@ when its file is compiled too, so the code that draws it, compiled after it, is 
 put the view's file before that code in the system.
 
 The kinds are those of the catalogue, every widget and container of the library (a label, a
-paragraph, a button, a text field, a text area, a combo box, a slider, a choice, a check box, a
-switch, a dropdown, a list box, a progress bar, a spinner; a column, a row, a grid, a stack, a
-padding, a panel, a center, a scroll, a pressable, a split) but the spacer, which needs a row or column whose
-size is bounded, and whatever an app adds. `(:view :card (:name my-app::card))` is another view
+paragraph, a button, a text field, a text area, a combo box, a slider, a choice, a tab bar, a check
+box, a switch, a dropdown, a list box, a progress bar, a spinner; a column, a row, a grid, a stack,
+a padding, a panel, a center, a scroll, a pressable, a split) but the spacer, which needs a row or
+column whose size is bounded, and whatever an app adds. `(:view :card (:name my-app::card))` is another view
 drawn inside this one, by its name, with the node's id for its outermost widget: changed when that
 view is defined again, and said in its place (not drawn for ever) if it is inside itself. It is not
 wired from outside: the code that draws a view inside another wires it with a `view` of its own, or

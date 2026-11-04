@@ -254,8 +254,8 @@ The whole frame is searched last, for a label in a float (a dialog's title) or e
         (:choice
          (note :selected (box-n3 box))
          (note :options (car (box-data box)))
-         (if (eq (box-main-align box) :segmented)
-             (progn (note :direction :horizontal) (note :style :segmented))
+         (if (member (box-main-align box) '(:segmented :tabs))
+             (progn (note :direction :horizontal) (note :style (box-main-align box)))
              (note :direction (box-main-align box)))
          ;; Where each option is, so that it can be pressed.
          (let ((state (cdr (box-data box))))

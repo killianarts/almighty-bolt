@@ -348,9 +348,36 @@ row's colour with its words in the button's text colour, and a line between the 
                                            (t (theme-text *theme*)))))))))
 
 (defun draw-choice (box context list x y)
-  (if (eq (box-main-align box) :segmented)
-      (draw-segments box context list x y)
-      (draw-radio-choice box context list x y)))
+  (case (box-main-align box)
+    (:segmented (draw-segments box context list x y))
+    (:tabs (draw-tabs box context list x y))
+    (t (draw-radio-choice box context list x y))))
+
+(defun draw-tabs (box context list x y)
+  "The tabs of a tab bar: a hairline along the bottom, each tab's words, dim but for the chosen one's,
+which has a bar of the selection's colour under it (the ring's when the bar has the keyboard)."
+  (let* ((font (ui-font context))
+         (options (car (box-data box)))
+         (state (cdr (box-data box)))
+         (h (choice-state-option-height state))
+         (selected (box-n3 box))
+         (focused (nth-value 1 (look-state box))))
+    (push-rect list x (+ y h -1) (box-w box) 1 (theme-field-border *theme*))
+    (multiple-value-bind (height ascent) (line-metrics context)
+      (declare (ignore height))
+      (loop :for option :in options
+            :for i :from 0
+            :do (let ((left (+ x (svref (choice-state-lefts state) i)))
+                      (width (svref (choice-state-widths state) i)))
+                  (when (= i selected)
+                    (push-rect list (+ left 4) (+ y h -3) (- width 8) 3
+                               (if focused (theme-ring *theme*) (theme-row-selected *theme*))))
+                  (context-push-text context list font option
+                                     (+ left (/ (- width (context-measure context font option)) 2))
+                                     (+ y (/ (- h (+ ascent 4f0)) 2) ascent)
+                                     (if (and (= i selected) (box-enabled box))
+                                         (theme-text *theme*)
+                                         (theme-dim-text *theme*))))))))
 
 (defun draw-radio-choice (box context list x y)
   (let* ((font (ui-font context))

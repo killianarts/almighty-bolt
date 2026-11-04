@@ -27,7 +27,8 @@
                 #:list-box
                 #:canvas
                 #:scrim
-                #:split)
+                #:split
+                #:tabs)
   (:import-from #:almighty-bolt/machine/host-session
                 #:open-session)
   (:local-nicknames (#:m #:almighty-bolt/machine)
@@ -68,9 +69,11 @@
                         (declare (ignore list context width height))
                         nil)
                 :id :drawing)
-        (split (:id :sides :size 50 :min 40 :width 160 :height 20)
-          (label "Left" :id :left-words)
-          (label "Right" :id :right-words))
+        (row (:gap 8)
+          (split (:id :sides :size 50 :min 40 :width 160 :height 20)
+            (label "Left" :id :left-words)
+            (label "Right" :id :right-words))
+          (tabs '("Design" "Theme") 1 :id :pages))
         (stack ()
           (label "Under" :id :under)
           (scrim :id :veil))))))
@@ -89,7 +92,8 @@
 
 (defun check (what ok &optional detail)
   (unless ok (incf *failures*))
-  (format t "~&~:[FAIL~;ok  ~] ~a~@[ (~a)~]~%" ok what detail)
+  ;; What was found, when it is not what was wanted.
+  (format t "~&~:[FAIL~;ok  ~] ~a~@[ (~a)~]~%" ok what (and (not ok) detail))
   (finish-output)
   ok)
 
@@ -259,6 +263,17 @@ them, and what pressing and adjusting them does."
                     (equal "AXSplitter" (said divider "AXRole"))
                     (about 50 (number-of divider "AXValue")))
                (and divider (list (said divider "AXRole") (number-of divider "AXValue")))))
+      (let* ((pages (named elements "pages"))
+             (tabs (and pages (parts pages))))
+        (check "a tab bar is a tab group of its tabs, as radio buttons, the one shown chosen"
+               (and pages
+                    (equal "AXTabGroup" (said pages "AXRole"))
+                    (= 2 (length tabs))
+                    (every (lambda (tab) (equal "AXRadioButton" (said tab "AXRole"))) tabs)
+                    (equal '("Design" "Theme") (mapcar (lambda (tab) (said tab "AXDescription")) tabs))
+                    (equal '("0" "1") (mapcar (lambda (tab) (said tab "AXValue")) tabs)))
+               (and pages (list (said pages "AXRole")
+                                (mapcar (lambda (tab) (said tab "AXDescription")) tabs)))))
       (check "a progress bar is a progress bar, between 0 and 1"
              (and (equal "AXProgressIndicator" (said progress "AXRole"))
                   (about 0.25 (number-of progress "AXValue"))

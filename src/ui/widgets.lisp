@@ -196,6 +196,7 @@
            #:menu-state-open
            #:+menu-check-width+
            #:switch
+           #:tabs
            #:spinner
            #:+spinner-steps+
            #:list-box
@@ -1504,6 +1505,13 @@ person changed it this frame."
   (widths #() :type simple-vector)
   (option-height 0f0 :type single-float))
 
+(defun tabs (titles selected &key (id (required-id 'tabs)) tooltip labelled-by (enabled t) (flex 0))
+  "A tab bar of TITLES (strings), the SELECTED one (an index) marked: a CHOICE drawn as tabs, which
+the app follows by drawing the page of the tab chosen. Returns the index now and whether the person
+changed it this frame."
+  (choice titles selected :id id :tooltip tooltip :labelled-by labelled-by :enabled enabled
+                          :flex flex :style :tabs))
+
 (defun choice (options selected
                &key (id (required-id 'choice)) tooltip labelled-by (direction :horizontal) (enabled t)
                  (flex 0) (style :radio))
@@ -1511,9 +1519,10 @@ person changed it this frame."
 marked: side by side, or with DIRECTION :vertical one under another (radio buttons, as a Mac lays
 them out). STYLE :SEGMENTED draws them as one control of joined segments, the chosen one filled,
 as a Mac segmented control is (side by side, whatever DIRECTION says): for a switch between views.
+STYLE :TABS draws them as the tabs of a tab bar, the chosen one marked under its words (TABS).
 Returns the index now and whether the person changed it this frame."
   (check-type direction (member :horizontal :vertical))
-  (check-type style (member :radio :segmented))
+  (check-type style (member :radio :segmented :tabs))
   (let* ((ui *ui*)
          (box (open-box ui :choice :id id :tooltip tooltip :labelled-by labelled-by))
          (key (box-key box))
@@ -1524,7 +1533,7 @@ Returns the index now and whether the person changed it this frame."
           (box-focusable box) enabled
           (box-data box) (cons options state)
           ;; Which way the options go, which decides the layout; :SEGMENTED for joined segments.
-          (box-main-align box) (if (eq style :segmented) :segmented direction)
+          (box-main-align box) (if (eq style :radio) direction style)
           (box-flex box) (float flex 1f0))
     (when enabled
       (when (and (= (ui-hot ui) key) (ui-pressed ui))
