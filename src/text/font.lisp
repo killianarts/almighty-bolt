@@ -10,7 +10,9 @@
                 #:cf-dictionary
                 #:cf-number-double)
   (:import-from #:almighty-bolt/platform/macos/objc
-                #:lisp-string)
+                #:lisp-string
+                #:msg-send
+                #:objc-class)
   (:export #:font
            #:make-font
            #:system-font
@@ -138,17 +140,36 @@ nearest in width if none is; or NIL if the family has none (it is a font of its 
                               (:ulong best) (:double (float size 1d0)) (:ulong 0)))
         (cf-release faces)))))
 
+(defun system-ui-font (name size weight)
+  "The system's own font at SIZE and WEIGHT (1 to 1000) if NAME is \"System\" (San Francisco, as
+the menus and buttons of the Mac are drawn in) or \"System Mono\" (its monospaced design), as a new
+Core Text font; NIL for any other name. AppKit makes them (an NSFont is a Core Text font), since
+neither has a name Core Text can be asked for."
+  (let* ((size (float size 1d0))
+         (weight (float (core-text-weight weight) 1d0))
+         (font (cond ((string-equal name "System")
+                      (msg-send :id (objc-class "NSFont") "systemFontOfSize:weight:"
+                                (:double size) (:double weight)))
+                     ((string-equal name "System Mono")
+                      (msg-send :id (objc-class "NSFont") "monospacedSystemFontOfSize:weight:"
+                                (:double size) (:double weight))))))
+    ;; Kept, as a font Core Text made would be, for its owner to release.
+    (and font (ccall "CFRetain" :ulong (:ulong font)))))
+
 (defun make-font (name size &optional weight (tracking 0))
   "The font called NAME (such as \"Helvetica\" or \"Menlo\") at SIZE points, of WEIGHT (a number from
 1 to 1000, or a name such as :regular, :medium or :bold: see WEIGHT-NUMBER), with TRACKING points of
 space after each character. The face is the upright one of NAME's family whose weight is nearest
-WEIGHT; if the system has no font called NAME, the system font is used, as Core Text does."
+WEIGHT; if the system has no font called NAME, Core Text gives another. \"System\" and \"System
+Mono\" are the system's own fonts (see SYSTEM-UI-FONT), which have no name to ask for."
   (let* ((weight (weight-number weight))
-         (cf-name (cf-string name))
-         (ct-font (ccall "CTFontCreateWithName" :ulong
-                         (:ulong cf-name) (:double (float size 1d0)) (:ulong 0))))
-    (cf-release cf-name)
-    (unless (= weight 400)
+         (system (system-ui-font name size weight))
+         (ct-font (or system
+                      (let ((cf-name (cf-string name)))
+                        (prog1 (ccall "CTFontCreateWithName" :ulong
+                                      (:ulong cf-name) (:double (float size 1d0)) (:ulong 0))
+                          (cf-release cf-name))))))
+    (unless (or system (= weight 400))
       (let ((weighted (font-of-weight ct-font size weight)))
         (when weighted
           (cf-release ct-font)

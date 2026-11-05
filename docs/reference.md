@@ -64,6 +64,11 @@ ones the app can ask for by name while it runs, as if they were installed
 Load a font before the window first asks for it: a font asked for by a name the
 system did not have then is the system's, and the window keeps it.
 
+`"System"` is the Mac's own font (San Francisco, which the menus and buttons of
+macOS are drawn in) and `"System Mono"` its monospaced design, at any weight:
+`(bolt:label "12 wires" :id :wires :font '("System Mono" :size 11))`. Neither
+has a name of its own that the system can be asked for.
+
 A `label` given `:turn :up` is turned a quarter to the left and reads upwards,
 from its bottom, the tops of its letters to the left; `:turn :down` turns it to
 the right, to read downwards from its top. It is then as wide as a line is tall
@@ -543,7 +548,9 @@ A theme is the colours of the widgets, their font and its size, how round the
 corners of a control are, and how much room there is in and round the controls.
 The window is drawn in `:dark` or `:light`, whichever the system shows (it
 changes when the system's setting does), unless the app draws in a theme of its
-own.
+own. `(appearance)` says which the system shows, `:dark` or `:light`, so that an
+app with a light theme and a dark one of its own can draw in the one that suits:
+`(with-theme ((if (eq (bolt:appearance) :dark) :my-dark :my-light)) ...)`.
 
 `(define-theme name (&key (base :dark)) &rest settings)` defines the theme
 called `name`, a keyword, like `base` with `settings`. Defining it again changes

@@ -19,8 +19,10 @@ the reference and the release notes, and committed when `make test` passes.
   the weight (any of them, 100 to 900, not only regular and bold), the size,
   the letter spacing and the line height, and a theme gives each role (label,
   body, heading, code, button) its own. Which families the studio uses is
-  worked out later; the prototype's (Construct Mono, Mohave, Science Gothic,
-  Geist Mono, JF Dot M+Q) stand in until their licences are known.
+  worked out later; until then the studio is in the system's (`"System"` and
+  `"System Mono"`) at the prototype's sizes, since its families (Construct
+  Mono, Mohave, Science Gothic, Geist Mono, JF Dot M+Q) are not on every Mac and
+  their licences are not known.
 - **Modes are docks.** Each mode opens as a dock layout of its own, arranged as
   the prototype draws it, which the person can rearrange, and which is kept.
   Fixed layouts may come later, if switching between workflows wants them.
@@ -80,7 +82,8 @@ user of.
    chosen, green for what is well), sizes, radii and spacing, and its text
    styles as fonts by role, written as a `define-theme` form in the studio's
    source. After that the theme is the studio's own: nothing is kept in step
-   with Figma.
+   with Figma. (Done: `:studio-light` and `:studio-dark` in
+   `apps/studio/theme.lisp`, picked by `appearance`, in the system's fonts.)
 7. **The title bar:** the mark and name, the five modes (each a dock layout of
    its own, kept), the breadcrumb of what is open (view, app, file), whether
    the image is live and which Lisp, Save, and Run Window (the app in a real

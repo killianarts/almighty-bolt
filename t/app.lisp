@@ -2421,6 +2421,15 @@ and another live label that comes with the first press."
     (assert-eql (theme-setting (find-theme :light) :background) (color-at screen 1 1))
     (assert-eql (theme-setting (find-theme :light) :button) (middle-color screen :count-button))))
 
+(define-test an-app-is-told-whether-the-window-is-dark-or-light ()
+  (let ((screen (show (lambda ()
+                        (lambda ()
+                          (label (string-downcase (appearance)) :id :mode))))))
+    (assert-equal "dark" (text-in screen :mode))
+    (setf (core:context-appearance (screen-context screen)) :light)
+    (draw screen)
+    (assert-equal "light" (text-in screen :mode))))
+
 (defun make-themed ()
   "A button in the window's theme, and one in the theme :test-sea."
   (lambda ()

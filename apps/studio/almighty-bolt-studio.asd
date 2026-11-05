@@ -7,7 +7,8 @@
   :serial t
   :depends-on ("almighty-bolt" "almighty-bolt/emacs" "almighty-bolt-gui-designer"
                "almighty-bolt-theme-designer")
-  :components ((:file "studio"))
+  :components ((:file "theme")
+               (:file "studio"))
   :in-order-to ((test-op (test-op "almighty-bolt-studio/tests"))))
 
 (defsystem "almighty-bolt-studio/tests"

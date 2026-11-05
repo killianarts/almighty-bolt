@@ -4,6 +4,8 @@
                     (#:gui-designer #:almighty-bolt-gui-designer)
                     (#:theme-designer #:almighty-bolt-theme-designer)
                     (#:emacs #:almighty-bolt/emacs))
+  (:import-from #:almighty-bolt-studio/theme
+                #:studio-theme)
   (:export #:make-studio
            #:open-studio
            #:*running*))
@@ -69,89 +71,94 @@ looks at it, and a test.")
             (when name
               (funcall open-view name id)
               (setf to-canvas t)))
-          (bolt:column (:id :studio :fill t :cross-align :stretch)
-            (funcall toolbar)
-            ;; Each part in a container of its own, so that ids of the two designers do not meet;
-            ;; a stack, which gives what is in it the room it has (a column would give a child with
-            ;; no flex as much height as it likes, and a part's own flex would then have nothing
-            ;; to share). A designer's keys come after its part, so that a text field with the
-            ;; keyboard undoes its own typing first.
-            (setf layout
-                  (bolt:dock (:id :panes :layout layout :flex 1 :min 220)
-                    (:widgets-pane "Widgets"
-                     (bolt:stack (:id :widgets-part :flex 1) (funcall widgets))
-                     (funcall view-keys))
-                    (:canvas-pane "Canvas"
-                     (bolt:stack (:id :canvas-part :flex 1) (funcall canvas))
-                     (funcall view-keys))
-                    (:options-pane "Options"
-                     (bolt:stack (:id :options-part :flex 1) (funcall options))
-                     (funcall view-keys))
-                    (:theme-pane "Theme"
-                     (bolt:stack (:id :theme-part :flex 1) (funcall settings))
-                     (funcall theme-keys))
-                    (:preview-pane "Preview"
-                     (bolt:stack (:id :preview-part :flex 1) (funcall preview))
-                     (funcall theme-keys))
-                    ;; The app being made, running, at a zoom.
-                    (:run-pane "App"
-                     (let ((constructor (named-constructor app-name)))
-                       (bolt:column (:id :run-part :flex 1 :fill t :cross-align :stretch :gap 8)
-                         (bolt:row (:id :run-bar :gap 8 :cross-align :center)
-                           (bolt:label "App" :id :run-label)
-                           (multiple-value-bind (text edited)
-                               (bolt:text-field app-name :id :app-name :width 280
-                                                         :labelled-by :run-label
-                                                         :invalid (and (plusp (length app-name))
-                                                                       (null constructor)))
-                             (when edited (setf app-name text)))
-                           (multiple-value-bind (index changed)
-                               (bolt:choice (mapcar #'first +zooms+)
-                                            (or (position zoom +zooms+ :key #'second) 1)
-                                            :id :zoom :style :segmented)
-                             (when changed (setf zoom (second (nth index +zooms+))))))
-                         (if constructor
-                             (multiple-value-bind (w h)
-                                 (gui-designer:sized-stage
-                                  :run-stage app-w app-h
-                                  (lambda ()
-                                    (setf *running* (bolt:app-pane constructor :id :running
-                                                                               :zoom zoom :flex 1)))
-                                  app-drafts :scale zoom)
-                               (setf app-w w app-h h))
-                             (progn
-                               (setf *running* nil)
-                               (bolt:paragraph "The name of the function that makes the app, as open-app takes it: my-app:make-app."
-                                               :id :run-hint :color :dim-text))))))
-                    ;; The inspector of the app running.
-                    (:inspect-pane "Inspector"
-                     (bolt:inspector-pane *running* :id :inspecting
-                                          ;; A widget a view drew, opened in the designer, live.
-                                          :edit-view (lambda (name widget)
-                                                       (funcall open-view name widget)
-                                                       (setf to-canvas t))
-                                          ;; In Emacs: the view's clause, the wiring, or the
-                                          ;; app's code (its constructor) for a widget no view
-                                          ;; drew.
-                                          :edit-source
-                                          (lambda (what facts)
-                                            (nth-value
-                                             1 (ecase what
-                                                 (:view (emacs:show-view (getf facts :view)
-                                                                         (getf facts :view-widget)))
-                                                 (:wiring (emacs:show-wiring
-                                                           (getf facts :view)
-                                                           (getf facts :view-widget)))
-                                                 (:code (emacs:show-code
-                                                         (named-constructor app-name)
-                                                         (getf facts :id))))))))))
-            ;; The view to edit in front, and the app it is in beside it, where its changes show:
-            ;; behind the canvas's tab, it would not be drawn.
-            (when to-canvas
-              (setf to-canvas nil
-                    layout (bolt:show-pane (bolt:show-pane layout :canvas-pane) :options-pane))
-              (when (member :run-pane (bolt:pane-group layout :canvas-pane))
-                (setf layout (bolt:place-pane layout :run-pane :canvas-pane :right 340))))))))))
+          ;; The studio in its own theme, light or dark as the system is; what it designs, in the
+          ;; window's own (see the canvas).
+          (bolt:with-theme ((studio-theme))
+            (bolt:column (:id :studio :fill t :cross-align :stretch)
+              (funcall toolbar)
+              ;; Each part in a container of its own, so that ids of the two designers do not meet;
+              ;; a stack, which gives what is in it the room it has (a column would give a child
+              ;; with no flex as much height as it likes, and a part's own flex would then have
+              ;; nothing to share). A designer's keys come after its part, so that a text field with
+              ;; the keyboard undoes its own typing first.
+              (setf layout
+                    (bolt:dock (:id :panes :layout layout :flex 1 :min 220)
+                      (:widgets-pane "Widgets"
+                       (bolt:stack (:id :widgets-part :flex 1) (funcall widgets))
+                       (funcall view-keys))
+                      ;; The view as the app would draw it: in the window's theme, not the studio's.
+                      (:canvas-pane "Canvas"
+                       (bolt:with-theme ((bolt:appearance))
+                         (bolt:stack (:id :canvas-part :flex 1) (funcall canvas)))
+                       (funcall view-keys))
+                      (:options-pane "Options"
+                       (bolt:stack (:id :options-part :flex 1) (funcall options))
+                       (funcall view-keys))
+                      (:theme-pane "Theme"
+                       (bolt:stack (:id :theme-part :flex 1) (funcall settings))
+                       (funcall theme-keys))
+                      (:preview-pane "Preview"
+                       (bolt:stack (:id :preview-part :flex 1) (funcall preview))
+                       (funcall theme-keys))
+                      ;; The app being made, running, at a zoom.
+                      (:run-pane "App"
+                       (let ((constructor (named-constructor app-name)))
+                         (bolt:column (:id :run-part :flex 1 :fill t :cross-align :stretch :gap 8)
+                           (bolt:row (:id :run-bar :gap 8 :cross-align :center)
+                             (bolt:label "App" :id :run-label)
+                             (multiple-value-bind (text edited)
+                                 (bolt:text-field app-name :id :app-name :width 280
+                                                           :labelled-by :run-label
+                                                           :invalid (and (plusp (length app-name))
+                                                                         (null constructor)))
+                               (when edited (setf app-name text)))
+                             (multiple-value-bind (index changed)
+                                 (bolt:choice (mapcar #'first +zooms+)
+                                              (or (position zoom +zooms+ :key #'second) 1)
+                                              :id :zoom :style :segmented)
+                               (when changed (setf zoom (second (nth index +zooms+))))))
+                           (if constructor
+                               (multiple-value-bind (w h)
+                                   (gui-designer:sized-stage
+                                    :run-stage app-w app-h
+                                    (lambda ()
+                                      (setf *running* (bolt:app-pane constructor :id :running
+                                                                                 :zoom zoom :flex 1)))
+                                    app-drafts :scale zoom)
+                                 (setf app-w w app-h h))
+                               (progn
+                                 (setf *running* nil)
+                                 (bolt:paragraph "The name of the function that makes the app, as open-app takes it: my-app:make-app."
+                                                 :id :run-hint :color :dim-text))))))
+                      ;; The inspector of the app running.
+                      (:inspect-pane "Inspector"
+                       (bolt:inspector-pane *running* :id :inspecting
+                                            ;; A widget a view drew, opened in the designer, live.
+                                            :edit-view (lambda (name widget)
+                                                         (funcall open-view name widget)
+                                                         (setf to-canvas t))
+                                            ;; In Emacs: the view's clause, the wiring, or the
+                                            ;; app's code (its constructor) for a widget no view
+                                            ;; drew.
+                                            :edit-source
+                                            (lambda (what facts)
+                                              (nth-value
+                                               1 (ecase what
+                                                   (:view (emacs:show-view (getf facts :view)
+                                                                           (getf facts :view-widget)))
+                                                   (:wiring (emacs:show-wiring
+                                                             (getf facts :view)
+                                                             (getf facts :view-widget)))
+                                                   (:code (emacs:show-code
+                                                           (named-constructor app-name)
+                                                           (getf facts :id))))))))))
+              ;; The view to edit in front, and the app it is in beside it, where its changes show:
+              ;; behind the canvas's tab, it would not be drawn.
+              (when to-canvas
+                (setf to-canvas nil
+                      layout (bolt:show-pane (bolt:show-pane layout :canvas-pane) :options-pane))
+                (when (member :run-pane (bolt:pane-group layout :canvas-pane))
+                  (setf layout (bolt:place-pane layout :run-pane :canvas-pane :right 340)))))))))))
 
 (defun open-studio ()
   "Open the studio in a window, from the REPL."

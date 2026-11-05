@@ -14,6 +14,9 @@ are not listed.
 
 ### Added
 
+- `appearance`: whether the window is dark or light, for an app that has a theme of each ([0.3](docs/releases/dev.md#the-studios-own-theme)).
+- The font families `"System"` and `"System Mono"`: the Mac's San Francisco and its monospaced design, at any weight ([0.3](docs/releases/dev.md#the-studios-own-theme)).
+- The studio is drawn in a light and a dark theme of its own, from the prototype's design system; its canvas in the window's ([0.3](docs/releases/dev.md#the-studios-own-theme)).
 - `code-view`: code in the theme's code font, its lines numbered, some marked with a colour and a note that VoiceOver reads ([0.3](docs/releases/dev.md#a-code-view)).
 - `image`, `load-image` and `make-image`: an image from a file or from bytes, at its own size or another, or tinted as an icon; `context-push-image` in a canvas ([0.3](docs/releases/dev.md#images-and-icons)).
 - `:border-dash` on `panel` and `pressable`, and a dash and a gap on `push-rounded-stroke`: a dashed edge ([0.3](docs/releases/dev.md#shadows-and-dashed-edges)).

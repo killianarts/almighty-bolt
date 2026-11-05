@@ -58,6 +58,25 @@
       (assert-true (close-to (* 4 one) (line:measure-text menlo "iiii")))
       (assert-true (close-to (line:measure-text menlo "iiii") (line:measure-text menlo "WWWW"))))))
 
+(define-test system-and-system-mono-are-the-systems-own-fonts-at-any-weight ()
+  (objc:with-masked-float-traps
+    (objc:with-autorelease-pool
+      (flet ((width (name weight text)
+               (line:measure-text (font:make-font name 13 weight) text))
+             (face (name weight)
+               (font:font-face-name (font:make-font name 13 weight))))
+        ;; San Francisco, which no name asked of Core Text gives (it gives Helvetica instead).
+        (assert-equal ".SFNS-Regular" (face "System" 400))
+        (assert-equal ".SFNS-Bold" (face "System" 700))
+        (assert-false (equal (face "SF Pro" 400) (face "System" 400)))
+        ;; Its monospaced design: every character as wide, at each weight.
+        (dolist (weight '(400 500 700))
+          (assert-true (close-to (width "System Mono" weight "iiii")
+                                 (width "System Mono" weight "MMMM"))
+                       weight))
+        (assert-false (close-to (width "System" 400 "iiii") (width "System" 400 "MMMM")))
+        (assert-false (equal (face "System Mono" 400) (face "System Mono" 700)))))))
+
 (define-test the-width-of-two-letters-is-about-the-sum-of-their-widths ()
   ;; Kerning moves them a little, so this is not exact.
   (with-fonts (helvetica menlo)

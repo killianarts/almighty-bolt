@@ -48,6 +48,74 @@
     (loop :for i :from 0 :below (length menus) :by 2
           :collect (aref menus i))))
 
+(defun color-at (screen x y)
+  "The colour of the last rectangle on SCREEN's display list that covers the point X, Y and is drawn
+inside every clip it is in."
+  (let ((list (screen-list screen)) (clips '()) (color nil))
+    (flet ((over (index)
+             (let ((left (core:display-list-x list index)) (top (core:display-list-y list index)))
+               (and (<= left x) (< x (+ left (core:display-list-width list index)))
+                    (<= top y) (< y (+ top (core:display-list-height list index)))))))
+      (dotimes (index (core:display-list-count list) color)
+        (let ((kind (core:display-list-kind list index)))
+          (cond ((= kind core:+command-clip+) (push index clips))
+                ((= kind core:+command-unclip+) (pop clips))
+                ((and (or (= kind core:+command-rect+) (= kind core:+command-rounded-rect+))
+                      (over index) (every #'over clips))
+                 (setf color (core:display-list-color list index)))))))))
+
+(defun middle-color (screen session id within)
+  "The colour drawn at the middle of the thing ID inside WITHIN."
+  (destructuring-bind (x y w h) (s:node-bounds (m:find-node session :id id :within within))
+    (color-at screen (+ x (/ w 2)) (+ y (/ h 2)))))
+
+(define-test the-studio-is-in-its-own-theme-and-what-it-designs-in-the-windows ()
+  (multiple-value-bind (screen session) (open-studio)
+    (m:click session :id :add-button :within :left)
+    (flet ((check (appearance panel)
+             (setf (core:context-appearance (screen-context screen)) appearance)
+             (draw screen)
+             ;; The tool bar at the top is the studio's panel: a step off white, or off black in
+             ;; the dark.
+             (assert-eql (bolt:parse-color panel) (color-at screen 1 1) appearance)
+             ;; The button on the canvas is as the app would draw it, in the window's theme, and
+             ;; not in the studio's black or white.
+             (assert-eql (bolt:theme-setting (bolt:find-theme appearance) :button)
+                         (middle-color screen session :button-1 :canvas)
+                         appearance)))
+      (check :light "#f2f2f2")
+      (check :dark "#1e1e1e"))))
+
+(define-test the-studios-theme-is-the-prototypes ()
+  ;; What was imported from the prototype's design system: its greys, the line between parts, what
+  ;; is well, its corners and its fonts, which are the system's own.
+  (let ((light (bolt:find-theme :studio-light))
+        (dark (bolt:find-theme :studio-dark)))
+    (assert-eql (bolt:parse-color "#f2f2f2") (bolt:theme-setting light :panel))
+    (assert-eql (bolt:parse-color "#1e1e1e") (bolt:theme-setting dark :panel))
+    (assert-eql (bolt:parse-color "#000000") (bolt:theme-setting light :row-selected))
+    (assert-eql 4f0 (float (bolt:theme-setting light :radius) 1f0))
+    (assert-equal "System" (bolt:theme-setting light :font-name))
+    (assert-equal "System Mono" (first (bolt:theme-setting dark :code-font))))
+  ;; The colours of the chrome a theme has no setting for, light or dark as the window is.
+  (flet ((tool (appearance name)
+           (let ((app (app:make-app-instance
+                       (lambda ()
+                         (lambda ()
+                           (bolt:label (almighty-bolt-studio/theme:tool-color name) :id :color)))))
+                 (context (fake:make-fake-context :width 200f0 :height 100f0))
+                 (said nil))
+             (setf (core:context-appearance context) appearance)
+             (core:settle-frame app context (core:make-display-list :capacity 256))
+             (s:walk-nodes (lambda (node)
+                             (when (eq (s:node-id node) :color)
+                               (setf said (s:node-name node))))
+                           (core:accessibility-tree app))
+             said)))
+    (assert-equal "#e4e4e4" (tool :light :line))
+    (assert-equal "#2b2b2b" (tool :dark :line))
+    (assert-equal "#3dd68c" (tool :light :ok))))
+
 (define-test the-designers-parts-are-panes-each-kept-while-it-is-hidden ()
   (multiple-value-bind (screen session) (open-studio)
     ;; The GUI designer's parts, its toolbar and its File menu; the theme's settings behind a tab.

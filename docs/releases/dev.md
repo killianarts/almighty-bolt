@@ -88,6 +88,12 @@ A panel or a pressable casts a soft shadow with `:shadow '(:y 8 :blur 24 :color 
 
 `apps/studio` has the GUI designer and the theme designer in one window: `(almighty-bolt-studio:open-studio)` after loading the system `almighty-bolt-studio`. Their parts are panes of a dock, which the person arranges: the widgets to add and the outline, the canvas, the selected widget's options, the theme's settings and its preview, the app being made, running, and the inspector of it, with the GUI designer's toolbar over them. Each designer keeps what it holds (the view, the theme being made, the undo of each) while a part is hidden or moved, and Command-Z undoes in the one last used. Each designer gives its parts as functions, `designer-parts`, which its own window puts side by side as before.
 
+### The studio's own theme
+
+The studio is drawn in a theme of its own, light or dark as the system is: white and black, panels a step off them, and what is chosen in the text's colour, with corners of 4, imported once from the prototype's design system and the studio's from now on. The canvas shows the view being designed in the window's own theme, as the app would draw it. Its text is in the system's fonts, at the prototype's sizes and weights.
+
+Two things came with it that any app can use. `"System"` and `"System Mono"` are font families: the Mac's own San Francisco and its monospaced design, at any weight, which have no name the system could be asked for before. And `(bolt:appearance)` says whether the window is `:dark` or `:light`, so that an app with a light theme and a dark one of its own draws in the one that suits: `(bolt:with-theme ((if (eq (bolt:appearance) :dark) :my-dark :my-light)) ...)`.
+
 ### A tree view
 
 `(bolt:tree roots :id :outline :children #'node-children :label #'node-title :key #'node-id :selected picked)` shows a tree of items, each indented a level further, with a mark that opens and closes those that have children, and returns the key selected. It takes the keyboard as one thing: the arrows move the selection, open and close. VoiceOver reads it as an outline of rows. The GUI designer's outline is one, so that a container's contents can be hidden while the rest is worked on.

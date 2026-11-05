@@ -111,6 +111,7 @@
                 #:context-font
                 #:context-measure
                 #:context-caret-x
+                #:context-appearance
                 #:context-index-at-x
                 #:context-break-lines
                 #:make-text-state
@@ -264,6 +265,7 @@
            #:+tooltip-delay-ns+
            #:text-area
            #:code-view
+           #:appearance
            #:area-state
            #:area-state-state
            #:area-state-offset
@@ -319,6 +321,13 @@
 (defvar *face* nil
   "The face of the widget being described, while it takes its input (a field measures its text with
 it), or NIL.")
+
+(defun appearance ()
+  "Whether the window the app is drawn in is dark or light, as the system shows it: :dark or :light.
+An app that draws in a theme of its own picks its dark or its light one by it; it changes when the
+system's setting does, and the app is drawn again."
+  (let ((context (ui-context *ui*)))
+    (if context (context-appearance context) :dark)))
 
 (defun widget-face (font role)
   "The face a widget whose :FONT is FONT (a font designator, or NIL) and whose role is ROLE is drawn
