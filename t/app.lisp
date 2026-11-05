@@ -4232,6 +4232,15 @@ left, left to right."
                 (:gamma "Gamma" (label "In gamma" :id :gamma-words))))
         (label (format nil "~(~s~)" layout) :id :layout)))))
 
+(define-test the-chosen-tab-of-a-dock-has-its-title-in-the-colour-of-words-on-its-fill ()
+  ;; As a chosen row of a list has: on the fill of what is chosen, words in the button's text colour,
+  ;; which a theme makes readable on it (a theme whose chosen fill is its text colour has nothing
+  ;; else to read them by).
+  (let ((screen (show 'make-docked))
+        (theme (find-theme :dark)))
+    (assert-eql (theme-setting theme :button-text) (color-of-character screen :alpha #\A))
+    (assert-eql (theme-setting theme :text) (color-of-character screen :beta #\B))))
+
 (define-test a-pane-dragged-by-its-tab-goes-in-a-group-or-splits-one-and-keeps-what-it-holds ()
   (let ((screen (show 'make-docked)))
     (labels ((shown-p (id) (and (core:lookup-target (screen-app screen) id) t))

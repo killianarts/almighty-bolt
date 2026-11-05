@@ -177,9 +177,10 @@ inspector, and Theme the theme's preview and settings and the app.")
                     (when (and run-pressed constructor)
                       (funcall *open-window* constructor :title app-name
                                                          :width app-w :height app-h)))
-                  ;; In every mode: it takes up a view typed in Emacs, has the File menu, and draws
-                  ;; the dialogs Save asks with.
-                  (funcall toolbar)
+                  ;; The designer's bar in Design, without a Save (the title bar has it); in every
+                  ;; mode, what else it does: it takes up a view typed in Emacs, has the File menu,
+                  ;; and draws the dialogs Save asks with.
+                  (funcall toolbar :shown (eq mode :design) :save-button nil)
                   ;; Each part in a container of its own, so that ids of the two designers do not
                   ;; meet; a stack, which gives what is in it the room it has (a column would give
                   ;; a child with no flex as much height as it likes, and a part's own flex would

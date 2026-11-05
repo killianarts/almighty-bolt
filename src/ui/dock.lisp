@@ -305,7 +305,9 @@ size))."
                          (when (drag-source (:id key :payload (list :dock-pane key) :label title)
                                  (panel (:id :tab :left 10 :right 10 :top 4 :bottom 4 :radius 4
                                          :color (if (equal key selected) :row-selected :panel))
-                                   (label title :id :title)))
+                                   ;; On the chosen tab's fill, in the colour words on it take.
+                                   (label title :id :title
+                                                :color (and (equal key selected) :button-text))))
                            ;; Chosen, its pane is shown, and its shortcuts heard.
                            (setf new (list* :tabs key keys)
                                  (dock-state-active *dock-state*) key)))))

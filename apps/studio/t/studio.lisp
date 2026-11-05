@@ -8,7 +8,11 @@
                     (#:fake #:almighty-bolt/test-support/fake-context)
                     (#:studio #:almighty-bolt-studio)
                     (#:emacs #:almighty-bolt/emacs)
-                    (#:views #:almighty-bolt/ui/views)))
+                    (#:views #:almighty-bolt/ui/views)
+                    (#:objc #:almighty-bolt/platform/macos/objc)
+                    (#:host #:almighty-bolt/platform/macos/host)
+                    (#:device #:almighty-bolt/render/metal/device)
+                    (#:target #:almighty-bolt/render/metal/target)))
 
 (in-package #:almighty-bolt-studio/t/studio)
 
@@ -491,6 +495,10 @@ inside every clip it is in."
   "What the row ID of the title bar says, its words joined by spaces."
   (format nil "~{~a~^ ~}" (mapcar #'s:node-name (s:node-children (m:find-node session :id id)))))
 
+(defun lisp-help (session)
+  "What the title bar's words about the Lisp say to a screen reader."
+  (s:node-help (first (s:node-children (m:find-node session :id :lisp)))))
+
 (defun to-mode (session title)
   (m:set-value session title :id :modes))
 
@@ -502,9 +510,10 @@ inside every clip it is in."
     (assert-eql 0 (s:node-property (m:find-node session :id :modes) :selected))
     ;; The view the designer starts with, in no file yet, and the Lisp the studio runs in.
     (assert-equal "VIEW ■ SIGN-IN ■ CL-USER ■ NOT SAVED" (words-of session :where))
-    (assert-equal (format nil "IMAGE ■ ~:@(~a ~a~)" (lisp-implementation-type)
+    (assert-equal (format nil "~:@(~a ~a~)" (lisp-implementation-type)
                           (lisp-implementation-version))
                   (words-of session :lisp))
+    (assert-equal "No view is live in this image." (lisp-help session))
     (flet ((dot () (destructuring-bind (x y w h) (s:node-bounds (m:find-node session :id :live-dot))
                      (color-at screen (+ x (/ w 2)) (+ y (/ h 2))))))
       ;; Grey while no view is live (the window is dark).
@@ -521,7 +530,8 @@ inside every clip it is in."
              (assert-equal "Button :plus" (s:node-name (m:find-node session :id :selected-what)))
              (assert-equal "VIEW ■ TINY-VIEW ■ STUDIO ■ STUDIO.LISP"
                            (words-of session :where))
-             (assert-true (search "IMAGE LIVE" (words-of session :lisp)))
+             (assert-equal "The view tiny-view is live in this image: an edit changes the running app as it is made."
+                           (lisp-help session))
              (assert-eql (bolt:parse-color "#3dd68c") (dot))
              ;; The app run says whose it is.
              (run-in-studio session 'make-viewed)
@@ -529,6 +539,17 @@ inside every clip it is in."
                            (words-of session :where)))
         (emacs-gone)
         (views:set-view 'tiny-view *tiny-view*)))))
+
+(define-test the-designers-bar-is-in-design-alone-and-its-file-menu-in-every-mode ()
+  (multiple-value-bind (screen session) (open-studio)
+    ;; In Design, without a Save of its own: the title bar has it.
+    (assert-true (shown-p session :toolbar))
+    (assert-true (shown-p session :undo :toolbar))
+    (assert-false (shown-p session :save :toolbar))
+    (dolist (mode '("WIRE" "DEBUG" "THEME" "AGENT"))
+      (to-mode session mode)
+      (assert-false (shown-p session :toolbar) mode)
+      (assert-equal '("File") (menu-titles screen) mode))))
 
 (define-test each-mode-has-its-panes-and-keeps-how-they-are-arranged ()
   (multiple-value-bind (screen session) (open-studio)
@@ -581,9 +602,15 @@ inside every clip it is in."
              (assert-true (probe-file path))
              (assert-equal (format nil "VIEW ■ ~:@(~a~) ■ CL-USER ■ ~:@(~a~).LISP" name name)
                            (words-of session :where))
-             ;; Saved again, to its own file, without asking.
+             ;; Saved again, to its own file, without asking; and by the File menu, in Theme too,
+             ;; where the designer's bar is not.
              (m:click session :id :title-save)
-             (assert-equal '(:save) asked))
+             (assert-equal '(:save) asked)
+             (delete-file path)
+             (core:handle-event (screen-app screen)
+                                (core:make-menu-event :timestamp 0 :menu "File" :item "Save…"))
+             (dotimes (i 3) (draw screen))
+             (assert-true (probe-file path)))
         (when (probe-file path) (delete-file path))))))
 
 (define-test run-window-opens-the-app-being-run-in-a-window-of-its-own ()
@@ -617,3 +644,35 @@ inside every clip it is in."
            (assert-false (shown-p session :widgets-part)))
       (emacs-gone)
       (views:set-view 'tiny-view *tiny-view*))))
+
+(defun real-layout (width height &optional (appearance :light))
+  "The studio laid out, WIDTH by HEIGHT points, in the system's own fonts (a host's context, with no
+window): its app, after a few frames."
+  (let* ((host (host:make-host (make-instance 'core:app-instance) (device:default-device)
+                               target:+pixel-format-bgra8-unorm+ :capacity 65536 :scale 2))
+         (context (host:host-context host))
+         (app (core:with-kept-state ((core:make-kept-state))
+                (app:make-app-instance 'studio:make-studio))))
+    (setf (core:context-width context) (float width 1f0)
+          (core:context-height context) (float height 1f0)
+          (core:context-scale context) 2f0
+          (core:context-appearance context) appearance)
+    (dotimes (i 3)
+      (core:settle-frame app context (host:host-display-list host)))
+    app))
+
+(define-test the-title-bar-fits-the-window-the-studio-opens-in ()
+  ;; In the system's fonts, as the window draws them: its last button inside the window's 1240
+  ;; points, in every mode, with nothing laid over anything else.
+  (objc:with-masked-float-traps
+    (objc:with-autorelease-pool
+      (let ((app (real-layout 1240 820)))
+        (multiple-value-bind (x y w) (core:lookup-target app :run-window)
+          (declare (ignore y))
+          (assert-true (<= (+ x w) 1240) (+ x w)))
+        (let ((right 0))
+          (dolist (id '(:brand :modes :where :image-state :title-save :run-window))
+            (multiple-value-bind (x y w) (core:lookup-target app id)
+              (declare (ignore y))
+              (assert-true (<= right x) id right x)
+              (setf right (+ x w)))))))))

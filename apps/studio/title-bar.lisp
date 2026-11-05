@@ -41,15 +41,20 @@ says. A view not saved has no file."
 (defun caps (text)
   (string-upcase text))
 
-(defun words (id parts &key (color :dim-text))
-  "PARTS, a list of strings, in a row with the separator between them."
+(defparameter +small+ '(:label :size 10)
+  "The title bar's words: the theme's label font, at the prototype's small size.")
+
+(defun words (id parts &key (color :dim-text) tooltip)
+  "PARTS, a list of strings, in a row with the separator between them; the second in the text's
+colour, the rest in COLOR. TOOLTIP is said by the last."
   (bolt:row (:id id :gap 8 :cross-align :center)
-    (loop :for part :in parts
+    (loop :for (part . more) :on parts
           :for i :from 0
           :do (unless (zerop i)
-                (bolt:label +separator+ :id (list :separator i) :font :label :color :dim-text))
-              (bolt:label (caps part) :id (list :part i) :font :label
-                                      :color (if (= i 1) :text color)))))
+                (bolt:label +separator+ :id (list :separator i) :font +small+ :color :dim-text))
+              (bolt:label (caps part) :id (list :part i) :font +small+
+                                      :color (if (= i 1) :text color)
+                                      :tooltip (and (null more) tooltip)))))
 
 (defun title-bar (mode about app-name runnable)
   "Draw the title bar in MODE (one of +MODES+), for what ABOUT (the GUI designer's) says is being
@@ -58,27 +63,32 @@ whether Save and whether Run Window was pressed."
   (let ((chosen mode) (save nil) (run nil))
     (bolt:column (:id :studio-title :cross-align :stretch)
       (bolt:panel (:id :title-bar :color :background :radius 0 :left 16 :right 12 :height 44)
-        (bolt:row (:id :title-row :gap 16 :cross-align :center :fill t)
+        (bolt:row (:id :title-row :gap 12 :cross-align :center :fill t)
           (bolt:row (:id :brand :gap 8 :cross-align :center)
-            (bolt:label "ALMIGHTY-BOLT STUDIO" :id :studio-name :font '(:label :weight :bold))
-            (bolt:label "スタジオ" :id :studio-kana :font :label :color :dim-text))
+            (bolt:label "ALMIGHTY-BOLT STUDIO" :id :studio-name :font '(:label :size 10 :weight :bold))
+            (bolt:label "スタジオ" :id :studio-kana :font +small+ :color :dim-text))
           (multiple-value-bind (index changed)
               (bolt:tabs (mapcar (lambda (m) (caps (second m))) +modes+)
                          (position mode +modes+ :key #'first)
-                         :id :modes :font :label)
+                         :id :modes :font +small+)
             (when changed
               (setf chosen (first (nth index +modes+)))))
           (bolt:spacer)
           (words :where (breadcrumb about app-name))
           (bolt:spacer)
-          ;; The image the studio runs in, and the app's own in it; the dot is green while a view is
-          ;; live in it (an edit changes the running app as it is made).
+          ;; The Lisp the studio runs in; the dot is green while a view is live in it (an edit
+          ;; changes the running app as it is made), which its help says in words.
           (bolt:row (:id :image-state :gap 6 :cross-align :center)
             (bolt:panel (:id :live-dot :radius 4 :width 8 :height 8
                          :color (if (getf about :live) (tool-color :ok) (tool-color :line-strong))))
-            (words :lisp (list (if (getf about :live) "Image live" "Image")
-                               (format nil "~a ~a" (lisp-implementation-type)
-                                       (lisp-implementation-version)))))
+            (words :lisp (list (format nil "~a ~a" (lisp-implementation-type)
+                                       (lisp-implementation-version)))
+                   :color :text
+                   :tooltip (if (getf about :live)
+                                (format nil "The view ~(~a~) is live in this image: an edit changes ~
+                                             the running app as it is made."
+                                        (getf about :live))
+                                "No view is live in this image.")))
           (when (bolt:pressable (:id :title-save :all 8 :radius 4 :border-color :field-border
                                  :tooltip "Save the view")
                   (bolt:label "SAVE" :id :title-save-words :font :button))

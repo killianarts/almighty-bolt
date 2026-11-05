@@ -86,6 +86,7 @@ are not listed.
 
 ### Fixed
 
+- A dock's chosen tab has its title in the theme's `:button-text`, the colour of words on what is chosen; in the text's colour, it could not be read in a theme whose chosen fill is its text colour ([0.3](docs/releases/dev.md#the-studios-title-bar-and-modes)).
 - An app in an `app-pane` was not drawn again when the system went dark or light ([0.3](docs/releases/dev.md#the-studios-title-bar-and-modes)).
 - A float whose anchor is another box, and nothing else in the frame changed, is laid out again: the designer's outline follows the selection ([0.3](docs/releases/dev.md#bug-fixes)).
 - Text fields, combo boxes and text areas take what is typed through the system's input method: Japanese, Chinese and Korean, accents made with dead keys, and the Character Viewer ([0.3](docs/releases/dev.md#bug-fixes)).

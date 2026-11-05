@@ -15,7 +15,8 @@
 ;;; and what is chosen, the buttons and the ring in the text's colour. The sizes are the library's
 ;;; own, but for corners of 4. The fonts are the system's (San Francisco, and its monospaced
 ;;; design for labels and code) at the prototype's sizes, weights, tracking and line heights, in
-;;; place of its families, which are not on every Mac.
+;;; place of its families, which are not on every Mac; but buttons at 13 points, not 16, since San
+;;; Francisco is wider than the prototype's Mohave (its 13 is about as wide as Mohave's 16).
 
 (bolt:define-theme :studio-light (:base :light)
   :background "#ffffff"
@@ -48,7 +49,7 @@
   :label-font '("System Mono" :size 11 :tracking 1.5 :line-height 14)
   :heading-font '("System" :weight :medium :size 20 :tracking -0.1 :line-height 24)
   :code-font '("System Mono" :size 13 :line-height 20)
-  :button-font '("System" :weight :medium :size 16 :tracking 0.8)
+  :button-font '("System" :weight :medium :size 13 :tracking 0.65)
   :radius 4)
 
 (bolt:define-theme :studio-dark (:base :dark)
@@ -81,7 +82,7 @@
   :label-font '("System Mono" :size 11 :tracking 1.5 :line-height 14)
   :heading-font '("System" :weight :medium :size 20 :tracking -0.1 :line-height 24)
   :code-font '("System Mono" :size 13 :line-height 20)
-  :button-font '("System" :weight :medium :size 16 :tracking 0.8)
+  :button-font '("System" :weight :medium :size 13 :tracking 0.65)
   :radius 4)
 
 (defun studio-theme ()

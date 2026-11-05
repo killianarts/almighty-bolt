@@ -421,7 +421,9 @@ widget's id."
 
 (defun designer-parts ()
   "The GUI designer's parts, each a function that draws one, all of one design and its history:
-(values toolbar left canvas right keys open-view about save). LEFT is the widgets to add and the outline,
+(values toolbar left canvas right keys open-view about save). TOOLBAR takes :SHOWN NIL to draw no bar
+but still have the File menu, the dialogs and a view typed in an editor taken up, and :SAVE-BUTTON
+NIL to have no Save... of its own. LEFT is the widgets to add and the outline,
 CANVAS the view drawn, RIGHT the selected widget's options and the wiring, KEYS the shortcuts
 (Command-Z and Command-Shift-Z), described after the part that has the keyboard so that a text field
 undoes its own typing first. OPEN-VIEW is not drawn: it is called with the name of a view the image
@@ -547,46 +549,55 @@ selected if given."
                    (save-to file live)
                    (setf saving t))))
       (values
-        (lambda ()
+        (lambda (&key (shown t) (save-button t))
           (take-up-outside)
           (bolt:column (:id :toolbar-part :cross-align :stretch)
+            ;; The File menu, and the dialogs below, whether the bar is shown or not (the studio
+            ;; shows it in one of its modes, and has a Save of its own).
             (let ((menu (bolt:app-menu "File" '(("New" :key #\n) ("Open…" :key #\o) :separator
                                                 ("Save…" :key #\s)))))
-             (bolt:panel (:id :toolbar :all 10 :radius 0)
-               (bolt:row (:gap 8 :cross-align :center)
-                 (when (or (bolt:button "New" :id :new) (equal menu "New"))
-                   (setf live nil file nil)
-                   (change (form-node +empty+))
-                   (setf status "" name "view")
-                   (select nil))
-                 ;; The views the image has, each opened live.
-                 (let* ((names (sort (view-names) #'string< :key #'view-title))
-                        (chosen (bolt:menu-button "Open View"
-                                                  (or (mapcar #'view-title names)
-                                                      '("No views yet"))
-                                                  :id :open-view)))
-                   (when chosen
-                     (let ((symbol (find chosen names :key #'view-title :test #'string=)))
-                       (when symbol (open-view symbol)))))
-                 (when (or (bolt:button "Open…" :id :open) (equal menu "Open…"))
-                   (setf opening t))
-                 (when (or (bolt:button "Save…" :id :save) (equal menu "Save…"))
-                   (save))
-                 (when (bolt:button "Remove" :id :remove
-                                             :enabled (and selected (not (eq selected (node-id view)))
-                                                           t))
-                   (change (remove-node view selected))
-                   (select nil))
-                 (when (bolt:button "Undo" :id :undo :enabled (and undo t))
-                   (step-back))
-                 (when (bolt:button "Redo" :id :redo :enabled (and redo t))
-                   (step-forward))
-                 (bolt:label "Package" :id :package-label)
-                 (multiple-value-bind (text edited)
-                     (bolt:text-field package :id :package :width 180 :labelled-by :package-label
-                                              :invalid (not (find-package (string-upcase package))))
-                   (when edited (setf package text)))
-                 (bolt:label status :id :status))))
+              (flet ((new () (setf live nil file nil)
+                         (change (form-node +empty+))
+                         (setf status "" name "view")
+                         (select nil)))
+                (cond ((equal menu "New") (new))
+                      ((equal menu "Open…") (setf opening t))
+                      ((equal menu "Save…") (save)))
+                (when shown
+                  (bolt:panel (:id :toolbar :all 10 :radius 0)
+                    (bolt:row (:gap 8 :cross-align :center)
+                      (when (bolt:button "New" :id :new)
+                        (new))
+                      ;; The views the image has, each opened live.
+                      (let* ((names (sort (view-names) #'string< :key #'view-title))
+                             (chosen (bolt:menu-button "Open View"
+                                                       (or (mapcar #'view-title names)
+                                                           '("No views yet"))
+                                                       :id :open-view)))
+                        (when chosen
+                          (let ((symbol (find chosen names :key #'view-title :test #'string=)))
+                            (when symbol (open-view symbol)))))
+                      (when (bolt:button "Open…" :id :open)
+                        (setf opening t))
+                      (when (and save-button (bolt:button "Save…" :id :save))
+                        (save))
+                      (when (bolt:button "Remove" :id :remove
+                                                  :enabled (and selected
+                                                                (not (eq selected (node-id view)))
+                                                                t))
+                        (change (remove-node view selected))
+                        (select nil))
+                      (when (bolt:button "Undo" :id :undo :enabled (and undo t))
+                        (step-back))
+                      (when (bolt:button "Redo" :id :redo :enabled (and redo t))
+                        (step-forward))
+                      (bolt:label "Package" :id :package-label)
+                      (multiple-value-bind (text edited)
+                          (bolt:text-field package :id :package :width 180
+                                                   :labelled-by :package-label
+                                                   :invalid (not (find-package (string-upcase package))))
+                        (when edited (setf package text)))
+                      (bolt:label status :id :status))))))
             ;; The dialogs, which float.
             (let ((path (bolt:save-file-dialog :id :save-panel :show saving :types '("lisp")
                                                :name (format nil "~(~a~).lisp" name))))
