@@ -90,11 +90,11 @@
                 (section ("Text" :text)
                   (bolt:label "A label is one line." :id :plain)
                   (bolt:label "Labels come in sizes." :id :big :size 22)
-                  (call "(bolt:label text &key id tooltip size color (flex 0) live selectable (weight :regular) font)"
+                  (call "(bolt:label text &key id tooltip size color (flex 0) live selectable weight font)"
                         :label-call)
                   (bolt:paragraph "A paragraph is broken into lines to the width it is given, so its height follows its width. Make the window narrower and it takes more lines."
                                   :id :paragraph)
-                  (call "(bolt:paragraph text &key id tooltip size color (flex 0) live selectable (weight :regular) font)"
+                  (call "(bolt:paragraph text &key id tooltip size color (flex 0) live selectable weight font)"
                         :paragraph-call))
                 (section ("Buttons" :buttons)
                   (bolt:row (:gap 8)
@@ -107,7 +107,7 @@
                                  :tooltip "A disabled button still has a tooltip"))
                   ;; Live: a screen reader reads the count out when it changes.
                   (note (format nil "Pressed ~d time~:p." presses) :presses :live t)
-                  (call "(bolt:button text &key id tooltip (enabled t) (flex 0))" :button-call)))
+                  (call "(bolt:button text &key id tooltip (enabled t) (flex 0) font)" :button-call)))
 
               (bolt:row (:id :second :gap 20 :fill t)
                 (section ("Text fields" :fields)
@@ -121,7 +121,7 @@
                             (format nil "Hello, ~a." name))
                         :greeting)
                   (bolt:text-field "Not enabled" :id :locked :width 220 :enabled nil)
-                  (call "(bolt:text-field string &key id tooltip labelled-by (width 180) invalid (enabled t) (flex 0))"
+                  (call "(bolt:text-field string &key id tooltip labelled-by (width 180) invalid (enabled t) (flex 0) font)"
                         :text-field-call)
                   (bolt:label "Fruit, with suggestions" :id :fruit-search-label)
                   (multiple-value-bind (text changed)
@@ -133,7 +133,7 @@
                                       :id :fruit-search :labelled-by :fruit-search-label
                                       :width 220)
                     (when changed (setf fruit-search text)))
-                  (call "(bolt:combo-box string suggestions &key id tooltip labelled-by (width 180) (enabled t) (flex 0))"
+                  (call "(bolt:combo-box string suggestions &key id tooltip labelled-by (width 180) (enabled t) (flex 0) font)"
                         :combo-box-call))
                 (section ("Text area" :area)
                   (bolt:label "Notes" :id :notes-label)
@@ -143,7 +143,7 @@
                   (note (format nil "~d character~:p on ~d line~:p."
                                 (length notes) (1+ (count #\Newline notes)))
                         :notes-count)
-                  (call "(bolt:text-area string &key id tooltip labelled-by (width 320) (rows 6) (enabled t) (flex 0))"
+                  (call "(bolt:text-area string &key id tooltip labelled-by (width 320) (rows 6) (enabled t) (flex 0) font)"
                         :text-area-call)))
 
               (bolt:row (:id :third :gap 20 :fill t)
@@ -151,7 +151,7 @@
                   (multiple-value-bind (checked changed)
                       (bolt:checkbox "Send me the newsletter" subscribed :id :subscribe)
                     (when changed (setf subscribed checked)))
-                  (call "(bolt:checkbox label checked &key id tooltip (enabled t) (flex 0))"
+                  (call "(bolt:checkbox label checked &key id tooltip (enabled t) (flex 0) font)"
                         :checkbox-call)
                   (bolt:label "Size" :id :size-label)
                   (multiple-value-bind (index changed)
@@ -171,14 +171,14 @@
                       (bolt:choice +views+ view :id :view :labelled-by :view-label :style :segmented)
                     (when changed (setf view index)))
                   (note (format nil "Shown as ~(~a~)." (nth view +views+)) :view-note)
-                  (call "(bolt:choice options selected &key id tooltip labelled-by (direction :horizontal) (enabled t) (flex 0) (style :radio))"
+                  (call "(bolt:choice options selected &key id tooltip labelled-by (direction :horizontal) (enabled t) (flex 0) (style :radio) font)"
                         :choice-call)
                   (bolt:label "Colour" :id :colour-label)
                   (multiple-value-bind (index changed)
                       (bolt:dropdown +colours+ colour :id :colour :labelled-by :colour-label)
                     (when changed (setf colour index)))
                   (note (format nil "~a it is." (nth colour +colours+)) :colour-note)
-                  (call "(bolt:dropdown options selected &key id tooltip labelled-by width (enabled t) (flex 0) max-rows)"
+                  (call "(bolt:dropdown options selected &key id tooltip labelled-by width (enabled t) (flex 0) max-rows font)"
                         :dropdown-call))
                 (section ("List and menus" :list)
                   (bolt:label "Fruit (right-click it for a menu)" :id :fruit-label)
@@ -192,7 +192,7 @@
                     (cond ((equal command "Pick the first") (setf fruit 0))
                           ((equal command "Pick the last") (setf fruit (1- (length +fruits+))))))
                   (note (format nil "Picked: ~a." (nth fruit +fruits+)) :fruit-note)
-                  (call "(bolt:list-box items selected &key id tooltip labelled-by (rows 8) (width 200) (enabled t) (flex 0))"
+                  (call "(bolt:list-box items selected &key id tooltip labelled-by (rows 8) (width 200) (enabled t) (flex 0) font)"
                         :list-box-call)
                   (call "(bolt:context-menu (&key id items) &body body)" :context-menu-call)
                   (let ((command (bolt:menu-button "Fruit" '("Next" "Previous") :id :fruit-actions)))
@@ -200,7 +200,7 @@
                            (setf fruit (mod (1+ fruit) (length +fruits+))))
                           ((equal command "Previous")
                            (setf fruit (mod (1- fruit) (length +fruits+))))))
-                  (call "(bolt:menu-button text items &key id tooltip (enabled t) (flex 0) max-rows)"
+                  (call "(bolt:menu-button text items &key id tooltip (enabled t) (flex 0) max-rows font)"
                         :menu-button-call)))
 
               (bolt:row (:id :fourth :gap 20 :fill t)
@@ -224,7 +224,7 @@
                     ;; Only while it is wanted: a spinner asks for frames as long as it shows.
                     (when busy
                       (bolt:spinner :id :working :labelled-by :busy)))
-                  (call "(bolt:switch label on &key id tooltip (enabled t) (flex 0))" :switch-call)
+                  (call "(bolt:switch label on &key id tooltip (enabled t) (flex 0) font)" :switch-call)
                   (call "(bolt:spinner &key id tooltip labelled-by (size 18) (flex 0))" :spinner-call))
                 (section ("Canvas" :drawing)
                   (bolt:label "Click to put a dot" :id :canvas-label)
@@ -319,7 +319,7 @@
                   (note file-note :file-note)
                   (call "(bolt:popover (&key id open anchor (placement :below)) &body body)"
                         :popover-call)
-                  (call "(bolt:dialog (&key id open title) &body body)" :dialog-call)
+                  (call "(bolt:dialog (&key id open title font) &body body)" :dialog-call)
                   (call "(bolt:scrim &key id tooltip)" :scrim-call)
                   (call "(bolt:toast words &key (seconds 3))" :toast-call)
                   (call "(bolt:open-file-dialog &key id show types)" :open-file-dialog-call)

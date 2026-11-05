@@ -43,6 +43,8 @@
                 #:box-h)
   (:import-from #:almighty-bolt/ui/widgets
                 #:ui-font
+                #:ui-face
+                #:text-metrics
                 #:paragraph-state-text
                 #:paragraph-state-lines
                 #:paragraph-state-wrapped-at
@@ -100,10 +102,9 @@
         (box-h box) h)
   (values w h))
 
-(defun line-height (context)
-  (multiple-value-bind (width ascent descent) (context-measure context (ui-font context) "Hg")
-    (declare (ignore width))
-    (+ ascent descent)))
+(defun line-height (context box)
+  "How tall a line of BOX's text is: its face's line height, or its font's ascent and descent."
+  (values (text-metrics context (ui-face box))))
 
 (defun grid-shares (widths columns)
   "Each column's share of a grid's width, as a list of COLUMNS numbers that add up to one."
@@ -185,10 +186,9 @@ them in the boxes, and return the width and height."
     (ecase (box-kind box)
       (:label
        (let ((font (box-text-font context box)))
-         (multiple-value-bind (width ascent descent) (context-measure context font (box-text box))
-           (set-box box
-                    (constrain (float width 1f0) min-w max-w)
-                    (constrain (float (+ ascent descent) 1f0) min-h max-h)))))
+         (set-box box
+                  (constrain (float (context-measure context font (box-text box)) 1f0) min-w max-w)
+                  (constrain (float (line-height context box) 1f0) min-h max-h))))
       (:paragraph
        (let* ((state (box-data box))
               (text (box-text box))
@@ -201,19 +201,17 @@ them in the boxes, and return the width and height."
                       (string= (paragraph-state-text state) text))
            (set-paragraph-lines state text wrap (context-break-lines context font text wrap))
            (setf (paragraph-state-font state) font))
-         (multiple-value-bind (width ascent descent) (context-measure context font "Hg")
-           (declare (ignore width))
+         (let ((step (line-height context box)))
            (let ((widest 0f0))
              (loop :for (start end) :in (paragraph-state-lines state)
                    :do (setf widest (max widest (float (context-measure context font
                                                                         (subseq text start end))
                                                        1f0))))
              (set-box box (constrain widest min-w max-w)
-                      (constrain (* (length (paragraph-state-lines state))
-                                    (float (+ ascent descent) 1f0))
+                      (constrain (* (length (paragraph-state-lines state)) (float step 1f0))
                                  min-h max-h))))))
       (:button
-       (let ((font (ui-font context)))
+       (let ((font (ui-font context box)))
          (multiple-value-bind (width ascent descent) (context-measure context font (box-text box))
            (set-box box
                     (constrain (+ (float width 1f0) (* 2 (theme-button-padding-x *theme*))) min-w max-w)
@@ -221,17 +219,17 @@ them in the boxes, and return the width and height."
                                min-h max-h)))))
       ((:text-field :combo-box)
        (set-box box (constrain (box-pref-w box) min-w max-w)
-                (constrain (+ (float (line-height context) 1f0) (* 2 (theme-field-padding-y *theme*)))
+                (constrain (+ (float (line-height context box) 1f0) (* 2 (theme-field-padding-y *theme*)))
                            min-h max-h)))
       (:text-area
        ;; ROWS (N3) lines tall; the lines the text is shown in are made for the width it is given.
        (let* ((area (box-data box))
-              (height (area-line-height context))
+              (height (area-line-height context (ui-face box)))
               (w (constrain (box-pref-w box) min-w max-w))
               (h (constrain (+ (* (box-n3 box) height) (* 2 (theme-field-padding-y *theme*))) min-h max-h))
               (inner-w (max 1f0 (- w (* 2 (theme-field-padding-x *theme*)))))
               (inner-h (max 0f0 (- h (* 2 (theme-field-padding-y *theme*)))))
-              (lines (area-lines context area (box-text box) inner-w)))
+              (lines (area-lines context area (box-text box) inner-w (ui-face box))))
          (setf (area-state-inner-width area) inner-w
                (area-state-inner-height area) inner-h
                (area-state-offset area) (max 0f0 (min (area-state-offset area)
@@ -260,10 +258,10 @@ them in the boxes, and return the width and height."
               (left 0f0)
               (top 0f0)
               (widest 0f0)
-              (font (ui-font context))
+              (font (ui-font context box))
               ;; A segment is as tall as a button, its words a button's padding from its sides.
               (height (if segmented
-                          (+ (line-height context) (* 2 (theme-button-padding-y *theme*)))
+                          (+ (line-height context box) (* 2 (theme-button-padding-y *theme*)))
                           (max (theme-control-height *theme*) +dot-size+))))
          (loop :for option :in options
                :for i :from 0
@@ -289,7 +287,7 @@ them in the boxes, and return the width and height."
                                      min-w max-w)
                       (constrain height min-h max-h)))))
       (:menu-button
-       (let ((font (ui-font context)))
+       (let ((font (ui-font context box)))
          (multiple-value-bind (width ascent descent) (context-measure context font (box-text box))
            (set-box box
                     (constrain (+ (float width 1f0) (* 2 (theme-button-padding-x *theme*)) 16f0) min-w max-w)
@@ -297,7 +295,7 @@ them in the boxes, and return the width and height."
                                min-h max-h)))))
       (:dropdown
        ;; A button's padding, and room at the right for the arrows; as wide as WIDTH (PREF-W) if given.
-       (let ((font (ui-font context)))
+       (let ((font (ui-font context box)))
          (multiple-value-bind (width ascent descent) (context-measure context font (box-text box))
            (set-box box
                     (constrain (if (plusp (box-pref-w box))
@@ -326,7 +324,7 @@ them in the boxes, and return the width and height."
                              min-h max-h))))
       (:menu-item
        (set-box box (constrain (+ +menu-check-width+ 16f0
-                                  (float (context-measure context (ui-font context) (box-text box)) 1f0))
+                                  (float (context-measure context (ui-font context box) (box-text box)) 1f0))
                                min-w max-w)
                 (constrain (theme-row-height *theme*) min-h max-h)))
       ((:popover :dialog)
@@ -365,7 +363,7 @@ them in the boxes, and return the width and height."
          (set-box box (constrain widest min-w max-w)
                   (constrain (max 0f0 (- y (spaced 8))) min-h max-h))))
       (:toast
-       (multiple-value-bind (width ascent descent) (context-measure context (ui-font context)
+       (multiple-value-bind (width ascent descent) (context-measure context (ui-font context box)
                                                                     (box-text box))
          (set-box box (constrain (+ (float width 1f0) (spaced 32)) min-w max-w)
                   (constrain (+ (float (+ ascent descent) 1f0) (spaced 20)) min-h max-h))))
@@ -381,7 +379,7 @@ them in the boxes, and return the width and height."
       (:catcher
        (set-box box (if (< max-w +unbounded+) max-w min-w) (if (< max-h +unbounded+) max-h min-h)))
       (:switch
-       (set-box box (constrain (+ +switch-width+ 8f0 (float (context-measure context (ui-font context)
+       (set-box box (constrain (+ +switch-width+ 8f0 (float (context-measure context (ui-font context box)
                                                                               (box-text box))
                                                              1f0))
                                min-w max-w)
@@ -389,7 +387,7 @@ them in the boxes, and return the width and height."
       (:spinner
        (set-box box (constrain (box-pref-w box) min-w max-w) (constrain (box-pref-h box) min-h max-h)))
       (:checkbox
-       (set-box box (constrain (+ +dot-size+ 6f0 (float (context-measure context (ui-font context)
+       (set-box box (constrain (+ +dot-size+ 6f0 (float (context-measure context (ui-font context box)
                                                                           (box-text box))
                                                          1f0))
                                min-w max-w)

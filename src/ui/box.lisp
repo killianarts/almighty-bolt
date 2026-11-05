@@ -73,7 +73,8 @@
   (size 15 :type fixnum)
   ;; The weight of its text, :regular or :bold, and the font's family, or NIL for the theme's.
   (weight :regular :type keyword)
-  (font nil :type (or null string))
+  ;; The face it is drawn in (a theme's FACE), for what draws text; NIL for what does not.
+  (font nil)
   ;; A packed colour, or NIL for the theme's (text for a label, the panel colour for a panel). NIL
   ;; and not 0, since 0 is a colour: black with nothing of it showing.
   (color nil :type (or null (unsigned-byte 32)))

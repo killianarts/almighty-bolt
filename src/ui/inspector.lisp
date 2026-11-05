@@ -19,6 +19,7 @@
                 #:*theme*
                 #:theme-name
                 #:find-theme
+                #:resolve-face
                 #:theme-setting
                 #:theme-form
                 #:change-theme-setting
@@ -210,9 +211,17 @@ that can be changed has. What went wrong is shown when ACT says so."
     (find words +theme-settings+ :key #'symbol-name :test #'string-equal)))
 
 (defun setting-value (key words)
-  "What WORDS, typed for the setting KEY, are: a colour as it is written, a font's name, or a
+  "What WORDS, typed for the setting KEY, are: a colour as it is written, a font's name, a role's
+font as Lisp writes it (\"Mohave\", or (\"Mohave\" :weight 500 :size 16), read and not evaluated), or a
 number. Signals an error that says what is wrong."
   (cond ((or (member key +theme-colors+) (eq key :font-name)) words)
+        ((member key '(:body-font :label-font :heading-font :code-font :button-font))
+         (let ((value (handler-case (with-standard-io-syntax
+                                      (let ((*read-eval* nil)) (read-from-string words)))
+                        (error () (error "~a takes a font, such as \"Mohave\" or (\"Mohave\" :weight ~
+                                          500), and ~s does not read as one." (shown key) words)))))
+           (resolve-face value :body (find-theme :dark))
+           value))
         (t (let ((number (number-in words)))
              (unless number
                (error "~a takes a number, and ~s is not one." (shown key) words))

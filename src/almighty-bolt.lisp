@@ -127,6 +127,8 @@
                 #:theme-setting
                 #:theme-color
                 #:theme-form
+                #:typeface
+                #:+font-roles+
                 #:+theme-settings+
                 #:+theme-seeds+
                 #:+theme-colors+
@@ -150,6 +152,7 @@
            #:split #:tree #:dock #:show-pane #:place-pane #:pane-group #:app-pane #:inspector-pane
            #:define-view #:view #:define-widget-entry
            #:column #:row #:stack #:padding #:panel #:center #:stage #:scroll #:lazy-list
+           #:typeface #:+font-roles+
            #:theme #:make-theme #:define-theme #:find-theme #:with-theme #:theme-names #:theme-name
            #:theme-setting #:theme-color #:theme-form #:+theme-settings+ #:+theme-seeds+ #:+theme-colors+ #:+theme-sizes+
            #:parse-color #:color-hex #:mix-colors #:contrast-ratio

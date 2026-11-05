@@ -73,6 +73,8 @@
 whether it has children, and whether they are shown."
   key parent depth parent-p open)
 
+(defvar *row-font* nil "The font of the rows of the tree being described.")
+
 (defun describe-row (ui tree state item key text depth parent-p open selected)
   "Describe the row of ITEM, and take a press on it. Returns what it was pressed for: :SELECT,
 :TOGGLE (the mark, or a double press), or NIL."
@@ -106,7 +108,7 @@ whether it has children, and whether they are shown."
       (consume-release ui)
       (setf (ui-active ui) 0))
     (setf (box-look row) (look-of ui row-key t))
-    (label text :id :text)
+    (label text :id :text :font *row-font*)
     (close-box ui)
     pressed))
 
@@ -134,13 +136,14 @@ what it opens or closes: (values new-selection key-to-open key-to-close)."
 
 (defun tree (roots &key (id (required-id 'tree)) (children (constantly '()))
                           (label #'princ-to-string) (key #'identity) selected labelled-by tooltip
-                          (flex 0) width height min-width min-height max-width max-height)
+                          (flex 0) width height min-width min-height max-width max-height font)
   "A tree of ROOTS and what CHILDREN (a function of an item) gives for each, one under another, each
 called by LABEL (a function of an item) and known by KEY (another, whose values are unique in the
 tree and compared with EQUAL; also each row's id). SELECTED is the key of the item selected, or NIL.
 Returns the key selected now and whether the person changed it this frame. What is closed is kept
-by the tree's id; everything is open until it is closed."
+by the tree's id; everything is open until it is closed. FONT is the rows' (see LABEL)."
   (let* ((ui *ui*)
+         (*row-font* font)
          (tree (open-box ui :tree :id id :labelled-by labelled-by :tooltip tooltip))
          (tree-key (box-key tree))
          (state (state-of ui tree-key #'make-tree-state))

@@ -38,10 +38,24 @@ value the field returns, and what VoiceOver and the machine interface read.
 Committed text is undone as one edit. A replay script records them as its
 `:text` and `:composition` events.
 
-A `label` or `paragraph` takes `:weight`, `:regular` (the default) or `:bold`,
-and `:font`, the name of a font family (the theme's if not given), such as
-`"Menlo"`: `(bolt:label "16:22" :id :candles :size 34 :weight :bold)`. A family
-without a bold face is drawn regular.
+Every widget that draws text takes `:font`: `label`, `paragraph`, `button`,
+`text-field`, `text-area`, `combo-box`, `checkbox`, `switch`, `choice`, `tabs`,
+`dropdown`, `menu-button`, `list-box`, `tree` (its rows) and `dialog` (its
+title). A font is data: a family's name (`"Menlo"`), a role of the theme
+(`:body`, `:label`, `:heading`, `:code` or `:button`), or a list of one of those
+and what differs from it, `("Mohave" :weight 500 :size 16)` or `(:heading :size
+30)`, which `(bolt:typeface "Mohave" :weight 500 :size 16)` writes for you. What
+it says is `:weight` (1 to 1000 as CSS has it, 400 regular and 700 bold, or a
+name: `:thin`, `:extra-light`, `:light`, `:regular`, `:medium`, `:semibold`,
+`:bold`, `:extra-bold`, `:black`), `:size` in points, `:tracking` (points of
+space after each character) and `:line-height` (points from one line to the
+next, the text in the middle of each; a label is that tall, a paragraph's and a
+text area's lines that far apart). What it does not say is its role's: a widget
+with no `:font` is in its role's font, the body's for most and the button's for
+`button`, `menu-button`, `tabs` and a segmented `choice`. The face is the
+upright one of the family nearest the weight. A `label` and a `paragraph` also
+take `:size` and `:weight` on their own: `(bolt:label "16:22" :id :candles
+:size 34 :weight :bold)`. A change of font lays the widget out again.
 
 A `label` or `paragraph` given `:selectable t` can be selected with the pointer,
 as a text field can (a drag, a double-click for a word, a triple-click for all
@@ -503,8 +517,15 @@ The settings (`+theme-settings+`):
   `:field-disabled`, `:selection`, `:caret`, `:track`, `:thumb`,
   `:row-selected`, `:row-hover`, `:scrim`, `:tooltip`, `:tooltip-text`,
   `:button`, `:button-hover`, `:button-pressed` and `:button-disabled`.
-- `:font-name`, `:font-size` (what a `label` or `paragraph` is with no `:size`)
-  and `:radius`.
+- `:font-name` and `:font-size`, the family and size every role starts from.
+- The font of each role (`+font-roles+`): `:body-font` (most widgets' text),
+  `:label-font` (small words over things, for an app to ask for as `:label`),
+  `:heading-font` (bold and two fifths larger unless given), `:code-font` (Menlo,
+  two points smaller, unless given) and `:button-font`. Each is a font as a
+  widget's `:font` takes it, but not another role: `:heading-font ("Georgia"
+  :size 30)`. What it does not give is the role's own, from `:font-name` and
+  `:font-size`. The inspector takes one typed as Lisp, read and not evaluated.
+- `:radius`.
 - `:spacing`, the seed of the sizes: 1 is the sizes the widgets have in `:dark`
   and `:light`, 1.25 a quarter more. A theme that gives it works out the sizes
   again, except those it gives too, each its size at 1 times the spacing, to the

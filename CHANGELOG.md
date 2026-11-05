@@ -14,6 +14,7 @@ are not listed.
 
 ### Added
 
+- `:font` on every widget that draws text, and `typeface`: a family or a role of the theme, with any weight, a size, a tracking and a line height; a theme's `:body-font`, `:label-font`, `:heading-font`, `:code-font` and `:button-font` ([0.3](docs/releases/dev.md#a-font-for-every-element)).
 - The inspector: while an app is developed, Command-Option-I opens a window beside it that says what a picked widget is and changes its value and its theme ([0.3](docs/releases/dev.md#the-inspector)).
 - `open-window` and `close-window`: more than one window, each with an app of its own, from a button or the REPL ([0.3](docs/releases/dev.md#more-than-one-window)).
 - Where a window opens: `:top`, `:left`, `:bottom` and `:right` from the screen's edges, or `:beside` another window, on `open-app`, `open-window` and `run-app`; with neither, windows cascade ([0.3](docs/releases/dev.md#more-than-one-window)).

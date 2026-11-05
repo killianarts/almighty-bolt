@@ -52,6 +52,8 @@
   (:import-from #:almighty-bolt/ui/widgets
                 #:box-text-font
                 #:ui-font
+                #:ui-face
+                #:text-metrics
                 #:paragraph-state-text
                 #:paragraph-state-lines
                 #:paragraph-state-generation
@@ -130,10 +132,9 @@
   (push-rounded-rect list x y w h (theme-radius *theme*) (theme-field-border *theme*))
   (push-rounded-rect list (+ x 1) (+ y 1) (- w 2) (- h 2) (- (theme-radius *theme*) 1) fill))
 
-(defun line-metrics (context)
-  (multiple-value-bind (width ascent descent) (context-measure context (ui-font context) "Hg")
-    (declare (ignore width))
-    (values (+ ascent descent) ascent)))
+(defun line-metrics (context box)
+  "How tall a line of BOX's text is, and how far down it its baseline is (see TEXT-METRICS)."
+  (text-metrics context (ui-face box)))
 
 (defun fit-text (context font string width)
   (let ((end (context-index-at-x context font string width)))
@@ -165,12 +166,10 @@ is when its selection shows."
   (let* ((font (box-text-font context box))
          (text (box-text box))
          (selected (shown-selection box)))
-    (multiple-value-bind (width ascent descent) (context-measure context font text)
-      (declare (ignore width))
+    (multiple-value-bind (step baseline) (line-metrics context box)
       (when selected
-        (draw-selection-on-line context list font text 0 (length text) selected x y
-                                (+ ascent descent)))
-      (context-push-text context list font text x (+ y ascent)
+        (draw-selection-on-line context list font text 0 (length text) selected x y step))
+      (context-push-text context list font text x (+ y baseline)
                          (or (box-color box) (theme-text *theme*))))))
 
 (defun draw-paragraph (box context list x y)
@@ -178,15 +177,13 @@ is when its selection shows."
          (text (paragraph-state-text state))
          (font (box-text-font context box))
          (selected (shown-selection box)))
-    (multiple-value-bind (width ascent descent) (context-measure context font "Hg")
-      (declare (ignore width))
+    (multiple-value-bind (step baseline) (line-metrics context box)
       (loop :for (start end) :in (paragraph-state-lines state)
             :for line :from 0
-            :for top = (+ y (* line (+ ascent descent)))
+            :for top = (+ y (* line step))
             :do (when selected
-                  (draw-selection-on-line context list font text start end selected x top
-                                          (+ ascent descent)))
-                (context-push-text context list font (subseq text start end) x (+ top ascent)
+                  (draw-selection-on-line context list font text start end selected x top step))
+                (context-push-text context list font (subseq text start end) x (+ top baseline)
                                    (or (box-color box) (theme-text *theme*)))))))
 
 (defun draw-button (box context list x y)
@@ -196,7 +193,7 @@ is when its selection shows."
         (push-rounded-rect list (- x 2) (- y 2) (+ w 4) (+ h 4) (+ (theme-radius *theme*) 2)
                            (theme-ring *theme*)))
       (push-rounded-rect list x y w h (theme-radius *theme*) (button-color *theme* state))
-      (let ((font (ui-font context)))
+      (let ((font (ui-font context box)))
         (multiple-value-bind (width ascent descent) (context-measure context font (box-text box))
           (declare (ignore width descent))
           (context-push-text context list font (box-text box) (+ x 14) (+ y 7 ascent)
@@ -208,12 +205,12 @@ is when its selection shows."
   (let* ((w (box-w box)) (h (box-h box))
          (field (box-data box))
          (state (shown-text-state field (field-state-state field)))
-         (font (ui-font context))
+         (font (ui-font context box))
          (string (text-state-string state))
          (start (field-state-view-start field))
          (focused (nth-value 1 (look-state box)))
          (enabled (box-enabled box)))
-    (multiple-value-bind (height ascent) (line-metrics context)
+    (multiple-value-bind (height ascent) (line-metrics context box)
       (declare (ignore height))
       (draw-outlined-box list x y w h
                          (cond ((not enabled) (theme-field-disabled *theme*))
@@ -262,7 +259,7 @@ is when its selection shows."
          (string (text-state-string state))
          (lines (area-state-lines area))
          (offset (area-state-offset area))
-         (font (ui-font context))
+         (font (ui-font context box))
          (focused (nth-value 1 (look-state box)))
          (enabled (box-enabled box))
          (selecting (and focused (text-state-selection-p state)))
@@ -270,7 +267,7 @@ is when its selection shows."
          (to (text-state-selection-end state))
          (left (+ x (theme-field-padding-x *theme*)))
          (pad (theme-field-padding-y *theme*)))
-    (multiple-value-bind (height ascent) (line-metrics context)
+    (multiple-value-bind (height ascent) (line-metrics context box)
       (draw-outlined-box list x y w h
                          (if enabled (theme-field-fill *theme*) (theme-field-disabled *theme*))
                          focused)
@@ -339,7 +336,7 @@ is when its selection shows."
 (defun draw-segments (box context list x y)
   "A choice drawn as joined segments: one rounded field, the chosen segment filled in the selected
 row's colour with its words in the button's text colour, and a line between the others."
-  (let* ((font (ui-font context))
+  (let* ((font (ui-font context box))
          (options (car (box-data box)))
          (state (cdr (box-data box)))
          (h (choice-state-option-height state))
@@ -352,7 +349,7 @@ row's colour with its words in the button's text colour, and a line between the 
     (push-rounded-rect list x y w h radius (theme-field-border *theme*))
     (push-rounded-rect list (+ x 1) (+ y 1) (- w 2) (- h 2) (max 0 (1- radius))
                        (theme-field-fill *theme*))
-    (multiple-value-bind (height ascent) (line-metrics context)
+    (multiple-value-bind (height ascent) (line-metrics context box)
       (declare (ignore height))
       (loop :for option :in options
             :for i :from 0
@@ -380,14 +377,14 @@ row's colour with its words in the button's text colour, and a line between the 
 (defun draw-tabs (box context list x y)
   "The tabs of a tab bar: a hairline along the bottom, each tab's words, dim but for the chosen one's,
 which has a bar of the selection's colour under it (the ring's when the bar has the keyboard)."
-  (let* ((font (ui-font context))
+  (let* ((font (ui-font context box))
          (options (car (box-data box)))
          (state (cdr (box-data box)))
          (h (choice-state-option-height state))
          (selected (box-n3 box))
          (focused (nth-value 1 (look-state box))))
     (push-rect list x (+ y h -1) (box-w box) 1 (theme-field-border *theme*))
-    (multiple-value-bind (height ascent) (line-metrics context)
+    (multiple-value-bind (height ascent) (line-metrics context box)
       (declare (ignore height))
       (loop :for option :in options
             :for i :from 0
@@ -404,13 +401,13 @@ which has a bar of the selection's colour under it (the ring's when the bar has 
                                          (theme-dim-text *theme*))))))))
 
 (defun draw-radio-choice (box context list x y)
-  (let* ((font (ui-font context))
+  (let* ((font (ui-font context box))
          (options (car (box-data box)))
          (state (cdr (box-data box)))
          (h (choice-state-option-height state))
          (selected (box-n3 box))
          (focused (nth-value 1 (look-state box))))
-    (multiple-value-bind (height ascent) (line-metrics context)
+    (multiple-value-bind (height ascent) (line-metrics context box)
       (declare (ignore height))
       (loop :for option :in options
             :for i :from 0
@@ -434,7 +431,7 @@ which has a bar of the selection's colour under it (the ring's when the bar has 
 (defun draw-dropdown (box context list x y)
   "A button that shows its option, with the arrows of a pop-up button at the right."
   (let ((w (box-w box)) (h (box-h box))
-        (font (ui-font context)))
+        (font (ui-font context box)))
     (multiple-value-bind (state focused) (look-state box)
       (when focused
         (push-rounded-rect list (- x 2) (- y 2) (+ w 4) (+ h 4) (+ (theme-radius *theme*) 2)
@@ -455,7 +452,7 @@ which has a bar of the selection's colour under it (the ring's when the bar has 
 (defun draw-menu-button (box context list x y)
   "A button whose words are followed by an arrow down, for the menu it opens."
   (let ((w (box-w box)) (h (box-h box))
-        (font (ui-font context)))
+        (font (ui-font context box)))
     (multiple-value-bind (state focused) (look-state box)
       (when focused
         (push-rounded-rect list (- x 2) (- y 2) (+ w 4) (+ h 4) (+ (theme-radius *theme*) 2)
@@ -484,7 +481,7 @@ which has a bar of the selection's colour under it (the ring's when the bar has 
 
 (defun draw-toast (box context list x y)
   "Words on a light rounded background, as a tooltip but larger."
-  (let ((font (ui-font context)))
+  (let ((font (ui-font context box)))
     (push-rounded-rect list x y (box-w box) (box-h box) 10 (theme-tooltip *theme*))
     (multiple-value-bind (width ascent) (context-measure context font (box-text box))
       (declare (ignore width))
@@ -493,11 +490,11 @@ which has a bar of the selection's colour under it (the ring's when the bar has 
 
 (defun draw-menu-item (box context list x y)
   "A row of a menu: the highlight under it if it has it, the mark of the chosen one, and its words."
-  (let ((font (ui-font context))
+  (let ((font (ui-font context box))
         (highlighted (eql (box-n3 box) 1)))
     (when highlighted
       (push-rounded-rect list x y (box-w box) (box-h box) 4 (theme-row-selected *theme*)))
-    (multiple-value-bind (height ascent) (line-metrics context)
+    (multiple-value-bind (height ascent) (line-metrics context box)
       (let ((baseline (+ y (/ (- (box-h box) height) 2) ascent)))
         (when (= (box-n2 box) 1f0)
           (context-push-text context list font "✓" (+ x 6) baseline (theme-text *theme*)))
@@ -520,9 +517,9 @@ the end it is at."
                        (if on (theme-row-selected *theme*) (theme-track *theme*)))
     (push-rounded-rect list (if on (+ x +switch-width+ (- knob) -2) (+ x 2)) (+ top 2) knob knob
                        (/ knob 2) (if enabled (theme-thumb *theme*) (theme-dim-text *theme*)))
-    (multiple-value-bind (height ascent) (line-metrics context)
+    (multiple-value-bind (height ascent) (line-metrics context box)
       (declare (ignore height))
-      (context-push-text context list (ui-font context) (box-text box) (+ x +switch-width+ 8f0)
+      (context-push-text context list (ui-font context box) (box-text box) (+ x +switch-width+ 8f0)
                          (+ y (/ (- (box-h box) (+ ascent 4f0)) 2) ascent)
                          (if enabled (theme-text *theme*) (theme-dim-text *theme*))))))
 
@@ -545,7 +542,7 @@ behind it fading."
                            (logior (logand (theme-text *theme*) #xFFFFFF00) alpha))))))
 
 (defun draw-list-box (box context list x y)
-  (let* ((font (ui-font context))
+  (let* ((font (ui-font context box))
          (w (box-w box)) (h (box-h box))
          (items (car (box-data box)))
          (state (cdr (box-data box)))
@@ -554,7 +551,7 @@ behind it fading."
          (count (length items))
          (selected (round (box-n2 box)))
          (row-height (theme-row-height *theme*)))
-    (multiple-value-bind (height ascent) (line-metrics context)
+    (multiple-value-bind (height ascent) (line-metrics context box)
       (declare (ignore height))
       (draw-outlined-box list x y w h (theme-field-fill *theme*) (nth-value 1 (look-state box)))
       (loop :for item :in (nthcdr top items)
@@ -585,9 +582,9 @@ behind it fading."
     (when (eql (box-n3 box) 1)
       (push-rounded-rect list (+ x 4) (+ top 4) (- +dot-size+ 8) (- +dot-size+ 8) 2f0
                          (theme-row-selected *theme*)))
-    (multiple-value-bind (height ascent) (line-metrics context)
+    (multiple-value-bind (height ascent) (line-metrics context box)
       (declare (ignore height))
-      (context-push-text context list (ui-font context) (box-text box) (+ x +dot-size+ 6f0)
+      (context-push-text context list (ui-font context box) (box-text box) (+ x +dot-size+ 6f0)
                          (+ y (/ (- (box-h box) (+ ascent 4f0)) 2) ascent)
                          (if (box-enabled box) (theme-text *theme*) (theme-dim-text *theme*))))))
 

@@ -158,6 +158,16 @@
                 #:theme-id
                 #:theme-font-name
                 #:theme-font-size
+                #:resolve-face
+                #:theme-face
+                #:face-variant
+                #:face-p
+                #:face-family
+                #:face-weight
+                #:face-size
+                #:face-tracking
+                #:face-line-height
+                #:face-id
                 #:theme-button-text
                 #:theme-dim-text
                 #:theme-color
@@ -271,6 +281,9 @@
            #:canvas-state
            #:canvas-state-fragment
            #:ui-font
+           #:ui-face
+           #:text-metrics
+           #:*face*
            #:+thumb-size+
            #:+dot-size+
            #:+switch-width+))
@@ -289,9 +302,38 @@
 
 (defconstant +switch-width+ 32f0 "How wide the track of a switch is; it is half as tall.")
 
-(defun ui-font (context)
-  "The font of the widgets, in the theme it is now."
-  (context-font context (theme-font-name *theme*) (theme-font-size *theme*)))
+(defvar *face* nil
+  "The face of the widget being described, while it takes its input (a field measures its text with
+it), or NIL.")
+
+(defun widget-face (font role)
+  "The face a widget whose :FONT is FONT (a font designator, or NIL) and whose role is ROLE is drawn
+in, in the theme it is described in."
+  (resolve-face font role *theme*))
+
+(defun face-font (context face)
+  "The font of CONTEXT that FACE is."
+  (context-font context (face-family face) (face-size face) (face-weight face) (face-tracking face)))
+
+(defun ui-face (&optional box)
+  "The face of BOX if it has one, or of the widget being described, or the theme's body."
+  (let ((font (and box (box-font box))))
+    (cond ((face-p font) font)
+          (*face*)
+          (t (theme-face *theme* :body)))))
+
+(defun ui-font (context &optional box)
+  "The font of BOX (see UI-FACE), in CONTEXT."
+  (face-font context (ui-face box)))
+
+(defun text-metrics (context face)
+  "How far apart the lines of FACE are, and how far down a line its baseline is, as two values: the
+face's line height, or its font's ascent and descent; the text in the middle of the line."
+  (multiple-value-bind (width ascent descent) (context-measure context (face-font context face) "Hg")
+    (declare (ignore width))
+    (let* ((natural (float (+ ascent descent) 1f0))
+           (step (or (face-line-height face) natural)))
+      (values step (+ (float ascent 1f0) (* 0.5f0 (- step natural)))))))
 
 (defmacro with-theme ((theme) &body body)
   "What BODY describes, drawn in THEME (a theme, or the name of one) rather than the theme it is in.
@@ -809,22 +851,27 @@ text nearest them and the character they are over."
     (setf (box-look box) (look-of ui key t))))
 
 (defun box-text-font (context box)
-  "The font of the label or paragraph BOX: its own family or the theme's, at its size and weight."
-  (context-font context (or (box-font box) (theme-font-name *theme*)) (box-size box) (box-weight box)))
+  "The font of the label or paragraph BOX (its face)."
+  (ui-font context box))
+
+(defun text-face (font size weight role)
+  "The face of a label or a paragraph whose :FONT is FONT, with SIZE and WEIGHT, if given, in place of
+its own."
+  (face-variant (widget-face font role) size weight))
 
 (defun label (text &key (id (required-id 'label)) tooltip size color (flex 0) live selectable
-                     (weight :regular) font)
-  "A line of TEXT, SIZE points high (the theme's size if not given), in WEIGHT (:regular or :bold)
-and the font family FONT (the theme's if not given). A LIVE label is read out by a screen reader whenever its text changes, wherever the
+                     weight font)
+  "A line of TEXT in FONT (a family's name, a role such as :heading, or a TYPEFACE: the theme's body
+font if not given), with SIZE (points) and WEIGHT (1 to 1000, or a name such as :bold or :medium) in
+place of the font's if given. A LIVE label is read out by a screen reader whenever its text changes, wherever the
 reader is: for a result, a count or a status that a person should hear without going to look for it.
 A SELECTABLE label's text can be selected with the pointer and copied."
   (let* ((ui *ui*)
          (box (open-box ui :label :id id :tooltip tooltip)))
     (setf (box-text box) text
-          (box-size box) (or size (theme-font-size *theme*))
+          (box-font box) (text-face font size weight :body)
+          (box-size box) (round (face-size (box-font box)))
           (box-color box) (or (theme-color color) *foreground*)
-          (box-weight box) (progn (check-type weight (member :regular :bold)) weight)
-          (box-font box) font
           (box-flex box) (float flex 1f0)
           (box-n3 box) (if live 1 0))
     (when selectable
@@ -871,10 +918,9 @@ the lines it was drawn in."
         (text (paragraph-state-text state)))
     (if (not (and rect font lines))
         (values 0 0)
-        (multiple-value-bind (width ascent descent) (context-measure (ui-context ui) font "Hg")
-          (declare (ignore width))
+        (let ((step (text-metrics (ui-context ui) (ui-face box))))
           (let* ((row (max 0 (min (1- (length lines))
-                                  (floor (- y (rect-y rect)) (+ ascent descent)))))
+                                  (floor (- y (rect-y rect)) step))))
                  (line (nth row lines)))
             (destructuring-bind (start end) line
               ;; Not after the line feed that ends a line: that is the start of the next.
@@ -885,17 +931,16 @@ the lines it was drawn in."
                 (values (+ start index) (+ start character)))))))))
 
 (defun paragraph (text &key (id (required-id 'paragraph)) tooltip size color (flex 0) live
-                         selectable (weight :regular) font)
-  "TEXT broken into lines to the width it is given, SIZE points high (the theme's size if not
-given). LIVE, SELECTABLE, WEIGHT and FONT are as for a label."
+                         selectable weight font)
+  "TEXT broken into lines to the width it is given, the lines as far apart as FONT's line height (or
+its ascent and descent). LIVE, SELECTABLE, SIZE, WEIGHT and FONT are as for a label."
   (let* ((ui *ui*)
          (box (open-box ui :paragraph :id id :tooltip tooltip))
          (state (state-of ui (box-key box) #'make-paragraph-state)))
     (setf (box-text box) text
-          (box-size box) (or size (theme-font-size *theme*))
+          (box-font box) (text-face font size weight :body)
+          (box-size box) (round (face-size (box-font box)))
           (box-color box) (or (theme-color color) *foreground*)
-          (box-weight box) (progn (check-type weight (member :regular :bold)) weight)
-          (box-font box) font
           (box-flex box) (float flex 1f0)
           (box-n3 box) (if live 1 0)
           (box-data box) state)
@@ -915,14 +960,15 @@ given). LIVE, SELECTABLE, WEIGHT and FONT are as for a label."
 
 ;;; --- a button ---
 
-(defun button (text &key (id (required-id 'button)) tooltip (enabled t) (flex 0))
+(defun button (text &key (id (required-id 'button)) tooltip (enabled t) (flex 0) font)
   "A button. Returns true when it is clicked: the primary button went down and up over it,
 or the space bar or Return was pressed with the keyboard on it."
   (let* ((ui *ui*)
          (box (open-box ui :button :id id :tooltip tooltip))
          (key (box-key box))
          (clicked nil))
-    (setf (box-text box) text
+    (setf (box-font box) (widget-face font :button)
+          (box-text box) text
           (box-enabled box) enabled
           (box-interactive box) enabled
           (box-focusable box) enabled
@@ -1215,14 +1261,15 @@ field was laid out last."
 
 (defun text-field (string
                    &key (id (required-id 'text-field)) tooltip labelled-by
-                     (width 180) invalid (enabled t) (flex 0))
-  "An editable line showing STRING. Returns the text now, whether the person changed it this
+                     (width 180) invalid (enabled t) (flex 0) font)
+  "An editable line showing STRING, in FONT (see LABEL; the theme's body font if not given). Returns the text now, whether the person changed it this
 frame, and whether Return was pressed. Command-C, Command-X and Command-V copy, cut and paste
 (a line break that is pasted becomes a space). Pass what it returned back in the next frame; if the
 application passes something else, that is what is shown."
   (let* ((ui *ui*)
          (box (open-box ui :text-field :id id :tooltip tooltip :labelled-by labelled-by))
          (key (box-key box))
+         (*face* (setf (box-font box) (widget-face font :body)))
          (state (state-of ui key #'make-field-state))
          (changed nil)
          (submitted nil))
@@ -1321,6 +1368,8 @@ application passes something else, that is what is shown."
   (lines-text "" :type string)
   (wrapped-at -1f0 :type single-float)
   (theme-id 0 :type fixnum)
+  ;; The face the lines were made in.
+  (face nil)
   (generation 0 :type fixnum)
   ;; The room inside the box for lines, from the last layout (0 before there is one).
   (inner-width 0f0 :type single-float)
@@ -1328,22 +1377,23 @@ application passes something else, that is what is shown."
   ;; The x that Up and Down keep to, from the first of them in a row.
   (goal-x nil))
 
-(defun area-line-height (context)
-  (multiple-value-bind (width ascent descent) (context-measure context (ui-font context) "Hg")
-    (declare (ignore width))
-    (float (+ ascent descent) 1f0)))
+(defun area-line-height (context &optional (face (ui-face)))
+  "How far apart the lines of a text area in FACE are (see TEXT-METRICS)."
+  (values (text-metrics context face)))
 
-(defun area-lines (context state string width)
-  "The lines that STRING is shown in at WIDTH, as a vector of (START . END), from STATE if they were
-made for this string and width. There is always one: an empty text, and a text that ends in a line
+(defun area-lines (context state string width &optional (face (ui-face)))
+  "The lines that STRING is shown in at WIDTH in FACE, as a vector of (START . END), from STATE if they
+were made for this string, width and face. There is always one: an empty text, and a text that ends in a line
 feed, end in an empty line, where the caret can be."
   (unless (and (= (area-state-wrapped-at state) width)
                (= (area-state-theme-id state) (theme-id *theme*))
+               (eq (area-state-face state) face)
                (string= (area-state-lines-text state) string))
     (let* ((length (length string))
            (lines (loop :for (start end) :in (if (zerop length)
                                                   '()
-                                                  (context-break-lines context (ui-font context)
+                                                  (context-break-lines context
+                                                                       (face-font context face)
                                                                        string width))
                         :collect (cons start (if (and (> end start)
                                                       (char= (char string (1- end)) #\Linefeed))
@@ -1354,7 +1404,8 @@ feed, end in an empty line, where the caret can be."
       (setf (area-state-lines state) (coerce lines 'simple-vector)
             (area-state-lines-text state) (copy-seq string)
             (area-state-wrapped-at state) width
-            (area-state-theme-id state) (theme-id *theme*))
+            (area-state-theme-id state) (theme-id *theme*)
+            (area-state-face state) face)
       (incf (area-state-generation state))))
   (area-state-lines state))
 
@@ -1503,8 +1554,10 @@ window, from where the area was laid out last."
 
 (defun text-area (string
                   &key (id (required-id 'text-area)) tooltip labelled-by
-                    (width 320) (rows 6) (enabled t) (flex 0))
-  "An editable text of several lines showing STRING, WIDTH points wide and ROWS lines tall, whose long
+                    (width 320) (rows 6) (enabled t) (flex 0) font)
+  "An editable text of several lines showing STRING in FONT (see LABEL; the theme's body font if not
+given), its lines as far apart as FONT's line height (or its ascent and descent), WIDTH points wide
+and ROWS lines tall, whose long
 lines go on in the next. Returns the text now and whether the person changed it this frame. Return
 puts in a line feed; Up and Down move a line (Command with them, to the start and the end), Command
 with Left and Right to the start and the end of the line; the other keys, and copy, cut and paste,
@@ -1513,6 +1566,7 @@ else, that is what is shown."
   (let* ((ui *ui*)
          (box (open-box ui :text-area :id id :tooltip tooltip :labelled-by labelled-by))
          (key (box-key box))
+         (*face* (setf (box-font box) (widget-face font :body)))
          (area (state-of ui key #'make-area-state))
          (width (float width 1f0))
          (changed nil)
@@ -1689,16 +1743,17 @@ person changed it this frame."
   (widths #() :type simple-vector)
   (option-height 0f0 :type single-float))
 
-(defun tabs (titles selected &key (id (required-id 'tabs)) tooltip labelled-by (enabled t) (flex 0))
+(defun tabs (titles selected &key (id (required-id 'tabs)) tooltip labelled-by (enabled t) (flex 0)
+                                  font)
   "A tab bar of TITLES (strings), the SELECTED one (an index) marked: a CHOICE drawn as tabs, which
 the app follows by drawing the page of the tab chosen. Returns the index now and whether the person
 changed it this frame."
   (choice titles selected :id id :tooltip tooltip :labelled-by labelled-by :enabled enabled
-                          :flex flex :style :tabs))
+                          :flex flex :style :tabs :font font))
 
 (defun choice (options selected
                &key (id (required-id 'choice)) tooltip labelled-by (direction :horizontal) (enabled t)
-                 (flex 0) (style :radio))
+                 (flex 0) (style :radio) font)
   "A choice among OPTIONS (strings), each with a round button, with the SELECTED one (an index)
 marked: side by side, or with DIRECTION :vertical one under another (radio buttons, as a Mac lays
 them out). STYLE :SEGMENTED draws them as one control of joined segments, the chosen one filled,
@@ -1709,6 +1764,7 @@ Returns the index now and whether the person changed it this frame."
   (check-type style (member :radio :segmented :tabs))
   (let* ((ui *ui*)
          (box (open-box ui :choice :id id :tooltip tooltip :labelled-by labelled-by))
+         (*face* (setf (box-font box) (widget-face font (if (eq style :radio) :body :button))))
          (key (box-key box))
          (state (state-of ui key #'make-choice-state))
          (new selected))
@@ -1932,7 +1988,7 @@ letters typed move the highlight to the first row they begin."
 
 (defun dropdown (options selected
                  &key (id (required-id 'dropdown)) tooltip labelled-by width (enabled t) (flex 0)
-                   max-rows)
+                   max-rows font)
   "A button showing the SELECTED one (an index) of OPTIONS (strings), which a press opens into a menu
 of them all: a pop-up button. WIDTH is how wide it is (by default, as wide as the option it shows).
 Its menu shows as many options as fit in the window, or MAX-ROWS, and scrolls.
@@ -1940,6 +1996,7 @@ Returns the index now and whether the person changed it this frame. With the key
 space bar, Return and the arrows open the menu."
   (let* ((ui *ui*)
          (box (open-box ui :dropdown :id id :tooltip tooltip :labelled-by labelled-by))
+         (*face* (setf (box-font box) (widget-face font :body)))
          (key (box-key box))
          (state (state-of ui key #'make-menu-state))
          (new selected))
@@ -1979,12 +2036,13 @@ space bar, Return and the arrows open the menu."
 ;;; --- a button with a menu of commands ---
 
 (defun menu-button (text items &key (id (required-id 'menu-button)) tooltip (enabled t) (flex 0)
-                                     max-rows)
+                                     max-rows font)
   "A button with TEXT that a press opens into a menu of ITEMS (strings): commands, of which none is
 chosen beforehand. Returns the item chosen, on the frame it is chosen, and otherwise NIL. With the
 keyboard on it, the space bar, Return and the arrows open the menu."
   (let* ((ui *ui*)
          (box (open-box ui :menu-button :id id :tooltip tooltip))
+         (*face* (setf (box-font box) (widget-face font :button)))
          (key (box-key box))
          (state (state-of ui key #'make-menu-state))
          (chosen nil))
@@ -2079,7 +2137,7 @@ chosen, on the frame it is chosen, and otherwise NIL. The :id is required."
 
 (defun combo-box (string suggestions
                   &key (id (required-id 'combo-box)) tooltip labelled-by (width 180) (enabled t)
-                    (flex 0))
+                    (flex 0) font)
   "A text field showing STRING with a menu of SUGGESTIONS (strings) under it, which typing opens: the
 app gives the suggestions that fit what has been typed, each frame. Down and Up move into them, Return
 or a press takes one, Escape closes them. Returns the text now, whether it changed this frame, and
@@ -2100,7 +2158,7 @@ whether it changed because a suggestion was taken."
     (let ((index (ui-count ui)))
       (multiple-value-bind (text changed submitted)
           (text-field (or taken string) :id id :tooltip tooltip :labelled-by labelled-by
-                                        :width width :enabled enabled :flex flex)
+                                        :width width :enabled enabled :flex flex :font font)
         (declare (ignore submitted))
         (let ((field (svref (ui-boxes ui) index)))
           (setf (box-kind field) :combo-box
@@ -2237,7 +2295,7 @@ person dismissed it, by a press outside it or Escape. The :id is required."
          ,@body
          (end-popover ,float ,open-box ,dismissed)))))
 
-(defun begin-dialog (id open title)
+(defun begin-dialog (id open title &optional font)
   "Start the float of a dialog if it is OPEN: returns its box and the box that was open; or NIL."
   (when open
     (let* ((ui *ui*)
@@ -2250,6 +2308,7 @@ person dismissed it, by a press outside it or Escape. The :id is required."
       (multiple-value-bind (float open)
           (open-float ui :dialog owner id (make-float-spec :placement :center :modal t))
         (setf (box-interactive float) t
+              (box-font float) (widget-face font :body)
               (box-text float) (or title ""))
         (when (and (= (ui-hot ui) (box-key float)) (ui-pressed ui))
           (consume-press ui))
@@ -2265,25 +2324,26 @@ person dismissed it, by a press outside it or Escape. The :id is required."
       (setf (ui-consumed ui) t)
       t)))
 
-(defmacro dialog ((&key id open title) &body body)
+(defmacro dialog ((&key id open title font) &body body)
   "While OPEN, a dialog in the middle of the window, over a scrim that keeps the pointer from what is
-under it, with TITLE over what BODY describes; the keyboard stays inside it. Returns true on the
+under it, with TITLE (in FONT, see LABEL) over what BODY describes; the keyboard stays inside it. Returns true on the
 frame the person dismissed it with Escape (its buttons say what they do as any button does). The
 :id is required."
   (let ((float (gensym "FLOAT")) (open-box (gensym "OPEN")))
-    `(multiple-value-bind (,float ,open-box) (begin-dialog ,id ,open ,title)
+    `(multiple-value-bind (,float ,open-box) (begin-dialog ,id ,open ,title ,font)
        (when ,float
          ,@body
          (end-dialog ,float ,open-box)))))
 
 ;;; --- a box that is checked or not, with a label ---
 
-(defun checkbox (label checked &key (id (required-id 'checkbox)) tooltip (enabled t) (flex 0))
+(defun checkbox (label checked &key (id (required-id 'checkbox)) tooltip (enabled t) (flex 0) font)
   "A box with LABEL beside it, CHECKED or not (what the application holds). Returns the state now
 and whether the person changed it this frame: the primary button went down and up over the box or
 the label, or the space bar was pressed with the keyboard on it."
   (let* ((ui *ui*)
          (box (open-box ui :checkbox :id id :tooltip tooltip))
+         (*face* (setf (box-font box) (widget-face font :body)))
          (key (box-key box))
          (new (and checked t)))
     (setf (box-text box) label
@@ -2312,13 +2372,14 @@ the label, or the space bar was pressed with the keyboard on it."
 
 ;;; --- a switch, on or off ---
 
-(defun switch (label on &key (id (required-id 'switch)) tooltip (enabled t) (flex 0))
+(defun switch (label on &key (id (required-id 'switch)) tooltip (enabled t) (flex 0) font)
   "A switch with LABEL beside it, ON or off (what the application holds): a check box that looks
 like a light switch, for a setting that takes effect at once. Returns the state now and whether the
 person changed it this frame: the primary button went down and up over it, or the space bar was
 pressed with the keyboard on it."
   (let* ((ui *ui*)
          (box (open-box ui :switch :id id :tooltip tooltip))
+         (*face* (setf (box-font box) (widget-face font :body)))
          (key (box-key box))
          (new (and on t)))
     (setf (box-text box) label
@@ -2372,11 +2433,12 @@ with a spinner showing is not at rest."
 
 (defun list-box (items selected
                  &key (id (required-id 'list-box)) tooltip labelled-by
-                   (rows 8) (width 200) (enabled t) (flex 0))
+                   (rows 8) (width 200) (enabled t) (flex 0) font)
   "A list of ITEMS (strings), showing ROWS at a time, with the SELECTED one (an index, or
 NIL) marked. Returns the index now and whether the person changed it this frame."
   (let* ((ui *ui*)
          (box (open-box ui :list-box :id id :tooltip tooltip :labelled-by labelled-by))
+         (*face* (setf (box-font box) (widget-face font :body)))
          (key (box-key box))
          (state (state-of ui key #'make-list-state))
          (count (length items))
@@ -2696,7 +2758,9 @@ counting its children."
                                (hash-of (box-pref-w box)) (hash-of (box-pref-h box))
                                (hash-of (box-min-w box)) (hash-of (box-max-w box))
                                (hash-of (box-min-h box)) (hash-of (box-max-h box))
-                               (hash-of (box-weight box)) (hash-of (box-font box))))
+                               ;; The font it is drawn in, by its face's hash.
+                               (let ((font (box-font box)))
+                                 (if (face-p font) (face-id font) (hash-of font)))))
          (layout (case (box-kind box)
                    (:choice (mix layout (hash-options (car (box-data box)))))
                    ((:list-box :text-area) (mix layout (box-n3 box)))

@@ -4346,6 +4346,125 @@ process.)"
       (key screen #\z :command)
       (assert-equal "3 2" (text-in screen :undone)))))
 
+;;; --- a font for every element ---
+;;;
+;;; In the fake context a character is 8 points wide (9 from weight 600), and the tracking after it;
+;;; a line is 14 points tall (an ascent of 10 and a descent of 4).
+
+(define-theme :t-fonts (:base :light)
+  :body-font '("Courier" :tracking 1)
+  :heading-font (typeface "Georgia" :size 30)
+  :button-font '(:weight 700 :tracking 2))
+
+(defun make-fonts ()
+  (state-let ((heavy nil) (typed ""))
+    (lambda ()
+      (column (:id :page :gap 4)
+        (label "abcd" :id :plain)
+        (label "abcd" :id :medium :font (typeface "Helvetica Neue" :weight 500 :tracking 1))
+        (label "abcd" :id :bold :weight :bold)
+        (label "abcd" :id :heading :font :heading)
+        (label "abcd" :id :tall :font (typeface :line-height 30))
+        (paragraph (format nil "one~%two") :id :lines :font '(:line-height 20))
+        (text-area "a" :id :area :rows 3 :font '(:line-height 20))
+        (when (button "Heavier" :id :heavier :font '(:tracking 2))
+          (setf heavy (not heavy)))
+        (label "toggled" :id :toggled :weight (if heavy :bold :regular))
+        (multiple-value-bind (text edited) (text-field typed :id :field :font '(:tracking 2))
+          (when edited (setf typed text)))
+        (with-theme (:t-fonts)
+          (label "abcd" :id :themed)
+          (label "abcd" :id :themed-heading :font :heading)
+          (button "Go" :id :themed-button))))))
+
+(define-test every-element-takes-a-font-and-a-theme-gives-each-role-one ()
+  (let* ((screen (show 'make-fonts))
+         (session (screen-session screen)))
+    (flet ((size (id) (multiple-value-bind (x y w h) (core:lookup-target (screen-app screen) id)
+                        (declare (ignore x y))
+                        (list (round w) (round h))))
+           (node-size (id) (mapcar #'round (cddr (s:node-bounds (m:find-node session :id id))))))
+      ;; Four characters: 8 each; with a tracking of 1, 9; bold, 9; a heading (bold by default), 9.
+      (assert-equal '(32 14) (node-size :plain))
+      (assert-equal '(36 14) (node-size :medium))
+      (assert-equal '(36 14) (node-size :bold))
+      (assert-equal '(36 14) (node-size :heading))
+      ;; A line height: the label is that tall; a paragraph's lines are that far apart; a text area
+      ;; is its rows of them and its padding.
+      (assert-equal '(32 30) (node-size :tall))
+      (assert-eql 40 (second (node-size :lines)))
+      (assert-eql (+ 60 (* 2 (round (theme:theme-field-padding-y (theme:find-theme :dark)))))
+                  (second (size :area)))
+      ;; A button's words, tracked: 7 characters at 10, in its padding.
+      (assert-eql (+ 70 (* 2 (round (theme:theme-button-padding-x (theme:find-theme :dark)))))
+                  (first (size :heavier)))
+      ;; A theme's roles: its body tracked (9 a character), its heading in Georgia at 30 and still
+      ;; bold, its buttons heavy and tracked.
+      (assert-equal '(36 14) (node-size :themed))
+      (assert-equal '(36 14) (node-size :themed-heading))
+      (let ((heading (theme:resolve-face :heading :body (theme:find-theme :t-fonts))))
+        (assert-equal (list "Georgia" 700 30f0)
+                      (list (theme:face-family heading) (theme:face-weight heading)
+                            (theme:face-size heading))))
+      (assert-eql (+ 22 (* 2 (round (theme:theme-button-padding-x (theme:find-theme :t-fonts)))))
+                  (first (size :themed-button))))))
+
+(define-test a-change-of-font-alone-lays-the-element-out-again ()
+  (let* ((screen (show 'make-fonts))
+         (session (screen-session screen)))
+    (flet ((width (id) (round (third (s:node-bounds (m:find-node session :id id))))))
+      (assert-eql 56 (width :toggled))
+      ;; Only its weight is another: the frame is laid out again, and it is wider.
+      (m:click session :id :heavier)
+      (assert-eql 63 (width :toggled))
+      (m:click session :id :heavier)
+      (assert-eql 56 (width :toggled)))))
+
+(define-test a-field-measures-what-is-typed-in-its-own-font ()
+  (let* ((screen (show 'make-fonts))
+         (session (screen-session screen)))
+    (m:type-text session "ab" :id :field)
+    ;; The window's caret is after two characters of 10 (8 and the tracking of 2), inside the
+    ;; field's padding of 8.
+    (multiple-value-bind (on x) (text-input-rect screen)
+      (assert-true on)
+      (assert-eql (+ (first (s:node-bounds (m:find-node session :id :field))) 8 20) x))))
+
+(define-test a-font-is-data-that-a-theme-writes-and-reads-back-and-asking-again-makes-nothing ()
+  ;; Written as the theme was given, it defines the same theme again.
+  (let ((form (theme:theme-form (theme:find-theme :t-fonts))))
+    (assert-true (member :heading-font form))
+    (let ((before (theme:theme-id (theme:find-theme :t-fonts))))
+      (eval form)
+      (assert-eql before (theme:theme-id (theme:find-theme :t-fonts)))))
+  ;; Only a role's font is changed: the theme is another.
+  (let ((one (theme:make-theme :base :light :heading-font '("Georgia" :size 30 :tracking 1)))
+        (two (theme:make-theme :base :light :heading-font '("Georgia" :size 30 :tracking 2))))
+    (assert-false (= (theme:theme-id one) (theme:theme-id two))))
+  ;; Asked again, the same list and the same face, made once.
+  (assert-eq (typeface "Mohave" :weight 500) (typeface "Mohave" :weight 500))
+  (assert-equal '(:family "Mohave" :weight 500 :size 16) (typeface "Mohave" :weight 500 :size 16))
+  (let ((theme (theme:find-theme :light)))
+    (assert-eq (theme:resolve-face '("Mohave" :weight 500) :body theme)
+               (theme:resolve-face '("Mohave" :weight 500) :body theme)))
+  ;; One designator in two roles is two faces: the rest is each role's (a button's heavy here).
+  (let ((theme (theme:find-theme :t-fonts)))
+    (assert-eql 400 (theme:face-weight (theme:resolve-face '(:tracking 3) :body theme)))
+    (assert-eql 700 (theme:face-weight (theme:resolve-face '(:tracking 3) :button theme))))
+  (typeface "Mohave" :weight 500)
+  (let ((before (sb-ext:get-bytes-consed)))
+    (dotimes (i 10000) (typeface "Mohave" :weight 500))
+    (assert-true (< (- (sb-ext:get-bytes-consed) before) 10000)))
+  ;; The inspector, given a role's font as typed, reads it as data and does not evaluate it.
+  (assert-equal '("Georgia" :size 30)
+                (almighty-bolt/ui/inspector::setting-value :heading-font "(\"Georgia\" :size 30)"))
+  (assert-error 'error (almighty-bolt/ui/inspector::setting-value :heading-font "#.(error \"no\")"))
+  (assert-error 'error (almighty-bolt/ui/inspector::setting-value :heading-font "(\"Georgia\" :size)"))
+  ;; What is not a font says so.
+  (assert-error 'error (typeface "Mohave" :weight :heavyish))
+  (assert-error 'error (typeface "Mohave" :slant :italic))
+  (assert-error 'error (theme:make-theme :base :light :heading-font :body)))
+
 ;;; --- an app in a pane ---
 
 (defvar *inner* nil "The app in the pane of the last frame of an app with one.")
