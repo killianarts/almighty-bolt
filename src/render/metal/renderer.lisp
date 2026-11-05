@@ -22,6 +22,7 @@
                 #:display-list-height
                 #:display-list-parameter
                 #:display-list-color
+                #:display-list-extra
                 #:+command-clip+
                 #:+command-unclip+)
   (:export #:renderer
@@ -188,7 +189,7 @@ note the stretches of them that share a clip. Returns how many instances there a
                      (sb-sys:sap-ref-single sap (+ offset 16)) (display-list-parameter display-list i)
                      (sb-sys:sap-ref-32 sap (+ offset 20)) (display-list-color display-list i)
                      (sb-sys:sap-ref-32 sap (+ offset 24)) kind
-                     (sb-sys:sap-ref-32 sap (+ offset 28)) 0))
+                     (sb-sys:sap-ref-single sap (+ offset 28)) (display-list-extra display-list i)))
              (incf instances)))))
       (end-run))
     (setf (renderer-run-count renderer) runs

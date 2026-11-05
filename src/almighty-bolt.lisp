@@ -14,6 +14,8 @@
                 #:pack-color
                 #:push-rect
                 #:push-rounded-rect
+                #:push-rounded-stroke
+                #:push-shadow
                 #:push-clip
                 #:push-unclip
                 #:context-font
@@ -159,7 +161,8 @@
            #:theme-setting #:theme-color #:theme-form #:+theme-settings+ #:+theme-seeds+ #:+theme-colors+ #:+theme-sizes+
            #:parse-color #:color-hex #:mix-colors #:contrast-ratio
            #:now #:ask-for-frame #:current-context #:this-window
-           #:pack-color #:push-rect #:push-rounded-rect #:push-clip #:push-unclip
+           #:pack-color #:push-rect #:push-rounded-rect #:push-rounded-stroke #:push-shadow
+           #:push-clip #:push-unclip
            #:context-font #:context-measure #:context-push-text #:context-caret-x
            #:context-index-at-x
            #:key-event-kind #:key-event-logical-key #:key-event-modifiers #:modifier-down-p

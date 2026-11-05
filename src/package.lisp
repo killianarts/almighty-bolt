@@ -170,6 +170,8 @@
                 #:+command-unclip+
                 #:+command-rounded-stroke+
                 #:push-rounded-stroke
+                #:+command-shadow+
+                #:push-shadow
                 #:stroke-width-of
                 #:push-clip
                 #:push-unclip
@@ -185,6 +187,7 @@
                 #:display-list-parameter
                 #:display-list-radius
                 #:display-list-color
+                #:display-list-extra
                 #:display-list-hash)
   (:import-from #:almighty-bolt/app-instance
                 #:app-instance
@@ -480,6 +483,8 @@
            #:+command-unclip+
            #:+command-rounded-stroke+
            #:push-rounded-stroke
+           #:+command-shadow+
+           #:push-shadow
            #:stroke-width-of
            #:push-clip
            #:push-unclip
@@ -495,6 +500,7 @@
            #:display-list-parameter
            #:display-list-radius
            #:display-list-color
+           #:display-list-extra
            #:display-list-hash
            #:app-instance
            #:handle-event

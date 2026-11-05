@@ -14,6 +14,7 @@ are not listed.
 
 ### Added
 
+- `:shadow` on `panel` and `pressable`, one soft shadow or several, with a design tool's offset, blur, spread and colour; `push-shadow` in a canvas, and `push-rounded-stroke` exported ([0.3](docs/releases/dev.md#shadows)).
 - `:turn :up` and `:turn :down` on `label`: text turned a quarter, reading upwards or downwards, as sharp as upright; `context-push-text` takes the turn too ([0.3](docs/releases/dev.md#a-font-for-every-element)).
 - `load-font-file`: the fonts in a file, asked for by name while the app runs ([0.3](docs/releases/dev.md#a-font-for-every-element)).
 - `:font` on every widget that draws text, and `typeface`: a family or a role of the theme, with any weight, a size, a tracking and a line height; a theme's `:body-font`, `:label-font`, `:heading-font`, `:code-font` and `:button-font` ([0.3](docs/releases/dev.md#a-font-for-every-element)).

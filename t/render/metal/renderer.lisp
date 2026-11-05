@@ -119,6 +119,70 @@ its pixels."
         (assert-equal +red+ (pixel pixels 64 20 20))
         (assert-equal +background+ (pixel pixels 64 10 10))))))
 
+;;; --- shadows ---
+
+(defun normal-below (z)
+  "The share of a standard normal distribution below Z (Abramowitz and Stegun 7.1.26, to 1.5e-7)."
+  (let* ((x (/ (abs z) (sqrt 2d0)))
+         (k (/ 1 (+ 1 (* 0.3275911d0 x))))
+         (erf (- 1 (* k (+ 0.254829592d0
+                           (* k (+ -0.284496736d0
+                                   (* k (+ 1.421413741d0
+                                           (* k (+ -1.453152027d0 (* k 1.061405429d0))))))))
+                      (exp (- (* x x)))))))
+    (if (minusp z) (* 0.5d0 (- 1 erf)) (* 0.5d0 (+ 1 erf)))))
+
+(defun coverage (pixel)
+  "How much of a white shadow covers PIXEL, over the background, from its red."
+  (/ (- (first pixel) 26) (- 255 26d0)))
+
+(define-test a-shadow-is-its-rectangle-blurred-as-a-design-tool-blurs-it ()
+  ;; A white shadow of the square 40, 40 of 120, blurred by 16: a Gaussian whose standard deviation is
+  ;; half the blur, 8. Across the middle of a side, far from the corners, the coverage a point d
+  ;; outside the edge is the normal distribution's share below -d/8: a half at the edge, and about
+  ;; 0.16 a deviation out. It reaches no further than a blur and a half, and every side is alike.
+  (with-metal (device renderer)
+    (let ((list (dl:make-display-list :capacity 4)))
+      (dl:push-shadow list 40 40 120 120 0 16 (dl:pack-color 255 255 255))
+      (let ((pixels (render-scene device renderer list 200 200 1)))
+        (flet ((at (x y) (coverage (pixel pixels 200 x y))))
+          (loop :for column :from 24 :to 56
+                ;; The middle of the pixel, from the left edge, outward.
+                :for d = (- 40 (+ column 0.5d0))
+                :do (assert-true (< (abs (- (at column 100) (normal-below (/ (- d) 8)))) 0.02)
+                                 column (at column 100) (normal-below (/ (- d) 8))))
+          (assert-true (< (abs (- 0.5 (/ (+ (at 39 100) (at 40 100)) 2))) 0.01))
+          ;; The other sides, the same at the same distance.
+          (loop :for k :from 0 :to 20
+                :do (let ((left (at (- 40 k) 100)))
+                      (assert-true (< (abs (- left (at (+ 159 k) 100))) 0.01) k)
+                      (assert-true (< (abs (- left (at 100 (- 40 k)))) 0.01) k)
+                      (assert-true (< (abs (- left (at 100 (+ 159 k)))) 0.01) k)))
+          ;; Past a blur and a half (24) and a pixel, nothing at all.
+          (assert-equal +background+ (pixel pixels 200 14 100))
+          (assert-equal +background+ (pixel pixels 200 100 185)))))))
+
+(define-test a-shadow-has-its-rectangles-round-corners-and-unblurred-is-the-rectangle ()
+  (with-metal (device renderer)
+    ;; With corners of 40, little reaches the corner of the square.
+    (let ((list (dl:make-display-list :capacity 4)))
+      (dl:push-shadow list 40 40 120 120 40 4 (dl:pack-color 255 255 255))
+      (let ((pixels (render-scene device renderer list 200 200 1)))
+        (assert-true (< (coverage (pixel pixels 200 44 44)) 0.05) (pixel pixels 200 44 44))
+        (assert-true (> (coverage (pixel pixels 200 100 44)) 0.95) (pixel pixels 200 100 44))))
+    ;; Blurred by nothing it is the rounded rectangle itself; by less than a pixel, the same but
+    ;; for a level of an edge's antialiasing, its quad being a little larger.
+    (dolist (blur '(0 0.4))
+      (let ((shadow (dl:make-display-list :capacity 4))
+            (shape (dl:make-display-list :capacity 4)))
+        (dl:push-shadow shadow 20 20 60 40 12 blur (dl:pack-color 255 0 0))
+        (dl:push-rounded-rect shape 20 20 60 40 12 (dl:pack-color 255 0 0))
+        (let ((a (render-scene device renderer shape 100 80 1))
+              (b (render-scene device renderer shadow 100 80 1)))
+          (if (zerop blur)
+              (assert-equalp a b)
+              (assert-true (every (lambda (x y) (<= (abs (- x y)) 2)) a b))))))))
+
 ;;; --- blending and antialiasing ---
 
 (define-test an-edge-in-the-middle-of-a-pixel-is-half-covered ()

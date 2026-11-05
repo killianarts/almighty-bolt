@@ -587,6 +587,19 @@ rings a day without hiding its own colour. In a canvas, `push-rounded-stroke`
 draws such an edge: `(push-rounded-stroke list x y width height radius
 stroke-width color)`, a stroke of up to about 60 points.
 
+A panel or a pressable given `:shadow` casts a soft shadow under it: `(:x :y
+:blur :spread :color)`, each optional, moved `x` across and `y` down, blurred by
+`blur` points as a design tool blurs (it reaches about a blur and a half past
+the panel; 0 is a sharp edge), `spread` points larger all round (smaller if
+less than 0), in `color` (black a quarter showing if not given). A list of them
+is drawn in order, the first under the rest, as a design tool stacks them:
+`(bolt:panel (:id :card :all 16 :shadow '((:y 1 :blur 2 :color ("#000000"
+:alpha 0.12)) (:y 8 :blur 24 :color ("#000000" :alpha 0.16)))) ...)`. A shadow
+reaches past the panel's edges, but a scroll container, a pane or anything else
+that cuts what is in it at its edges cuts it there too. A translucent panel
+shows its shadow through it. In a canvas, `(push-shadow list x y width height
+radius blur color)` draws one, before what casts it.
+
 A `canvas` is an area that you draw in and handle input for. `painter` is called
 with the display list, the context, and the width and height, and draws from the
 top left; what it draws is drawn once if it is the same as last frame. Draw with

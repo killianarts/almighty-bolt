@@ -20,7 +20,9 @@
            #:+command-clip+
            #:+command-unclip+
            #:+command-rounded-stroke+
+           #:+command-shadow+
            #:push-rounded-stroke
+           #:push-shadow
            #:stroke-width-of
            #:push-clip
            #:push-unclip
@@ -36,6 +38,7 @@
            #:display-list-parameter
            #:display-list-radius
            #:display-list-color
+           #:display-list-extra
            #:display-list-hash))
 
 (in-package #:almighty-bolt/display-list)
@@ -51,7 +54,9 @@
 ;;;
 ;;; Every command has a rectangle (x, y, width, height, in points from the top
 ;;; left), a colour, and one kind-specific number, the parameter: the corner
-;;; radius of a rounded rectangle, or the index of a glyph in the glyph atlas.
+;;; radius of a rounded rectangle, or the index of a glyph in the glyph atlas. A
+;;; kind that needs a second number has the extra (a shadow's blur); for the others
+;;; it is 0.
 
 (defconstant +command-rect+ 0 "A filled rectangle.")
 (defconstant +command-rounded-rect+ 1 "A filled rectangle with rounded corners.")
@@ -69,6 +74,11 @@ its bitmap goes once turned (its width is the bitmap's height), and the rest is 
 (defun glyph-kind-p (kind)
   "True if a command of KIND is a glyph, upright or turned: its parameter is an index in the atlas."
   (or (= kind +command-glyph+) (= kind +command-glyph-up+) (= kind +command-glyph-down+)))
+
+(defconstant +command-shadow+ 7
+  "A soft shadow: the rounded rectangle, its corner radius the parameter, blurred by the extra (in
+points, as a design tool's blur is: the Gaussian's standard deviation is half of it), so that it
+reaches that far and a half past the rectangle.")
 
 (defconstant +command-clip+ 3
   "Start clipping what follows to the rectangle, inside the clip that is already on.
@@ -96,7 +106,7 @@ field of its own; the parameter is the corner radius, as for a filled one.")
                      (display-list-full-capacity condition)))))
 
 (defstruct (display-list (:constructor %make-display-list
-                             (capacity kinds xs ys widths heights parameters colors)))
+                             (capacity kinds xs ys widths heights parameters colors extras)))
   (capacity 1 :type (integer 1 #.(1- array-dimension-limit)) :read-only t)
   (kinds nil :type (simple-array (unsigned-byte 8) (*)) :read-only t)
   (xs nil :type (simple-array single-float (*)) :read-only t)
@@ -105,6 +115,7 @@ field of its own; the parameter is the corner radius, as for a filled one.")
   (heights nil :type (simple-array single-float (*)) :read-only t)
   (parameters nil :type (simple-array single-float (*)) :read-only t)
   (colors nil :type (simple-array color (*)) :read-only t)
+  (extras nil :type (simple-array single-float (*)) :read-only t)
   (count 0 :type fixnum))
 
 (defun make-display-list (&key (capacity 65536))
@@ -117,7 +128,8 @@ field of its own; the parameter is the corner radius, as for a filled one.")
                                              :initial-element 0)
                         (floats) (floats) (floats) (floats) (floats)
                         (make-array capacity :element-type 'color
-                                             :initial-element 0))))
+                                             :initial-element 0)
+                        (floats))))
 
 (declaim (inline clear-display-list))
 (defun clear-display-list (display-list)
@@ -142,14 +154,15 @@ changing TARGET, if SOURCE holds more commands than TARGET has room for."
       (replace (display-list-parameters target) (display-list-parameters source)
                :end2 count)
       (replace (display-list-colors target) (display-list-colors source) :end2 count)
+      (replace (display-list-extras target) (display-list-extras source) :end2 count)
       (setf (display-list-count target) count))
     target))
 
 (declaim (inline push-command))
-(defun push-command (display-list kind x y width height parameter color)
+(defun push-command (display-list kind x y width height parameter color &optional (extra 0))
   (declare (type display-list display-list)
            (type (unsigned-byte 8) kind)
-           (type real x y width height parameter)
+           (type real x y width height parameter extra)
            (type color color))
   (let ((i (display-list-count display-list)))
     (when (>= i (display-list-capacity display-list))
@@ -161,6 +174,7 @@ changing TARGET, if SOURCE holds more commands than TARGET has room for."
           (aref (display-list-heights display-list) i) (float height 1f0)
           (aref (display-list-parameters display-list) i) (float parameter 1f0)
           (aref (display-list-colors display-list) i) color
+          (aref (display-list-extras display-list) i) (float extra 1f0)
           (display-list-count display-list) (1+ i))
     i))
 
@@ -178,6 +192,12 @@ Returns its index."
   (push-command display-list
                 (+ +command-rounded-stroke+ (max 1 (min 239 (round (* 4 stroke-width)))))
                 x y width height radius color))
+
+(defun push-shadow (display-list x y width height radius blur color)
+  "Append a soft shadow of the rounded rectangle X, Y, WIDTH by HEIGHT with corner RADIUS, blurred by
+BLUR points (as a design tool's blur: it reaches about BLUR and a half past the rectangle, and 0 is
+the rectangle's sharp edge), in COLOR. Draw it before what casts it. Returns its index."
+  (push-command display-list +command-shadow+ x y width height (max 0 radius) color (max 0 blur)))
 
 (defun stroke-width-of (kind)
   "The width in points of the stroke that a command of KIND is, or NIL if it is not one."
@@ -217,6 +237,8 @@ SOURCE may be TARGET, which doubles it."
              :start1 start :end2 count)
     (replace (display-list-colors target) (display-list-colors source)
              :start1 start :end2 count)
+    (replace (display-list-extras target) (display-list-extras source)
+             :start1 start :end2 count)
     ;; Only the positions change on the way.
     (let ((target-xs (display-list-xs target))
           (source-xs (display-list-xs source))
@@ -254,6 +276,7 @@ rectangle X, Y, WIDTH by HEIGHT (and to every clip it is inside). Returns its in
 (define-command-accessor display-list-height display-list-heights)
 (define-command-accessor display-list-parameter display-list-parameters)
 (define-command-accessor display-list-color display-list-colors)
+(define-command-accessor display-list-extra display-list-extras)
 
 (declaim (inline display-list-radius))
 (defun display-list-radius (display-list index)
@@ -274,7 +297,8 @@ does not allocate (a full 64-bit result would be boxed as a bignum)."
         (widths (display-list-widths display-list))
         (heights (display-list-heights display-list))
         (parameters (display-list-parameters display-list))
-        (colors (display-list-colors display-list)))
+        (colors (display-list-colors display-list))
+        (extras (display-list-extras display-list)))
     (declare (type (unsigned-byte 64) hash))
     (flet ((mix (word)
              (declare (type (unsigned-byte 32) word))
@@ -292,7 +316,10 @@ does not allocate (a full 64-bit result would be boxed as a bignum)."
         (mix (bits (aref widths i)))
         (mix (bits (aref heights i)))
         (mix (bits (aref parameters i)))
-        (mix (aref colors i))))
+        (mix (aref colors i))
+        ;; Only a kind that has an extra mixes it, so that a frame of the others hashes as it did.
+        (when (= (aref kinds i) +command-shadow+)
+          (mix (bits (aref extras i))))))
     ;; Fold the top bits in, then keep 62 so the result is an immediate fixnum.
     (ldb (byte 62 0) (logxor hash (ash hash -62)))))
 
@@ -307,19 +334,21 @@ does not allocate (a full 64-bit result would be boxed as a bignum)."
 (defun zoom-display-list (target source zoom)
   "Make TARGET hold SOURCE's commands ZOOM times larger, about the top left, and return TARGET: each
 rectangle and corner radius, and the width of each stroke (to the nearest quarter point, at least
-one). A glyph keeps its atlas index. Signals DISPLAY-LIST-FULL, before changing TARGET, if TARGET
+one), and a shadow's blur. A glyph keeps its atlas index. Signals DISPLAY-LIST-FULL, before changing TARGET, if TARGET
 has not room for them."
   (declare (type display-list target source) (type single-float zoom))
   (replace-display-list target source)
   (let ((kinds (display-list-kinds target)) (xs (display-list-xs target))
         (ys (display-list-ys target)) (ws (display-list-widths target))
-        (hs (display-list-heights target)) (ps (display-list-parameters target)))
+        (hs (display-list-heights target)) (ps (display-list-parameters target))
+        (es (display-list-extras target)))
     (dotimes (i (display-list-count target) target)
       (let ((kind (aref kinds i)))
         (setf (aref xs i) (* (aref xs i) zoom)
               (aref ys i) (* (aref ys i) zoom)
               (aref ws i) (* (aref ws i) zoom)
-              (aref hs i) (* (aref hs i) zoom))
+              (aref hs i) (* (aref hs i) zoom)
+              (aref es i) (* (aref es i) zoom))
         (cond ((glyph-kind-p kind))
               ((> kind +command-rounded-stroke+)
                (setf (aref ps i) (* (aref ps i) zoom)

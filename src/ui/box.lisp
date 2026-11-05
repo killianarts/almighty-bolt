@@ -16,6 +16,7 @@
            #:box-color
            #:box-border-color
            #:box-border-width
+           #:box-shadows
            #:box-flex
            #:box-gap
            #:box-main-align
@@ -81,6 +82,8 @@
   ;; The colour and width of a panel's or a pressable's edge, or NIL for none.
   (border-color nil :type (or null (unsigned-byte 32)))
   (border-width 0f0 :type single-float)
+  ;; The shadows of a panel or a pressable, each (x y blur spread color), the colour packed.
+  (shadows '() :type list)
   (flex 0f0 :type single-float)
   (gap 0f0 :type single-float)
   (main-align :start :type keyword)
@@ -156,6 +159,7 @@ made."
         (box-color box) nil
         (box-border-color box) nil
         (box-border-width box) 0f0
+        (box-shadows box) '()
         (box-flex box) 0f0
         (box-gap box) 0f0
         (box-main-align box) :start

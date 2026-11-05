@@ -18,6 +18,7 @@
                 #:box-color
                 #:box-border-color
                 #:box-border-width
+                #:box-shadows
                 #:box-flex
                 #:box-gap
                 #:box-main-align
@@ -439,8 +440,41 @@ the container's parent allows, which wins."
              (box-flex ,box) (float ,flex 1f0))
        ,@body)))
 
-(defmacro panel ((&key id all left top right bottom color (radius 8) (flex 0) border-color (border-width 1) width height min-width min-height max-width max-height) &body body)
-  "Children on a rounded background."
+(defun shadows (designator)
+  "The shadows DESIGNATOR says, each (x y blur spread color) with the colour packed, in the order they
+are drawn. DESIGNATOR is NIL (none), a shadow, (:x :y :blur :spread :color), each optional: moved X
+across and Y down, blurred by BLUR points (0 a sharp edge), SPREAD points larger all round (smaller if
+less than 0), in COLOR (a colour designator, as THEME-COLOR takes; black a quarter showing if not
+given); or a list of shadows, the first drawn first, as a design tool stacks them."
+  (labels ((one (plist)
+             (unless (and (listp plist) (evenp (length plist)))
+               (error "A shadow is (:x :y :blur :spread :color), not ~s." plist))
+             (loop :for (key) :on plist :by #'cddr
+                   :unless (member key '(:x :y :blur :spread :color))
+                     :do (error "A shadow has no ~s: it takes :x, :y, :blur, :spread and :color."
+                                key))
+             (destructuring-bind (&key (x 0) (y 0) (blur 0) (spread 0) color) plist
+               (check-type x real)
+               (check-type y real)
+               (check-type blur (real 0))
+               (check-type spread real)
+               (list (float x 1f0) (float y 1f0) (float blur 1f0) (float spread 1f0)
+                     (if color (theme-color color) #x00000040)))))
+    (cond ((null designator) '())
+          ((keywordp (first designator)) (list (one designator)))
+          (t (mapcar #'one designator)))))
+
+(defun shadows-hash (shadows)
+  "A fixnum for SHADOWS, every number of every one."
+  (let ((hash 0))
+    (dolist (shadow shadows hash)
+      (dolist (number shadow)
+        (setf hash (mix hash (hash-of number)))))))
+
+(defmacro panel ((&key id all left top right bottom color (radius 8) (flex 0) border-color (border-width 1) shadow width height min-width min-height max-width max-height) &body body)
+  "Children on a rounded background. SHADOW is a soft shadow under it, or several (see SHADOWS): it
+reaches past the panel's edges, and is cut only where something it is in cuts what is in it (a
+scroll container, a pane)."
   (let ((box (gensym "BOX")))
     `(with-container (,box :panel :id ,id)
        (set-size-limits ,box ,width ,height ,min-width ,min-height ,max-width ,max-height)
@@ -451,6 +485,7 @@ the container's parent allows, which wins."
              (box-color ,box) (theme-color ,color)
              (box-border-color ,box) (theme-color ,border-color)
              (box-border-width ,box) (float ,border-width 1f0)
+             (box-shadows ,box) (shadows ,shadow)
              (box-n1 ,box) (float ,radius 1f0)
              (box-flex ,box) (float ,flex 1f0))
        ,@body)))
@@ -516,7 +551,7 @@ and true if it was clicked this frame."
     (values box clicked)))
 
 (defmacro pressable ((&key id tooltip (enabled t) (selected :none) name (look :plain) color
-                        border-color (border-width 1)
+                        border-color (border-width 1) shadow
                         (radius 8) all left top right bottom (gap 0) (flex 0)
                         width height min-width min-height max-width max-height)
                      &body body)
@@ -525,7 +560,8 @@ a background that answers the pointer. Returns true on the frame it is clicked (
 or Return with the keyboard on it). LOOK :BUTTON draws it in the theme's button colours, and what is in
 it in the button's text colour; :PLAIN (the default) on COLOR, or the theme's panel colour, a little
 darker or lighter under the pointer. SELECTED, if given, makes it a toggle that is on or off. NAME is
-what a screen reader calls it; by default the words of what is in it."
+what a screen reader calls it; by default the words of what is in it. SHADOW is a soft shadow under it,
+or several, as a panel's."
   (let ((box (gensym "BOX")) (clicked (gensym "CLICKED")) (looks (gensym "LOOK")))
     `(let ((,looks ,look))
        (multiple-value-bind (,box ,clicked)
@@ -535,7 +571,8 @@ what a screen reader calls it; by default the words of what is in it."
          (set-size-limits ,box ,width ,height ,min-width ,min-height ,max-width ,max-height)
          (setf (box-data ,box) ,name
                (box-border-color ,box) (theme-color ,border-color)
-               (box-border-width ,box) (float ,border-width 1f0))
+               (box-border-width ,box) (float ,border-width 1f0)
+               (box-shadows ,box) (shadows ,shadow))
          (let ((*foreground* (cond ((not (eq ,looks :button)) *foreground*)
                                    ((box-enabled ,box) (theme-button-text *theme*))
                                    (t (theme-dim-text *theme*)))))
@@ -2796,7 +2833,8 @@ counting its children."
          ;; One more than the colour, so that NIL (the theme's) and 0 (transparent) differ.
          (paint (hash-numbers layout (if (box-color box) (1+ (box-color box)) 0) (box-look box)
                               (if (box-border-color box) (1+ (box-border-color box)) 0)
-                              (hash-of (box-border-width box)) (hash-of (box-n1 box))
+                              (hash-of (box-border-width box)) (shadows-hash (box-shadows box))
+                              (hash-of (box-n1 box))
                               (hash-of (box-n2 box)) (box-n3 box)
                               (hash-of (box-enabled box)))))
     (setf paint

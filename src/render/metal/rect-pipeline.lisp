@@ -26,7 +26,7 @@
 
 (defconstant +instance-bytes+ 32
   "The size of one instance: four floats for the rectangle, a float parameter, then
-the colour, the kind and a pad word, as unsigned 32-bit words.")
+the colour and the kind, as unsigned 32-bit words, and the extra, a float (a shadow's blur).")
 
 (defparameter +shader-source+
   "#include <metal_stdlib>
@@ -37,8 +37,8 @@ struct Instance {
   float parameter;  // the corner radius in points, or a glyph's index in the atlas
   uint color;       // red, green, blue, alpha: a byte each, red in the high byte
   uint kind;        // 0 rectangle, 1 rounded rectangle, 2 glyph, 5 and 6 a glyph turned up or
-                    // down, 16 + quarter points a stroke
-  uint pad;
+                    // down, 7 a shadow, 16 + quarter points a stroke
+  float extra;      // a shadow's blur in points; 0 for the rest
 };
 
 struct Frame {
@@ -53,6 +53,7 @@ struct VertexOut {
   float2 uv;                       // texture coordinates, for a glyph
   float2 half_size [[flat]];
   float radius [[flat]];
+  float blur [[flat]];
   float scale [[flat]];
   float4 color [[flat]];
   uint kind [[flat]];
@@ -68,8 +69,10 @@ vertex VertexOut rect_vertex(uint vertex_id [[vertex_id]],
   float2 corner = float2(float(vertex_id & 1), float(vertex_id >> 1));
   float2 half_size = inst.rect.zw * 0.5;
   // A shape gets one more pixel all round for its antialiased edge; a glyph's
-  // bitmap already has its own margin.
+  // bitmap already has its own margin; a shadow reaches three standard deviations,
+  // a blur and a half, past its rectangle.
   float margin = glyph ? 0.0 : 1.0 / frame.scale;
+  if (inst.kind == 7u) margin += 1.5 * inst.extra;
   float2 local = (corner * 2.0 - 1.0) * (half_size + margin);
   float2 point = inst.rect.xy + half_size + local;
   uint c = inst.color;
@@ -90,11 +93,47 @@ vertex VertexOut rect_vertex(uint vertex_id [[vertex_id]],
   }
   out.half_size = half_size;
   out.radius = glyph ? 0.0 : min(inst.parameter, min(half_size.x, half_size.y));
+  out.blur = inst.kind == 7u ? inst.extra : 0.0;
   out.scale = frame.scale;
   out.color = float4(float((c >> 24) & 255u), float((c >> 16) & 255u),
                      float((c >> 8) & 255u), float(c & 255u)) / 255.0;
   out.kind = inst.kind;
   return out;
+}
+
+// A Gaussian blur of a rounded box, after Evan Wallace: exact across x by the error function, and
+// summed in four steps down y over the three standard deviations either way.
+static float gaussian(float x, float sigma) {
+  return exp(-(x * x) / (2.0 * sigma * sigma)) / (2.5066282746 * sigma);
+}
+
+static float2 erf2(float2 x) {
+  float2 s = sign(x), a = abs(x);
+  x = 1.0 + (0.278393 + (0.230389 + 0.078108 * (a * a)) * a) * a;
+  x *= x;
+  return s - s / (x * x);
+}
+
+static float shadow_across(float x, float y, float sigma, float corner, float2 half_size) {
+  float delta = min(half_size.y - corner - abs(y), 0.0);
+  float curved = half_size.x - corner + sqrt(max(0.0, corner * corner - delta * delta));
+  float2 integral = 0.5 + 0.5 * erf2((x + float2(-curved, curved)) * (0.7071067812 / sigma));
+  return integral.y - integral.x;
+}
+
+static float shadow_coverage(float2 p, float2 half_size, float sigma, float corner) {
+  float low = p.y - half_size.y;
+  float high = p.y + half_size.y;
+  float start = clamp(-3.0 * sigma, low, high);
+  float end = clamp(3.0 * sigma, low, high);
+  float step = (end - start) / 4.0;
+  float y = start + step * 0.5;
+  float value = 0.0;
+  for (int i = 0; i < 4; i++) {
+    value += shadow_across(p.x, p.y - y, sigma, corner, half_size) * gaussian(y, sigma) * step;
+    y += step;
+  }
+  return value;
 }
 
 fragment float4 rect_fragment(VertexOut in [[stage_in]],
@@ -104,8 +143,12 @@ fragment float4 rect_fragment(VertexOut in [[stage_in]],
     // The atlas is at device resolution, so sample it texel for pixel.
     constexpr sampler nearest(coord::normalized, filter::nearest, address::clamp_to_edge);
     coverage = atlas.sample(nearest, in.uv, level(0.0)).r;
+  } else if (in.kind == 7u && in.blur * in.scale >= 1.0) {
+    // The standard deviation is half the blur, as design tools have it.
+    coverage = clamp(shadow_coverage(in.local, in.half_size, in.blur * 0.5, in.radius), 0.0, 1.0);
   } else {
-    // Signed distance to a rounded box: negative inside, zero on the edge.
+    // Signed distance to a rounded box: negative inside, zero on the edge. A shadow
+    // blurred by less than a pixel is drawn as its box.
     float2 q = abs(in.local) - (in.half_size - in.radius);
     float d = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - in.radius;
     // A stroke is the band of width W just inside the edge: -W <= d <= 0.

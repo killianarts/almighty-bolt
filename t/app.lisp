@@ -4792,6 +4792,123 @@ app pane lays out its app in the frame after the one it first appears in, when i
       (assert-equal '("Helvetica" 20f0 :medium 4f0)
                     (almighty-bolt/ui/app-pane::zoomed-font-zoomed font)))))
 
+;;; --- shadows ---
+
+(defun make-shadowed ()
+  (state-let ((raised t))
+    (lambda ()
+      (padding (:id :page :all 40)
+        (column (:id :cards :gap 40)
+          (panel (:id :card :all 10 :radius 6
+                  :shadow (and raised '((:x 2 :y 4 :blur 10 :spread 3 :color "#ff000080")
+                                        (:y 1 :blur 2))))
+            (label "Raised" :id :raised))
+          (when (pressable (:id :press :all 6 :shadow '(:blur 4 :spread -1))
+                  (label "Lower" :id :lower))
+            (setf raised (not raised))))))))
+
+(defun shadow-commands (screen)
+  "Each shadow drawn: its rectangle, corner radius, blur and colour, and its place in the list."
+  (let ((list (screen-list screen)))
+    (loop :for index :below (core:display-list-count list)
+          :when (= (core:display-list-kind list index) core:+command-shadow+)
+            :collect (list (round (core:display-list-x list index))
+                           (round (core:display-list-y list index))
+                           (round (core:display-list-width list index))
+                           (round (core:display-list-height list index))
+                           (round (core:display-list-parameter list index))
+                           (round (core:display-list-extra list index))
+                           (core:display-list-color list index)
+                           index))))
+
+(defun fill-index (screen id)
+  "The place in the list of the background of the panel or the pressable ID: the first rounded
+rectangle that is its rectangle."
+  (destructuring-bind (x y w h) (mapcar #'round (bounds-of screen id))
+    (let ((list (screen-list screen)))
+      (loop :for index :below (core:display-list-count list)
+            :when (and (= (core:display-list-kind list index) core:+command-rounded-rect+)
+                       (equal (list x y w h)
+                              (list (round (core:display-list-x list index))
+                                    (round (core:display-list-y list index))
+                                    (round (core:display-list-width list index))
+                                    (round (core:display-list-height list index)))))
+              :return index))))
+
+(define-test a-panel-and-a-pressable-cast-the-shadows-they-are-given-under-them ()
+  ;; Each shadow is the panel's rounded rectangle moved, grown by its spread with its corners, and
+  ;; blurred; it is drawn before the panel, the first given first; and black a quarter showing if no
+  ;; colour is given. A shadow taken away is gone the next frame.
+  (let ((screen (show 'make-shadowed)))
+    (destructuring-bind (x y w h) (mapcar #'round (bounds-of screen :card))
+      (destructuring-bind (px py pw ph) (mapcar #'round (bounds-of screen :press))
+        (let ((shadows (shadow-commands screen)))
+          (assert-equal (list (list (- x 1) (+ y 1) (+ w 6) (+ h 6) 9 10 #xff000080)
+                              (list x (+ y 1) w h 6 2 #x00000040)
+                              (list (+ px 1) (+ py 1) (- pw 2) (- ph 2) 7 4 #x00000040))
+                        (mapcar #'butlast shadows))
+          (assert-true (< (car (last (first shadows))) (car (last (second shadows)))
+                          (fill-index screen :card)))
+          (assert-true (< (car (last (third shadows))) (fill-index screen :press))))
+        (click screen :press)
+        (assert-equal (list (list (+ px 1) (+ py 1) (- pw 2) (- ph 2) 7 4 #x00000040))
+                      (mapcar #'butlast (shadow-commands screen)))
+        (click screen :press)
+        (assert-eql 3 (length (shadow-commands screen)))))))
+
+(defvar *blur* 10 "The blur of the shadow of MAKE-BLURRED's card.")
+
+(defun make-blurred ()
+  (lambda ()
+    (column (:id :page :gap 40)
+      (panel (:id :card :all 10 :shadow (list :blur *blur*))
+        (label "Card" :id :words)))))
+
+(define-test a-frame-whose-shadow-is-blurred-more-draws-another-frame ()
+  ;; Only the blur changes, between two frames with nothing else new: the frame is drawn again, and
+  ;; its hash, which replay checks frames by, counts the blur.
+  (let ((*blur* 10))
+    (let ((screen (show 'make-blurred)))
+      (flet ((drawn () (draw screen) (core:display-list-hash (screen-list screen))))
+        (let ((ten (drawn)))
+          (setf *blur* 20)
+          (assert-false (eql ten (drawn)))
+          (assert-equal '(20) (mapcar (lambda (shadow) (sixth shadow)) (shadow-commands screen)))
+          (setf *blur* 10)
+          (assert-eql ten (drawn)))))))
+
+(defun make-bad-shadow ()
+  (lambda ()
+    (panel (:id :bad :shadow '(:blur 4 :offset 2))
+      (label "Bad" :id :words))))
+
+(define-test a-shadow-with-what-a-shadow-has-not-is-an-error-that-says-what-it-takes ()
+  (let ((condition (handler-case (progn (show 'make-bad-shadow) nil)
+                     (error (condition) condition))))
+    (assert-true (search ":OFFSET" (princ-to-string condition)))
+    (assert-true (search ":spread" (princ-to-string condition)))))
+
+(defun make-inner-shadowed ()
+  (lambda ()
+    (padding (:id :inner-page :all 20)
+      (panel (:id :card :all 10 :radius 6 :shadow '(:y 3 :blur 8))
+        (label "Up" :id :words)))))
+
+(defun make-shadowed-outer ()
+  (lambda ()
+    (column (:id :page :fill t :cross-align :stretch)
+      (setf *inner* (app-pane 'make-inner-shadowed :id :running :zoom 2 :flex 1)))))
+
+(define-test an-app-in-a-pane-at-a-zoom-casts-its-shadows-at-the-zoom ()
+  ;; Twice the size: the rectangle, its corners and the blur.
+  (let ((screen (show-with-pane 'make-shadowed-outer)))
+    (destructuring-bind (px py pw ph) (bounds-of screen :running)
+      (declare (ignore pw ph))
+      (destructuring-bind (x y w h) (multiple-value-list (core:lookup-target *inner* :card))
+        (assert-equal (list (list (round (+ px (* 2 x))) (round (+ py (* 2 (+ y 3))))
+                                  (round (* 2 w)) (round (* 2 h)) 12 16 #x00000040))
+                      (mapcar #'butlast (shadow-commands screen)))))))
+
 (defun make-inner-turned ()
   (lambda ()
     (column (:id :inner-page)

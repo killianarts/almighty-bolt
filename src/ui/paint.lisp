@@ -10,6 +10,7 @@
                 #:push-rect
                 #:push-rounded-rect
                 #:push-rounded-stroke
+                #:push-shadow
                 #:push-clip
                 #:push-unclip
                 #:make-display-list
@@ -34,6 +35,7 @@
                 #:box-color
                 #:box-border-color
                 #:box-border-width
+                #:box-shadows
                 #:box-pad-left
                 #:box-enabled
                 #:box-look
@@ -735,6 +737,7 @@ kept, and otherwise afresh, which is then kept."
            (push-rect list x y 2 h color)
            (push-rect list (+ x w -2) y 2 h color)))
         (:panel
+         (draw-shadows box list x y)
          (push-rounded-rect list x y (box-w box) (box-h box) (box-n1 box)
                             (or (box-color box) (theme-panel *theme*)))
          (draw-border box list x y)
@@ -748,6 +751,7 @@ kept, and otherwise afresh, which is then kept."
          (draw-tree-row box list x y)
          (paint-contents ui box context list x y))
         (:pressable
+         (draw-shadows box list x y)
          (draw-pressable box list x y)
          (draw-border box list x y)
          (paint-contents ui box context list x y))
@@ -789,6 +793,14 @@ the pointer and more so pressed; with the ring when it has the keyboard."
       (when focused
         (push-rounded-rect list (- x 2) (- y 2) (+ w 4) (+ h 4) (+ radius 2) (theme-ring *theme*)))
       (push-rounded-rect list x y w h radius fill))))
+
+(defun draw-shadows (box list x y)
+  "The shadows of a panel or a pressable, under it: each its rounded rectangle moved, grown by its
+spread (and its corners with it), and blurred."
+  (loop :for (dx dy blur spread color) :in (box-shadows box)
+        :do (push-shadow list (+ x dx (- spread)) (+ y dy (- spread))
+                         (max 0f0 (+ (box-w box) spread spread)) (max 0f0 (+ (box-h box) spread spread))
+                         (max 0f0 (+ (box-n1 box) spread)) blur color)))
 
 (defun draw-border (box list x y)
   "The edge of a panel or a pressable given a :border-color, inside it."

@@ -21,7 +21,7 @@ the order inside a section is not a schedule. What has shipped is in the
   - Wrapping layouts.
   - A table, and date and colour pickers.
 - **Effects.** Shadows, glows, blur, opacity and other filters, and dashed
-  strokes.
+  strokes. (Soft shadows under panels and pressables are in 0.3.)
   - An effect can reach past the edges of the widget it belongs to, by as far as
     it needs.
   - A soft shadow or glow is drawn in the shader. A blur or filter reads what is
@@ -183,8 +183,8 @@ the GUI designer, and where on this roadmap each is closed.
 - **Views take no parameters.** A view inside another is drawn as it was
   designed; wiring where a view is drawn gives what differs, which may be
   enough.
-- **Effects and icons.** Fonts for each element and turned text are in 0.3; no
-  shadow, dashed stroke, grain or scanlines, and no icons: the prototype's
+- **Effects and icons.** Fonts for each element, turned text and shadows are in
+  0.3; no dashed stroke, grain or scanlines, and no icons: the prototype's
   chrome cannot all be drawn by the library yet ([Effects, Images and
   icons](#later)).
 - **No code view.** A text area is plain text, with no line numbers. Emacs, over
