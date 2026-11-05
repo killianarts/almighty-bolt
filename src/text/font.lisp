@@ -20,6 +20,7 @@
            #:font-tracking
            #:font-face-name
            #:weight-number
+           #:load-font-file
            #:font-ct-font
            #:font-ascent
            #:font-descent
@@ -171,3 +172,49 @@ WEIGHT; if the system has no font called NAME, the system font is used, as Core 
 (defun font-line-height (font)
   "The distance between baselines: ascent, descent and leading."
   (+ (font-ascent font) (font-descent font) (font-leading font)))
+
+;;; --- fonts from files ---
+
+(defconstant +process-scope+ 1 "kCTFontManagerScopeProcess: for this process, while it runs.")
+(defconstant +already-registered+ 105 "kCTFontManagerErrorAlreadyRegistered.")
+
+(defun load-font-file (path)
+  "Make the fonts in the file at PATH (a .ttf, .otf or .ttc) ones that this process can ask for by
+name, as if they were installed, until it ends; nothing is installed for the person. Returns the
+names of their families, as a font is asked for by. A file loaded already is loaded again without
+complaint. Load a font before the window first asks for it: a window keeps the fonts it was given,
+and one it asked for by a name it did not have then is the system font."
+  (let ((file (probe-file path)))
+    (unless file
+      (error "There is no font file ~a." path))
+    (let* ((cf-path (cf-string (namestring file)))
+           (url (ccall "CFURLCreateWithFileSystemPath" :ulong
+                       (:ulong 0) (:ulong cf-path) (:long 0) (:bool nil))))
+      (cf-release cf-path)
+      (unwind-protect
+           (progn
+             (sb-alien:with-alien ((failure sb-alien:unsigned-long 0))
+               (unless (ccall "CTFontManagerRegisterFontsForURL" :bool
+                              (:ulong url) (:uint +process-scope+)
+                              (:pointer (sb-sys:sap-int (sb-alien:alien-sap
+                                                         (sb-alien:addr failure)))))
+                 (let ((code (if (zerop failure)
+                                 0
+                                 (ccall "CFErrorGetCode" :long (:ulong failure)))))
+                   (unless (zerop failure) (cf-release failure))
+                   (unless (= code +already-registered+)
+                     (error "The fonts in ~a could not be loaded (Core Text's error ~d)."
+                            (namestring file) code)))))
+             (let ((faces (ccall "CTFontManagerCreateFontDescriptorsFromURL" :ulong (:ulong url)))
+                   (families '()))
+               (unless (zerop faces)
+                 (dotimes (i (cf-array-count faces))
+                   (let ((family (ccall "CTFontDescriptorCopyAttribute" :ulong
+                                        (:ulong (cf-array-ref faces i))
+                                        (:ulong (cf-constant "kCTFontFamilyNameAttribute")))))
+                     (unless (zerop family)
+                       (pushnew (lisp-string family) families :test #'string=)
+                       (cf-release family))))
+                 (cf-release faces))
+               (nreverse families)))
+        (cf-release url)))))

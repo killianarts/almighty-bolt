@@ -57,6 +57,12 @@ upright one of the family nearest the weight. A `label` and a `paragraph` also
 take `:size` and `:weight` on their own: `(bolt:label "16:22" :id :candles
 :size 34 :weight :bold)`. A change of font lays the widget out again.
 
+`(bolt:load-font-file path)` makes the fonts in a `.ttf`, `.otf` or `.ttc` file
+ones the app can ask for by name while it runs, as if they were installed
+(nothing is installed for the person), and returns the names of their families.
+Load a font before the window first asks for it: a font asked for by a name the
+system did not have then is the system's, and the window keeps it.
+
 A `label` or `paragraph` given `:selectable t` can be selected with the pointer,
 as a text field can (a drag, a double-click for a word, a triple-click for all
 of a label or a paragraph's line), and copied with Command-C; Command-A selects

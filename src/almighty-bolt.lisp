@@ -117,6 +117,8 @@
                 #:view)
   (:import-from #:almighty-bolt/ui/design-surface
                 #:design-surface)
+  (:import-from #:almighty-bolt/text/font
+                #:load-font-file)
   (:import-from #:almighty-bolt/ui/theme
                 #:theme
                 #:make-theme
@@ -152,7 +154,7 @@
            #:split #:tree #:dock #:show-pane #:place-pane #:pane-group #:app-pane #:inspector-pane
            #:define-view #:view #:define-widget-entry
            #:column #:row #:stack #:padding #:panel #:center #:stage #:scroll #:lazy-list
-           #:typeface #:+font-roles+
+           #:typeface #:+font-roles+ #:load-font-file
            #:theme #:make-theme #:define-theme #:find-theme #:with-theme #:theme-names #:theme-name
            #:theme-setting #:theme-color #:theme-form #:+theme-settings+ #:+theme-seeds+ #:+theme-colors+ #:+theme-sizes+
            #:parse-color #:color-hex #:mix-colors #:contrast-ratio

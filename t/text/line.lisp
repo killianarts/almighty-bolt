@@ -358,3 +358,23 @@
         (assert-false (eq (font :medium 2) (font :medium 0)))
         (assert-equal "HelveticaNeue-Medium" (font:font-face-name (font 500)))
         (assert-eql 2f0 (font:font-tracking (font :medium 2)))))))
+
+(define-test a-font-file-is-loaded-and-its-fonts-asked-for-by-name ()
+  ;; DejaVu Sans Mono's oblique face (free to copy, its licence beside it), which macOS does not
+  ;; have: a family with no upright face.
+  (objc:with-masked-float-traps
+    (let ((file (asdf:system-relative-pathname "almighty-bolt/tests"
+                                               "t/fixtures/fonts/DejaVuSansMono-Oblique.ttf")))
+      (flet ((face () (font:font-face-name (font:make-font "DejaVu Sans Mono" 14))))
+        ;; Unless it was loaded before (the process keeps it), the system has none of that name.
+        (unless (equal "DejaVuSansMono-Oblique" (face))
+          (assert-false (search "DejaVu" (face))))
+        (assert-equal '("DejaVu Sans Mono") (font:load-font-file file))
+        (assert-equal "DejaVuSansMono-Oblique" (face))
+        ;; Loaded again: no complaint. A weight asked of a family with no upright face is the face
+        ;; it has.
+        (assert-equal '("DejaVu Sans Mono") (font:load-font-file file))
+        (assert-equal "DejaVuSansMono-Oblique"
+                      (font:font-face-name (font:make-font "DejaVu Sans Mono" 14 :bold)))
+        ;; A file that is not there says so.
+        (assert-error 'error (font:load-font-file "/no/such/font.ttf"))))))
