@@ -36,14 +36,17 @@
                 #:find-view
                 #:view-file
                 #:views-version
-                #:view-names)
+                #:view-names
+                #:wired-keys
+                #:wiring-problems)
   (:export #:make-designer
            #:designer-parts
            #:sized-stage
            #:open-designer
            #:write-view
            #:read-view
-           #:wiring-text))
+           #:wiring-text
+           #:*heading*))
 
 (in-package #:almighty-bolt-gui-designer)
 
@@ -237,11 +240,24 @@ Returns the width and height as the person left them."
                                 (let ((*read-eval* nil)) (read-from-string text))))))
     (and (realp value) value)))
 
+(defun plain-heading (id title &optional count)
+  "A heading of the designer's own: TITLE, larger."
+  (declare (ignore count))
+  (bolt:label title :id id :size 17))
+
+(defvar *heading* 'plain-heading
+  "What draws a heading of the designer's parts, called with its id, its title and the count of what
+it heads (or NIL); the label it draws has that id, which what it heads is labelled by. A tool that
+shows the parts (the studio) gives one of its own.")
+
+(defun heading (id title &optional count)
+  (funcall *heading* id title count))
+
 (defun palette ()
   "The widgets that can be added. Returns the kind of the one pressed, or NIL."
   (let ((pressed nil))
     (bolt:column (:id :palette :gap 8 :cross-align :stretch)
-      (bolt:label "Add" :id :palette-heading :size 17)
+      (heading :palette-heading "Add" (length (catalogue)))
       (bolt:grid (:id :palette-grid :columns 2 :gap 6)
         ;; Each is pressed to add it, or dragged to where it goes.
         (dolist (entry (catalogue))
@@ -253,7 +269,7 @@ Returns the width and height as the person left them."
       ;; The views defined, each to put inside this one.
       (let ((names (view-names)))
         (when names
-          (bolt:label "Views" :id :views-heading :size 17)
+          (heading :views-heading "Views" (length names))
           (bolt:grid (:id :views-grid :columns 2 :gap 6)
             (dolist (name names)
               (when (bolt:drag-source (:id (id "add-view" (symbol-name name))
@@ -279,7 +295,7 @@ Returns the id of the one chosen there, on the frame it is, or NIL."
                (mapc #'note (node-children node))))
       (note view))
     (bolt:column (:id :outline :gap 8)
-      (bolt:label "Outline" :id :outline-heading :size 17)
+      (heading :outline-heading "Outline" (length (all-ids view)))
       (bolt:scroll (:id :outline-scroll :height 300)
         (multiple-value-bind (key changed)
             (bolt:tree (list view) :id :outline-tree :width 260 :children #'node-children
@@ -362,7 +378,7 @@ widget's id and the option's name, as a cons."
   (let ((edit nil))
   (bolt:padding (:id :selection :all 14)
     (bolt:column (:gap 8 :min-width 300)
-      (bolt:label "Selected" :id :selection-heading :size 17)
+      (heading :selection-heading "Selected")
       (let ((node (and selected (find-by-id view selected))))
         (if (null node)
             (bolt:paragraph "Nothing. Press a widget in the view to select it."
@@ -429,8 +445,11 @@ CANVAS the view drawn, RIGHT the selected widget's options and the wiring, KEYS 
 undoes its own typing first. OPEN-VIEW is not drawn: it is called with the name of a view the image
 has, and the id of a widget in it, to open that view live with the widget selected. ABOUT is not
 drawn: it says what is being designed, as a property list of :name (the view's name), :package
-(its package's, as written), :file (the file it is saved to, or NIL) and :live (the view of the
-image it is, while it is live, or NIL). SAVE is what Save... does, from elsewhere: to the view's own
+(its package's, as written), :file (the file it is saved to, or NIL), :live (the view of the image
+it is, while it is live, or NIL), :ids (its widgets' ids), :undo (how many steps Undo can take
+back), :status (what was last done, as the bar says it), :wires (how many of its widgets the code
+that draws it wires, while it is live) and :problems (what does not fit between the two, as
+sentences). SAVE is what Save... does, from elsewhere: to the view's own
 file, or with the dialog, which TOOLBAR draws. MAKE-DESIGNER puts them in a window; the studio puts
 them in panes."
   (bolt:state-let ((view (form-node +sample+))
@@ -461,7 +480,12 @@ them in panes."
                    ;; window's: the view is laid out at it whatever the canvas's pane is.
                    (stage-w 480)
                    (stage-h 360)
-                   (stage-drafts (make-hash-table)))
+                   (stage-drafts (make-hash-table))
+                   ;; What does not fit between the live view and its wiring, and the view and the
+                   ;; views' version it was asked for (asking may collect the garbage, so it is
+                   ;; asked again only when a view changes).
+                   (problems '())
+                   (problems-asked nil))
     (labels ((make-live ()
                "Make the view, as it is now, the live view in the image, and say what of the code
 that wires it no longer fits."
@@ -667,7 +691,7 @@ selected if given."
               (multiple-value-setq (new now edit) (selection view selected drafts))
               (bolt:padding (:id :wiring-pane :all 14)
                 (bolt:column (:gap 8)
-                  (bolt:label "Wiring" :id :wiring-heading :size 17)
+                  (heading :wiring-heading "Wiring")
                   (bolt:paragraph "The start of the code that draws this view, to copy."
                                   :id :wiring-note :color :dim-text)
                   (bolt:text-area (wiring-text name view) :id :wiring :width 300 :rows 8
@@ -685,7 +709,16 @@ selected if given."
           (open-view symbol widget))
         ;; What is being designed, and Save, for a tool beside it (the studio's title bar).
         (lambda ()
-          (list :name name :package package :file file :live live))
+          (let ((asked (cons live (views-version))))
+            (unless (equal asked problems-asked)
+              (setf problems-asked asked
+                    problems (and live (wiring-problems live)))))
+          (list :name name :package package :file file :live live
+                :ids (all-ids view) :undo (length undo) :status status
+                :wires (if live
+                           (count-if (lambda (id) (wired-keys live id)) (all-ids view))
+                           0)
+                :problems problems))
         (lambda ()
           (save))))))
 

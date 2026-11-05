@@ -8,6 +8,7 @@
   :depends-on ("almighty-bolt" "almighty-bolt/emacs" "almighty-bolt-gui-designer"
                "almighty-bolt-theme-designer")
   :components ((:file "theme")
+               (:file "chrome")
                (:file "title-bar")
                (:file "studio"))
   :in-order-to ((test-op (test-op "almighty-bolt-studio/tests"))))

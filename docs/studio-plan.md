@@ -93,7 +93,10 @@ user of.
 8. **The rail, the section headers, the status bar and the bottom panel:** a
    label, its kana and a count over a rule; what was last done, the wires, the
    problems and the undo; tabs for the REPL, the problems, the events and the
-   agent.
+   agent. (Done: the rail, the designer's sections with the studio's headers,
+   the bottom panel as a dock of its own in every mode, and the status bar; the
+   problems are the live view's wiring problems, and the events and the agent
+   say they are not built.)
 9. **A REPL pane** that evaluates in the app's package, with its history and
    what it printed.
 

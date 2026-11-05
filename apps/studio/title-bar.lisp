@@ -3,6 +3,10 @@
   (:local-nicknames (#:bolt #:almighty-bolt))
   (:import-from #:almighty-bolt-studio/theme
                 #:tool-color)
+  (:import-from #:almighty-bolt-studio/chrome
+                #:caps
+                #:words
+                #:+small+)
   (:export #:title-bar
            #:+modes+
            #:breadcrumb))
@@ -17,9 +21,6 @@
 (defparameter +modes+
   '((:design "Design") (:wire "Wire") (:debug "Debug") (:theme "Theme") (:agent "Agent"))
   "The studio's modes, in the order of their tabs, each with its tab's words.")
-
-(defparameter +separator+ "■"
-  "What goes between the parts of the breadcrumb and of what is said about the image.")
 
 (defun short-package (name)
   "The last part of the package's NAME, after its last slash: a package named after its file
@@ -37,24 +38,6 @@ says. A view not saved has no file."
                              (subseq app-name 0 (or (position #\: app-name) (length app-name)))
                              (getf about :package)))
           (if file (file-namestring file) "not saved"))))
-
-(defun caps (text)
-  (string-upcase text))
-
-(defparameter +small+ '(:label :size 10)
-  "The title bar's words: the theme's label font, at the prototype's small size.")
-
-(defun words (id parts &key (color :dim-text) tooltip)
-  "PARTS, a list of strings, in a row with the separator between them; the second in the text's
-colour, the rest in COLOR. TOOLTIP is said by the last."
-  (bolt:row (:id id :gap 8 :cross-align :center)
-    (loop :for (part . more) :on parts
-          :for i :from 0
-          :do (unless (zerop i)
-                (bolt:label +separator+ :id (list :separator i) :font +small+ :color :dim-text))
-              (bolt:label (caps part) :id (list :part i) :font +small+
-                                      :color (if (= i 1) :text color)
-                                      :tooltip (and (null more) tooltip)))))
 
 (defun title-bar (mode about app-name runnable)
   "Draw the title bar in MODE (one of +MODES+), for what ABOUT (the GUI designer's) says is being

@@ -14,6 +14,7 @@ are not listed.
 
 ### Added
 
+- The studio's rail, section headers, bottom panel (REPL, problems, events, agent) and status bar ([0.3](docs/releases/dev.md#the-studios-rail-sections-bottom-panel-and-status-bar)).
 - The studio's title bar: its modes, each a dock of its own, kept; where the person is; the image; Save from any mode, and Run Window ([0.3](docs/releases/dev.md#the-studios-title-bar-and-modes)).
 - `appearance`: whether the window is dark or light, for an app that has a theme of each ([0.3](docs/releases/dev.md#the-studios-own-theme)).
 - The font families `"System"` and `"System Mono"`: the Mac's San Francisco and its monospaced design, at any weight ([0.3](docs/releases/dev.md#the-studios-own-theme)).

@@ -455,9 +455,10 @@ inside every clip it is in."
                (core:context-width
                 (almighty-bolt/ui/app-pane::app-pane-state-context
                  (gethash studio:*running* almighty-bolt/ui/app-pane::*pane-states*)))))
-      ;; The view at the canvas's 480, however wide the window is: its field does not change.
+      ;; The view at the canvas's 480, however wide the window is: its field does not change. (At
+      ;; 940, the canvas's pane is narrower than the stage, and the field still shows whole.)
       (let ((wide (field-width)))
-        (resize screen 900)
+        (resize screen 940)
         (assert-eql wide (field-width))
         (resize screen 1240)
         (assert-equal "480" (size-set :canvas-stage))
@@ -676,3 +677,65 @@ window): its app, after a few frames."
               (declare (ignore y))
               (assert-true (<= right x) id right x)
               (setf right (+ x w)))))))))
+
+;;; --- the rail, the sections, the bottom panel and the status bar ---
+
+(defun name-of (session id &optional within)
+  (s:node-name (if within
+                   (m:find-node session :id id :within within)
+                   (m:find-node session :id id))))
+
+(define-test the-rail-says-the-mode-the-view-and-how-many-widgets-it-has ()
+  (multiple-value-bind (screen session) (open-studio)
+    (declare (ignore screen))
+    (assert-equal "DESIGN ■ VIEW SIGN-IN ■ 9 WIDGETS" (name-of session :rail-words))
+    (m:click session :id :add-button :within :left)
+    (to-mode session "THEME")
+    (assert-equal "THEME ■ VIEW SIGN-IN ■ 10 WIDGETS" (name-of session :rail-words))))
+
+(define-test the-designers-sections-have-the-studios-headers ()
+  (multiple-value-bind (screen session) (open-studio)
+    (declare (ignore screen))
+    ;; Title, kana and count; the heading keeps its id, which the outline is labelled by.
+    (assert-equal "CATALOGUE" (name-of session :palette-heading))
+    (assert-equal "カタログ" (name-of session :kana (list :palette-heading :header)))
+    (assert-equal (princ-to-string (length (almighty-bolt/ui/catalogue:catalogue)))
+                  (name-of session :count (list :palette-heading :header)))
+    (assert-equal "9" (name-of session :count (list :outline-heading :header)))
+    (assert-equal "OUTLINE" (name-of session :outline-tree))
+    (assert-equal "配線" (name-of session :kana (list :wiring-heading :header)))))
+
+(defun status-of (session)
+  (words-of session :status-words))
+
+(define-test the-status-bar-says-what-was-done-and-the-bottom-panel-the-problems ()
+  (multiple-value-bind (screen session) (open-studio)
+    (assert-equal "READY ■ NOT SAVED ■ 0 WIRES ■ 0 PROBLEMS ■ UNDO 0" (status-of session))
+    (assert-equal "オールマイティーになれ" (name-of session :motto))
+    (m:click session :id :add-button :within :left)
+    (assert-true (search "■ UNDO 1" (status-of session)))
+    (unwind-protect
+         (progn
+           ;; The view live; the code that draws it (MAKE-VIEWED, compiled) wires two of its
+           ;; widgets.
+           (emacs:point-in-view "tiny-view" "almighty-bolt-studio/t/studio" "plus")
+           (dotimes (i 3) (draw screen))
+           (let ((status (status-of session)))
+             ;; What was last done, first: the view opened live.
+             (assert-eql 0 (search "LIVE: TINY-VIEW CHANGES IN THE RUNNING APP" status) status)
+             (assert-true (search "SAVED STUDIO.LISP ■ 2 WIRES ■ 0 PROBLEMS" status) status))
+           (m:click session :id :problems-pane)
+           (assert-true (shown-p session :no-problems))
+           ;; The count's label taken out of the view: its wiring no longer fits.
+           (m:click session :id :count :within :canvas)
+           (m:click session :id :remove :within :toolbar)
+           (dotimes (i 3) (draw screen))
+           (let ((status (status-of session)))
+             (assert-true (search "1 WIRE ■ 1 PROBLEM ■" status) status))
+           (assert-true (search ":count" (name-of session (list :problem 0)) :test #'char-equal))
+           (assert-equal "Problems · 1" (name-of session :problems-pane))
+           ;; The bottom panel in every mode.
+           (to-mode session "DEBUG")
+           (assert-true (shown-p session (list :problem 0))))
+      (emacs-gone)
+      (views:set-view 'tiny-view *tiny-view*))))

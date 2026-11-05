@@ -5,9 +5,14 @@
                     (#:theme-designer #:almighty-bolt-theme-designer)
                     (#:emacs #:almighty-bolt/emacs))
   (:import-from #:almighty-bolt-studio/theme
-                #:studio-theme)
+                #:studio-theme
+                #:tool-color)
   (:import-from #:almighty-bolt-studio/title-bar
                 #:title-bar)
+  (:import-from #:almighty-bolt-studio/chrome
+                #:section-header
+                #:rail
+                #:status-bar)
   (:export #:make-studio
            #:open-studio
            #:*running*
@@ -85,16 +90,24 @@ inspector, and Theme the theme's preview and settings and the app.")
                        (app-drafts (make-hash-table))
                        ;; True for the frame after Edit in the View: the canvas and the options
                        ;; are brought to the front.
-                       (to-canvas nil))
+                       (to-canvas nil)
+                       ;; The bottom panel: how tall it is, and how its panes are arranged.
+                       (bottom-size 200)
+                       (bottom-layout nil))
         (lambda ()
           ;; Point in Emacs on a view's widget: that view, live, with it selected.
           (multiple-value-bind (name id) (emacs:take-selection)
             (when name
               (funcall open-view name id)
               (setf to-canvas t)))
-          (let ((constructor (named-constructor app-name)))
+          (let ((constructor (named-constructor app-name))
+                (facts (funcall about))
+                ;; The designer's headings as the studio's sections.
+                (gui-designer:*heading* 'section-header))
             (labels ((widgets-pane ()
-                       (bolt:stack (:id :widgets-part :flex 1) (funcall widgets))
+                       ;; The catalogue and the outline, which scroll when the pane is short.
+                       (bolt:scroll (:id :widgets-scroll :flex 1)
+                         (bolt:stack (:id :widgets-part) (funcall widgets)))
                        (funcall view-keys))
                      ;; The view as the app would draw it: in the window's theme, not the studio's.
                      (canvas-pane ()
@@ -164,13 +177,91 @@ inspector, and Theme the theme's preview and settings and the app.")
                      (agent-pane ()
                        (bolt:padding (:id :agent-part :all 24)
                          (bolt:paragraph "The agent mode is not built yet: a change asked for in words, made through the machine interface, and proposed as a change to the view and the code."
-                                         :id :agent-note :color :dim-text))))
+                                         :id :agent-note :color :dim-text)))
+                     ;; The mode's panes, in its own dock, whose arrangement is kept.
+                     (mode-panes ()
+                       (setf (getf layouts mode)
+                             (ecase mode
+                               (:design
+                                (bolt:dock (:id :panes :layout (getf layouts :design) :flex 1 :min 220)
+                                  (:widgets-pane "Widgets" (widgets-pane))
+                                  (:canvas-pane "Canvas" (canvas-pane))
+                                  (:options-pane "Options" (options-pane))
+                                  (:theme-pane "Theme" (theme-pane))
+                                  (:preview-pane "Preview" (preview-pane))
+                                  (:run-pane "App" (run-pane))
+                                  (:inspect-pane "Inspector" (inspect-pane))))
+                               (:wire
+                                (bolt:dock (:id :wire-panes :layout (getf layouts :wire) :flex 1
+                                            :min 220)
+                                  (:canvas-pane "Canvas" (canvas-pane))
+                                  (:options-pane "Options" (options-pane))
+                                  (:run-pane "App" (run-pane))))
+                               (:debug
+                                (bolt:dock (:id :debug-panes :layout (getf layouts :debug) :flex 1
+                                            :min 220)
+                                  (:run-pane "App" (run-pane))
+                                  (:inspect-pane "Inspector" (inspect-pane))))
+                               (:theme
+                                (bolt:dock (:id :theme-panes :layout (getf layouts :theme) :flex 1
+                                            :min 220)
+                                  (:preview-pane "Preview" (preview-pane))
+                                  (:theme-pane "Theme" (theme-pane))
+                                  (:run-pane "App" (run-pane))))
+                               (:agent
+                                (bolt:dock (:id :agent-panes :layout (getf layouts :agent) :flex 1)
+                                  (:agent-pane "Agent" (agent-pane)))))))
+                     ;; Under the panes: the REPL, the problems, the events and the agent, in a dock
+                     ;; of their own, in every mode.
+                     (bottom-panel (facts)
+                       (let ((problems (getf facts :problems)))
+                         (setf bottom-layout
+                               (bolt:dock (:id :bottom-panes :layout bottom-layout :flex 1)
+                                 (:repl-pane "REPL" (repl-pane))
+                                 (:problems-pane (format nil "Problems · ~d" (length problems))
+                                  (bolt:padding (:id :problems-part :all 12)
+                                    (bolt:column (:gap 8 :fill t :cross-align :stretch)
+                                      (section-header :problems-heading "Problems"
+                                                      (length problems))
+                                      (if problems
+                                          (loop :for problem :in problems
+                                                :for i :from 0
+                                                :do (bolt:paragraph problem :id (list :problem i)
+                                                                            :color :field-invalid))
+                                          (bolt:paragraph "None: the view and the code that wires it fit, as far as the code loaded says."
+                                                          :id :no-problems :color :dim-text)))))
+                                 (:events-pane "Events"
+                                  (bolt:padding (:id :events-part :all 12)
+                                    (bolt:column (:gap 8 :fill t :cross-align :stretch)
+                                      (section-header :events-heading "Events")
+                                      (bolt:paragraph "The events are not recorded here yet: they come with the timeline, in Debug."
+                                                      :id :events-note :color :dim-text))))
+                                 (:agent-log-pane "Agent"
+                                  (bolt:padding (:id :agent-log-part :all 12)
+                                    (bolt:column (:gap 8 :fill t :cross-align :stretch)
+                                      (section-header :agent-heading "Agent")
+                                      (bolt:paragraph "The agent is not built yet."
+                                                      :id :agent-log-note :color :dim-text))))))))
+                     (repl-pane ()
+                       (bolt:padding (:id :repl-part :all 12)
+                         (section-header :repl-heading "REPL")))
+                     ;; What the status bar says: what was last done, where the view is saved, how
+                     ;; many of its widgets are wired, the problems, and the steps Undo can take.
+                     (status-parts (facts)
+                       (let ((status (getf facts :status))
+                             (file (getf facts :file)))
+                         (list (if (plusp (length status)) status "Ready")
+                               (if file (format nil "Saved ~a" (file-namestring file)) "Not saved")
+                               (format nil "~d wire~:p" (getf facts :wires))
+                               (format nil "~d problem~:p" (length (getf facts :problems)))
+                               (format nil "Undo ~d" (getf facts :undo))))))
+
               ;; The studio in its own theme, light or dark as the system is; what it designs, in
               ;; the window's own (see the canvas).
               (bolt:with-theme ((studio-theme))
                 (bolt:column (:id :studio :fill t :cross-align :stretch)
                   (multiple-value-bind (now save-pressed run-pressed)
-                      (title-bar mode (funcall about) app-name (and constructor t))
+                      (title-bar mode facts app-name (and constructor t))
                     (setf mode now)
                     (when save-pressed
                       (funcall save))
@@ -186,37 +277,17 @@ inspector, and Theme the theme's preview and settings and the app.")
                   ;; a child with no flex as much height as it likes, and a part's own flex would
                   ;; then have nothing to share). A designer's keys come after its part, so that a
                   ;; text field with the keyboard undoes its own typing first.
-                  (setf (getf layouts mode)
-                        (ecase mode
-                          (:design
-                           (bolt:dock (:id :panes :layout (getf layouts :design) :flex 1 :min 220)
-                             (:widgets-pane "Widgets" (widgets-pane))
-                             (:canvas-pane "Canvas" (canvas-pane))
-                             (:options-pane "Options" (options-pane))
-                             (:theme-pane "Theme" (theme-pane))
-                             (:preview-pane "Preview" (preview-pane))
-                             (:run-pane "App" (run-pane))
-                             (:inspect-pane "Inspector" (inspect-pane))))
-                          (:wire
-                           (bolt:dock (:id :wire-panes :layout (getf layouts :wire) :flex 1
-                                       :min 220)
-                             (:canvas-pane "Canvas" (canvas-pane))
-                             (:options-pane "Options" (options-pane))
-                             (:run-pane "App" (run-pane))))
-                          (:debug
-                           (bolt:dock (:id :debug-panes :layout (getf layouts :debug) :flex 1
-                                       :min 220)
-                             (:run-pane "App" (run-pane))
-                             (:inspect-pane "Inspector" (inspect-pane))))
-                          (:theme
-                           (bolt:dock (:id :theme-panes :layout (getf layouts :theme) :flex 1
-                                       :min 220)
-                             (:preview-pane "Preview" (preview-pane))
-                             (:theme-pane "Theme" (theme-pane))
-                             (:run-pane "App" (run-pane))))
-                          (:agent
-                           (bolt:dock (:id :agent-panes :layout (getf layouts :agent) :flex 1)
-                             (:agent-pane "Agent" (agent-pane))))))
+                  ;; The rail, the mode's panes over the bottom panel, and the status bar.
+                  (bolt:row (:id :studio-body :flex 1 :fill t :cross-align :stretch)
+                    (rail mode facts)
+                    (bolt:panel (:id :rail-line :color (tool-color :line) :radius 0 :width 1))
+                    (setf bottom-size
+                          (bolt:split (:id :bottom-split :direction :vertical :size bottom-size
+                                       :keep :second :min 120 :flex 1)
+                            (mode-panes)
+                            (bottom-panel facts))))
+                  (bolt:panel (:id :status-line :color (tool-color :line) :radius 0 :height 1))
+                  (status-bar (status-parts facts))
                   ;; The view to edit in front, in Design, and the app it is in beside it, where
                   ;; its changes show: behind the canvas's tab, it would not be drawn.
                   (when to-canvas
