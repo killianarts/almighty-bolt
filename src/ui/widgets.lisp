@@ -263,6 +263,7 @@
            #:*foreground*
            #:+tooltip-delay-ns+
            #:text-area
+           #:code-view
            #:area-state
            #:area-state-state
            #:area-state-offset
@@ -272,6 +273,11 @@
            #:area-state-generation
            #:area-state-inner-width
            #:area-state-inner-height
+           #:area-state-numbered
+           #:area-state-gutter
+           #:area-state-marks
+           #:area-left
+           #:area-gutter
            #:field-state
            #:field-state-state
            #:field-state-view-start
@@ -1473,7 +1479,14 @@ application passes something else, that is what is shown."
   (inner-width 0f0 :type single-float)
   (inner-height 0f0 :type single-float)
   ;; The x that Up and Down keep to, from the first of them in a row.
-  (goal-x nil))
+  (goal-x nil)
+  ;; A code view's: whether its lines are numbered, how wide the column of numbers is with the
+  ;; gap after it (from the last layout; 0 if they are not numbered), and the lines marked, each
+  ;; (LINE COLOUR BAND NOTE) with LINE from 1, the mark's colour, the colour of the band behind
+  ;; the line, and what the mark says or NIL.
+  (numbered nil)
+  (gutter 0f0 :type single-float)
+  (marks '() :type list))
 
 (defun area-line-height (context &optional (face (ui-face)))
   "How far apart the lines of a text area in FACE are (see TEXT-METRICS)."
@@ -1520,7 +1533,31 @@ that a caret where a long line goes on is at the start of the next)."
 (defun area-inner-width (state width)
   (if (plusp (area-state-inner-width state))
       (area-state-inner-width state)
-      (- width (* 2 (theme-field-padding-x *theme*)))))
+      (- width (* 2 (theme-field-padding-x *theme*)) (area-state-gutter state))))
+
+(defun area-left (state)
+  "How far from the left of a text area its lines start: past its padding and, in a code view,
+the numbers of its lines."
+  (+ (theme-field-padding-x *theme*) (area-state-gutter state)))
+
+(defun line-count (string)
+  "How many lines STRING has: one more than its line feeds."
+  (1+ (count #\Linefeed string)))
+
+(defun area-gutter (context state string face)
+  "How wide the numbers of the lines of STRING are in FACE, with the gap after them, if STATE's
+lines are numbered (as wide as the widest number, and as two digits at the least); 0 if not."
+  (if (not (area-state-numbered state))
+      0f0
+      (let ((digits (max 2 (length (princ-to-string (line-count string))))))
+        (float (+ (context-caret-x context (face-font context face)
+                                   (make-string digits :initial-element #\0) digits)
+                  (theme-field-padding-x *theme*))
+               1f0))))
+
+(defun line-of (string index)
+  "The number of the line, from 1, that INDEX in STRING is on."
+  (1+ (count #\Linefeed string :end index)))
 
 (defun area-index-at (ui key area x y)
   "Two values: the index in the text of the area KEY that the pointer at X, Y is nearest, and the
@@ -1539,7 +1576,7 @@ index of the character it is over."
                (line (svref lines row)))
           (multiple-value-bind (index character)
               (index-at context (ui-font context) (subseq string (car line) (cdr line))
-                        (- x (rect-x rect) (theme-field-padding-x *theme*)))
+                        (- x (rect-x rect) (area-left area)))
             (values (+ (car line) index) (+ (car line) character)))))))
 
 (defun area-move-vertically (context area lines down extend)
@@ -1645,7 +1682,7 @@ window, from where the area was laid out last."
                (line (svref lines row))
                (x (context-caret-x context (ui-font context) (subseq string (car line) (cdr line))
                                    (- (text-state-caret shown) (car line)))))
-          (say-text-input-caret ui (+ (rect-x rect) (theme-field-padding-x *theme*) x)
+          (say-text-input-caret ui (+ (rect-x rect) (area-left area) x)
                                 (+ (rect-y rect) (theme-field-padding-y *theme*)
                                    (* row height) (- (area-state-offset area)) 1)
                                 (- height 2))))))
@@ -1661,10 +1698,42 @@ puts in a line feed; Up and Down move a line (Command with them, to the start an
 with Left and Right to the start and the end of the line; the other keys, and copy, cut and paste,
 are a text field's. Pass what it returned back in the next frame; if the application passes something
 else, that is what is shown."
+  (multiple-value-bind (text changed)
+      (lines-of-text string id tooltip labelled-by width rows enabled flex (widget-face font :body)
+                     nil '())
+    (values text changed)))
+
+(defun code-view (string
+                  &key (id (required-id 'code-view)) tooltip labelled-by
+                    (width 480) (rows 12) (enabled t) (flex 0) font marks)
+  "Code to read and edit: a text area (see TEXT-AREA) in FONT, the theme's code font if not given
+(Menlo in the themes the library has), with the number of each line beside it. MARKS marks lines,
+each (LINE COLOUR) or (LINE COLOUR NOTE): LINE is its number, from 1; COLOUR a colour or a colour of
+the theme (as THEME-COLOR takes it, :field-invalid for an error, :accent for the line a press
+called), which the line's number is drawn on and the line's band is a quarter of; NOTE what the mark
+says, which a screen reader reads with the area. A long line goes on in the next, under no number.
+Returns the text now, whether the person changed it this frame, and the number of the line the caret
+is on."
+  (lines-of-text string id tooltip labelled-by width rows enabled flex (widget-face font :code)
+                 t (mapcar #'resolve-mark marks)))
+
+(defun resolve-mark (mark)
+  "A mark of a code view, (LINE COLOUR [NOTE]), as the area keeps it: (LINE COLOUR BAND NOTE)."
+  (destructuring-bind (line color &optional note)
+      (if (and (consp mark) (typep (first mark) '(integer 1)) (consp (rest mark))
+               (or (null (cddr mark)) (and (consp (cddr mark)) (null (cdddr mark))
+                                           (or (null (third mark)) (stringp (third mark))))))
+          mark
+          (error "A mark of a code view is (LINE COLOUR) or (LINE COLOUR NOTE), with LINE a line's ~
+                  number from 1 and NOTE a string, not ~s." mark))
+    (list line (theme-color color) (theme-color (list color :alpha 0.25)) note)))
+
+(defun lines-of-text (string id tooltip labelled-by width rows enabled flex face numbered marks)
+  "A text area or a code view (NUMBERED, with MARKS): see TEXT-AREA and CODE-VIEW."
   (let* ((ui *ui*)
          (box (open-box ui :text-area :id id :tooltip tooltip :labelled-by labelled-by))
          (key (box-key box))
-         (*face* (setf (box-font box) (widget-face font :body)))
+         (*face* (setf (box-font box) face))
          (area (state-of ui key #'make-area-state))
          (width (float width 1f0))
          (changed nil)
@@ -1680,7 +1749,13 @@ else, that is what is shown."
           (box-pref-w box) width
           (box-n3 box) rows
           (box-data box) area
-          (box-flex box) (float flex 1f0))
+          (box-flex box) (float flex 1f0)
+          ;; Numbered or not, which the layout hash takes.
+          (box-n2 box) (if numbered 1f0 0f0)
+          (area-state-numbered area) numbered
+          (area-state-marks area) marks)
+    (unless numbered
+      (setf (area-state-gutter area) 0f0))
     (when enabled
       (want-cursor ui key :text)
       (let ((x (ui-pointer-x ui))
@@ -1756,7 +1831,9 @@ else, that is what is shown."
           (box-text box) (text-state-string (shown-text-state area (area-state-state area)))
           (box-n1 box) (area-state-offset area))
     (close-box ui)
-    (values (text-state-string (area-state-state area)) changed)))
+    (let ((state (area-state-state area)))
+      (values (text-state-string state) changed
+              (line-of (text-state-string state) (text-state-caret state))))))
 
 ;;; --- a slider ---
 
@@ -2861,7 +2938,9 @@ counting its children."
                                  (if (face-p font) (face-id font) (hash-of font)))))
          (layout (case (box-kind box)
                    (:choice (mix layout (hash-options (car (box-data box)))))
-                   ((:list-box :text-area) (mix layout (box-n3 box)))
+                   (:list-box (mix layout (box-n3 box)))
+                   ;; Its rows, and whether its lines are numbered (which takes room from them).
+                   (:text-area (mix (mix layout (box-n3 box)) (hash-of (box-n2 box))))
                    ;; Turned, or not.
                    (:label (mix layout (hash-of (box-n1 box))))
                    ;; Which image it is.
@@ -2908,7 +2987,8 @@ counting its children."
                                          (editable-marked-selection-length state))))
             (:text-area (let* ((area (box-data box))
                                (state (area-state-state area)))
-                          (hash-numbers paint (text-state-caret state) (text-state-anchor state)
+                          (hash-numbers (marks-hash paint (area-state-marks area))
+                                        (text-state-caret state) (text-state-anchor state)
                                         (editable-marked-selection area)
                                         (editable-marked-selection-length area))))
             ((:label :paragraph)
@@ -2923,6 +3003,11 @@ counting its children."
                                                            (box-n3 box)))))
             (t paint)))
     (values layout paint)))
+
+(defun marks-hash (hash marks)
+  "HASH with the marks of a code view folded in: the lines and their colours."
+  (dolist (mark marks hash)
+    (setf hash (hash-numbers hash (first mark) (second mark) (third mark)))))
 
 (defun hash-options (options)
   (let ((hash +seed+))

@@ -39,23 +39,24 @@ Committed text is undone as one edit. A replay script records them as its
 `:text` and `:composition` events.
 
 Every widget that draws text takes `:font`: `label`, `paragraph`, `button`,
-`text-field`, `text-area`, `combo-box`, `checkbox`, `switch`, `choice`, `tabs`,
-`dropdown`, `menu-button`, `list-box`, `tree` (its rows) and `dialog` (its
-title). A font is data: a family's name (`"Menlo"`), a role of the theme
-(`:body`, `:label`, `:heading`, `:code` or `:button`), or a list of one of those
-and what differs from it, `("Mohave" :weight 500 :size 16)` or `(:heading :size
-30)`, which `(bolt:typeface "Mohave" :weight 500 :size 16)` writes for you. What
-it says is `:weight` (1 to 1000 as CSS has it, 400 regular and 700 bold, or a
-name: `:thin`, `:extra-light`, `:light`, `:regular`, `:medium`, `:semibold`,
-`:bold`, `:extra-bold`, `:black`), `:size` in points, `:tracking` (points of
-space after each character) and `:line-height` (points from one line to the
-next, the text in the middle of each; a label is that tall, a paragraph's and a
-text area's lines that far apart). What it does not say is its role's: a widget
-with no `:font` is in its role's font, the body's for most and the button's for
-`button`, `menu-button`, `tabs` and a segmented `choice`. The face is the
-upright one of the family nearest the weight. A `label` and a `paragraph` also
-take `:size` and `:weight` on their own: `(bolt:label "16:22" :id :candles
-:size 34 :weight :bold)`. A change of font lays the widget out again.
+`text-field`, `text-area`, `code-view`, `combo-box`, `checkbox`, `switch`,
+`choice`, `tabs`, `dropdown`, `menu-button`, `list-box`, `tree` (its rows) and
+`dialog` (its title). A font is data: a family's name (`"Menlo"`), a role of the
+theme (`:body`, `:label`, `:heading`, `:code` or `:button`), or a list of one of
+those and what differs from it, `("Mohave" :weight 500 :size 16)` or `(:heading
+:size 30)`, which `(bolt:typeface "Mohave" :weight 500 :size 16)` writes for
+you. What it says is `:weight` (1 to 1000 as CSS has it, 400 regular and 700
+bold, or a name: `:thin`, `:extra-light`, `:light`, `:regular`, `:medium`,
+`:semibold`, `:bold`, `:extra-bold`, `:black`), `:size` in points, `:tracking`
+(points of space after each character) and `:line-height` (points from one line
+to the next, the text in the middle of each; a label is that tall, a paragraph's
+and a text area's lines that far apart). What it does not say is its role's: a
+widget with no `:font` is in its role's font, the body's for most, the code's
+for `code-view`, and the button's for `button`, `menu-button`, `tabs` and a
+segmented `choice`. The face is the upright one of the family nearest the
+weight. A `label` and a `paragraph` also take `:size` and `:weight` on their
+own: `(bolt:label "16:22" :id :candles :size 34 :weight :bold)`. A change of
+font lays the widget out again.
 
 `(bolt:load-font-file path)` makes the fonts in a `.ttf`, `.otf` or `.ttc` file
 ones the app can ask for by name while it runs, as if they were installed
@@ -259,6 +260,21 @@ scrolls itself to keep the caret in sight, and the wheel scrolls it. In the
 semantic tree it is a `:text-area` with the text as its value and `:caret`,
 `:selection` and `:offset` in its state; the machine interface's `type-text` and
 `set-value` type a line feed as Return.
+
+A `code-view` is a text area for code: `(bolt:code-view source :id :source
+:marks '((3 :field-invalid "NAME is not bound")))`. It is drawn in the theme's
+`:code` font (Menlo in the library's themes) unless given `:font`, `:width` wide
+(480) and `:rows` lines tall (12), with the number of each line in a column at
+its left, as wide as the widest number needs. A long line goes on in the next
+row, which has no number of its own. `:marks` marks lines, each `(line colour)`
+or `(line colour note)`: the line's number from 1; a colour, or a theme's name
+for one (`:field-invalid` for an error, `:accent` for the line a press called);
+and the words of the mark. A marked line has a band across the area a quarter of
+the colour, with a bar of it at the left. It is edited as a text area is, and
+returns the text, whether it changed, and the number of the line the caret is
+on. In the semantic tree it is a `:text-area` with `:line-numbers t` and its
+`:marks`, each `(line note)`, in its state; VoiceOver reads it as a text area
+whose help says each mark, "Line 3: NAME is not bound."
 
 Every widget also takes `:tooltip`, words that float under it when the pointer
 has rested on it for half a second, until the pointer leaves or something is
@@ -680,6 +696,7 @@ are:
 | `grid`               | `AXGroup`             | its cells, each with its `:row` and `:column` in the semantic tree                                                                          |
 | `text-field`         | `AXTextField`         |                                                                                                                                             |
 | `text-area`          | `AXTextArea`          |                                                                                                                                             |
+| `code-view`          | `AXTextArea`          | its help says what each of its marks says, with the line                                                                                    |
 | `combo-box`          | `AXComboBox`          | while its suggestions show, an `AXMenuItem` for each                                                                                        |
 | `checkbox`, `switch` | `AXCheckBox`          |                                                                                                                                             |
 | `spinner`            | `AXBusyIndicator`     |                                                                                                                                             |

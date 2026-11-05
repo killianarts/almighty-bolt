@@ -14,6 +14,7 @@ are not listed.
 
 ### Added
 
+- `code-view`: code in the theme's code font, its lines numbered, some marked with a colour and a note that VoiceOver reads ([0.3](docs/releases/dev.md#a-code-view)).
 - `image`, `load-image` and `make-image`: an image from a file or from bytes, at its own size or another, or tinted as an icon; `context-push-image` in a canvas ([0.3](docs/releases/dev.md#images-and-icons)).
 - `:border-dash` on `panel` and `pressable`, and a dash and a gap on `push-rounded-stroke`: a dashed edge ([0.3](docs/releases/dev.md#shadows-and-dashed-edges)).
 - `:shadow` on `panel` and `pressable`, one soft shadow or several, with a design tool's offset, blur, spread and colour; `push-shadow` in a canvas, and `push-rounded-stroke` exported ([0.3](docs/releases/dev.md#shadows-and-dashed-edges)).

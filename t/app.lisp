@@ -813,7 +813,7 @@ at the start, and a button under where the popovers' catchers are that counts it
     (switch . :switch) (spinner . :busy-indicator) (dropdown . :pop-up-button)
     (menu-button . :menu-button) (popover . :popover) (dialog . :dialog) (toast . :toast)
     (combo-box . :combo-box) (grid . :grid) (pressable . :toggle-button)
-    (scroll . :scroll-area) (lazy-list . :scroll-area) (image . :image)))
+    (scroll . :scroll-area) (lazy-list . :scroll-area) (image . :image) (code-view . :text-area)))
 
 (defun roles-in (screen)
   (let ((roles '()))
@@ -859,7 +859,7 @@ at the start, and a button under where the popovers' catchers are that counts it
   '(label paragraph button menu-button text-field combo-box text-area slider choice dropdown checkbox
     switch spinner list-box progress canvas scrim spacer row column stack padding panel center grid
     pressable scroll lazy-list context-menu popover dialog toast open-file-dialog save-file-dialog
-    image))
+    image code-view))
 
 (defun call-of (operator)
   "How OPERATOR is called, as the gallery writes it: its lambda list, without the defaults that only
@@ -1404,6 +1404,163 @@ and three lines of 14 tall, and a count of its lines."
     (assert-equal (format nil "a~%b~%c") (clipboard screen))
     (assert-equal "" (s:node-value (notes screen)))))
 
+;;; --- code ---
+
+(defun make-code (&optional (text "") (marks '()))
+  "A code view 200 points wide and five lines tall, whose numbers (two digits of the test context's
+8 points, and a gap of 8) take 24 points of the 184 inside its padding: 20 characters to a line. It
+says the line its caret is on, and Mark marks its third line as an error, which Unmark undoes."
+  (state-let ((code text) (marked marks) (line 0))
+    (lambda ()
+      (column (:gap 4)
+        (multiple-value-bind (new changed at)
+            (code-view code :id :code :width 200 :rows 5 :marks marked)
+          (when changed (setf code new))
+          (unless (eql at line) (setf line at)))
+        (label (format nil "Line ~d" line) :id :line)
+        (when (button "Mark" :id :mark)
+          (setf marked (list (list 3 "#ff0000" "Unbound variable X"))))
+        (when (button "Unmark" :id :unmark)
+          (setf marked '()))))))
+
+(defun place-of-character (screen id character)
+  "Where the first CHARACTER drawn inside the control ID is, as its x and y."
+  (multiple-value-bind (left top width height) (core:lookup-target (screen-app screen) id)
+    (let ((list (screen-list screen)))
+      (loop :for index :below (core:display-list-count list)
+            :when (and (= (core:display-list-kind list index) core:+command-glyph+)
+                       (<= left (core:display-list-x list index) (+ left width -1))
+                       (<= top (core:display-list-y list index) (+ top height -1))
+                       (= (round (core:display-list-parameter list index)) (char-code character)))
+              :do (return (values (core:display-list-x list index)
+                                  (core:display-list-y list index)))))))
+
+(defun color-of-character (screen id character)
+  "The colour the first CHARACTER drawn inside the control ID is drawn in."
+  (multiple-value-bind (left top width height) (core:lookup-target (screen-app screen) id)
+    (let ((list (screen-list screen)))
+      (loop :for index :below (core:display-list-count list)
+            :when (and (= (core:display-list-kind list index) core:+command-glyph+)
+                       (<= left (core:display-list-x list index) (+ left width -1))
+                       (<= top (core:display-list-y list index) (+ top height -1))
+                       (= (round (core:display-list-parameter list index)) (char-code character)))
+              :do (return (core:display-list-color list index))))))
+
+(defun rects-of-color (screen color)
+  "The rectangles drawn in COLOR, each (X Y WIDTH HEIGHT)."
+  (let ((list (screen-list screen)))
+    (loop :for index :below (core:display-list-count list)
+          :when (and (= (core:display-list-kind list index) core:+command-rect+)
+                     (= (core:display-list-color list index) color))
+            :collect (list (core:display-list-x list index) (core:display-list-y list index)
+                           (core:display-list-width list index)
+                           (core:display-list-height list index)))))
+
+(define-test a-code-view-numbers-its-lines-not-the-rows-a-long-line-goes-on-in ()
+  (let* ((long (make-string 30 :initial-element #\a))
+         (screen (show (lambda () (make-code (format nil "bcd~%~a~%xy" long))))))
+    ;; Twenty of the thirty go on the second row and ten on the third, which has no number.
+    (assert-equal (format nil "1bcd2~a3xy" long) (text-in screen :code))
+    (multiple-value-bind (left top) (core:lookup-target (screen-app screen) :code)
+      ;; The lines start past the padding of 8, the numbers and their gap; the numbers end at the
+      ;; gap, and each is on its line's first row.
+      (assert-eql (+ left 32f0) (place-of-character screen :code #\b))
+      (assert-eql (+ left 16f0) (place-of-character screen :code #\1))
+      (assert-eql (nth-value 1 (place-of-character screen :code #\x))
+                  (nth-value 1 (place-of-character screen :code #\3)))
+      ;; The fourth row: its top is three rows of 14 down from the padding of 6.
+      (assert-true (>= (nth-value 1 (place-of-character screen :code #\3)) (+ top 6 (* 3 14)))))))
+
+(define-test the-numbers-of-a-code-view-take-the-room-their-widest-needs ()
+  (flet ((lines (count) (format nil "~{~a~^~%~}" (make-list count :initial-element "q"))))
+    (let ((screen (show (lambda () (make-code (lines 99))))))
+      (assert-eql (+ (core:lookup-target (screen-app screen) :code) 32f0)
+                  (place-of-character screen :code #\q)))
+    ;; The hundredth line takes a third digit, and its lines are as much narrower.
+    (let ((screen (show (lambda () (make-code (lines 100))))))
+      (assert-eql (+ (core:lookup-target (screen-app screen) :code) 40f0)
+                  (place-of-character screen :code #\q)))
+    ;; Twenty characters fit on a row with two digits; with three, nineteen do, and the twentieth
+    ;; goes on in the next row.
+    (let* ((screen (show (lambda () (make-code (format nil "~a~%~a" (lines 98)
+                                                       (make-string 20 :initial-element #\z))))))
+           (session (screen-session screen)))
+      (flet ((last-row-start ()
+               (m:press-key session :down :modifiers '(:super))
+               (m:press-key session :left :modifiers '(:super))
+               (- (length (s:node-value (node-of screen :code)))
+                  (s:node-property (node-of screen :code) :caret))))
+        (m:focus session :id :code)
+        (assert-eql 20 (last-row-start))
+        (m:press-key session :up :modifiers '(:super))
+        (m:type-text session (format nil "q~%"))
+        (assert-eql 1 (last-row-start))))))
+
+(define-test a-press-in-a-code-view-and-the-input-methods-caret-are-past-the-numbers ()
+  (let* ((screen (show (lambda () (make-code (format nil "abcdef~%ab")))))
+         (session (screen-session screen)))
+    (multiple-value-bind (x y) (core:lookup-target (screen-app screen) :code)
+      ;; Two characters into the first line, past its numbers.
+      (let ((px (+ x 32 16 1)) (py (+ y 6 7)))
+        (pointer screen :move px py)
+        (pointer screen :down px py :button 0 :buttons 1)
+        (pointer screen :up px py :button 0)))
+    (assert-eql 2 (s:node-property (node-of screen :code) :caret))
+    (type-text screen "Z")
+    (multiple-value-bind (left) (core:lookup-target (screen-app screen) :code)
+      (multiple-value-bind (on x) (text-input-rect screen)
+        (assert-true on)
+        (assert-eql (+ left 32f0 24f0) x)))
+    ;; It says the line its caret is on.
+    (assert-equal "Line 1" (text-in screen :line))
+    (m:press-key session :down)
+    (assert-equal "Line 2" (text-in screen :line))))
+
+(define-test a-marked-line-of-a-code-view-has-a-band-and-a-bar-of-its-colour ()
+  (let* ((screen (show (lambda () (make-code (format nil "a~%b~%c~%d")))))
+         (session (screen-session screen))
+         (red (parse-color "#ff0000"))
+         (band (parse-color "#ff000040")))
+    (assert-false (rects-of-color screen band))
+    (m:click session :id :mark)
+    (multiple-value-bind (left top width) (core:lookup-target (screen-app screen) :code)
+      ;; The third line is two rows of 14 down from the padding of 6; the band is across the area
+      ;; inside its edge, and the bar at its left.
+      (assert-equal (list (list (+ left 1) (+ top 6 28) (- width 2) 14f0))
+                    (rects-of-color screen band))
+      (assert-equal (list (list (+ left 1) (+ top 6 28) 3f0 14f0))
+                    (rects-of-color screen red)))
+    ;; The marked line's number is as bright as the code; the others are dimmer.
+    (assert-eql (color-of-character screen :code #\c) (color-of-character screen :code #\3))
+    (assert-false (eql (color-of-character screen :code #\c) (color-of-character screen :code #\2)))
+    (assert-equal '((3 "Unbound variable X")) (s:node-property (node-of screen :code) :marks))
+    (assert-true (s:node-property (node-of screen :code) :line-numbers))
+    (m:click session :id :unmark)
+    (assert-false (rects-of-color screen band))
+    (assert-false (s:node-property (node-of screen :code) :marks))))
+
+(define-test a-text-area-that-becomes-a-code-view-makes-room-for-its-numbers ()
+  (let* ((screen (show (lambda ()
+                         (state-let ((code nil))
+                           (lambda ()
+                             (column ()
+                               (if code
+                                   (code-view "bcd" :id :area :width 200 :rows 2)
+                                   ;; In the same font, so that only the numbers differ.
+                                   (text-area "bcd" :id :area :width 200 :rows 2 :font :code))
+                               (when (button "Code" :id :as-code)
+                                 (setf code t))))))))
+         (left (core:lookup-target (screen-app screen) :area)))
+    (assert-eql (+ left 8f0) (place-of-character screen :area #\b))
+    (click screen :as-code)
+    (assert-eql (+ left 32f0) (place-of-character screen :area #\b))
+    (assert-equal "1bcd" (text-in screen :area))))
+
+(define-test a-mark-of-a-code-view-must-be-a-line-and-a-colour ()
+  (assert-error 'error (show (lambda () (make-code "a" '((0 :accent))))))
+  (assert-error 'error (show (lambda () (make-code "a" '((1 :accent 7))))))
+  (assert-error 'error (show (lambda () (make-code "a" '(1))))))
+
 ;;; --- what a screen reader reads ---
 ;;;
 ;;; The app is drawn as above, and a real NSView in a real NSWindow (not shown) is given its tree and
@@ -1502,7 +1659,8 @@ notes what it is asked to post. After each frame the reader's bridge is told, as
   (ns-value (objc:msg-send :id element (ecase what
                                          (:role "accessibilityRole")
                                          (:label "accessibilityLabel")
-                                         (:value "accessibilityValue")))))
+                                         (:value "accessibilityValue")
+                                         (:help "accessibilityHelp")))))
 
 (defun enabled-p (element)
   (objc:msg-send :bool element "isAccessibilityEnabled"))
@@ -1742,6 +1900,16 @@ screen reader was given are taken away and their places are used again."
         (assert-eql notes (objc:msg-send :id (reader-view reader) "accessibilityFocusedUIElement"))
         (type-text screen "!")
         (assert-equal (format nil "one~%two!") (says notes :value))))))
+
+(define-test a-screen-reader-reads-a-code-view-as-a-text-area-with-what-its-marks-say ()
+  (let* ((screen (show (lambda () (make-code (format nil "a~%b~%c")))))
+         (session (screen-session screen)))
+    (m:click session :id :mark)
+    (with-reader (reader screen)
+      (let ((code (element-named reader :code)))
+        (assert-equal "AXTextArea" (says code :role))
+        (assert-equal (format nil "a~%b~%c") (says code :value))
+        (assert-equal "Line 3: Unbound variable X." (says code :help))))))
 
 (define-test a-screen-reader-reads-a-switch-as-a-check-box-and-a-spinner-as-busy ()
   (let ((screen (show 'make-settings)))

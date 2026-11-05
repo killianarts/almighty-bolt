@@ -24,6 +24,12 @@ the order inside a section is not a schedule. What has shipped is in the
     code, button) in a theme; fonts loaded from an app's own files. (In 0.3.)
   - Italic, and rich text.
   - Text turned 90 degrees. (In 0.3.)
+  - A code view: code in the theme's code font, its lines numbered and marked.
+    (In 0.3.)
+    - Colours for the syntax, and a line brought into view when it is marked.
+    - Read only, for code that is shown and not edited.
+    - Tab and Return indenting as Lisp is indented.
+    - The code view in the GUI designer's catalogue.
   - Wrapping layouts.
   - A table, and date and colour pickers.
 - **Effects.** Shadows, glows, blur, opacity and other filters, and dashed
@@ -190,13 +196,14 @@ the GUI designer, and where on this roadmap each is closed.
 - **Views take no parameters.** A view inside another is drawn as it was
   designed; wiring where a view is drawn gives what differs, which may be
   enough.
-- **Effects and icons.** Fonts for each element, turned text, shadows and dashed
-  edges are in 0.3; no grain or scanlines, and no icons: the prototype's
-  chrome cannot all be drawn by the library yet ([Effects, Images and
-  icons](#later)).
-- **No code view.** A text area is plain text, with no line numbers. Emacs, over
-  the bridge, edits the code (0.3); the studio needs a viewer with light
-  editing for its Wire mode.
+- **Effects and icons.** Fonts for each element, turned text, shadows, dashed
+  edges and icons drawn from images are in 0.3; no grain or scanlines, and no
+  vector icons: the prototype's chrome cannot all be drawn by the library yet
+  ([Effects, Images and icons](#later)).
+- **A light code view.** A code view numbers and marks lines (0.3), and is
+  edited as a text area is; it has no colours for the syntax, and does not
+  bring a marked line into view. Emacs, over the bridge, edits the rest of the
+  code (0.3).
 - **Recording without a face.** The frame ring, the phase times and replay
   scripts exist, and nothing shows them; the timeline and replay panes are built
   on what is there.

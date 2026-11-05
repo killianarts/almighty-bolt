@@ -66,6 +66,7 @@
                 #:button
                 #:text-field
                 #:text-area
+                #:code-view
                 #:combo-box
                 #:slider
                 #:choice
@@ -159,7 +160,7 @@
   (:export #:run-app #:open-app #:close-app #:open-window #:close-window #:state
            #:state-let
            #:missing-id #:duplicate-id #:duplicate-id-id
-           #:label #:paragraph #:button #:text-field #:text-area #:combo-box #:slider #:choice #:checkbox
+           #:label #:paragraph #:button #:text-field #:text-area #:code-view #:combo-box #:slider #:choice #:checkbox
            #:switch #:tabs #:spinner #:dropdown #:menu-button #:context-menu #:popover
            #:dialog #:toast #:shortcut #:spacer #:grid #:pressable #:open-file-dialog #:save-file-dialog #:list-box
            #:progress #:canvas #:scrim #:design-surface #:app-menu #:drag-source #:drop-target #:dragging

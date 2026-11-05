@@ -42,14 +42,14 @@ What 0.3 has, against the prototype:
   replay scripts and a virtual clock; fonts for every element (any weight,
   letter spacing, line height, by role in a theme, from files); text turned
   90 degrees; soft shadows and dashed edges; images, and icons tinted by the
-  theme.
+  theme; a code view, its lines numbered and marked.
 - **Part:** the canvas and the running app are two panes, not one; options do
   not say where their values come from; the frame ring, the recorder and the
   kept state have no face; the theme designer previews widgets, not the app's
   own view.
-- **Missing:** vector icons; a code view; the studio's shell (modes, rail,
-  status bar, bottom panel, REPL); the timeline, time travel and the call
-  tree.
+- **Missing:** vector icons; colours for code's syntax; the studio's shell
+  (modes, rail, status bar, bottom panel, REPL); the timeline, time travel and
+  the call tree.
 
 ## Phase A: the library can draw the prototype
 
@@ -71,6 +71,7 @@ user of.
    `load-image`, `make-image`, `:tint` for icons, and `context-push-image`.)
 5. **A code view:** monospace text with line numbers, lines marked (an error,
    the line a press called), and light editing, built on the text area.
+   (Done: `code-view`, with `:marks`.)
 
 ## Phase B: the shell
 

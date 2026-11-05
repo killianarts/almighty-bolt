@@ -87,11 +87,17 @@ given by PIXEL, a function of its x and y from 0 to 1."
     (dotimes (i count tasks)
       (setf (aref tasks i) (make-task i (format nil "Task ~d" (1+ i)))))))
 
+(defparameter +sample-code+
+  (format nil "(defun greet (name)~%  \"Say hello to NAME.\"~%  (format t \"Hello, ~~a!~~%\" nam))~%~%(greet \"Ada\")")
+  "The code the gallery's code view starts with, whose third line has a mistake in it.")
+
 (defun make-gallery ()
   (bolt:state-let ((presses 0)
                    (name "Ada")
                    (fruit-search "")
                    (notes (format nil "Several lines of text.~%Return starts another, and a long line goes on in the next."))
+                   (code +sample-code+)
+                   (code-line 1)
                    (subscribed t)
                    (size 1)
                    (delivery 0)
@@ -408,7 +414,19 @@ given by PIXEL, a function of its x and y from 0 to 1."
                             (bolt:image +stop-icon+ :id :icon :tint :accent :label "Stop"))
                       (incf presses)))
                   (call "(bolt:image source &key id label tooltip width height tint (opacity 1) (flex 0))"
-                        :image-call))))))
+                        :image-call))
+                (section ("Code" :code-section)
+                  (bolt:paragraph "Code in the theme's code font, its lines numbered and some of them marked: an error, and the line a press called. A screen reader reads what each mark says."
+                                  :id :code-about :size 13 :color +note-color+)
+                  (multiple-value-bind (text changed line)
+                      (bolt:code-view code :id :code :width 360 :rows 6
+                                           :marks '((3 :field-invalid "NAM is not bound")
+                                                    (5 :accent "Called by Greet")))
+                    (when changed (setf code text))
+                    (unless (eql line code-line) (setf code-line line)))
+                  (note (format nil "The caret is on line ~d." code-line) :code-line)
+                  (call "(bolt:code-view string &key id tooltip labelled-by (width 480) (rows 12) (enabled t) (flex 0) font marks)"
+                        :code-view-call))))))
         (when (bolt:dialog (:id :question :open asking :title "Keep the changes?")
                 (bolt:label "A dialog keeps the keyboard; Tab goes round its buttons." :id :question-text)
                 (bolt:row (:gap 8)

@@ -44,6 +44,8 @@
                 #:field-state-state
                 #:area-state-state
                 #:area-state-offset
+                #:area-state-numbered
+                #:area-state-marks
                 #:choice-state-lefts
                 #:choice-state-widths
                 #:choice-state-tops
@@ -192,6 +194,18 @@ called what the icon's label says."
     (t (let ((label (and (box-labelled-by box) (find-labelling-box ui box (box-labelled-by box)))))
          (and label (box-text label))))))
 
+(defun help-of (box)
+  "What BOX says when the pointer rests on it, and for a code view what its marks say, line by line:
+what a screen reader gives as its help."
+  (let ((notes (and (eq (box-kind box) :text-area)
+                    (area-state-numbered (box-data box))
+                    (loop :for (line nil nil words) :in (area-state-marks (box-data box))
+                          :when words
+                            :collect (format nil "Line ~d: ~a" line words)))))
+    (if notes
+        (format nil "~@[~a ~]~{~a.~^ ~}" (box-tooltip box) notes)
+        (box-tooltip box))))
+
 (defun value-of (box)
   (case (box-kind box)
     ;; What is typed, without what the input method is still composing (which is shown).
@@ -248,7 +262,14 @@ called what the icon's label says."
                          (area-state-state (box-data box)))))
            (when (and (not (eq (box-kind box) :text-area)) (= (box-n3 box) 1)) (note :invalid t))
            (when (eq (box-kind box) :text-area)
-             (note :offset (area-state-offset (box-data box))))
+             (note :offset (area-state-offset (box-data box)))
+             ;; A code view's: its lines are numbered, and which are marked, with what each says.
+             (let ((area (box-data box)))
+               (when (area-state-numbered area)
+                 (note :line-numbers t)
+                 (when (area-state-marks area)
+                   (note :marks (loop :for (line nil nil words) :in (area-state-marks area)
+                                      :collect (list line words)))))))
            (note :caret (text-state-caret text))
            (when (text-state-selection-p text)
              (note :selection (list (text-state-selection-start text)
@@ -359,7 +380,8 @@ shows; one that is all out of sight is :hidden, with no width or height."
             (and (or value (member (box-kind box) '(:checkbox :switch))) (list :value value))
             (and state (list :state state))
             ;; What it says when the pointer rests on it.
-            (and (box-tooltip box) (list :help (box-tooltip box)))
+            (let ((help (help-of box)))
+              (and help (list :help help)))
             (list :bounds (if hidden
                               (list (min (max x left) right) (min (max y top) bottom) 0f0 0f0)
                               (list shown-left shown-top shown-w shown-h)))

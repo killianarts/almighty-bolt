@@ -61,6 +61,8 @@
                 #:area-state-offset
                 #:area-state-inner-width
                 #:area-state-inner-height
+                #:area-state-gutter
+                #:area-gutter
                 #:choice-state-lefts
                 #:choice-state-widths
                 #:choice-state-tops
@@ -225,11 +227,14 @@ them in the boxes, and return the width and height."
                            min-h max-h)))
       (:text-area
        ;; ROWS (N3) lines tall; the lines the text is shown in are made for the width it is given.
+       ;; A code view's numbers take room at the left.
        (let* ((area (box-data box))
               (height (area-line-height context (ui-face box)))
               (w (constrain (box-pref-w box) min-w max-w))
               (h (constrain (+ (* (box-n3 box) height) (* 2 (theme-field-padding-y *theme*))) min-h max-h))
-              (inner-w (max 1f0 (- w (* 2 (theme-field-padding-x *theme*)))))
+              (gutter (setf (area-state-gutter area)
+                            (area-gutter context area (box-text box) (ui-face box))))
+              (inner-w (max 1f0 (- w (* 2 (theme-field-padding-x *theme*)) gutter)))
               (inner-h (max 0f0 (- h (* 2 (theme-field-padding-y *theme*)))))
               (lines (area-lines context area (box-text box) inner-w (ui-face box))))
          (setf (area-state-inner-width area) inner-w

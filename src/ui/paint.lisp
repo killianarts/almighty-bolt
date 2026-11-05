@@ -67,6 +67,9 @@
                 #:area-state-offset
                 #:area-state-generation
                 #:area-state-lines
+                #:area-state-gutter
+                #:area-state-numbered
+                #:area-state-marks
                 #:area-line-of
                 #:field-state-state
                 #:field-state-view-start
@@ -274,20 +277,46 @@ is when its selection shows."
          (selecting (and focused (text-state-selection-p state)))
          (from (text-state-selection-start state))
          (to (text-state-selection-end state))
-         (left (+ x (theme-field-padding-x *theme*)))
-         (pad (theme-field-padding-y *theme*)))
+         (gutter (area-state-gutter area))
+         (numbered (and (area-state-numbered area) (plusp gutter)))
+         (marks (area-state-marks area))
+         ;; The numbers end a gap (as wide as the padding) before the lines start.
+         (numbers-right (+ x gutter))
+         (left (+ x (theme-field-padding-x *theme*) gutter))
+         (pad (theme-field-padding-y *theme*))
+         (number 0))
     (multiple-value-bind (height ascent) (line-metrics context box)
       (draw-outlined-box list x y w h
                          (if enabled (theme-field-fill *theme*) (theme-field-disabled *theme*))
                          focused)
       (push-clip list (+ x 1) (+ y 1) (- w 2) (- h 2))
+      (when numbered
+        ;; A rule between the numbers and the lines, halfway along the gap.
+        (push-rect list (+ numbers-right (floor (theme-field-padding-x *theme*) 2)) (+ y 1)
+                   1f0 (- h 2) (theme-field-border *theme*)))
       (loop :for line :across lines
             :for row :from 0
             :for top = (- (+ y pad (* row height)) offset)
+            ;; A row that starts a line has its number; one where a long line goes on has none.
+            :for starts = (or (zerop (car line))
+                              (char= (char string (1- (car line))) #\Linefeed))
+            :do (when starts (incf number))
             :when (and (< top (+ y h)) (> (+ top height) y))
               :do (let* ((start (car line))
                          (end (cdr line))
-                         (text (subseq string start end)))
+                         (text (subseq string start end))
+                         (mark (and numbered (assoc number marks))))
+                    (when mark
+                      ;; The band behind the line, and a bar of the mark's colour at its left.
+                      (push-rect list (+ x 1) top (- w 2) height (third mark))
+                      (push-rect list (+ x 1) top 3f0 height (second mark)))
+                    (when (and numbered starts)
+                      (let ((digits (princ-to-string number)))
+                        (context-push-text context list font digits
+                                           (- numbers-right
+                                              (context-caret-x context font digits (length digits)))
+                                           (+ top ascent)
+                                           (if mark (theme-text *theme*) (theme-dim-text *theme*)))))
                     (flet ((x-at (index)
                              (+ left (context-caret-x context font text (- index start)))))
                       (when (and selecting (< from (1+ end)) (> to start))
