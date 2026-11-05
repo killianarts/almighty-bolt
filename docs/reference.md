@@ -412,7 +412,11 @@ canvas with the inner app's tree inside it, where the pane shows it, so
 VoiceOver reads and presses what is in it and the machine interface finds and
 works it (`:within` the pane's id tells it from a thing with the same id
 outside). A thing in it has the keyboard in the window only while the pane
-does.
+does. When the window's app is made again because code was compiled, so is
+the app in the pane, from its constructor: what its `state-let`s hold and
+what was done to its widgets (the keyboard, a caret, a scroll) are kept, as
+in a window. If it cannot be made, the one in the pane stays and the error is
+printed.
 
 `inspector-pane` (`target &key id flex`) is the inspector, in this window, of
 TARGET, an app in an `app-pane` as it returns it (or `nil`): Pick, then a press

@@ -27,6 +27,8 @@
                 #:context-text-input-rect
                 #:set-text-input-caret
                 #:handle-event
+                #:inherit-state
+                #:retire-app
                 #:request-frame
                 #:context-font
                 #:context-measure
@@ -39,6 +41,9 @@
                 #:context-clipboard-text
                 #:context-set-clipboard-text
                 #:context-choose-file)
+  (:import-from #:almighty-bolt/kept
+                #:make-kept-state
+                #:with-kept-state)
   (:import-from #:almighty-bolt/settle
                 #:settle-frame)
   (:import-from #:almighty-bolt/ui/box
@@ -64,6 +69,7 @@
                 #:rect-w
                 #:rect-h
                 #:ui-context
+                #:ui-made-again
                 #:ui-hot
                 #:ui-active
                 #:ui-focus
@@ -109,6 +115,8 @@
 ;;; its text drawn with fonts ZOOM times the size, so that it is sharp. While the pane has the
 ;;; keyboard and something in the inner app takes text, the window does: the input method's text
 ;;; and what it composes go to the inner app, and its candidates open by the inner app's caret.
+;;; When the window's app is made again because its code changed, so is the inner app, from its
+;;; constructor, keeping what its STATE-LETs hold and what was done to its widgets, as a window's.
 ;;; What the inner app's screen means (its semantic tree) is inside the pane's, where the pane
 ;;; shows it, for a screen reader and the machine interface (see APP-PANE-INSIDE).
 
@@ -172,6 +180,10 @@ ZOOMED, the same at the pane's zoom, which draws."
 (defstruct (app-pane-state (:constructor make-app-pane-state ()))
   (constructor nil)
   (instance nil)
+  ;; What the inner app's STATE-LETs keep, from one time it is made to the next.
+  (kept (make-kept-state))
+  ;; How many times the window's app had been made again when the inner app was last made.
+  (made-again 0 :type fixnum)
   (context nil)
   ;; What the inner app drew, in its points, and that made ZOOM times larger, which is shown.
   (list (make-display-list :capacity 4096))
@@ -217,6 +229,32 @@ has the keyboard; otherwise NIL."
               (pane-context-zoom (app-pane-state-context state))
               (= (ui-focus ui) key)))))
 
+(defun make-inner (state)
+  "The app that STATE's constructor makes, with STATE's store for what it keeps."
+  (with-kept-state ((app-pane-state-kept state))
+    (make-immediate-app (funcall (app-pane-state-constructor state)))))
+
+(defun make-inner-again (state id)
+  "Make STATE's app again from its constructor, in place of the one it has, which hands on what it
+kept (INHERIT-STATE). If that fails, the one it has stays, and what went wrong is said."
+  (let ((old (app-pane-state-instance state)))
+    (handler-case
+        (let ((new (make-inner state)))
+          (handler-case (inherit-state new old)
+            (error (condition)
+              (retire-app new)
+              (error condition)))
+          (remhash old *pane-states*)
+          (setf (app-pane-state-instance state) new
+                (gethash new *pane-states*) state)
+          (retire-app old)
+          t)
+      (error (condition)
+        (format *error-output* "~&Hot reload: the app in the pane ~s could not be made again, so ~
+                                the old one stays: ~a~%" id condition)
+        (finish-output *error-output*)
+        nil))))
+
 (defun deliver (state event)
   "Give EVENT to the inner app."
   (handle-event (app-pane-state-instance state) event)
@@ -250,11 +288,14 @@ inner app (for a tool that looks at it, as the inspector does). The :id is requi
           (box-pref-w box) (float (or width 0) 1f0)
           (box-pref-h box) (float (or height 0) 1f0)
           (box-flex box) (float flex 1f0))
-    ;; The inner app, made the first time and when it is another.
+    ;; The inner app, made the first time and when it is another, with a store of its own; and made
+    ;; again, keeping what it kept, when the window's app has been made again.
     (unless (and (app-pane-state-instance state)
                  (eq constructor (app-pane-state-constructor state)))
       (setf (app-pane-state-constructor state) constructor
-            (app-pane-state-instance state) (make-immediate-app (funcall constructor))
+            (app-pane-state-kept state) (make-kept-state)
+            (app-pane-state-made-again state) (ui-made-again ui)
+            (app-pane-state-instance state) (make-inner state)
             (gethash (app-pane-state-instance state) *pane-states*) state
             (app-pane-state-context state)
             (make-pane-context :outer outer
@@ -262,6 +303,10 @@ inner app (for a tool that looks at it, as the inspector does). The :id is requi
                                             (setf (context-frame-requested context) t)
                                             (request-frame (pane-context-outer context))))
             moved t))
+    (when (/= (app-pane-state-made-again state) (ui-made-again ui))
+      (setf (app-pane-state-made-again state) (ui-made-again ui))
+      (when (make-inner-again state id)
+        (setf moved t)))
     (let ((inner (app-pane-state-context state)))
       ;; The window's, which the inner app follows, and its size, the pane's in its points.
       (setf (pane-context-outer inner) outer

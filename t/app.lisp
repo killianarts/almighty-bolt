@@ -4325,6 +4325,69 @@ app pane lays out its app in the frame after the one it first appears in, when i
           (assert-true (near 3.5 (s:node-value (inner-node :level)))
                        (s:node-value (inner-node :level))))))))
 
+;;; --- an app in a pane made again when the window's is ---
+
+(defvar *greeting* "Hello"
+  "What the app in the pane says at the top, read when it is made: its code, as it stands.")
+
+(defun make-greeting-inner ()
+  (let ((greeting *greeting*))
+    (when (eq greeting :fail)
+      (error "This app cannot be made."))
+    (state-let ((count 0) (words ""))
+      (lambda ()
+        (column (:id :inner-page :gap 8)
+          (label greeting :id :greeting)
+          (when (button "Add one" :id :plus) (incf count))
+          (label (format nil "Count ~d" count) :id :count)
+          (multiple-value-bind (text edited) (text-field words :id :words :width 120)
+            (when edited (setf words text))))))))
+
+(defun make-greeting-outer ()
+  (lambda ()
+    (column (:id :page :fill t :cross-align :stretch)
+      (setf *inner* (app-pane 'make-greeting-inner :id :running :flex 1)))))
+
+(defun make-again (screen constructor)
+  "Make SCREEN's app again from CONSTRUCTOR, as the host does when code is compiled."
+  (let ((new (core:with-kept-state ((screen-state screen)) (app:make-app-instance constructor))))
+    (core:inherit-state new (screen-app screen))
+    (setf (screen-app screen) new)
+    (dotimes (i 3) (draw screen))))
+
+(define-test an-app-in-a-pane-is-made-again-with-the-window-s-and-keeps-what-it-kept ()
+  (let* ((*greeting* "Hello")
+         (screen (show-pane 'make-greeting-outer))
+         (session (screen-session screen)))
+    (m:click session :id :plus)
+    (m:set-value session "ab" :id :words)
+    (let ((before *inner*))
+      ;; Its code changed, and the window's app is made again: so is the one in the pane, from the
+      ;; new code, with its count and its text, and the field still has the keyboard and its caret.
+      (setf *greeting* "Bonjour")
+      (make-again screen 'make-greeting-outer)
+      (assert-false (eq before *inner*))
+      ;; Once, and not again in the frames after.
+      (let ((made *inner*))
+        (dotimes (i 2) (draw screen))
+        (assert-eq made *inner*))
+      (assert-equal "Bonjour" (s:node-name (node-of screen :greeting)))
+      (assert-equal "Count 1" (s:node-name (node-of screen :count)))
+      (assert-equal "ab" (s:node-value (node-of screen :words)))
+      (assert-true (s:node-property (node-of screen :words) :focused))
+      (assert-eql 2 (s:node-property (node-of screen :words) :caret))
+      (m:type-text session "c")
+      (assert-equal "abc" (s:node-value (node-of screen :words)))
+      ;; Code that cannot make the app: the one in the pane stays, and works.
+      (let ((working *inner*)
+            (*error-output* (make-broadcast-stream)))
+        (setf *greeting* :fail)
+        (make-again screen 'make-greeting-outer)
+        (assert-eq working *inner*)
+        (assert-equal "Bonjour" (s:node-name (node-of screen :greeting)))
+        (m:click session :id :plus)
+        (assert-equal "Count 2" (s:node-name (node-of screen :count)))))))
+
 ;;; --- the inspector beside an app in a pane ---
 
 (defun make-inspected ()

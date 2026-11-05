@@ -61,6 +61,7 @@
                 #:box-paint-hash)
   (:import-from #:almighty-bolt/ui/ui
                 #:*ui*
+                #:ui-made-again
                 #:make-ui
                 #:ui-context
                 #:ui-root
@@ -554,6 +555,7 @@ What was laid out and painted is forgotten, so that the first frame does both ag
 hashes say: the code that changed may be the library's, which the hashes do not describe."
   (let ((ui (immediate-app-ui old)))
     (setf (ui-last-layout-hash ui) -1)
+    (incf (ui-made-again ui))
     (forget-painting old)
     (setf (immediate-app-ui new) ui)))
 

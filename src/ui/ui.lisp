@@ -95,6 +95,7 @@
            #:ui-active
            #:ui-focus
            #:ui-started
+           #:ui-made-again
            #:ui-pointer-x
            #:ui-pointer-y
            #:ui-down
@@ -259,6 +260,9 @@ pointer has gone far enough from there; DROPPING in the frame it is let go of, w
   ;; True once a frame has been laid out and drawn: the window has opened, and a canvas that asks
   ;; for the keyboard (AUTOFOCUS) can no longer be given it for that.
   (started nil)
+  ;; How many times the app has been made again with this ui (INHERIT-STATE), so that an app in a
+  ;; pane of it is made again too.
+  (made-again 0 :type fixnum)
   (tab-pending nil)
   ;; True if the keyboard is where it is because the pointer pressed there (a field), so that
   ;; a press anywhere else takes it away; a button the keyboard went to by Tab keeps it.

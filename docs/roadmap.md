@@ -139,9 +139,8 @@ planned.
 What stands between the library today and the studio, as found while building
 the GUI designer, and where on this roadmap each is closed.
 
-- **The app in a pane is not made again when its code is compiled.** The app
-  running in the studio's pane keeps the code it was made with. A pane is
-  moved only by the pointer.
+- **A pane is moved only by the pointer.** A dock's tabs are dragged; there
+  is no menu, shortcut or VoiceOver action that moves a pane.
 - **Views take no parameters.** A view inside another is drawn as it was
   designed; wiring where a view is drawn gives what differs, which may be
   enough.
