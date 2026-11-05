@@ -39,6 +39,7 @@ smoke:
 	$(MAKE) examples-smoke
 	$(MAKE) windows-smoke
 	$(MAKE) accessibility-smoke
+	$(MAKE) studio-smoke
 
 # The null app in a window: the library's own cost. Run it from a terminal of your
 # own and leave the window alone while it runs.
@@ -147,6 +148,15 @@ accessibility-smoke:
 	$(SBCL_APP) $(REGISTRY) --load examples/accessibility-smoke.lisp > $$out 2>&1; \
 	grep -v -e '^;' -e '^$$' $$out; \
 	grep -q -e "The accessibility check passed" -e "The accessibility check was skipped" $$out && ! grep -q "FAIL" $$out; status=$$?; rm -f $$out; exit $$status
+
+# The studio in a real window, read and worked through the system's accessibility API as VoiceOver
+# does: the counter in the App pane at 100% and 200%, made again when its code is compiled, and a pane
+# moved by its tab's menu (apps/studio/smoke.lisp). Skipped, saying why, as the accessibility check is.
+studio-smoke:
+	@out=$$(mktemp); \
+	$(SBCL_APP) $(REGISTRY) --load apps/studio/smoke.lisp > $$out 2>&1; \
+	grep -v -e '^;' -e '^$$' $$out; \
+	grep -q -e "The studio check passed" -e "The studio check was skipped" $$out && ! grep -q "FAIL" $$out; status=$$?; rm -f $$out; exit $$status
 
 clean:
 	find . -name '*.fasl' -not -path './vendored/*' -delete
