@@ -1,21 +1,6 @@
 (defpackage #:almighty-bolt/replay/script
   (:use #:cl)
-  (:import-from #:almighty-bolt/event
-                #:pointer-event #:make-pointer-event #:pointer-event-kind #:pointer-event-x
-                #:pointer-event-y #:pointer-event-button #:pointer-event-buttons
-                #:pointer-event-modifiers #:pointer-event-click-count
-                #:wheel-event #:make-wheel-event #:wheel-event-x #:wheel-event-y
-                #:wheel-event-dx #:wheel-event-dy #:wheel-event-precise-p
-                #:wheel-event-modifiers
-                #:key-event #:make-key-event #:key-event-kind #:key-event-physical-key
-                #:key-event-logical-key #:key-event-modifiers #:key-event-repeat-p
-                #:text-input-event #:make-text-input-event #:text-input-event-text
-                #:composition-event #:make-composition-event #:composition-event-kind
-                #:composition-event-text #:composition-event-selection-start
-                #:composition-event-selection-length
-                #:resize-event #:make-resize-event #:resize-event-width #:resize-event-height
-                #:scale-event #:make-scale-event #:scale-event-scale
-                #:focus-event #:make-focus-event #:focus-event-focused-p)
+  (:local-nicknames (#:event #:almighty-bolt/event))
   (:export #:script
            #:make-script
            #:script-header
@@ -73,38 +58,38 @@
 (defun event-form (event)
   "The form that stands for EVENT in a script, without its time, with raw coordinates."
   (etypecase event
-    (pointer-event
-     (list* :pointer :kind (pointer-event-kind event)
-            :x (pointer-event-x event) :y (pointer-event-y event)
-            (plist-without-defaults :button (pointer-event-button event) nil
-                                    :buttons (pointer-event-buttons event) 0
-                                    :modifiers (pointer-event-modifiers event) 0
-                                    :click-count (pointer-event-click-count event) 0)))
-    (wheel-event
-     (list* :wheel :x (wheel-event-x event) :y (wheel-event-y event)
-            :dx (wheel-event-dx event) :dy (wheel-event-dy event)
-            (plist-without-defaults :precise-p (wheel-event-precise-p event) nil
-                                    :modifiers (wheel-event-modifiers event) 0)))
-    (key-event
-     (list* :key :kind (key-event-kind event)
-            (plist-without-defaults :physical-key (key-event-physical-key event) 0
-                                    :logical-key (key-event-logical-key event) nil
-                                    :modifiers (key-event-modifiers event) 0
-                                    :repeat-p (key-event-repeat-p event) nil)))
-    (text-input-event
-     (list :text :text (text-input-event-text event)))
-    (composition-event
-     (list* :composition :kind (composition-event-kind event)
-            (plist-without-defaults :text (composition-event-text event) ""
-                                    :selection-start (composition-event-selection-start event) 0
-                                    :selection-length (composition-event-selection-length event)
+    (event:pointer-event
+     (list* :pointer :kind (event:pointer-event-kind event)
+            :x (event:pointer-event-x event) :y (event:pointer-event-y event)
+            (plist-without-defaults :button (event:pointer-event-button event) nil
+                                    :buttons (event:pointer-event-buttons event) 0
+                                    :modifiers (event:pointer-event-modifiers event) 0
+                                    :click-count (event:pointer-event-click-count event) 0)))
+    (event:wheel-event
+     (list* :wheel :x (event:wheel-event-x event) :y (event:wheel-event-y event)
+            :dx (event:wheel-event-dx event) :dy (event:wheel-event-dy event)
+            (plist-without-defaults :precise-p (event:wheel-event-precise-p event) nil
+                                    :modifiers (event:wheel-event-modifiers event) 0)))
+    (event:key-event
+     (list* :key :kind (event:key-event-kind event)
+            (plist-without-defaults :physical-key (event:key-event-physical-key event) 0
+                                    :logical-key (event:key-event-logical-key event) nil
+                                    :modifiers (event:key-event-modifiers event) 0
+                                    :repeat-p (event:key-event-repeat-p event) nil)))
+    (event:text-input-event
+     (list :text :text (event:text-input-event-text event)))
+    (event:composition-event
+     (list* :composition :kind (event:composition-event-kind event)
+            (plist-without-defaults :text (event:composition-event-text event) ""
+                                    :selection-start (event:composition-event-selection-start event) 0
+                                    :selection-length (event:composition-event-selection-length event)
                                     0)))
-    (resize-event
-     (list :resize :width (resize-event-width event) :height (resize-event-height event)))
-    (scale-event
-     (list :scale :scale (scale-event-scale event)))
-    (focus-event
-     (list :focus :focused-p (focus-event-focused-p event)))))
+    (event:resize-event
+     (list :resize :width (event:resize-event-width event) :height (event:resize-event-height event)))
+    (event:scale-event
+     (list :scale :scale (event:scale-event-scale event)))
+    (event:focus-event
+     (list :focus :focused-p (event:focus-event-focused-p event)))))
 
 (defun double (number)
   (float number 1d0))
@@ -117,36 +102,36 @@ by now (see the player, which turns a :TARGET into them)."
       (:pointer
        (destructuring-bind (&key kind x y button (buttons 0) (modifiers 0) (click-count 0))
            options
-         (make-pointer-event :timestamp timestamp :kind kind :x (double x) :y (double y)
-                             :button button :buttons buttons :modifiers modifiers
-                             :click-count click-count)))
+         (event:make-pointer-event :timestamp timestamp :kind kind :x (double x) :y (double y)
+                                   :button button :buttons buttons :modifiers modifiers
+                                   :click-count click-count)))
       (:wheel
        (destructuring-bind (&key x y (dx 0) (dy 0) precise-p (modifiers 0)) options
-         (make-wheel-event :timestamp timestamp :x (double x) :y (double y) :dx (double dx)
-                           :dy (double dy) :precise-p precise-p :modifiers modifiers)))
+         (event:make-wheel-event :timestamp timestamp :x (double x) :y (double y) :dx (double dx)
+                                 :dy (double dy) :precise-p precise-p :modifiers modifiers)))
       (:key
        (destructuring-bind (&key kind (physical-key 0) logical-key (modifiers 0) repeat-p)
            options
-         (make-key-event :timestamp timestamp :kind kind :physical-key physical-key
-                         :logical-key logical-key :modifiers modifiers :repeat-p repeat-p)))
+         (event:make-key-event :timestamp timestamp :kind kind :physical-key physical-key
+                               :logical-key logical-key :modifiers modifiers :repeat-p repeat-p)))
       (:text
        (destructuring-bind (&key text) options
-         (make-text-input-event :timestamp timestamp :text text)))
+         (event:make-text-input-event :timestamp timestamp :text text)))
       (:composition
        (destructuring-bind (&key kind (text "") (selection-start 0) (selection-length 0))
            options
-         (make-composition-event :timestamp timestamp :kind kind :text text
-                                 :selection-start selection-start
-                                 :selection-length selection-length)))
+         (event:make-composition-event :timestamp timestamp :kind kind :text text
+                                       :selection-start selection-start
+                                       :selection-length selection-length)))
       (:resize
        (destructuring-bind (&key width height) options
-         (make-resize-event :timestamp timestamp :width (double width) :height (double height))))
+         (event:make-resize-event :timestamp timestamp :width (double width) :height (double height))))
       (:scale
        (destructuring-bind (&key scale) options
-         (make-scale-event :timestamp timestamp :scale (double scale))))
+         (event:make-scale-event :timestamp timestamp :scale (double scale))))
       (:focus
        (destructuring-bind (&key focused-p) options
-         (make-focus-event :timestamp timestamp :focused-p focused-p))))))
+         (event:make-focus-event :timestamp timestamp :focused-p focused-p))))))
 
 ;;; --- reading and writing ---
 

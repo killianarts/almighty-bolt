@@ -1,7 +1,6 @@
 (defpackage #:almighty-bolt/ui/box
   (:use #:cl)
-  (:import-from #:almighty-bolt/ui/theme
-                #:*theme*)
+  (:local-nicknames (#:theme #:almighty-bolt/ui/theme))
   (:export #:box
            #:make-box
            #:box-key
@@ -151,7 +150,7 @@
 made."
   (setf (box-kind box) kind
         ;; Drawn in the theme it is described in.
-        (box-theme box) *theme*
+        (box-theme box) theme:*theme*
         (box-id box) nil
         (box-parent box) nil
         (fill-pointer (box-children box)) 0

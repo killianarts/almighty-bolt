@@ -12,74 +12,53 @@
 
 (defpackage #:almighty-bolt-examples/accessibility-smoke
   (:use #:cl #:almighty-bolt-examples/ax-client)
-  (:import-from #:almighty-bolt
-                #:run-app
-                #:state-let
-                #:row
-                #:column
-                #:stack
-                #:label
-                #:slider
-                #:progress
-                #:choice
-                #:list-box
-                #:canvas
-                #:scrim
-                #:split
-                #:tabs
-                #:tree)
-  (:import-from #:almighty-bolt/machine/host-session
-                #:open-session)
   (:local-nicknames (#:m #:almighty-bolt/machine)
                     (#:s #:almighty-bolt/ui/semantics)
                     (#:objc #:almighty-bolt/platform/macos/objc)
                     (#:a11y #:almighty-bolt/platform/macos/accessibility)
-                    (#:view #:almighty-bolt/platform/macos/view))
-  (:import-from #:almighty-bolt/internals
-                #:frame-ring-total)
-  (:import-from #:almighty-bolt/platform/macos/host
-                #:host-ring
-                #:host-view
-                #:wait-for-idle
-                #:close-host-window))
+                    (#:view #:almighty-bolt/platform/macos/view)
+                    (#:bolt #:almighty-bolt)
+                    (#:host-session #:almighty-bolt/machine/host-session)
+                    (#:core #:almighty-bolt/internals)
+                    (#:host #:almighty-bolt/platform/macos/host)))
 
 (in-package #:almighty-bolt-examples/accessibility-smoke)
 
 ;;; --- the app: the to-do list, and one of each of the widgets it does not have ---
 
 (defun make-gallery ()
-  (state-let ((volume 30d0) (flavour 1) (picked 2))
+  (bolt:state-let ((volume 30d0) (flavour 1) (picked 2))
     (lambda ()
-      (column (:gap 4)
-        (label "Volume" :id :volume-label)
+      (bolt:column (:gap 4)
+        (bolt:label "Volume" :id :volume-label)
         (multiple-value-bind (value changed)
-            (slider volume 0 100 :id :volume :labelled-by :volume-label)
+            (bolt:slider volume 0 100 :id :volume :labelled-by :volume-label)
           (when changed (setf volume value)))
-        (progress 0.25d0 :id :progress)
-        (label "Flavour" :id :flavour-label)
+        (bolt:progress 0.25d0 :id :progress)
+        (bolt:label "Flavour" :id :flavour-label)
         (multiple-value-bind (index changed)
-            (choice '("Plain" "Salted" "Sweet") flavour :id :flavour :labelled-by :flavour-label)
+            (bolt:choice '("Plain" "Salted" "Sweet") flavour :id :flavour :labelled-by :flavour-label)
           (when changed (setf flavour index)))
         (multiple-value-bind (index changed)
-            (list-box '("One" "Two" "Three" "Four" "Five" "Six" "Seven") picked
-                      :id :numbers :rows 3)
+            (bolt:list-box '("One" "Two" "Three" "Four" "Five" "Six" "Seven") picked
+                           :id :numbers :rows 3)
           (when changed (setf picked index)))
-        (canvas 40 20 (lambda (list context width height)
+        (bolt:canvas 40 20 (lambda (list context width height)
                         (declare (ignore list context width height))
                         nil)
-                :id :drawing)
-        (row (:gap 8)
-          (split (:id :sides :size 50 :min 40 :width 160 :height 20)
-            (label "Left" :id :left-words)
-            (label "Right" :id :right-words))
-          (tabs '("Design" "Theme") 1 :id :pages)
-          (tree '(("Fruit" ("Apple"))) :id :plants :children #'rest :label #'first
-                                            :key (lambda (item) (intern (string-upcase (first item))
-                                                                        :keyword))
-                                            :selected :apple))
-        (stack ()
-          (label "Under" :id :under)
-          (scrim :id :veil))))))
+                     :id :drawing)
+        (bolt:row (:gap 8)
+          (bolt:split (:id :sides :size 50 :min 40 :width 160 :height 20)
+            (bolt:label "Left" :id :left-words)
+            (bolt:label "Right" :id :right-words))
+          (bolt:tabs '("Design" "Theme") 1 :id :pages)
+          (bolt:tree '(("Fruit" ("Apple"))) :id :plants :children #'rest :label #'first
+                                                 :key (lambda (item) (intern (string-upcase (first item))
+                                                                             :keyword))
+                                                 :selected :apple))
+        (bolt:stack ()
+          (bolt:label "Under" :id :under)
+          (bolt:scrim :id :veil))))))
 
 (defconstant +content-height+ 340 "The height of the window's content, which is the app's.")
 
@@ -87,7 +66,7 @@
   (let ((todo (almighty-bolt-examples/todo:make-todo))
         (gallery (make-gallery)))
     (lambda ()
-      (row (:gap 20)
+      (bolt:row (:gap 20)
         (funcall todo)
         (funcall gallery)))))
 
@@ -160,7 +139,7 @@ them, and what pressing and adjusting them does."
                     (not (member "AXPress" actions :test #'equal)))))
       (check "the system makes the slider go up a step"
              (and (ax-perform volume "AXIncrement")
-                  (progn (wait-for-idle host) t)
+                  (progn (host:wait-for-idle host) t)
                   (about 35 (number-of (fresh application "volume") "AXValue"))))
       (let ((divider (named elements "divider")))
         (check "a split's divider is a splitter that says how wide the pane before it is"
@@ -204,7 +183,7 @@ them, and what pressing and adjusting them does."
                     (equal '("0" "1" "0") (mapcar (lambda (e) (said e "AXValue")) options))))
         (check "the system chooses an option by pressing it"
                (and (ax-perform (third options) "AXPress")
-                    (progn (wait-for-idle host) t)
+                    (progn (host:wait-for-idle host) t)
                     (equal '("0" "0" "1")
                            (mapcar (lambda (e) (said e "AXValue"))
                                    (parts (fresh application "flavour")))))))
@@ -219,7 +198,7 @@ them, and what pressing and adjusting them does."
                  (and row list (inside-p row list))))
         (check "the system picks a row by pressing it, and the list says which is picked"
                (and (ax-perform (second rows) "AXPress")
-                    (progn (wait-for-idle host) t)
+                    (progn (host:wait-for-idle host) t)
                     (let ((picked (array-list (ax-attribute (fresh application "numbers")
                                                             "AXSelectedChildren"))))
                       (and (= 1 (length picked))
@@ -229,7 +208,7 @@ them, and what pressing and adjusting them does."
 
 (defun checks (host)
   (let ((application (application))
-        (session (open-session)))
+        (session (host-session:open-session)))
     (multiple-value-bind (window elements) (window-elements application)
       (check "the system lists one window of the application with the title" window)
       (check "and the window's title is the app's" (equal "Board" (said window "AXTitle")))
@@ -282,29 +261,29 @@ them, and what pressing and adjusting them does."
       (let ((true (objc:msg-send :id (objc:objc-class "NSNumber") "numberWithBool:" (:bool t))))
         (check "the system can ask for the focus of the field" (ax-set (named elements "draft")
                                                                        "AXFocused" true)))
-      (wait-for-idle host)
+      (host:wait-for-idle host)
       (check "and the field has the keyboard"
              (s:node-property (m:find-node session :id :draft) :focused))
       ;; From now on a screen reader is on: what changes is told to the system, for real.
-      (setf (a11y:bridge-assistive (view:metal-view-bridge (host-view host))) (constantly t))
+      (setf (a11y:bridge-assistive (view:metal-view-bridge (host:host-view host))) (constantly t))
       (m:press-key session #\H)
       (m:press-key session #\i)
       (check "what is typed is what the system reads in the field"
              (equal "Hi" (said (fresh application "draft") "AXValue"))
              (said (fresh application "draft") "AXValue"))
       (check "the system presses Add" (ax-perform (fresh application "add") "AXPress"))
-      (wait-for-idle host)
+      (host:wait-for-idle host)
       (check "and the count says one more is left" (equal "3 left" (said (fresh application "left") "AXValue")))
       (check "and there is a check box for it, called what was typed"
              (let ((box (fresh application "4")))
                (and box (equal "Hi" (said box "AXDescription")))))
       (check "the system presses a check box" (ax-perform (fresh application "2") "AXPress"))
-      (wait-for-idle host)
+      (host:wait-for-idle host)
       (check "and it is checked, and one less is left"
              (and (equal "1" (said (fresh application "2") "AXValue"))
                   (equal "2 left" (said (fresh application "left") "AXValue"))))
       (the-other-widgets application host)
-      (check "the window is still at rest" (wait-for-idle host)))))
+      (check "the window is still at rest" (host:wait-for-idle host)))))
 
 (defvar *skipped* nil
   "Why the checks could not be made, or NIL.")
@@ -313,7 +292,7 @@ them, and what pressing and adjusting them does."
   "Whether the system gives this process's window when asked, which it does not for a process that
 may not use the API, or when the screen is locked (it then answers with the application and its menu
 bar and nothing else). Sets *SKIPPED* to say why if not."
-  (wait-for (lambda () (plusp (frame-ring-total (host-ring host)))) 20)
+  (wait-for (lambda () (plusp (core:frame-ring-total (host:host-ring host)))) 20)
   (sleep 1.0)
   (cond ((not (trusted-p))
          (setf *skipped* "this process may not use the system's accessibility API, which it must to be read as VoiceOver reads it. Allow the terminal in System Settings, Privacy & Security, Accessibility.")
@@ -338,6 +317,6 @@ bar and nothing else). Sets *SKIPPED* to say why if not."
           (format t "~&The accessibility check passed.~%")
           (format t "~&FAIL: ~d check~:p did not hold.~%" *failures*)))
     (finish-output)
-    (close-host-window host)))
+    (host:close-host-window host)))
 
-(run-app 'make-board :title "Board" :width 720 :height +content-height+ :driver #'drive)
+(bolt:run-app 'make-board :title "Board" :width 720 :height +content-height+ :driver #'drive)

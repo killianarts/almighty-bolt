@@ -1,107 +1,15 @@
 (defpackage #:almighty-bolt/ui/app-pane
   (:use #:cl)
-  (:import-from #:almighty-bolt/event
-                #:key-event
-                #:text-input-event
-                #:composition-event
-                #:composition-event-kind
-                #:make-composition-event
-                #:make-pointer-event
-                #:make-wheel-event)
-  (:import-from #:almighty-bolt/display-list
-                #:make-display-list
-                #:display-list-count
-                #:display-list-capacity
-                #:display-list-full
-                #:display-list-hash
-                #:zoom-display-list
-                #:unzoom-glyphs)
-  (:import-from #:almighty-bolt/app-instance
-                #:context
-                #:context-scale
-                #:context-frame-requested
-                #:context-appearance
-                #:context-window
-                #:context-cursor
-                #:context-text-input-p
-                #:context-text-input-rect
-                #:set-text-input-caret
-                #:handle-event
-                #:inherit-state
-                #:retire-app
-                #:request-frame
-                #:context-font
-                #:context-measure
-                #:context-break-lines
-                #:context-caret-x
-                #:context-index-at-x
-                #:context-caret-rect
-                #:context-push-text
-                #:context-push-image
-                #:context-forget-glyphs
-                #:context-clipboard-text
-                #:context-set-clipboard-text
-                #:context-choose-file)
-  (:import-from #:almighty-bolt/kept
-                #:make-kept-state
-                #:with-kept-state)
-  (:import-from #:almighty-bolt/settle
-                #:settle-frame)
-  (:import-from #:almighty-bolt/ui/box
-                #:box-key
-                #:box-interactive
-                #:box-focusable
-                #:box-moves
-                #:box-pref-w
-                #:box-pref-h
-                #:box-flex
-                #:box-data
-                #:box-n3
-                #:box-look)
-  (:import-from #:almighty-bolt/ui/ui
-                #:*ui*
-                #:open-box
-                #:close-box
-                #:state-of
-                #:ui-states
-                #:rect-of
-                #:rect-x
-                #:rect-y
-                #:rect-w
-                #:rect-h
-                #:ui-context
-                #:ui-made-again
-                #:ui-hot
-                #:ui-active
-                #:ui-focus
-                #:ui-pressed
-                #:ui-released
-                #:ui-down
-                #:ui-moved
-                #:ui-click-count
-                #:ui-pointer-x
-                #:ui-pointer-y
-                #:ui-keys
-                #:ui-inputs
-                #:ui-consumed
-                #:consume-press
-                #:consume-secondary-press
-                #:consume-release
-                #:consume-key
-                #:consume-input
-                #:consume-wheel
-                #:focus-by-click
-                #:want-cursor)
-  (:import-from #:almighty-bolt/ui/widgets
-                #:required-id
-                #:set-size-limits
-                #:look-of)
-  (:import-from #:almighty-bolt/ui/immediate
-                #:make-immediate-app
-                #:immediate-app)
-  (:import-from #:almighty-bolt/ui/views
-                #:make-weak-table
-                #:views-version)
+  (:local-nicknames (#:event #:almighty-bolt/event)
+                    (#:dl #:almighty-bolt/display-list)
+                    (#:app-instance #:almighty-bolt/app-instance)
+                    (#:kept #:almighty-bolt/kept)
+                    (#:settle #:almighty-bolt/settle)
+                    (#:box #:almighty-bolt/ui/box)
+                    (#:ui #:almighty-bolt/ui/ui)
+                    (#:widgets #:almighty-bolt/ui/widgets)
+                    (#:immediate #:almighty-bolt/ui/immediate)
+                    (#:views #:almighty-bolt/ui/views))
   (:export #:app-pane
            #:settle-app-pane
            #:app-pane-inside))
@@ -124,7 +32,7 @@
 
 ;;; --- the inner app's context ---
 
-(defstruct (pane-context (:include context))
+(defstruct (pane-context (:include app-instance:context))
   "The context of an app in a pane: as large as the pane, its text measured and drawn by OUTER's,
 at ZOOM."
   (outer nil)
@@ -135,58 +43,58 @@ at ZOOM."
 ZOOMED, the same at the pane's zoom, which draws."
   base zoomed)
 
-(defmethod context-font ((context pane-context) name size &optional weight tracking)
+(defmethod app-instance:context-font ((context pane-context) name size &optional weight tracking)
   (let* ((outer (pane-context-outer context))
          (zoom (pane-context-zoom context))
          (tracking (or tracking 0))
-         (base (context-font outer name size weight tracking)))
+         (base (app-instance:context-font outer name size weight tracking)))
     ;; Drawn ZOOM times larger, the space after each character too.
     (zoomed-font base (if (= zoom 1f0)
                           base
-                          (context-font outer name (* size zoom) weight (* tracking zoom))))))
+                          (app-instance:context-font outer name (* size zoom) weight (* tracking zoom))))))
 
-(defmethod context-measure ((context pane-context) font string)
-  (context-measure (pane-context-outer context) (zoomed-font-base font) string))
+(defmethod app-instance:context-measure ((context pane-context) font string)
+  (app-instance:context-measure (pane-context-outer context) (zoomed-font-base font) string))
 
-(defmethod context-break-lines ((context pane-context) font string width)
-  (context-break-lines (pane-context-outer context) (zoomed-font-base font) string width))
+(defmethod app-instance:context-break-lines ((context pane-context) font string width)
+  (app-instance:context-break-lines (pane-context-outer context) (zoomed-font-base font) string width))
 
-(defmethod context-caret-x ((context pane-context) font string index)
-  (context-caret-x (pane-context-outer context) (zoomed-font-base font) string index))
+(defmethod app-instance:context-caret-x ((context pane-context) font string index)
+  (app-instance:context-caret-x (pane-context-outer context) (zoomed-font-base font) string index))
 
-(defmethod context-index-at-x ((context pane-context) font string x)
-  (context-index-at-x (pane-context-outer context) (zoomed-font-base font) string x))
+(defmethod app-instance:context-index-at-x ((context pane-context) font string x)
+  (app-instance:context-index-at-x (pane-context-outer context) (zoomed-font-base font) string x))
 
-(defmethod context-caret-rect ((context pane-context) font string index)
-  (context-caret-rect (pane-context-outer context) (zoomed-font-base font) string index))
+(defmethod app-instance:context-caret-rect ((context pane-context) font string index)
+  (app-instance:context-caret-rect (pane-context-outer context) (zoomed-font-base font) string index))
 
-(defmethod context-push-text ((context pane-context) list font string x baseline color
-                              &optional turn)
+(defmethod app-instance:context-push-text ((context pane-context) list font string x baseline color
+                                           &optional turn)
   ;; Turned or not, the glyphs are drawn larger about the point the text starts at, X, BASELINE.
-  (let ((start (display-list-count list))
+  (let ((start (dl:display-list-count list))
         (zoom (pane-context-zoom context)))
     (multiple-value-prog1
-        (context-push-text (pane-context-outer context) list (zoomed-font-zoomed font) string x
-                           baseline color turn)
+        (app-instance:context-push-text (pane-context-outer context) list (zoomed-font-zoomed font) string x
+                                        baseline color turn)
       (unless (= zoom 1f0)
-        (unzoom-glyphs list start (float x 1f0) (float baseline 1f0) zoom)))))
+        (dl:unzoom-glyphs list start (float x 1f0) (float baseline 1f0) zoom)))))
 
-(defmethod context-push-image ((context pane-context) list image x y width height &key tint (opacity 1))
+(defmethod app-instance:context-push-image ((context pane-context) list image x y width height &key tint (opacity 1))
   ;; The image is drawn where the app says, in its points; the pane makes the whole list larger.
-  (context-push-image (pane-context-outer context) list image x y width height
-                      :tint tint :opacity opacity))
+  (app-instance:context-push-image (pane-context-outer context) list image x y width height
+                                   :tint tint :opacity opacity))
 
-(defmethod context-forget-glyphs ((context pane-context))
-  (context-forget-glyphs (pane-context-outer context)))
+(defmethod app-instance:context-forget-glyphs ((context pane-context))
+  (app-instance:context-forget-glyphs (pane-context-outer context)))
 
-(defmethod context-clipboard-text ((context pane-context))
-  (context-clipboard-text (pane-context-outer context)))
+(defmethod app-instance:context-clipboard-text ((context pane-context))
+  (app-instance:context-clipboard-text (pane-context-outer context)))
 
-(defmethod context-set-clipboard-text ((context pane-context) string)
-  (context-set-clipboard-text (pane-context-outer context) string))
+(defmethod app-instance:context-set-clipboard-text ((context pane-context) string)
+  (app-instance:context-set-clipboard-text (pane-context-outer context) string))
 
-(defmethod context-choose-file ((context pane-context) kind types name callback)
-  (context-choose-file (pane-context-outer context) kind types name callback))
+(defmethod app-instance:context-choose-file ((context pane-context) kind types name callback)
+  (app-instance:context-choose-file (pane-context-outer context) kind types name callback))
 
 ;;; --- the pane ---
 
@@ -194,7 +102,7 @@ ZOOMED, the same at the pane's zoom, which draws."
   (constructor nil)
   (instance nil)
   ;; What the inner app's STATE-LETs keep, from one time it is made to the next.
-  (kept (make-kept-state))
+  (kept (kept:make-kept-state))
   ;; How many times the window's app had been made again when the inner app was last made.
   (made-again 0 :type fixnum)
   ;; How many times views had been defined when the inner app last drew: one defined since (in a
@@ -202,30 +110,30 @@ ZOOMED, the same at the pane's zoom, which draws."
   (views-version 0 :type fixnum)
   (context nil)
   ;; What the inner app drew, in its points, and that made ZOOM times larger, which is shown.
-  (list (make-display-list :capacity 4096))
-  (shown (make-display-list :capacity 4096))
+  (list (dl:make-display-list :capacity 4096))
+  (shown (dl:make-display-list :capacity 4096))
   (zoom 0f0 :type single-float)
   (was-hot nil)
   ;; Whether the input method is composing in the inner app: it began and has not been committed.
   (composing nil))
 
-(defvar *pane-states* (make-weak-table)
+(defvar *pane-states* (views:make-weak-table)
   "The state of the pane each app in a pane is in, by the app.")
 
 (defun settle-pane (state)
   "Settle the frame of STATE's app, and make what it drew ZOOM times larger to show."
   (let ((inner (app-pane-state-context state)))
-    (setf (context-frame-requested inner) nil)
+    (setf (app-instance:context-frame-requested inner) nil)
     (loop
       (handler-case
-          (progn (settle-frame (app-pane-state-instance state) inner (app-pane-state-list state))
-                 (zoom-display-list (app-pane-state-shown state) (app-pane-state-list state)
-                                    (pane-context-zoom inner))
+          (progn (settle:settle-frame (app-pane-state-instance state) inner (app-pane-state-list state))
+                 (dl:zoom-display-list (app-pane-state-shown state) (app-pane-state-list state)
+                                       (pane-context-zoom inner))
                  (return))
-        (display-list-full ()
-          (let ((capacity (* 2 (display-list-capacity (app-pane-state-list state)))))
-            (setf (app-pane-state-list state) (make-display-list :capacity capacity)
-                  (app-pane-state-shown state) (make-display-list :capacity capacity))))))))
+        (dl:display-list-full ()
+          (let ((capacity (* 2 (dl:display-list-capacity (app-pane-state-list state)))))
+            (setf (app-pane-state-list state) (dl:make-display-list :capacity capacity)
+                  (app-pane-state-shown state) (dl:make-display-list :capacity capacity))))))))
 
 (defun settle-app-pane (instance)
   "Settle the frame of INSTANCE, an app in an app pane, now: for a tool that works it between
@@ -234,21 +142,21 @@ frame."
   (let ((state (gethash instance *pane-states*)))
     (when state
       (settle-pane state)
-      (request-frame (pane-context-outer (app-pane-state-context state))))))
+      (app-instance:request-frame (pane-context-outer (app-pane-state-context state))))))
 
 (defun app-pane-inside (ui key)
   "If the box KEY of UI's last frame is an app pane, the app in it, its zoom, and whether the pane
 has the keyboard; otherwise NIL."
-  (let ((state (gethash key (ui-states ui))))
+  (let ((state (gethash key (ui:ui-states ui))))
     (when (and (app-pane-state-p state) (app-pane-state-instance state))
       (values (app-pane-state-instance state)
               (pane-context-zoom (app-pane-state-context state))
-              (= (ui-focus ui) key)))))
+              (= (ui:ui-focus ui) key)))))
 
 (defun make-inner (state)
   "The app that STATE's constructor makes, with STATE's store for what it keeps."
-  (with-kept-state ((app-pane-state-kept state))
-    (make-immediate-app (funcall (app-pane-state-constructor state)))))
+  (kept:with-kept-state ((app-pane-state-kept state))
+    (immediate:make-immediate-app (funcall (app-pane-state-constructor state)))))
 
 (defun make-inner-again (state id)
   "Make STATE's app again from its constructor, in place of the one it has, which hands on what it
@@ -256,14 +164,14 @@ kept (INHERIT-STATE). If that fails, the one it has stays, and what went wrong i
   (let ((old (app-pane-state-instance state)))
     (handler-case
         (let ((new (make-inner state)))
-          (handler-case (inherit-state new old)
+          (handler-case (app-instance:inherit-state new old)
             (error (condition)
-              (retire-app new)
+              (app-instance:retire-app new)
               (error condition)))
           (remhash old *pane-states*)
           (setf (app-pane-state-instance state) new
                 (gethash new *pane-states*) state)
-          (retire-app old)
+          (app-instance:retire-app old)
           t)
       (error (condition)
         (format *error-output* "~&Hot reload: the app in the pane ~s could not be made again, so ~
@@ -273,14 +181,14 @@ kept (INHERIT-STATE). If that fails, the one it has stays, and what went wrong i
 
 (defun deliver (state event)
   "Give EVENT to the inner app."
-  (handle-event (app-pane-state-instance state) event)
+  (app-instance:handle-event (app-pane-state-instance state) event)
   t)
 
 (defun pointer-event (kind x y &key button (buttons 0) (clicks 0))
-  (make-pointer-event :timestamp 0 :kind kind :x (float x 1d0) :y (float y 1d0) :button button
-                      :buttons buttons :click-count clicks))
+  (event:make-pointer-event :timestamp 0 :kind kind :x (float x 1d0) :y (float y 1d0) :button button
+                            :buttons buttons :click-count clicks))
 
-(defun app-pane (constructor &key (id (required-id 'app-pane)) (zoom 1) width height (flex 0)
+(defun app-pane (constructor &key (id (widgets:required-id 'app-pane)) (zoom 1) width height (flex 0)
                                min-width min-height max-width max-height)
   "The app that CONSTRUCTOR (a function, or the name of one, as OPEN-APP takes) makes, working, in
 an area of this window, at ZOOM (1 as it is; 2 twice as large). It is made the first time and kept
@@ -288,56 +196,56 @@ by the pane's id, and made again if CONSTRUCTOR is another. The pointer and the 
 and the keys while it has the keyboard (a press gives it), are the inner app's, in its own points.
 WIDTH and HEIGHT fix the area's size, as a container's; with neither, give it a FLEX. Returns the
 inner app (for a tool that looks at it, as the inspector does). The :id is required."
-  (let* ((ui *ui*)
-         (box (open-box ui :canvas :id id))
-         (key (box-key box))
-         (state (state-of ui key #'make-app-pane-state))
-         (rect (rect-of ui key))
-         (hot (= (ui-hot ui) key))
+  (let* ((ui ui:*ui*)
+         (box (ui:open-box ui :canvas :id id))
+         (key (box:box-key box))
+         (state (ui:state-of ui key #'make-app-pane-state))
+         (rect (ui:rect-of ui key))
+         (hot (= (ui:ui-hot ui) key))
          (zoom (float zoom 1f0))
-         (outer (ui-context ui))
+         (outer (ui:ui-context ui))
          (moved nil))
-    (set-size-limits box width height min-width min-height max-width max-height)
-    (setf (box-interactive box) t
-          (box-focusable box) t
-          (box-moves box) t
-          (box-pref-w box) (float (or width 0) 1f0)
-          (box-pref-h box) (float (or height 0) 1f0)
-          (box-flex box) (float flex 1f0))
+    (widgets:set-size-limits box width height min-width min-height max-width max-height)
+    (setf (box:box-interactive box) t
+          (box:box-focusable box) t
+          (box:box-moves box) t
+          (box:box-pref-w box) (float (or width 0) 1f0)
+          (box:box-pref-h box) (float (or height 0) 1f0)
+          (box:box-flex box) (float flex 1f0))
     ;; The inner app, made the first time and when it is another, with a store of its own; and made
     ;; again, keeping what it kept, when the window's app has been made again.
     (unless (and (app-pane-state-instance state)
                  (eq constructor (app-pane-state-constructor state)))
       (setf (app-pane-state-constructor state) constructor
-            (app-pane-state-kept state) (make-kept-state)
-            (app-pane-state-made-again state) (ui-made-again ui)
+            (app-pane-state-kept state) (kept:make-kept-state)
+            (app-pane-state-made-again state) (ui:ui-made-again ui)
             (app-pane-state-instance state) (make-inner state)
             (gethash (app-pane-state-instance state) *pane-states*) state
             (app-pane-state-context state)
             (make-pane-context :outer outer
                                :requester (lambda (context)
-                                            (setf (context-frame-requested context) t)
-                                            (request-frame (pane-context-outer context))))
+                                            (setf (app-instance:context-frame-requested context) t)
+                                            (app-instance:request-frame (pane-context-outer context))))
             moved t))
-    (when (/= (app-pane-state-views-version state) (views-version))
-      (setf (app-pane-state-views-version state) (views-version)
+    (when (/= (app-pane-state-views-version state) (views:views-version))
+      (setf (app-pane-state-views-version state) (views:views-version)
             moved t))
-    (when (/= (app-pane-state-made-again state) (ui-made-again ui))
-      (setf (app-pane-state-made-again state) (ui-made-again ui))
+    (when (/= (app-pane-state-made-again state) (ui:ui-made-again ui))
+      (setf (app-pane-state-made-again state) (ui:ui-made-again ui))
       (when (make-inner-again state id)
         (setf moved t)))
     (let ((inner (app-pane-state-context state)))
       ;; The system gone dark or light: the inner app is drawn again, in its new theme.
-      (unless (eq (context-appearance inner) (context-appearance outer))
+      (unless (eq (app-instance:context-appearance inner) (app-instance:context-appearance outer))
         (setf moved t))
       ;; The window's, which the inner app follows, and its size, the pane's in its points.
       (setf (pane-context-outer inner) outer
             (pane-context-zoom inner) zoom
-            (context-scale inner) (context-scale outer)
-            (context-appearance inner) (context-appearance outer)
-            (context-window inner) (context-window outer))
+            (app-instance:context-scale inner) (app-instance:context-scale outer)
+            (app-instance:context-appearance inner) (app-instance:context-appearance outer)
+            (app-instance:context-window inner) (app-instance:context-window outer))
       (when rect
-        (let ((w (/ (rect-w rect) zoom)) (h (/ (rect-h rect) zoom)))
+        (let ((w (/ (ui:rect-w rect) zoom)) (h (/ (ui:rect-h rect) zoom)))
           (unless (and (= w (almighty-bolt/app-instance:context-width inner))
                        (= h (almighty-bolt/app-instance:context-height inner))
                        (= zoom (app-pane-state-zoom state)))
@@ -346,79 +254,79 @@ inner app (for a tool that looks at it, as the inspector does). The :id is requi
                   (app-pane-state-zoom state) zoom
                   moved t)))
         ;; The pointer, in the inner app's points.
-        (let ((x (/ (- (ui-pointer-x ui) (rect-x rect)) zoom))
-              (y (/ (- (ui-pointer-y ui) (rect-y rect)) zoom)))
-          (when (and hot (ui-pressed ui))
-            (consume-press ui)
-            (setf (ui-active ui) key)
-            (focus-by-click ui key)
+        (let ((x (/ (- (ui:ui-pointer-x ui) (ui:rect-x rect)) zoom))
+              (y (/ (- (ui:ui-pointer-y ui) (ui:rect-y rect)) zoom)))
+          (when (and hot (ui:ui-pressed ui))
+            (ui:consume-press ui)
+            (setf (ui:ui-active ui) key)
+            (ui:focus-by-click ui key)
             (setf moved (deliver state (pointer-event :down x y :button 0 :buttons 1
-                                                                :clicks (ui-click-count ui)))))
-          (when (and hot (consume-secondary-press ui))
+                                                                :clicks (ui:ui-click-count ui)))))
+          (when (and hot (ui:consume-secondary-press ui))
             (deliver state (pointer-event :down x y :button 1 :buttons 2 :clicks 1))
             (setf moved (deliver state (pointer-event :up x y :button 1))))
-          (when (and (ui-moved ui) (or hot (= (ui-active ui) key)))
-            (setf (ui-moved ui) nil
+          (when (and (ui:ui-moved ui) (or hot (= (ui:ui-active ui) key)))
+            (setf (ui:ui-moved ui) nil
                   moved (deliver state (pointer-event :move x y
-                                                      :buttons (if (and (= (ui-active ui) key)
-                                                                        (ui-down ui))
+                                                      :buttons (if (and (= (ui:ui-active ui) key)
+                                                                        (ui:ui-down ui))
                                                                    1 0)))))
-          (when (and (= (ui-active ui) key) (ui-released ui))
-            (consume-release ui)
-            (setf (ui-active ui) 0
+          (when (and (= (ui:ui-active ui) key) (ui:ui-released ui))
+            (ui:consume-release ui)
+            (setf (ui:ui-active ui) 0
                   moved (deliver state (pointer-event :up x y :button 0))))
           (when hot
-            (multiple-value-bind (dx dy) (consume-wheel ui)
+            (multiple-value-bind (dx dy) (ui:consume-wheel ui)
               (when (or (/= dx 0f0) (/= dy 0f0))
-                (setf moved (deliver state (make-wheel-event :timestamp 0 :x (float x 1d0)
-                                                             :y (float y 1d0) :dx (float dx 1d0)
-                                                             :dy (float dy 1d0)))))))))
+                (setf moved (deliver state (event:make-wheel-event :timestamp 0 :x (float x 1d0)
+                                                                   :y (float y 1d0) :dx (float dx 1d0)
+                                                                   :dy (float dy 1d0)))))))))
       (when (and (app-pane-state-was-hot state) (not hot))
         (setf moved (deliver state (pointer-event :leave -1 -1))))
       (setf (app-pane-state-was-hot state) hot)
       ;; The keys, while the pane has the keyboard: those no widget of this window took.
-      (when (= (ui-focus ui) key)
-        (dolist (event (copy-list (ui-inputs ui)))
+      (when (= (ui:ui-focus ui) key)
+        (dolist (event (copy-list (ui:ui-inputs ui)))
           (typecase event
-            (key-event
-             (when (member event (ui-keys ui) :test #'eq)
-               (consume-key ui event)
-               (consume-input ui event)
+            (event:key-event
+             (when (member event (ui:ui-keys ui) :test #'eq)
+               (ui:consume-key ui event)
+               (ui:consume-input ui event)
                (setf moved (deliver state event))))
-            ((or text-input-event composition-event)
-             (consume-input ui event)
-             (when (typep event 'composition-event)
+            ((or event:text-input-event event:composition-event)
+             (ui:consume-input ui event)
+             (when (typep event 'event:composition-event)
                (setf (app-pane-state-composing state)
-                     (not (eq (composition-event-kind event) :committed))))
+                     (not (eq (event:composition-event-kind event) :committed))))
              (setf moved (deliver state event))))))
       ;; The keyboard went elsewhere while the inner app was composing: the window's input method
       ;; drops what it composed, and so does the inner app.
-      (when (and (app-pane-state-composing state) (/= (ui-focus ui) key))
+      (when (and (app-pane-state-composing state) (/= (ui:ui-focus ui) key))
         (setf (app-pane-state-composing state) nil
-              moved (deliver state (make-composition-event :timestamp 0 :kind :committed
-                                                           :text ""))))
+              moved (deliver state (event:make-composition-event :timestamp 0 :kind :committed
+                                                                 :text ""))))
       ;; Its frame, when something happened to it or it asked for one; then made ZOOM times larger.
       ;; Not before the pane has been laid out, when its size is not known (its first frame), but in
       ;; the window's next, which it asks for.
       (if rect
-          (when (or moved (context-frame-requested inner))
+          (when (or moved (app-instance:context-frame-requested inner))
             (settle-pane state)
-            (setf (ui-consumed ui) t))
-          (request-frame outer))
+            (setf (ui:ui-consumed ui) t))
+          (app-instance:request-frame outer))
       (when hot
-        (want-cursor ui key (context-cursor inner)))
+        (ui:want-cursor ui key (app-instance:context-cursor inner)))
       ;; What takes text in the inner app takes it in the window, with its caret where the pane
       ;; shows it.
-      (when (and rect (= (ui-focus ui) key) (context-text-input-p inner))
-        (let ((caret (context-text-input-rect inner)))
-          (set-text-input-caret outer
-                                (+ (rect-x rect) (* zoom (aref caret 0)))
-                                (+ (rect-y rect) (* zoom (aref caret 1)))
-                                (* zoom (aref caret 2))
-                                (* zoom (aref caret 3))))))
+      (when (and rect (= (ui:ui-focus ui) key) (app-instance:context-text-input-p inner))
+        (let ((caret (app-instance:context-text-input-rect inner)))
+          (app-instance:set-text-input-caret outer
+                                             (+ (ui:rect-x rect) (* zoom (aref caret 0)))
+                                             (+ (ui:rect-y rect) (* zoom (aref caret 1)))
+                                             (* zoom (aref caret 2))
+                                             (* zoom (aref caret 3))))))
     (let ((shown (app-pane-state-shown state)))
-      (setf (box-data box) shown
-            (box-n3 box) (display-list-hash shown)
-            (box-look box) (look-of ui key t)))
-    (close-box ui)
+      (setf (box:box-data box) shown
+            (box:box-n3 box) (dl:display-list-hash shown)
+            (box:box-look box) (widgets:look-of ui key t)))
+    (ui:close-box ui)
     (app-pane-state-instance state)))

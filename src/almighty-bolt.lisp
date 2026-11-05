@@ -1,5 +1,23 @@
 (defpackage #:almighty-bolt
   (:use)
+  (:local-nicknames (#:app #:almighty-bolt/app)
+                    (#:core #:almighty-bolt/internals)
+                    (#:ui #:almighty-bolt/ui/ui)
+                    (#:widgets #:almighty-bolt/ui/widgets)
+                    (#:drag #:almighty-bolt/ui/drag)
+                    (#:split #:almighty-bolt/ui/split)
+                    (#:tree #:almighty-bolt/ui/tree)
+                    (#:dock #:almighty-bolt/ui/dock)
+                    (#:app-pane #:almighty-bolt/ui/app-pane)
+                    (#:inspector-pane #:almighty-bolt/machine/inspector-pane)
+                    (#:catalogue #:almighty-bolt/ui/catalogue)
+                    (#:views #:almighty-bolt/ui/views)
+                    (#:design-surface #:almighty-bolt/ui/design-surface)
+                    (#:font #:almighty-bolt/text/font)
+                    (#:image-file #:almighty-bolt/render/image-file)
+                    (#:image-atlas #:almighty-bolt/render/metal/image-atlas)
+                    (#:theme #:almighty-bolt/ui/theme)
+                    (#:immediate #:almighty-bolt/ui/immediate))
   (:import-from #:almighty-bolt/app
                 #:run-app
                 #:open-app
@@ -8,9 +26,7 @@
                 #:close-window
                 #:state)
   (:import-from #:almighty-bolt/internals
-                ;; state that survives a reload
                 #:state-let
-                ;; drawing in a canvas
                 #:pack-color
                 #:push-rect
                 #:push-rounded-rect
@@ -22,13 +38,11 @@
                 #:context-measure
                 #:context-push-text
                 #:context-push-image
-                ;; images
                 #:make-image
                 #:image-width
                 #:image-height
                 #:context-caret-x
                 #:context-index-at-x
-                ;; events in a canvas
                 #:key-event-kind
                 #:key-event-logical-key
                 #:key-event-modifiers
@@ -48,7 +62,6 @@
                 #:+key-up+
                 #:+points-per-line+
                 #:set-text-input-caret
-                ;; editing text
                 #:make-text-state
                 #:edit-text
                 #:text-state-string

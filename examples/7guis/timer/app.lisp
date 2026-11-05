@@ -1,25 +1,8 @@
 (defpackage #:almighty-bolt-7guis/timer/app
   (:use #:cl)
-  (:import-from #:almighty-bolt-7guis/common/registry
-                #:register-app)
-  (:import-from #:almighty-bolt-7guis/timer/model
-                #:make-timer
-                #:timer-elapsed
-                #:timer-running-p
-                #:timer-fraction
-                #:timer-advance
-                #:format-seconds)
-  (:import-from #:almighty-bolt
-                #:label
-                #:button
-                #:padding
-                #:column
-                #:row
-                #:progress
-                #:slider
-                #:now
-                #:ask-for-frame
-                #:state-let)
+  (:local-nicknames (#:registry #:almighty-bolt-7guis/common/registry)
+                    (#:model #:almighty-bolt-7guis/timer/model)
+                    (#:bolt #:almighty-bolt))
   (:export #:make-timer-app))
 
 (in-package #:almighty-bolt-7guis/timer/app)
@@ -30,37 +13,37 @@
 ;;; coming.
 
 (defun make-timer-app ()
-  (state-let ((elapsed 0d0)
-              (duration 10d0)
-              (last-time nil))
+  (bolt:state-let ((elapsed 0d0)
+                   (duration 10d0)
+                   (last-time nil))
     (flet ((timer ()
-             (make-timer :duration duration :elapsed elapsed)))
+                  (model:make-timer :duration duration :elapsed elapsed)))
       (lambda ()
-        (let ((now (now)))
-          (cond ((timer-running-p (timer))
+        (let ((now (bolt:now)))
+          (cond ((model:timer-running-p (timer))
                  (when last-time
-                   (setf elapsed (timer-elapsed (timer-advance (timer)
-                                                               (/ (- now last-time) 1d9)))))
+                   (setf elapsed (model:timer-elapsed (model:timer-advance (timer)
+                                                                           (/ (- now last-time) 1d9)))))
                  (setf last-time now))
                 (t (setf last-time nil))))
-        (when (timer-running-p (timer))
-          (ask-for-frame))
-        (padding (:all 24)
-          (column (:gap 14)
-            (row (:gap 12 :cross-align :center)
-              (label "Elapsed time:" :id :elapsed-caption)
-              (progress (timer-fraction (timer))
-                        :id :gauge :labelled-by :elapsed-caption :width 240))
-            (label (format-seconds elapsed) :id :elapsed)
-            (row (:gap 12 :cross-align :center)
-              (label "Duration:" :id :duration-caption)
+        (when (model:timer-running-p (timer))
+          (bolt:ask-for-frame))
+        (bolt:padding (:all 24)
+          (bolt:column (:gap 14)
+            (bolt:row (:gap 12 :cross-align :center)
+              (bolt:label "Elapsed time:" :id :elapsed-caption)
+              (bolt:progress (model:timer-fraction (timer))
+                             :id :gauge :labelled-by :elapsed-caption :width 240))
+            (bolt:label (model:format-seconds elapsed) :id :elapsed)
+            (bolt:row (:gap 12 :cross-align :center)
+              (bolt:label "Duration:" :id :duration-caption)
               (multiple-value-bind (new changed)
-                  (slider duration 1 30 :id :duration :labelled-by :duration-caption :width 240)
+                       (bolt:slider duration 1 30 :id :duration :labelled-by :duration-caption :width 240)
                 (when changed
-                  (setf duration new)))
-              (label (format-seconds duration) :id :duration-label))
-            (when (button "Reset" :id :reset)
+                       (setf duration new)))
+              (bolt:label (model:format-seconds duration) :id :duration-label))
+            (when (bolt:button "Reset" :id :reset)
               (setf elapsed 0d0
                     last-time nil))))))))
 
-(register-app :timer 'make-timer-app :width 460 :height 250)
+(registry:register-app :timer 'make-timer-app :width 460 :height 250)

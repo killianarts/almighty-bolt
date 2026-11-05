@@ -7,11 +7,9 @@
                     (#:m #:almighty-bolt/machine)
                     (#:s #:almighty-bolt/ui/semantics)
                     (#:app #:almighty-bolt/app)
-                    (#:todo #:almighty-bolt-examples/todo))
-  (:import-from #:almighty-bolt/render/metal/device
-                #:default-device)
-  (:import-from #:almighty-bolt/render/metal/target
-                #:+pixel-format-bgra8-unorm+))
+                    (#:todo #:almighty-bolt-examples/todo)
+                    (#:device #:almighty-bolt/render/metal/device)
+                    (#:target #:almighty-bolt/render/metal/target)))
 
 (in-package #:almighty-bolt/t/platform/macos/pasteboard)
 
@@ -52,8 +50,8 @@
 
 (define-test a-field-in-a-host-with-a-pasteboard-copies-to-it-and-pastes-from-it ()
   (with-private-pasteboard (pasteboard)
-    (let* ((host (host:make-host (make-instance 'core:app-instance) (default-device)
-                                 +pixel-format-bgra8-unorm+ :capacity 1024 :scale 2))
+    (let* ((host (host:make-host (make-instance 'core:app-instance) (device:default-device)
+                                 target:+pixel-format-bgra8-unorm+ :capacity 1024 :scale 2))
            (session (progn (setf (host:mac-context-pasteboard (host:host-context host)) pasteboard)
                            (todo-on-host host))))
       (m:type-text session "Feed the cat" :id :draft)
@@ -70,8 +68,8 @@
     (objc:with-autorelease-pool
       (let* ((general (pb:general-pasteboard))
              (before (change-count general))
-             (host (host:make-host (make-instance 'core:app-instance) (default-device)
-                                   +pixel-format-bgra8-unorm+ :capacity 1024 :scale 2))
+             (host (host:make-host (make-instance 'core:app-instance) (device:default-device)
+                                   target:+pixel-format-bgra8-unorm+ :capacity 1024 :scale 2))
              (session (todo-on-host host)))
         (m:type-text session "Feed the cat" :id :draft)
         (m:press-key session :a :modifiers '(:super))

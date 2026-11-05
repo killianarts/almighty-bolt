@@ -1,11 +1,6 @@
 (defpackage #:almighty-bolt/emacs
   (:use #:cl)
-  (:import-from #:almighty-bolt/ui/views
-                #:find-view
-                #:set-view
-                #:view-file
-                #:wiring-file
-                #:*view-changed-functions*)
+  (:local-nicknames (#:views #:almighty-bolt/ui/views))
   (:export #:next-request
            #:emacs-connected-p
            #:view-typed
@@ -98,12 +93,12 @@ case."
 ;;; if Emacs has one: as an edit there, which Emacs's undo takes back.
 (defun view-changed (name form)
   (unless *from-emacs*
-    (let ((file (view-file name)))
+    (let ((file (views:view-file name)))
       (when file
         (request :op :replace-view :file (namestring file) :name (written-name name)
                  :text (view-text name form))))))
 
-(pushnew 'view-changed *view-changed-functions*)
+(pushnew 'view-changed views:*view-changed-functions*)
 
 ;;; --- what Emacs says ---
 
@@ -124,11 +119,11 @@ it does not fit it)."
           (error "This is not (define-view name form)."))
         ;; SET-VIEW checks it, as a file of it is checked when it is compiled.
         (destructuring-bind (name view) (rest form)
-          (if (equal view (find-view name))
+          (if (equal view (views:find-view name))
               ""
               (let ((problems (let ((*from-emacs* t))
                                 (handler-bind ((warning #'muffle-warning))
-                                  (set-view name view)))))
+                                  (views:set-view name view)))))
                 (format nil "~{~a~^ ~}" problems)))))
     (error (condition)
       (princ-to-string condition))))
@@ -144,7 +139,7 @@ package named PACKAGE): the studio selects it. True if there is such a view."
                               home))
          (id (and id (plusp (length id))
                   (intern (string-upcase (string-left-trim ":" id)) :keyword))))
-    (when (and symbol (find-view symbol))
+    (when (and symbol (views:find-view symbol))
       (sb-thread:with-mutex (*lock*)
         (setf *selection* (cons symbol id)))
       ;; The studio sees it at its next frame.
@@ -163,7 +158,7 @@ for the view as a whole), as two values; NIL if nothing was chosen since."
 (defun show-view (name &optional id)
   "Ask Emacs to show the clause of the widget ID in the view NAME, in the file it was defined in.
 NIL and why, if it cannot be: Emacs is not there, or the view has no file."
-  (let ((file (view-file name)))
+  (let ((file (views:view-file name)))
     (cond ((not (emacs-connected-p)) (values nil "Emacs is not connected (almighty-bolt-bridge-mode)."))
           ((null file) (values nil (format nil "~(~a~) was not defined from a file." name)))
           (t (request :op :show-view :file (namestring file) :name (written-name name)
@@ -172,7 +167,7 @@ NIL and why, if it cannot be: Emacs is not there, or the view has no file."
 (defun show-wiring (name &optional id)
   "Ask Emacs to show where the code wires the widget ID of the view NAME: its clause in the VIEW
 form, in the file the code was compiled from."
-  (let ((file (wiring-file name)))
+  (let ((file (views:wiring-file name)))
     (cond ((not (emacs-connected-p)) (values nil "Emacs is not connected (almighty-bolt-bridge-mode)."))
           ((null file) (values nil (format nil "No code from a file wires ~(~a~)." name)))
           (t (request :op :show-wiring :file (namestring file) :name (written-name name)

@@ -1,38 +1,7 @@
 (defpackage #:almighty-bolt-stress/editor/paint
   (:use #:cl)
-  (:import-from #:almighty-bolt
-                #:context-font
-                #:context-measure
-                #:context-caret-x
-                #:context-push-text
-                #:set-text-input-caret
-                #:push-rect
-                #:push-clip
-                #:push-unclip
-                #:pack-color)
-  (:import-from #:almighty-bolt-stress/editor/model
-                #:+line-height+
-                #:+visible-lines+
-                #:+gutter-width+
-                #:+editor-width+
-                #:+editor-height+
-                #:document-line-count
-                #:document-caret
-                #:document-top-line
-                #:document-marked-text
-                #:document-marked-start
-                #:document-marked-length
-                #:+font-name+
-                #:+font-size+
-                #:+number-font-size+
-                #:line-start
-                #:line-end
-                #:position-line
-                #:selection-p
-                #:selection-start
-                #:selection-end
-                #:cached-line-string
-                #:line-number-text)
+  (:local-nicknames (#:bolt #:almighty-bolt)
+                    (#:model #:almighty-bolt-stress/editor/model))
   (:export #:paint-editor
            #:+text-inset+))
 
@@ -44,14 +13,14 @@
 ;;; input method can put its candidates beside it, and what a character is wide so that a click can
 ;;; be turned into a column.
 
-(defparameter +ground+ (pack-color 27 29 38))
-(defparameter +gutter+ (pack-color 34 37 49))
-(defparameter +current+ (pack-color 36 40 54))
-(defparameter +selection+ (pack-color 62 90 170))
-(defparameter +text+ (pack-color 226 229 240))
-(defparameter +dim+ (pack-color 118 124 146))
-(defparameter +caret+ (pack-color 255 214 102))
-(defparameter +marked+ (pack-color 150 196 255))
+(defparameter +ground+ (bolt:pack-color 27 29 38))
+(defparameter +gutter+ (bolt:pack-color 34 37 49))
+(defparameter +current+ (bolt:pack-color 36 40 54))
+(defparameter +selection+ (bolt:pack-color 62 90 170))
+(defparameter +text+ (bolt:pack-color 226 229 240))
+(defparameter +dim+ (bolt:pack-color 118 124 146))
+(defparameter +caret+ (bolt:pack-color 255 214 102))
+(defparameter +marked+ (bolt:pack-color 150 196 255))
 
 (defconstant +text-inset+ 8 "How far from the gutter the text starts.")
 
@@ -60,69 +29,69 @@
 caret is in the area, which is what the input method needs and the canvas's app puts in the
 window."
   (declare (ignore width height))
-  (let* ((font (context-font context +font-name+ +font-size+))
-         (number-font (context-font context +font-name+ +number-font-size+))
-         (text-x (+ x +gutter-width+ +text-inset+))
-         (top (document-top-line document))
-         (caret (document-caret document))
-         (caret-line (position-line document caret))
-         (marked (document-marked-text document))
+  (let* ((font (bolt:context-font context model:+font-name+ model:+font-size+))
+         (number-font (bolt:context-font context model:+font-name+ model:+number-font-size+))
+         (text-x (+ x model:+gutter-width+ +text-inset+))
+         (top (model:document-top-line document))
+         (caret (model:document-caret document))
+         (caret-line (model:position-line document caret))
+         (marked (model:document-marked-text document))
          (caret-x nil) (caret-y nil))
-    (multiple-value-bind (cell ascent descent) (context-measure context font "M")
-      (let ((baseline (+ (/ (- +line-height+ (+ ascent descent)) 2) ascent)))
-        (push-rect list x y +editor-width+ +editor-height+ +ground+)
-        (push-rect list x y +gutter-width+ +editor-height+ +gutter+)
-        (dotimes (slot +visible-lines+)
+    (multiple-value-bind (cell ascent descent) (bolt:context-measure context font "M")
+      (let ((baseline (+ (/ (- model:+line-height+ (+ ascent descent)) 2) ascent)))
+        (bolt:push-rect list x y model:+editor-width+ model:+editor-height+ +ground+)
+        (bolt:push-rect list x y model:+gutter-width+ model:+editor-height+ +gutter+)
+        (dotimes (slot model:+visible-lines+)
           (let ((line (+ top slot))
-                (row-y (+ y (* slot +line-height+))))
-            (when (< line (document-line-count document))
-              (let* ((string (cached-line-string document line))
-                     (start (line-start document line))
+                (row-y (+ y (* slot model:+line-height+))))
+            (when (< line (model:document-line-count document))
+              (let* ((string (model:cached-line-string document line))
+                     (start (model:line-start document line))
                      (composing (and (= line caret-line) (plusp (length marked))))
                      (column (- caret start))
                      (shown (if composing
                                 (concatenate 'string (subseq string 0 column) marked
                                              (subseq string column))
                                 string))
-                     (number (line-number-text (1+ line))))
+                     (number (model:line-number-text (1+ line))))
                 (when (= line caret-line)
-                  (push-rect list (+ x +gutter-width+) row-y (- +editor-width+ +gutter-width+)
-                             +line-height+ +current+))
+                  (bolt:push-rect list (+ x model:+gutter-width+) row-y (- model:+editor-width+ model:+gutter-width+)
+                                  model:+line-height+ +current+))
                 ;; The gutter holds the number of the line, against the text.
-                (context-push-text context list number-font number
-                                   (- (+ x +gutter-width+) 10
-                                      (context-measure context number-font number))
-                                   (+ row-y baseline) (if (= line caret-line) +text+ +dim+))
-                (push-clip list (+ x +gutter-width+) row-y (- +editor-width+ +gutter-width+)
-                           +line-height+)
-                (when (and (selection-p document) (not composing)
-                           (< (selection-start document) (1+ (line-end document line)))
-                           (> (selection-end document) start))
-                  (let* ((from (max 0 (- (selection-start document) start)))
-                         (to (min (length string) (- (selection-end document) start)))
-                         (past-end (> (selection-end document) (line-end document line)))
-                         (left (context-caret-x context font string from))
-                         (right (+ (context-caret-x context font string to)
+                (bolt:context-push-text context list number-font number
+                                        (- (+ x model:+gutter-width+) 10
+                                           (bolt:context-measure context number-font number))
+                                        (+ row-y baseline) (if (= line caret-line) +text+ +dim+))
+                (bolt:push-clip list (+ x model:+gutter-width+) row-y (- model:+editor-width+ model:+gutter-width+)
+                                model:+line-height+)
+                (when (and (model:selection-p document) (not composing)
+                           (< (model:selection-start document) (1+ (model:line-end document line)))
+                           (> (model:selection-end document) start))
+                  (let* ((from (max 0 (- (model:selection-start document) start)))
+                         (to (min (length string) (- (model:selection-end document) start)))
+                         (past-end (> (model:selection-end document) (model:line-end document line)))
+                         (left (bolt:context-caret-x context font string from))
+                         (right (+ (bolt:context-caret-x context font string to)
                                    (if past-end (* 0.5 cell) 0))))
-                    (push-rect list (+ text-x left) row-y (max 1f0 (- right left)) +line-height+
-                               +selection+)))
-                (context-push-text context list font shown text-x (+ row-y baseline) +text+)
+                    (bolt:push-rect list (+ text-x left) row-y (max 1f0 (- right left)) model:+line-height+
+                                    +selection+)))
+                (bolt:context-push-text context list font shown text-x (+ row-y baseline) +text+)
                 (when composing
-                  (let ((left (context-caret-x context font shown column))
-                        (right (context-caret-x context font shown (+ column (length marked)))))
-                    (push-rect list (+ text-x left) (+ row-y baseline 2) (- right left) 1f0
-                               +marked+)))
-                (push-unclip list)
+                  (let ((left (bolt:context-caret-x context font shown column))
+                        (right (bolt:context-caret-x context font shown (+ column (length marked)))))
+                    (bolt:push-rect list (+ text-x left) (+ row-y baseline 2) (- right left) 1f0
+                                    +marked+)))
+                (bolt:push-unclip list)
                 (when (= line caret-line)
-                  (let ((at (context-caret-x context font shown
-                                             (+ column (if composing
-                                                           (document-marked-start document)
-                                                           0)))))
+                  (let ((at (bolt:context-caret-x context font shown
+                                                  (+ column (if composing
+                                                                (model:document-marked-start document)
+                                                                0)))))
                     (setf caret-x (+ text-x at)
                           caret-y (+ row-y 2))
-                    (push-rect list caret-x caret-y 1.5f0 (- +line-height+ 4) +caret+)))))))
+                    (bolt:push-rect list caret-x caret-y 1.5f0 (- model:+line-height+ 4) +caret+)))))))
         ;; Where the input method puts its window: at the caret, or at the top if it is not shown.
-        (set-text-input-caret context
-                              (- (or caret-x text-x) x)
-                              (- (or caret-y y) y)
-                              1.5f0 (float (- +line-height+ 4) 1f0))))))
+        (bolt:set-text-input-caret context
+                                   (- (or caret-x text-x) x)
+                                   (- (or caret-y y) y)
+                                   1.5f0 (float (- model:+line-height+ 4) 1f0))))))

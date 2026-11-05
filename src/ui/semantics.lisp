@@ -1,69 +1,12 @@
 (defpackage #:almighty-bolt/ui/semantics
   (:use #:cl)
-  (:import-from #:almighty-bolt/internals
-                #:accessibility-tree
-                #:text-state-string
-                #:text-state-caret
-                #:text-state-selection-p
-                #:text-state-selection-start
-                #:text-state-selection-end)
-  (:import-from #:almighty-bolt/ui/box
-                #:box-key
-                #:box-id
-                #:box-kind
-                #:box-children
-                #:box-text
-                #:box-enabled
-                #:box-data
-                #:box-n1
-                #:box-n2
-                #:box-n3
-                #:box-aux
-                #:box-labelled-by
-                #:box-parent
-                #:box-interactive
-                #:box-tooltip
-                #:box-main-align
-                #:box-theme
-                #:box-x
-                #:box-y
-                #:box-w
-                #:box-h)
-  (:import-from #:almighty-bolt/ui/ui
-                #:ui-root
-                #:ui-last-layout-hash
-                #:ui-last-width
-                #:ui-last-height
-                #:ui-last-scale
-                #:ui-floats
-                #:ui-boxes
-                #:ui-count
-                #:ui-focus
-                #:ui-hot)
-  (:import-from #:almighty-bolt/ui/widgets
-                #:field-state-state
-                #:area-state-state
-                #:area-state-offset
-                #:area-state-numbered
-                #:area-state-marks
-                #:choice-state-lefts
-                #:choice-state-widths
-                #:choice-state-tops
-                #:choice-state-option-height
-                #:list-state-top
-                #:scroll-state-offset
-                #:scroll-state-content-height
-                #:+thumb-size+)
-  (:import-from #:almighty-bolt/ui/theme
-                #:theme-row-height)
-  (:import-from #:almighty-bolt/ui/app-pane
-                #:app-pane-inside)
-  (:import-from #:almighty-bolt/ui/immediate
-                #:immediate-app
-                #:immediate-app-ui
-                #:immediate-app-failure
-                #:immediate-app-tree
-                #:immediate-app-tree-frame)
+  (:local-nicknames (#:core #:almighty-bolt/internals)
+                    (#:box #:almighty-bolt/ui/box)
+                    (#:ui #:almighty-bolt/ui/ui)
+                    (#:widgets #:almighty-bolt/ui/widgets)
+                    (#:theme #:almighty-bolt/ui/theme)
+                    (#:app-pane #:almighty-bolt/ui/app-pane)
+                    (#:immediate #:almighty-bolt/ui/immediate))
   (:export #:node-id
            #:node-role
            #:node-name
@@ -102,12 +45,12 @@
 (defun node-property (node key) (getf (getf node :state) key))
 
 (defun role-of (box)
-  (ecase (box-kind box)
+  (ecase (box:box-kind box)
     (:label :static-text)
     (:paragraph :paragraph)
     (:progress :progress-bar)
     ;; An image without a label is decoration, and is not read.
-    (:image (if (plusp (length (box-text box))) :image :none))
+    (:image (if (plusp (length (box:box-text box))) :image :none))
     (:button :button)
     (:text-field :text-field)
     (:combo-box :combo-box)
@@ -137,14 +80,14 @@
     (:tree :outline)
     (:tree-row :row)
     (:grid :grid)
-    (:pressable (if (zerop (box-n3 box)) :button :toggle-button))
+    (:pressable (if (zerop (box:box-n3 box)) :button :toggle-button))
     (:drag-source :button)))
 
 (defun find-box (ui id)
   "The box of the frame with the id ID, or NIL."
-  (loop :for index :below (ui-count ui)
-        :do (let ((box (aref (ui-boxes ui) index)))
-              (when (and (box-id box) (equal (box-id box) id))
+  (loop :for index :below (ui:ui-count ui)
+        :do (let ((box (aref (ui:ui-boxes ui) index)))
+              (when (and (box:box-id box) (equal (box:box-id box) id))
                 (return box)))))
 
 (defun find-labelling-box (ui box id)
@@ -153,17 +96,17 @@ its grandparent's, and so on out. Ids need be unique only within a container, so
 have a label :title and a field labelled by it; each field is named by the label in its own panel.
 The whole frame is searched last, for a label in a float (a dialog's title) or elsewhere."
   (labels ((inside (container skip)
-             (loop :for child :across (box-children container)
+             (loop :for child :across (box:box-children container)
                    :unless (eq child skip)
-                     :do (when (equal (box-id child) id)
+                     :do (when (equal (box:box-id child) id)
                            (return-from inside child))
                          (let ((found (inside child nil)))
                            (when found (return-from inside found))))
              nil))
     (loop :for from = box :then container
-          :for container = (box-parent box) :then (box-parent container)
+          :for container = (box:box-parent box) :then (box:box-parent container)
           :while container
-          :do (when (equal (box-id container) id)
+          :do (when (equal (box:box-id container) id)
                 (return-from find-labelling-box container))
               (let ((found (inside container from)))
                 (when found (return-from find-labelling-box found))))
@@ -175,52 +118,52 @@ or NIL: what a pressable with no name of its own is called, so that one that is 
 called what the icon's label says."
   (let ((words '()))
     (labels ((walk (box)
-               (loop :for child :across (box-children box)
-                     :do (when (and (member (box-kind child) '(:label :paragraph :image))
-                                    (plusp (length (box-text child))))
-                           (push (box-text child) words))
+               (loop :for child :across (box:box-children box)
+                     :do (when (and (member (box:box-kind child) '(:label :paragraph :image))
+                                    (plusp (length (box:box-text child))))
+                           (push (box:box-text child) words))
                          (walk child))))
       (walk box))
     (and words (format nil "~{~a~^, ~}" (nreverse words)))))
 
 (defun name-of (ui box)
   "What the thing is called: its own words, or the words of the widget that its :labelled-by names."
-  (case (box-kind box)
-    (:pressable (or (box-data box) (words-inside box)))
+  (case (box:box-kind box)
+    (:pressable (or (box:box-data box) (words-inside box)))
     ((:drag-source :tree-row) (words-inside box))
     ((:label :paragraph :image :button :checkbox :switch :menu-item :menu-button :tooltip :dialog
       :toast)
-     (box-text box))
-    (t (let ((label (and (box-labelled-by box) (find-labelling-box ui box (box-labelled-by box)))))
-         (and label (box-text label))))))
+     (box:box-text box))
+    (t (let ((label (and (box:box-labelled-by box) (find-labelling-box ui box (box:box-labelled-by box)))))
+         (and label (box:box-text label))))))
 
 (defun help-of (box)
   "What BOX says when the pointer rests on it, and for a code view what its marks say, line by line:
 what a screen reader gives as its help."
-  (let ((notes (and (eq (box-kind box) :text-area)
-                    (area-state-numbered (box-data box))
-                    (loop :for (line nil nil words) :in (area-state-marks (box-data box))
+  (let ((notes (and (eq (box:box-kind box) :text-area)
+                    (widgets:area-state-numbered (box:box-data box))
+                    (loop :for (line nil nil words) :in (widgets:area-state-marks (box:box-data box))
                           :when words
                             :collect (format nil "Line ~d: ~a" line words)))))
     (if notes
-        (format nil "~@[~a ~]~{~a.~^ ~}" (box-tooltip box) notes)
-        (box-tooltip box))))
+        (format nil "~@[~a ~]~{~a.~^ ~}" (box:box-tooltip box) notes)
+        (box:box-tooltip box))))
 
 (defun value-of (box)
-  (case (box-kind box)
+  (case (box:box-kind box)
     ;; What is typed, without what the input method is still composing (which is shown).
-    ((:text-field :combo-box) (text-state-string (field-state-state (box-data box))))
-    (:text-area (text-state-string (area-state-state (box-data box))))
-    (:dropdown (box-text box))
-    (:slider (let ((aux (box-aux box)))
+    ((:text-field :combo-box) (core:text-state-string (widgets:field-state-state (box:box-data box))))
+    (:text-area (core:text-state-string (widgets:area-state-state (box:box-data box))))
+    (:dropdown (box:box-text box))
+    (:slider (let ((aux (box:box-aux box)))
                (and aux (aref aux 0))))
-    (:progress (float (box-n1 box) 1d0))
+    (:progress (float (box:box-n1 box) 1d0))
     ;; How wide (or tall) the pane before it is.
-    (:splitter (float (box-n1 box) 1d0))
-    ((:checkbox :switch) (= (box-n3 box) 1))
-    (:choice (let ((options (car (box-data box))))
-               (nth (box-n3 box) options)))
-    (:list-box (let ((items (car (box-data box))) (selected (box-n2 box)))
+    (:splitter (float (box:box-n1 box) 1d0))
+    ((:checkbox :switch) (= (box:box-n3 box) 1))
+    (:choice (let ((options (car (box:box-data box))))
+               (nth (box:box-n3 box) options)))
+    (:list-box (let ((items (car (box:box-data box))) (selected (box:box-n2 box)))
                  (and (>= selected 0) (nth (round selected) items))))
     (t nil)))
 
@@ -228,156 +171,156 @@ what a screen reader gives as its help."
   (let ((state '()))
     (flet ((note (key value) (setf state (append state (list key value)))))
       (when hidden (note :hidden t))
-      (unless (box-enabled box) (note :disabled t))
-      (when (and (plusp (ui-focus ui)) (= (box-key box) (ui-focus ui))) (note :focused t))
-      (when (and (plusp (ui-hot ui)) (= (box-key box) (ui-hot ui))) (note :hovered t))
+      (unless (box:box-enabled box) (note :disabled t))
+      (when (and (plusp (ui:ui-focus ui)) (= (box:box-key box) (ui:ui-focus ui))) (note :focused t))
+      (when (and (plusp (ui:ui-hot ui)) (= (box:box-key box) (ui:ui-hot ui))) (note :hovered t))
       ;; A thing that a secondary press on opens a menu: it is in a context menu's area.
-      (when (and (box-interactive box)
-                 (loop :for parent = (box-parent box) :then (box-parent parent)
+      (when (and (box:box-interactive box)
+                 (loop :for parent = (box:box-parent box) :then (box:box-parent parent)
                        :while parent
-                         :thereis (eq (box-kind parent) :context-area)))
+                         :thereis (eq (box:box-kind parent) :context-area)))
         (note :menu t))
       ;; A cell of a grid says where it is in it, from 0.
-      (let ((parent (box-parent box)))
-        (when (and parent (eq (box-kind parent) :grid))
-          (let ((index (position box (box-children parent)))
-                (columns (max 1 (box-n3 parent))))
+      (let ((parent (box:box-parent box)))
+        (when (and parent (eq (box:box-kind parent) :grid))
+          (let ((index (position box (box:box-children parent)))
+                (columns (max 1 (box:box-n3 parent))))
             (note :row (floor index columns))
             (note :column (mod index columns)))))
-      (case (box-kind box)
+      (case (box:box-kind box)
         ((:label :paragraph)
-         (when (= (box-n3 box) 1) (note :live t)))
+         (when (= (box:box-n3 box) 1) (note :live t)))
         (:pressable
-         (unless (zerop (box-n3 box)) (note :selected (= (box-n3 box) 2))))
+         (unless (zerop (box:box-n3 box)) (note :selected (= (box:box-n3 box) 2))))
         ;; How deep it is, from 0, whether it is selected, and whether what is in it is shown.
         (:tree-row
-         (note :level (round (box-n1 box)))
-         (note :selected (= (box-n3 box) 1))
-         (unless (zerop (box-n2 box)) (note :expanded (= (box-n2 box) 2))))
+         (note :level (round (box:box-n1 box)))
+         (note :selected (= (box:box-n3 box) 1))
+         (unless (zerop (box:box-n2 box)) (note :expanded (= (box:box-n2 box) 2))))
         ;; Read out as it comes.
         (:toast (note :announce t))
         ((:text-field :combo-box :text-area)
-         (let ((text (if (member (box-kind box) '(:text-field :combo-box))
-                         (field-state-state (box-data box))
-                         (area-state-state (box-data box)))))
-           (when (and (not (eq (box-kind box) :text-area)) (= (box-n3 box) 1)) (note :invalid t))
-           (when (eq (box-kind box) :text-area)
-             (note :offset (area-state-offset (box-data box)))
+         (let ((text (if (member (box:box-kind box) '(:text-field :combo-box))
+                         (widgets:field-state-state (box:box-data box))
+                         (widgets:area-state-state (box:box-data box)))))
+           (when (and (not (eq (box:box-kind box) :text-area)) (= (box:box-n3 box) 1)) (note :invalid t))
+           (when (eq (box:box-kind box) :text-area)
+             (note :offset (widgets:area-state-offset (box:box-data box)))
              ;; A code view's: its lines are numbered, and which are marked, with what each says.
-             (let ((area (box-data box)))
-               (when (area-state-numbered area)
+             (let ((area (box:box-data box)))
+               (when (widgets:area-state-numbered area)
                  (note :line-numbers t)
-                 (when (area-state-marks area)
-                   (note :marks (loop :for (line nil nil words) :in (area-state-marks area)
+                 (when (widgets:area-state-marks area)
+                   (note :marks (loop :for (line nil nil words) :in (widgets:area-state-marks area)
                                       :collect (list line words)))))))
-           (note :caret (text-state-caret text))
-           (when (text-state-selection-p text)
-             (note :selection (list (text-state-selection-start text)
-                                    (text-state-selection-end text))))))
+           (note :caret (core:text-state-caret text))
+           (when (core:text-state-selection-p text)
+             (note :selection (list (core:text-state-selection-start text)
+                                    (core:text-state-selection-end text))))))
         (:slider
-         (let ((aux (box-aux box)))
+         (let ((aux (box:box-aux box)))
            (when aux
              (note :minimum (aref aux 1))
              (note :maximum (aref aux 2)))))
-        ((:checkbox :switch) (note :checked (= (box-n3 box) 1)))
-        (:menu-button (note :expanded (= (box-n3 box) 1)))
+        ((:checkbox :switch) (note :checked (= (box:box-n3 box) 1)))
+        (:menu-button (note :expanded (= (box:box-n3 box) 1)))
         (:dropdown
-         (note :expanded (= (box-n3 box) 1))
-         (note :options (box-data box)))
+         (note :expanded (= (box:box-n3 box) 1))
+         (note :options (box:box-data box)))
         (:menu-item
-         (when (= (box-n3 box) 1) (note :highlighted t))
-         (when (= (box-n2 box) 1f0) (note :checked t)))
+         (when (= (box:box-n3 box) 1) (note :highlighted t))
+         (when (= (box:box-n2 box) 1f0) (note :checked t)))
         ((:scroll :lazy-list)
-         (note :offset (scroll-state-offset (box-data box)))
-         (note :content-height (scroll-state-content-height (box-data box)))
-         (when (eq (box-kind box) :lazy-list)
+         (note :offset (widgets:scroll-state-offset (box:box-data box)))
+         (note :content-height (widgets:scroll-state-content-height (box:box-data box)))
+         (when (eq (box:box-kind box) :lazy-list)
            ;; How many rows there are, and which of them were built (the ones the tree holds).
-           (note :row-count (box-n3 box))
-           (let ((rows (box-children box)))
+           (note :row-count (box:box-n3 box))
+           (let ((rows (box:box-children box)))
              (when (plusp (length rows))
-               (note :first-row (box-n3 (aref rows 0)))))))
+               (note :first-row (box:box-n3 (aref rows 0)))))))
         (:choice
-         (note :selected (box-n3 box))
-         (note :options (car (box-data box)))
-         (if (member (box-main-align box) '(:segmented :tabs))
-             (progn (note :direction :horizontal) (note :style (box-main-align box)))
-             (note :direction (box-main-align box)))
+         (note :selected (box:box-n3 box))
+         (note :options (car (box:box-data box)))
+         (if (member (box:box-main-align box) '(:segmented :tabs))
+             (progn (note :direction :horizontal) (note :style (box:box-main-align box)))
+             (note :direction (box:box-main-align box)))
          ;; Where each option is, so that it can be pressed.
-         (let ((state (cdr (box-data box))))
+         (let ((state (cdr (box:box-data box))))
            (note :option-bounds
-                 (loop :for left :across (choice-state-lefts state)
-                       :for top :across (choice-state-tops state)
-                       :for width :across (choice-state-widths state)
+                 (loop :for left :across (widgets:choice-state-lefts state)
+                       :for top :across (widgets:choice-state-tops state)
+                       :for width :across (widgets:choice-state-widths state)
                        :collect (list (+ x left) (+ y top) width
-                                      (choice-state-option-height state))))))
+                                      (widgets:choice-state-option-height state))))))
         (:list-box
-         (note :selected (let ((selected (box-n2 box)))
+         (note :selected (let ((selected (box:box-n2 box)))
                            (and (>= selected 0) (round selected))))
-         (note :items (car (box-data box)))
+         (note :items (car (box:box-data box)))
          ;; The rows that show: the first one's index, and where each is.
-         (let* ((state (cdr (box-data box)))
-                (top (list-state-top state))
-                (rows (box-n3 box))
-                (count (length (car (box-data box))))
-                (row-height (theme-row-height (box-theme box))))
+         (let* ((state (cdr (box:box-data box)))
+                (top (widgets:list-state-top state))
+                (rows (box:box-n3 box))
+                (count (length (car (box:box-data box))))
+                (row-height (theme:theme-row-height (box:box-theme box))))
            (note :first-visible top)
            (note :item-bounds
                  (loop :for index :from top :below (min count (+ top rows))
                        :for row :from 0
-                       :collect (list x (+ y 1 (* row row-height)) (box-w box) row-height)))))))
+                       :collect (list x (+ y 1 (* row row-height)) (box:box-w box) row-height)))))))
     state))
 
 (defun node-of (ui box x y left top right bottom)
   "The node of BOX, whose parent is at X, Y, inside the part of the window from LEFT, TOP to RIGHT,
 BOTTOM that shows (a scroll container's window, or all of it). Its bounds are the part of it that
 shows; one that is all out of sight is :hidden, with no width or height."
-  (let* ((x (+ x (box-x box)))
-         (y (+ y (box-y box)))
+  (let* ((x (+ x (box:box-x box)))
+         (y (+ y (box:box-y box)))
          (shown-left (max x left))
          (shown-top (max y top))
-         (shown-w (max 0f0 (- (min (+ x (box-w box)) right) shown-left)))
-         (shown-h (max 0f0 (- (min (+ y (box-h box)) bottom) shown-top)))
+         (shown-w (max 0f0 (- (min (+ x (box:box-w box)) right) shown-left)))
+         (shown-h (max 0f0 (- (min (+ y (box:box-h box)) bottom) shown-top)))
          ;; A box that has an area and none of it shows. (One with no area, an empty label, is where
          ;; it is.)
-         (hidden (and (plusp (box-w box)) (plusp (box-h box))
+         (hidden (and (plusp (box:box-w box)) (plusp (box:box-h box))
                       (or (zerop shown-w) (zerop shown-h))))
-         (id (box-id box))
+         (id (box:box-id box))
          (name (name-of ui box))
          (value (value-of box))
          (state (state-of ui box x y hidden))
          (children (cond
-                     ;; A pressable is one thing to press, named by its words: what is in it is left
-                     ;; out, but for what can be pressed or typed into in its own right.
-                     ((eq (box-kind box) :pressable)
-                      (labels ((pressed-inside (box x y)
-                                 (loop :for child :across (box-children box)
-                                       :append (if (box-interactive child)
+                         ;; A pressable is one thing to press, named by its words: what is in it is left
+                         ;; out, but for what can be pressed or typed into in its own right.
+                         ((eq (box:box-kind box) :pressable)
+                          (labels ((pressed-inside (box x y)
+                                 (loop :for child :across (box:box-children box)
+                                       :append (if (box:box-interactive child)
                                                    (list (node-of ui child x y left top right bottom))
-                                                   (pressed-inside child (+ x (box-x child))
-                                                                   (+ y (box-y child)))))))
+                                                   (pressed-inside child (+ x (box:box-x child))
+                                                                   (+ y (box:box-y child)))))))
                         (pressed-inside box x y)))
-                     ;; An app in a pane: its own tree, where the pane shows it.
-                     ((and (eq (box-kind box) :canvas) (app-pane-inside ui (box-key box)))
-                      (multiple-value-bind (instance zoom focused) (app-pane-inside ui (box-key box))
-                        (let ((inner (accessibility-tree instance)))
-                          (and inner
-                               (list (graft inner x y zoom shown-left shown-top
-                                            (+ shown-left shown-w) (+ shown-top shown-h)
-                                            focused))))))
-                     ;; What shows of it: a stage cuts off what is laid out past its edges.
-                     ((member (box-kind box) '(:scroll :lazy-list :stage))
-                      (loop :for child :across (box-children box)
-                            :collect (node-of ui child x y shown-left shown-top
-                                              (+ shown-left shown-w) (+ shown-top shown-h))))
-                     ;; A spacer is room and nothing more, and says nothing to anyone.
-                     (t (loop :for child :across (box-children box)
-                              :unless (eq (box-kind child) :spacer)
-                                :collect (node-of ui child x y left top right bottom))))))
+                         ;; An app in a pane: its own tree, where the pane shows it.
+                         ((and (eq (box:box-kind box) :canvas) (app-pane:app-pane-inside ui (box:box-key box)))
+                          (multiple-value-bind (instance zoom focused) (app-pane:app-pane-inside ui (box:box-key box))
+                        (let ((inner (core:accessibility-tree instance)))
+                              (and inner
+                                   (list (graft inner x y zoom shown-left shown-top
+                                                (+ shown-left shown-w) (+ shown-top shown-h)
+                                                focused))))))
+                         ;; What shows of it: a stage cuts off what is laid out past its edges.
+                         ((member (box:box-kind box) '(:scroll :lazy-list :stage))
+                          (loop :for child :across (box:box-children box)
+                                :collect (node-of ui child x y shown-left shown-top
+                                                  (+ shown-left shown-w) (+ shown-top shown-h))))
+                         ;; A spacer is room and nothing more, and says nothing to anyone.
+                         (t (loop :for child :across (box:box-children box)
+                                  :unless (eq (box:box-kind child) :spacer)
+                                    :collect (node-of ui child x y left top right bottom))))))
     (append (and id (list :id id))
             (list :role (role-of box))
             (and name (list :name name))
             ;; A check box that is not checked has the value NIL, which is a value.
-            (and (or value (member (box-kind box) '(:checkbox :switch))) (list :value value))
+            (and (or value (member (box:box-kind box) '(:checkbox :switch))) (list :value value))
             (and state (list :state state))
             ;; What it says when the pointer rests on it.
             (let ((help (help-of box)))
@@ -412,7 +355,7 @@ has the keyboard only if the pane has it (FOCUSED). A slider says how wide its t
                                       (list key (mapcar #'place value)))
                                      (t (list key value))))
                      (and (eq (node-role node) :slider) (/= zoom 1f0)
-                          (list :thumb-width (* zoom +thumb-size+))))))
+                          (list :thumb-width (* zoom widgets:+thumb-size+))))))
         (loop :for (key value) :on node :by #'cddr
               :append (case key
                         (:state '())
@@ -433,42 +376,42 @@ has the keyboard only if the pane has it (FOCUSED). A slider says how wide its t
   "What says where things are in the frame the window shows: the hash of what decides its layout,
 and its size. (Not the hash of its look: a frame that differs from another only in how something
 looks, a button held down, has everything where it was.)"
-  (list (ui-last-layout-hash ui) (ui-last-width ui) (ui-last-height ui) (ui-last-scale ui)))
+  (list (ui:ui-last-layout-hash ui) (ui:ui-last-width ui) (ui:ui-last-height ui) (ui:ui-last-scale ui)))
 
-(defmethod accessibility-tree ((instance immediate-app))
+(defmethod core:accessibility-tree ((instance immediate:immediate-app))
   "The semantic tree of the frame the window shows, a node (see above) for the whole window, or NIL
 if no frame has been built. While frames fail, the window shows the last that did not (see
 SHOW-FAILURE), and the boxes are those of the build that failed, which has no places: the tree is
 then the one last asked for, if that was of a frame laid out as the one shown (a state that only
 changes how something looks, a toggle that is on, can be a frame behind), and otherwise a window
 that says what failed. Kept only as it is asked for, so that a frame allocates nothing for it."
-  (let ((ui (immediate-app-ui instance)))
-    (if (immediate-app-failure instance)
-        (if (equal (immediate-app-tree-frame instance) (shown-frame ui))
-            (immediate-app-tree instance)
-            (let ((w (ui-last-width ui)) (h (ui-last-height ui)))
+  (let ((ui (immediate:immediate-app-ui instance)))
+    (if (immediate:immediate-app-failure instance)
+        (if (equal (immediate:immediate-app-tree-frame instance) (shown-frame ui))
+            (immediate:immediate-app-tree instance)
+            (let ((w (ui:ui-last-width ui)) (h (ui:ui-last-height ui)))
               (list :role :group
                     :bounds (list 0f0 0f0 w h)
                     :children (list (list :role :static-text
                                           :name (format nil "The app failed in this frame: ~a"
-                                                        (immediate-app-failure instance))
+                                                        (immediate:immediate-app-failure instance))
                                           :bounds (list 0f0 (- h 36f0) w 36f0))))))
         (let ((tree (frame-tree ui)))
-          (setf (immediate-app-tree instance) tree
-                (immediate-app-tree-frame instance) (shown-frame ui))
+          (setf (immediate:immediate-app-tree instance) tree
+                (immediate:immediate-app-tree-frame instance) (shown-frame ui))
           tree))))
 
 (defun frame-tree (ui)
   "The semantic tree of the frame last built in UI."
-  (let ((root (ui-root ui)))
+  (let ((root (ui:ui-root ui)))
     (and root
          (let ((node (node-of ui root 0f0 0f0 -1f30 -1f30 1f30 1f30))
                ;; What floats above the screen (a menu) is in the window too, after the rest; the
                ;; catcher under a menu, which shows nothing, is not, nor the inspector's outlines, which
                ;; are the library's and not the app's.
-               (floats (loop :for float :across (ui-floats ui)
-                             :unless (or (eq (box-kind float) :catcher)
-                                         (eq (box-kind float) :outline))
+               (floats (loop :for float :across (ui:ui-floats ui)
+                             :unless (or (eq (box:box-kind float) :catcher)
+                                         (eq (box:box-kind float) :outline))
                                :collect (node-of ui float 0f0 0f0 -1f30 -1f30 1f30 1f30))))
            (if floats
                (append (loop :for (key value) :on node :by #'cddr
@@ -500,5 +443,5 @@ list (:role, :name, :value, :state): what the inspector shows of a widget it pic
         (value (value-of box)))
     (append (list :role (role-of box))
             (and name (list :name name))
-            (and (or value (member (box-kind box) '(:checkbox :switch))) (list :value value))
+            (and (or value (member (box:box-kind box) '(:checkbox :switch))) (list :value value))
             (list :state (state-of ui box x y nil)))))

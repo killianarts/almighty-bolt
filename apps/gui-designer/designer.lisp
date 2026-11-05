@@ -1,44 +1,9 @@
 (defpackage #:almighty-bolt-gui-designer
   (:use #:cl)
-  (:local-nicknames (#:bolt #:almighty-bolt))
-  (:import-from #:almighty-bolt-gui-designer/view
-                #:make-node
-                #:node-kind
-                #:node-id
-                #:node-options
-                #:node-children
-                #:form-node
-                #:node-form
-                #:find-by-id
-                #:parent-of
-                #:all-ids
-                #:fresh-id
-                #:add-node
-                #:remove-node
-                #:move-node
-                #:with-option
-                #:with-id)
-  (:import-from #:almighty-bolt/ui/catalogue
-                #:catalogue
-                #:entry-kind
-                #:entry-title
-                #:entry-options
-                #:entry-container-p
-                #:option-name
-                #:option-type
-                #:option-default
-                #:find-entry
-                #:check-view-form
-                #:form-option
-                #:draw-form)
-  (:import-from #:almighty-bolt/ui/views
-                #:set-view
-                #:find-view
-                #:view-file
-                #:views-version
-                #:view-names
-                #:wired-keys
-                #:wiring-problems)
+  (:local-nicknames (#:bolt #:almighty-bolt)
+                    (#:designer-view #:almighty-bolt-gui-designer/view)
+                    (#:catalogue #:almighty-bolt/ui/catalogue)
+                    (#:views #:almighty-bolt/ui/views))
   (:export #:make-designer
            #:designer-parts
            #:sized-stage
@@ -98,7 +63,7 @@ symbol), in NAME's package, to be loaded before the code that draws it."
       (format stream "(almighty-bolt:define-view ~a~%  ~a)~%"
               (written name)
               (with-output-to-string (out)
-                (loop :for character :across (written (node-form view))
+                (loop :for character :across (written (designer-view:node-form view))
                       :do (write-char character out)
                           (when (char= character #\Newline)
                             (write-string "  " out))))))))
@@ -123,8 +88,8 @@ Nothing in the file is evaluated: IN-PACKAGE is followed, as LOAD would."
                        (destructuring-bind (name view) (rest form)
                          (unless (and name (symbolp name))
                            (error "The view's name, ~s, is not a symbol." name))
-                         (check-view-form view)
-                         (return-from read-view (values name (form-node view)))))))
+                         (catalogue:check-view-form view)
+                         (return-from read-view (values name (designer-view:form-node view)))))))
       (error "The file defines no view (DEFINE-VIEW)."))))
 
 (defun view-title (name)
@@ -159,8 +124,8 @@ its kind and id, for what the app gives it."
   (with-output-to-string (out)
     (format out "(bolt:view ~a" name)
     (labels ((walk (node)
-               (format out "~%  (~(~a ~s~))" (node-kind node) (node-id node))
-               (mapc #'walk (node-children node))))
+               (format out "~%  (~(~a ~s~))" (designer-view:node-kind node) (designer-view:node-id node))
+               (mapc #'walk (designer-view:node-children node))))
       (walk view))
     (format out ")")))
 
@@ -218,7 +183,7 @@ Returns the width and height as the person left them."
 
 (defun node-option (node name)
   "The value of NODE's option NAME: what it was given, or its kind's default."
-  (form-option (list (node-kind node) (node-id node) (node-options node)) name))
+  (catalogue:form-option (list (designer-view:node-kind node) (designer-view:node-id node) (designer-view:node-options node)) name))
 
 (defun id (&rest parts)
   "A keyword made of PARTS."
@@ -257,17 +222,17 @@ shows the parts (the studio) gives one of its own.")
   "The widgets that can be added. Returns the kind of the one pressed, or NIL."
   (let ((pressed nil))
     (bolt:column (:id :palette :gap 8 :cross-align :stretch)
-      (heading :palette-heading "Add" (length (catalogue)))
+      (heading :palette-heading "Add" (length (catalogue:catalogue)))
       (bolt:grid (:id :palette-grid :columns 2 :gap 6)
         ;; Each is pressed to add it, or dragged to where it goes.
-        (dolist (entry (catalogue))
-          (when (bolt:drag-source (:id (id "add" (entry-kind entry)) :payload (entry-kind entry)
-                                   :label (entry-title entry))
+        (dolist (entry (catalogue:catalogue))
+          (when (bolt:drag-source (:id (id "add" (catalogue:entry-kind entry)) :payload (catalogue:entry-kind entry)
+                                   :label (catalogue:entry-title entry))
                   (bolt:panel (:id :tile :all 6 :radius 4)
-                    (bolt:label (entry-title entry) :id :title)))
-            (setf pressed (entry-kind entry)))))
+                    (bolt:label (catalogue:entry-title entry) :id :title)))
+            (setf pressed (catalogue:entry-kind entry)))))
       ;; The views defined, each to put inside this one.
-      (let ((names (view-names)))
+      (let ((names (views:view-names)))
         (when names
           (heading :views-heading "Views" (length names))
           (bolt:grid (:id :views-grid :columns 2 :gap 6)
@@ -291,19 +256,19 @@ Returns the id of the one chosen there, on the frame it is, or NIL."
   (let ((ids (make-hash-table))
         (chosen nil))
     (labels ((note (node)
-               (setf (gethash (row-key (node-id node)) ids) (node-id node))
-               (mapc #'note (node-children node))))
+               (setf (gethash (row-key (designer-view:node-id node)) ids) (designer-view:node-id node))
+               (mapc #'note (designer-view:node-children node))))
       (note view))
     (bolt:column (:id :outline :gap 8)
-      (heading :outline-heading "Outline" (length (all-ids view)))
+      (heading :outline-heading "Outline" (length (designer-view:all-ids view)))
       (bolt:scroll (:id :outline-scroll :height 300)
         (multiple-value-bind (key changed)
-            (bolt:tree (list view) :id :outline-tree :width 260 :children #'node-children
-                                        :key (lambda (node) (row-key (node-id node)))
+            (bolt:tree (list view) :id :outline-tree :width 260 :children #'designer-view:node-children
+                                        :key (lambda (node) (row-key (designer-view:node-id node)))
                                         :label (lambda (node)
-                                                 (format nil "~a ~(~s~)"
-                                                         (entry-title (find-entry (node-kind node)))
-                                                         (node-id node)))
+                                                               (format nil "~a ~(~s~)"
+                                                                       (catalogue:entry-title (catalogue:find-entry (designer-view:node-kind node)))
+                                                                       (designer-view:node-id node)))
                                         :selected (and selected (row-key selected))
                                         :labelled-by :outline-heading)
           (when changed
@@ -313,17 +278,17 @@ Returns the id of the one chosen there, on the frame it is, or NIL."
 (defun option-editor (node option drafts)
   "An editor of NODE's OPTION, of the option's type. Returns the new value if it was changed, and
 true as a second value."
-  (let* ((name (option-name option))
+  (let* ((name (catalogue:option-name option))
          (value (node-option node name))
          (editor (id "option" name))
-         (key (cons (node-id node) name))
+         (key (cons (designer-view:node-id node) name))
          (result nil)
          (changed nil))
     (bolt:row (:id (id "option" name "row") :gap 8 :cross-align :center)
       ;; A check box says its own name.
-      (unless (eq (option-type option) :boolean)
+      (unless (eq (catalogue:option-type option) :boolean)
         (bolt:label (string-downcase (string name)) :id (id "option" name "label")))
-      (let ((type (option-type option)))
+      (let ((type (catalogue:option-type option)))
         (cond ((eq type :string)
                (multiple-value-bind (text edited)
                    (bolt:text-field value :id editor :width 200
@@ -352,7 +317,7 @@ true as a second value."
                          changed t))))
               ((eq type :view)
                ;; The views defined, by name.
-               (let* ((names (view-names))
+               (let* ((names (views:view-names))
                       (shown (mapcar (lambda (n) (string-downcase (symbol-name n))) names)))
                  (multiple-value-bind (index moved)
                      (bolt:dropdown (or shown '("No view yet")) (position value names)
@@ -379,61 +344,61 @@ widget's id and the option's name, as a cons."
   (bolt:padding (:id :selection :all 14)
     (bolt:column (:gap 8 :min-width 300)
       (heading :selection-heading "Selected")
-      (let ((node (and selected (find-by-id view selected))))
+      (let ((node (and selected (designer-view:find-by-id view selected))))
         (if (null node)
             (bolt:paragraph "Nothing. Press a widget in the view to select it."
                             :id :selected-nothing)
-            (let ((entry (find-entry (node-kind node))))
-              (bolt:label (format nil "~a ~(~s~)" (entry-title entry) (node-id node))
+            (let ((entry (catalogue:find-entry (designer-view:node-kind node))))
+              (bolt:label (format nil "~a ~(~s~)" (catalogue:entry-title entry) (designer-view:node-id node))
                           :id :selected-what :weight :bold)
               ;; The id: what the app's code will know it by, so one no other widget has. It is
               ;; changed when Return is pressed, and not as it is typed, which would make an id of
               ;; every start of the one wanted (and stop at one that another widget has).
               (bolt:row (:id :id-row :gap 8 :cross-align :center)
                 (bolt:label "id" :id :id-label)
-                (let* ((key (cons (node-id node) :id))
-                       (shown (gethash key drafts (string-downcase (string (node-id node)))))
+                (let* ((key (cons (designer-view:node-id node) :id))
+                       (shown (gethash key drafts (string-downcase (string (designer-view:node-id node)))))
                        (wanted (and (id-text-p shown) (intern (string-upcase shown) :keyword)))
-                       (free (and wanted (or (eq wanted (node-id node))
-                                             (not (member wanted (all-ids view)))))))
+                       (free (and wanted (or (eq wanted (designer-view:node-id node))
+                                             (not (member wanted (designer-view:all-ids view)))))))
                   (multiple-value-bind (text edited submitted)
                       (bolt:text-field shown :id :option-id :width 200 :invalid (not free)
                                              :labelled-by :id-label)
                     (when edited
                       (setf (gethash key drafts) text))
-                    (when (and submitted free (not (eq wanted (node-id node))))
+                    (when (and submitted free (not (eq wanted (designer-view:node-id node))))
                       (remhash key drafts)
-                      (setf view (with-id view (node-id node) wanted)
+                      (setf view (designer-view:with-id view (designer-view:node-id node) wanted)
                             selected wanted
-                            node (find-by-id view wanted)))))
+                            node (designer-view:find-by-id view wanted)))))
                 (bolt:label "Return renames" :id :id-hint :color :dim-text))
-              (dolist (option (entry-options entry))
+              (dolist (option (catalogue:entry-options entry))
                 (multiple-value-bind (value changed) (option-editor node option drafts)
                   (when changed
-                    (setf view (with-option view (node-id node) (option-name option) value
-                                            (option-default option))
-                          edit (cons (node-id node) (option-name option))
-                          node (find-by-id view (node-id node)))))))))))
+                    (setf view (designer-view:with-option view (designer-view:node-id node) (catalogue:option-name option) value
+                                                          (catalogue:option-default option))
+                          edit (cons (designer-view:node-id node) (catalogue:option-name option))
+                          node (designer-view:find-by-id view (designer-view:node-id node)))))))))))
     (values view selected edit)))
 
 (defun new-node (view what)
   "A node to add to VIEW for WHAT: a kind of widget, or (:view name) for that view inside it."
   (if (consp what)
-      (make-node :view (fresh-id view :view) :options (list :name (second what)))
-      (make-node what (fresh-id view what))))
+      (designer-view:make-node :view (designer-view:fresh-id view :view) :options (list :name (second what)))
+      (designer-view:make-node what (designer-view:fresh-id view what))))
 
 (defun added (view selected kind)
   "VIEW with a new widget of KIND (or (:view name)): at the end of the selected container, after the
 selected widget, or at the end of the view if nothing is selected. Returns the view and the new
 widget's id."
   (let* ((new (new-node view kind))
-         (node (and selected (find-by-id view selected))))
+         (node (and selected (designer-view:find-by-id view selected))))
     (values (cond ((null node)
-                   (add-node view new :into (node-id view)))
-                  ((entry-container-p (find-entry (node-kind node)))
-                   (add-node view new :into selected))
-                  (t (add-node view new :after selected)))
-            (node-id new))))
+                   (designer-view:add-node view new :into (designer-view:node-id view)))
+                  ((catalogue:entry-container-p (catalogue:find-entry (designer-view:node-kind node)))
+                   (designer-view:add-node view new :into selected))
+                  (t (designer-view:add-node view new :after selected)))
+            (designer-view:node-id new))))
 
 (defun designer-parts ()
   "The GUI designer's parts, each a function that draws one, all of one design and its history:
@@ -452,7 +417,7 @@ that draws it wires, while it is live) and :problems (what does not fit between 
 sentences). SAVE is what Save... does, from elsewhere: to the view's own
 file, or with the dialog, which TOOLBAR draws. MAKE-DESIGNER puts them in a window; the studio puts
 them in panes."
-  (bolt:state-let ((view (form-node +sample+))
+  (bolt:state-let ((view (designer-view:form-node +sample+))
                    ;; What the view is called, which an app draws it by (the file's name, once
                    ;; saved), and the package that name is in (the app's), as written.
                    (name "sign-in")
@@ -491,8 +456,8 @@ them in panes."
 that wires it no longer fits."
                (when live
                  (let ((problems (handler-bind ((warning #'muffle-warning))
-                                   (set-view live (node-form view)))))
-                   (setf seen-version (views-version))
+                                   (views:set-view live (designer-view:node-form view)))))
+                   (setf seen-version (views:views-version))
                    (setf status (if problems
                                     (format nil "~{~a~^ ~}" problems)
                                     (format nil "Live: ~(~a~) changes in the running app as it ~
@@ -500,16 +465,16 @@ that wires it no longer fits."
              (take-up-outside ()
                "If the live view was defined outside the designer since it last looked (typed in an
 editor), make that the view, as a step that Undo takes back, without defining it again."
-               (when (and live (/= seen-version (views-version)))
-                 (setf seen-version (views-version))
-                 (let ((form (find-view live)))
-                   (when (and form (not (equal form (node-form view))))
+               (when (and live (/= seen-version (views:views-version)))
+                 (setf seen-version (views:views-version))
+                 (let ((form (views:find-view live)))
+                   (when (and form (not (equal form (designer-view:node-form view))))
                      (push view undo)
                      (setf redo '()
-                           view (form-node form)
+                           view (designer-view:form-node form)
                            last-edit nil)
                      (clrhash drafts)
-                     (unless (and selected (find-by-id view selected))
+                     (unless (and selected (designer-view:find-by-id view selected))
                        (setf selected nil))))))
              (select (id)
                (unless (eq id selected)
@@ -532,7 +497,7 @@ editor), make that the view, as a step that Undo takes back, without defining it
                      last-edit nil)
                (make-live)
                (clrhash drafts)
-               (unless (and selected (find-by-id view selected))
+               (unless (and selected (designer-view:find-by-id view selected))
                  (select nil)))
              (step-back ()
                (when undo
@@ -545,18 +510,18 @@ editor), make that the view, as a step that Undo takes back, without defining it
              (open-view (symbol &optional widget)
                "Open the view the image has called SYMBOL, live, with WIDGET (an id in it)
 selected if given."
-               (let ((form (find-view symbol)))
+               (let ((form (views:find-view symbol)))
                  (when form
                    (setf live nil)
-                   (change (form-node form))
+                   (change (designer-view:form-node form))
                    (setf live symbol
-                         seen-version (views-version)
-                         file (view-file symbol)
+                         seen-version (views:views-version)
+                         file (views:view-file symbol)
                          name (string-downcase (symbol-name symbol))
                          package (string-downcase (package-name (symbol-package symbol)))
                          status (format nil "Live: ~(~a~) changes in the running app as it is ~
                                              edited." symbol))
-                   (select (and widget (find-by-id view widget) widget)))))
+                   (select (and widget (designer-view:find-by-id view widget) widget)))))
              (save-to (path symbol)
                "Write the view to PATH as the view SYMBOL, and make it the live view."
                (with-open-file (out path :direction :output :if-exists :supersede)
@@ -565,7 +530,7 @@ selected if given."
                      live symbol
                      file (pathname path))
                (let ((problems (handler-bind ((warning #'muffle-warning))
-                                 (set-view symbol (node-form view) :file path))))
+                                 (views:set-view symbol (designer-view:node-form view) :file path))))
                  (setf status (format nil "Saved to ~a~:[.~;; ~:*~{~a~^ ~}~]" path problems))))
              (save ()
                "To its own file without asking, if that file is only the view; else ask where."
@@ -581,7 +546,7 @@ selected if given."
             (let ((menu (bolt:app-menu "File" '(("New" :key #\n) ("Open…" :key #\o) :separator
                                                 ("Save…" :key #\s)))))
               (flet ((new () (setf live nil file nil)
-                         (change (form-node +empty+))
+                         (change (designer-view:form-node +empty+))
                          (setf status "" name "view")
                          (select nil)))
                 (cond ((equal menu "New") (new))
@@ -593,7 +558,7 @@ selected if given."
                       (when (bolt:button "New" :id :new)
                         (new))
                       ;; The views the image has, each opened live.
-                      (let* ((names (sort (view-names) #'string< :key #'view-title))
+                      (let* ((names (sort (views:view-names) #'string< :key #'view-title))
                              (chosen (bolt:menu-button "Open View"
                                                        (or (mapcar #'view-title names)
                                                            '("No views yet"))
@@ -607,9 +572,9 @@ selected if given."
                         (save))
                       (when (bolt:button "Remove" :id :remove
                                                   :enabled (and selected
-                                                                (not (eq selected (node-id view)))
+                                                                (not (eq selected (designer-view:node-id view)))
                                                                 t))
-                        (change (remove-node view selected))
+                        (change (designer-view:remove-node view selected))
                         (select nil))
                       (when (bolt:button "Undo" :id :undo :enabled (and undo t))
                         (step-back))
@@ -643,7 +608,7 @@ selected if given."
                         (setf live nil)
                         (change new)
                         ;; Live if the image has the view: the app that draws it changes with it.
-                        (setf live (and (find-view opened) opened)
+                        (setf live (and (views:find-view opened) opened)
                               file (pathname path))
                         (make-live)
                         (setf name (string-downcase (symbol-name opened))
@@ -671,17 +636,17 @@ selected if given."
                  (lambda ()
                    (multiple-value-bind (pressed drop)
                        (bolt:design-surface (:id :canvas :selected selected)
-                         (draw-form (node-form view)))
+                         (catalogue:draw-form (designer-view:node-form view)))
                      (when pressed
                        (select pressed))
                      ;; A widget from the left, or one of the view's own, let go of where it goes.
                      (when drop
                        (destructuring-bind (payload into at) drop
                          (if (and (consp payload) (eq (first payload) :move))
-                             (change (move-node view (second payload) into at))
+                             (change (designer-view:move-node view (second payload) into at))
                              (let ((new (new-node view payload)))
-                               (change (add-node view new :into into :at at))
-                               (select (node-id new))))))))
+                               (change (designer-view:add-node view new :into into :at at))
+                               (select (designer-view:node-id new))))))))
                  stage-drafts)
               (setf stage-w w stage-h h))))
         (lambda ()
@@ -709,14 +674,14 @@ selected if given."
           (open-view symbol widget))
         ;; What is being designed, and Save, for a tool beside it (the studio's title bar).
         (lambda ()
-          (let ((asked (cons live (views-version))))
+          (let ((asked (cons live (views:views-version))))
             (unless (equal asked problems-asked)
               (setf problems-asked asked
-                    problems (and live (wiring-problems live)))))
+                    problems (and live (views:wiring-problems live)))))
           (list :name name :package package :file file :live live
-                :ids (all-ids view) :undo (length undo) :status status
+                :ids (designer-view:all-ids view) :undo (length undo) :status status
                 :wires (if live
-                           (count-if (lambda (id) (wired-keys live id)) (all-ids view))
+                           (count-if (lambda (id) (views:wired-keys live id)) (designer-view:all-ids view))
                            0)
                 :problems problems))
         (lambda ()

@@ -2,7 +2,6 @@
   ;; This package uses the public one, whole: a symbol that the public package exports and that
   ;; Common Lisp or the test framework also has would be a conflict, and fail here.
   (:use #:cl #:lisp-unit2 #:almighty-bolt)
-  (:import-from #:sb-introspect #:function-lambda-list)
   (:local-nicknames (#:core #:almighty-bolt/internals)
                     (#:app #:almighty-bolt/app)
                     (#:s #:almighty-bolt/ui/semantics)
@@ -871,7 +870,7 @@ mean nothing was given (the id that is required, and a pressable that is not a t
                                (string= (first (second parameter)) "REQUIRED-ID"))))
                  (first parameter)
                  parameter)))
-    (let* ((list (function-lambda-list (or (macro-function operator) (fdefinition operator))))
+    (let* ((list (sb-introspect:function-lambda-list (or (macro-function operator) (fdefinition operator))))
            (list (if (consp (first list))
                      (cons (mapcar #'tidy (first list)) (rest list))
                      (mapcar #'tidy list)))

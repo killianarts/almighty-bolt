@@ -1,54 +1,8 @@
 (defpackage #:almighty-bolt-stress/editor/control
   (:use #:cl)
-  (:import-from #:almighty-bolt
-                #:context-font
-                #:context-index-at-x
-                #:key-event-kind
-                #:key-event-logical-key
-                #:key-event-modifiers
-                #:modifier-down-p
-                #:+modifier-shift+
-                #:+modifier-control+
-                #:+modifier-super+
-                #:+key-up+
-                #:+key-down+
-                #:+key-left+
-                #:+key-right+
-                #:+key-delete-forward+
-                #:+key-home+
-                #:+key-end+
-                #:+key-page-up+
-                #:+key-page-down+)
-  (:import-from #:almighty-bolt-stress/editor/model
-                #:+line-height+
-                #:+visible-lines+
-                #:+gutter-width+
-                #:+font-name+
-                #:+font-size+
-                #:+lines-per-wheel-line+
-                #:document-caret
-                #:document-top-line
-                #:document-line-count
-                #:document-marked-text
-                #:selection-p
-                #:selection-start
-                #:selection-end
-                #:line-start
-                #:line-end
-                #:line-string
-                #:position-line
-                #:move-caret
-                #:select-all
-                #:insert-text
-                #:delete-backward
-                #:delete-forward
-                #:move-vertically
-                #:scroll-lines
-                #:scroll-to-caret
-                #:set-composition
-                #:commit-composition)
-  (:import-from #:almighty-bolt-stress/editor/paint
-                #:+text-inset+)
+  (:local-nicknames (#:bolt #:almighty-bolt)
+                    (#:model #:almighty-bolt-stress/editor/model)
+                    (#:paint #:almighty-bolt-stress/editor/paint))
   (:export #:editor-key
            #:editor-text
            #:editor-composition
@@ -64,50 +18,50 @@
 (defun editor-key (document event)
   "A key: the arrows (with Shift to extend the selection), Home, End, the pages, Backspace and
 forward delete, Return, Tab, Command-A, and a character that stands for itself."
-  (when (eq (key-event-kind event) :down)
-    (let* ((key (key-event-logical-key event))
-           (modifiers (key-event-modifiers event))
-           (extend (modifier-down-p modifiers +modifier-shift+))
-           (command (or (modifier-down-p modifiers +modifier-super+)
-                        (modifier-down-p modifiers +modifier-control+)))
+  (when (eq (bolt:key-event-kind event) :down)
+    (let* ((key (bolt:key-event-logical-key event))
+           (modifiers (bolt:key-event-modifiers event))
+           (extend (bolt:modifier-down-p modifiers bolt:+modifier-shift+))
+           (command (or (bolt:modifier-down-p modifiers bolt:+modifier-super+)
+                        (bolt:modifier-down-p modifiers bolt:+modifier-control+)))
            (handled t))
-      (cond ((and command (eql key #\a)) (select-all document))
+      (cond ((and command (eql key #\a)) (model:select-all document))
             (command (setf handled nil))
-            ((eql key +key-left+)
-             (if (and (selection-p document) (not extend))
-                 (move-caret document (selection-start document))
-                 (move-caret document (1- (document-caret document)) :extend extend)))
-            ((eql key +key-right+)
-             (if (and (selection-p document) (not extend))
-                 (move-caret document (selection-end document))
-                 (move-caret document (1+ (document-caret document)) :extend extend)))
-            ((eql key +key-up+) (move-vertically document -1 :extend extend))
-            ((eql key +key-down+) (move-vertically document 1 :extend extend))
-            ((eql key +key-page-up+) (move-vertically document (- +visible-lines+) :extend extend))
-            ((eql key +key-page-down+) (move-vertically document +visible-lines+ :extend extend))
-            ((eql key +key-home+)
-             (move-caret document (line-start document (position-line document (document-caret document)))
-                         :extend extend))
-            ((eql key +key-end+)
-             (move-caret document (line-end document (position-line document (document-caret document)))
-                         :extend extend))
-            ((eql key #\Backspace) (delete-backward document))
-            ((eql key +key-delete-forward+) (delete-forward document))
-            ((or (eql key #\Return) (eql key #\Newline)) (insert-text document (string #\Newline)))
-            ((eql key #\Tab) (insert-text document "    "))
+            ((eql key bolt:+key-left+)
+             (if (and (model:selection-p document) (not extend))
+                 (model:move-caret document (model:selection-start document))
+                 (model:move-caret document (1- (model:document-caret document)) :extend extend)))
+            ((eql key bolt:+key-right+)
+             (if (and (model:selection-p document) (not extend))
+                 (model:move-caret document (model:selection-end document))
+                 (model:move-caret document (1+ (model:document-caret document)) :extend extend)))
+            ((eql key bolt:+key-up+) (model:move-vertically document -1 :extend extend))
+            ((eql key bolt:+key-down+) (model:move-vertically document 1 :extend extend))
+            ((eql key bolt:+key-page-up+) (model:move-vertically document (- model:+visible-lines+) :extend extend))
+            ((eql key bolt:+key-page-down+) (model:move-vertically document model:+visible-lines+ :extend extend))
+            ((eql key bolt:+key-home+)
+             (model:move-caret document (model:line-start document (model:position-line document (model:document-caret document)))
+                               :extend extend))
+            ((eql key bolt:+key-end+)
+             (model:move-caret document (model:line-end document (model:position-line document (model:document-caret document)))
+                               :extend extend))
+            ((eql key #\Backspace) (model:delete-backward document))
+            ((eql key bolt:+key-delete-forward+) (model:delete-forward document))
+            ((or (eql key #\Return) (eql key #\Newline)) (model:insert-text document (string #\Newline)))
+            ((eql key #\Tab) (model:insert-text document "    "))
             ((and (characterp key) (graphic-char-p key) (not (<= #xF700 (char-code key) #xF8FF)))
-             (insert-text document (string key)))
+             (model:insert-text document (string key)))
             (t (setf handled nil)))
       (when handled
-        (scroll-to-caret document))
+        (model:scroll-to-caret document))
       handled)))
 
 (defun editor-text (document text)
   "Text from the input method (or from a key that stands for itself, where the person's keyboard
 makes it one)."
   (when (plusp (length text))
-    (insert-text document text)
-    (scroll-to-caret document)
+    (model:insert-text document text)
+    (model:scroll-to-caret document)
     t))
 
 (defun editor-composition (document kind text start length)
@@ -115,34 +69,34 @@ makes it one)."
 it is committed."
   (ecase kind
     ((:started :changed)
-     (when (and (selection-p document) (zerop (length (document-marked-text document))))
-       (insert-text document ""))
-     (set-composition document text start length))
+     (when (and (model:selection-p document) (zerop (length (model:document-marked-text document))))
+       (model:insert-text document ""))
+     (model:set-composition document text start length))
     (:committed
-     (commit-composition document text)
-     (scroll-to-caret document)))
+     (model:commit-composition document text)
+     (model:scroll-to-caret document)))
   t)
 
 (defun editor-wheel (document dy)
   "The wheel, by DY lines (positive up, as the wheel reports it)."
-  (scroll-lines document (- (* dy +lines-per-wheel-line+))))
+  (model:scroll-lines document (- (* dy model:+lines-per-wheel-line+))))
 
 (defun point-position (context document x y)
   "The place in the text at the point X, Y of the editor: the line there, and the character
 nearest in the line, as the context measures it."
-  (let* ((line (max 0 (min (1- (document-line-count document))
-                           (+ (document-top-line document) (floor y +line-height+)))))
-         (column (context-index-at-x context (context-font context +font-name+ +font-size+)
-                                     (line-string document line)
-                                     (- x +gutter-width+ +text-inset+))))
-    (min (+ (line-start document line) (max 0 column)) (line-end document line))))
+  (let* ((line (max 0 (min (1- (model:document-line-count document))
+                           (+ (model:document-top-line document) (floor y model:+line-height+)))))
+         (column (bolt:context-index-at-x context (bolt:context-font context model:+font-name+ model:+font-size+)
+                                          (model:line-string document line)
+                                          (- x model:+gutter-width+ paint:+text-inset+))))
+    (min (+ (model:line-start document line) (max 0 column)) (model:line-end document line))))
 
 (defun editor-press (context document x y)
   "A press puts the caret where it is."
-  (move-caret document (point-position context document x y)))
+  (model:move-caret document (point-position context document x y)))
 
 (defun editor-drag (context document x y)
   "A drag extends the selection to where it is, and scrolls if it is above or below."
-  (cond ((< y 0) (scroll-lines document -1f0))
-        ((> y (* +visible-lines+ +line-height+)) (scroll-lines document 1f0)))
-  (move-caret document (point-position context document x y) :extend t))
+  (cond ((< y 0) (model:scroll-lines document -1f0))
+        ((> y (* model:+visible-lines+ model:+line-height+)) (model:scroll-lines document 1f0)))
+  (model:move-caret document (point-position context document x y) :extend t))

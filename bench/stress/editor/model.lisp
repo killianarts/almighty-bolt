@@ -1,7 +1,6 @@
 (defpackage #:almighty-bolt-stress/editor/model
   (:use #:cl)
-  (:import-from #:almighty-bolt
-                #:+points-per-line+)
+  (:local-nicknames (#:bolt #:almighty-bolt))
   (:export #:+line-height+
            #:+visible-lines+
            #:+gutter-width+
@@ -69,7 +68,7 @@
 (defconstant +gutter-width+ 56)
 (defconstant +editor-width+ 700)
 (defconstant +editor-height+ (* +visible-lines+ +line-height+))
-(defconstant +lines-per-wheel-line+ (float (/ +points-per-line+ +line-height+) 1f0)
+(defconstant +lines-per-wheel-line+ (float (/ bolt:+points-per-line+ +line-height+) 1f0)
   "How far a line of the wheel scrolls the text, in lines: a line is 24 points and a text line 20.")
 
 (defstruct (document (:constructor %make-document))

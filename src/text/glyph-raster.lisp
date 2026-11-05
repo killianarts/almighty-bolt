@@ -1,7 +1,6 @@
 (defpackage #:almighty-bolt/text/glyph-raster
   (:use #:cl)
-  (:import-from #:almighty-bolt/text/core-foundation
-                #:ccall)
+  (:local-nicknames (#:cf #:almighty-bolt/text/core-foundation))
   (:export #:glyph-bitmap
            #:glyph-bitmap-pixels
            #:glyph-bitmap-width
@@ -55,12 +54,12 @@ and height as four double floats."
     (setf glyph-id glyph)
     ;; The result is the union of the boxes; we want the box itself, which is
     ;; written to the array.
-    (ccall "CTFontGetBoundingRectsForGlyphs" :void
-           (:ulong ct-font)
-           (:uint 0)                    ; kCTFontOrientationDefault
-           (:pointer (sb-sys:sap-int (sb-alien:alien-sap (sb-alien:addr glyph-id))))
-           (:pointer (sb-sys:sap-int (sb-alien:alien-sap bounds)))
-           (:long 1))
+    (cf:ccall "CTFontGetBoundingRectsForGlyphs" :void
+              (:ulong ct-font)
+              (:uint 0)                    ; kCTFontOrientationDefault
+              (:pointer (sb-sys:sap-int (sb-alien:alien-sap (sb-alien:addr glyph-id))))
+              (:pointer (sb-sys:sap-int (sb-alien:alien-sap bounds)))
+              (:long 1))
     (values (sb-alien:deref bounds 0) (sb-alien:deref bounds 1)
             (sb-alien:deref bounds 2) (sb-alien:deref bounds 3))))
 
@@ -88,25 +87,25 @@ the glyph has no ink (a space)."
               (sb-alien:deref origin 0) (/ (- left) scale)
               (sb-alien:deref origin 1) (/ (- bottom) scale))
         (sb-sys:with-pinned-objects (pixels)
-          (let ((context (ccall "CGBitmapContextCreate" :ulong
-                                (:pointer (sb-sys:sap-int (sb-sys:vector-sap pixels)))
-                                (:ulong pixel-width) (:ulong pixel-height)
-                                (:ulong 8) (:ulong pixel-width)
-                                (:ulong 0)      ; no colour space: alpha only
-                                (:uint +bitmap-info-alpha-only+))))
+          (let ((context (cf:ccall "CGBitmapContextCreate" :ulong
+                                   (:pointer (sb-sys:sap-int (sb-sys:vector-sap pixels)))
+                                   (:ulong pixel-width) (:ulong pixel-height)
+                                   (:ulong 8) (:ulong pixel-width)
+                                   (:ulong 0)      ; no colour space: alpha only
+                                   (:uint +bitmap-info-alpha-only+))))
             (when (zerop context)
               (error "Core Graphics could not make a bitmap context."))
-            (ccall "CGContextScaleCTM" :void (:ulong context) (:double scale) (:double scale))
-            (ccall "CGContextSetShouldAntialias" :void (:ulong context) (:bool t))
-            (ccall "CGContextSetAllowsFontSmoothing" :void (:ulong context) (:bool nil))
-            (ccall "CGContextSetShouldSmoothFonts" :void (:ulong context) (:bool nil))
-            (ccall "CTFontDrawGlyphs" :void
-                   (:ulong ct-font)
-                   (:pointer (sb-sys:sap-int (sb-alien:alien-sap (sb-alien:addr glyph-id))))
-                   (:pointer (sb-sys:sap-int (sb-alien:alien-sap origin)))
-                   (:ulong 1)
-                   (:ulong context))
-            (ccall "CGContextRelease" :void (:ulong context)))))
+            (cf:ccall "CGContextScaleCTM" :void (:ulong context) (:double scale) (:double scale))
+            (cf:ccall "CGContextSetShouldAntialias" :void (:ulong context) (:bool t))
+            (cf:ccall "CGContextSetAllowsFontSmoothing" :void (:ulong context) (:bool nil))
+            (cf:ccall "CGContextSetShouldSmoothFonts" :void (:ulong context) (:bool nil))
+            (cf:ccall "CTFontDrawGlyphs" :void
+                      (:ulong ct-font)
+                      (:pointer (sb-sys:sap-int (sb-alien:alien-sap (sb-alien:addr glyph-id))))
+                      (:pointer (sb-sys:sap-int (sb-alien:alien-sap origin)))
+                      (:ulong 1)
+                      (:ulong context))
+            (cf:ccall "CGContextRelease" :void (:ulong context)))))
       (%make-glyph-bitmap :pixels pixels
                           :width pixel-width
                           :height pixel-height

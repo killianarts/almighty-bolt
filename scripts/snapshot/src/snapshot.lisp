@@ -1,34 +1,12 @@
 (defpackage #:almighty-bolt-snapshot/snapshot
   (:use #:cl)
-  (:import-from #:almighty-bolt/machine/png
-                #:write-png)
-  (:import-from #:almighty-bolt/platform/macos/objc
-                #:with-masked-float-traps
-                #:with-autorelease-pool)
-  (:import-from #:almighty-bolt/internals
-                #:lookup-target
-                #:make-pointer-event
-                #:make-key-event
-                #:now-ns)
-  (:import-from #:almighty-bolt/platform/macos/host
-                #:host-app
-                #:make-host
-                #:host-acquire
-                #:host-renderer
-                #:host-context
-                #:run-frame
-                #:host-deliver-event)
-  (:import-from #:almighty-bolt/render/metal/device
-                #:default-device)
-  (:import-from #:almighty-bolt/render/metal/target
-                #:+pixel-format-bgra8-unorm+
-                #:make-offscreen-target
-                #:offscreen-target-descriptor
-                #:offscreen-target-width
-                #:offscreen-target-height
-                #:read-pixels)
-  (:import-from #:almighty-bolt/render/metal/renderer
-                #:wait-for-last-frame)
+  (:local-nicknames (#:png #:almighty-bolt/machine/png)
+                    (#:objc #:almighty-bolt/platform/macos/objc)
+                    (#:core #:almighty-bolt/internals)
+                    (#:host #:almighty-bolt/platform/macos/host)
+                    (#:device #:almighty-bolt/render/metal/device)
+                    (#:target #:almighty-bolt/render/metal/target)
+                    (#:renderer #:almighty-bolt/render/metal/renderer))
   (:export #:with-snapshot-host
            #:draw-frame
            #:write-snapshot
@@ -52,14 +30,14 @@
                               &body body)
   "Run BODY with HOST, a host for INSTANCE, drawing into TARGET, an off-screen texture of
 WIDTH by HEIGHT points at SCALE pixels a point."
-  `(with-masked-float-traps
-     (with-autorelease-pool
-       (let* ((device (default-device))
-              (,host (make-host ,instance device +pixel-format-bgra8-unorm+
-                                :capacity ,capacity :scale ,scale))
-              (,target (make-offscreen-target device (* ,width ,scale) (* ,height ,scale))))
-         (let ((pass (offscreen-target-descriptor ,target)))
-           (setf (host-acquire ,host) (lambda () (values pass 0))))
+  `(objc:with-masked-float-traps
+     (objc:with-autorelease-pool
+       (let* ((device (device:default-device))
+              (,host (host:make-host ,instance device target:+pixel-format-bgra8-unorm+
+                                     :capacity ,capacity :scale ,scale))
+              (,target (target:make-offscreen-target device (* ,width ,scale) (* ,height ,scale))))
+         (let ((pass (target:offscreen-target-descriptor ,target)))
+           (setf (host:host-acquire ,host) (lambda () (values pass 0))))
          (let ((*size* (list ,width ,height ,scale)))
            ,@body)))))
 
@@ -67,34 +45,34 @@ WIDTH by HEIGHT points at SCALE pixels a point."
   "Draw FRAMES frames of HOST, then wait for the GPU."
   (destructuring-bind (width height scale) *size*
     (dotimes (i frames)
-      (with-autorelease-pool
-        (run-frame host (float width 1f0) (float height 1f0) (float scale 1f0)))
-      (wait-for-last-frame (host-renderer host)))))
+      (objc:with-autorelease-pool
+        (host:run-frame host (float width 1f0) (float height 1f0) (float scale 1f0)))
+      (renderer:wait-for-last-frame (host:host-renderer host)))))
 
 (defun write-snapshot (target path)
   "Write what TARGET holds to PATH as a PNG."
-  (let ((pixels (read-pixels target)))
-    (write-png path (offscreen-target-width target) (offscreen-target-height target) pixels)))
+  (let ((pixels (target:read-pixels target)))
+    (png:write-png path (target:offscreen-target-width target) (target:offscreen-target-height target) pixels)))
 
 (defun deliver (host event)
   "Offer EVENT to the host's app, as the window would."
-  (host-deliver-event host event))
+  (host:host-deliver-event host event))
 
 (defun click-control (host id &key (fx 0.5) (fy 0.5))
   "Click the control ID of HOST's app, at the fraction FX, FY across and down it, and
 draw the frame that follows."
-  (multiple-value-bind (x y width height) (lookup-target (host-app host) id)
+  (multiple-value-bind (x y width height) (core:lookup-target (host:host-app host) id)
     (unless x (error "The app shows no control ~s." id))
     (let ((px (float (+ x (* fx width)) 1d0))
           (py (float (+ y (* fy height)) 1d0)))
       (dolist (step '((:move nil 0) (:down 0 1) (:up 0 0)))
-        (deliver host (make-pointer-event :timestamp (now-ns) :kind (first step) :x px :y py
-                                          :button (second step) :buttons (third step)))
+        (deliver host (core:make-pointer-event :timestamp (core:now-ns) :kind (first step) :x px :y py
+                                               :button (second step) :buttons (third step)))
         (draw-frame host)))))
 
 (defun key-press (host character &key (modifiers 0))
-  (deliver host (make-key-event :timestamp (now-ns) :kind :down :logical-key character
-                                :modifiers modifiers))
+  (deliver host (core:make-key-event :timestamp (core:now-ns) :kind :down :logical-key character
+                                     :modifiers modifiers))
   (draw-frame host))
 
 (defun type-string (host string)

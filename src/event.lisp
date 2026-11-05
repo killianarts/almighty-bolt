@@ -1,7 +1,6 @@
 (defpackage #:almighty-bolt/event
   (:use #:cl)
-  (:import-from #:almighty-bolt/clock
-                #:nanoseconds)
+  (:local-nicknames (#:clock #:almighty-bolt/clock))
   (:export #:event
            #:event-timestamp
            #:+key-up+
@@ -114,7 +113,7 @@
 
 (defstruct (event (:constructor nil))
   "Base of every event."
-  (timestamp (required 'timestamp) :type nanoseconds :read-only t))
+  (timestamp (required 'timestamp) :type clock:nanoseconds :read-only t))
 
 (defstruct (pointer-event (:include event))
   "The pointer went down, went up, moved, entered or left the window.

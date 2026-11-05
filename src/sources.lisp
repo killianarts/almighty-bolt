@@ -1,7 +1,6 @@
 (defpackage #:almighty-bolt/sources
   (:use #:cl)
-  (:import-from #:almighty-bolt/redefinition
-                #:with-redefinitions-held)
+  (:local-nicknames (#:redefinition #:almighty-bolt/redefinition))
   (:export #:changed-files
            #:watch-files
            #:stop-watching-files
@@ -159,7 +158,7 @@ Returns the watcher, for STOP-WATCHING-FILES."
                  (finish-output)
                  ;; The files are compiled one after the other, and the app is made again once
                  ;; they are all loaded, not from half of them.
-                 (with-redefinitions-held
+                 (redefinition:with-redefinitions-held
                    (reload-systems names changed))
                  (format t "~&Hot reload: loaded.~%")
                  (finish-output))

@@ -1,11 +1,6 @@
 (defpackage #:almighty-bolt/layout/box
   (:use #:cl)
-  (:import-from #:almighty-bolt/layout/constraints
-                #:unbounded-p
-                #:constrain
-                #:loosen-constraints
-                #:tighten-constraints
-                #:deflate-constraints)
+  (:local-nicknames (#:constraints #:almighty-bolt/layout/constraints))
   (:export #:layout-padding
            #:layout-sized
            #:layout-align))
@@ -30,14 +25,14 @@ constraints less the space, and the box is as large as the child and the space."
         (dy (+ top bottom)))
     (if measure
         (multiple-value-bind (child-min-w child-max-w child-min-h child-max-h)
-            (deflate-constraints min-w max-w min-h max-h dx dy)
+            (constraints:deflate-constraints min-w max-w min-h max-h dx dy)
           (multiple-value-bind (child-w child-h)
               (funcall measure child-min-w child-max-w child-min-h child-max-h)
             (declare (type single-float child-w child-h))
-            (values (constrain (+ child-w dx) min-w max-w)
-                    (constrain (+ child-h dy) min-h max-h)
+            (values (constraints:constrain (+ child-w dx) min-w max-w)
+                    (constraints:constrain (+ child-h dy) min-h max-h)
                     left top)))
-        (values (constrain dx min-w max-w) (constrain dy min-h max-h) left top))))
+        (values (constraints:constrain dx min-w max-w) (constraints:constrain dy min-h max-h) left top))))
 
 (defun layout-sized (min-w max-w min-h max-h measure &key width height)
   "A child forced to WIDTH and HEIGHT, as far as the constraints allow. Either may
@@ -46,12 +41,12 @@ be NIL, which leaves that axis to the constraints. The child is at the corner."
            (type (or null single-float) width height)
            (type (or null function) measure))
   (multiple-value-bind (child-min-w child-max-w child-min-h child-max-h)
-      (tighten-constraints min-w max-w min-h max-h width height)
+      (constraints:tighten-constraints min-w max-w min-h max-h width height)
     (if measure
         (multiple-value-bind (child-w child-h)
             (funcall measure child-min-w child-max-w child-min-h child-max-h)
           (declare (type single-float child-w child-h))
-          (values (constrain child-w min-w max-w) (constrain child-h min-h max-h) 0f0 0f0))
+          (values (constraints:constrain child-w min-w max-w) (constraints:constrain child-h min-h max-h) 0f0 0f0))
         (values child-min-w child-min-h 0f0 0f0))))
 
 (defun layout-align (min-w max-w min-h max-h measure
@@ -63,19 +58,19 @@ factor makes the box that multiple of the child's size on its axis."
   (declare (type single-float min-w max-w min-h max-h align-x align-y)
            (type (or null single-float) width-factor height-factor)
            (type (or null function) measure))
-  (let ((shrink-w (or width-factor (unbounded-p max-w)))
-        (shrink-h (or height-factor (unbounded-p max-h))))
+  (let ((shrink-w (or width-factor (constraints:unbounded-p max-w)))
+        (shrink-h (or height-factor (constraints:unbounded-p max-h))))
     (multiple-value-bind (child-w child-h)
         (if measure
             (multiple-value-bind (child-min-w child-max-w child-min-h child-max-h)
-                (loosen-constraints min-w max-w min-h max-h)
+                (constraints:loosen-constraints min-w max-w min-h max-h)
               (funcall measure child-min-w child-max-w child-min-h child-max-h))
             (values 0f0 0f0))
       (declare (type single-float child-w child-h))
-      (let ((width (constrain (if shrink-w (* child-w (or width-factor 1f0)) max-w)
-                              min-w max-w))
-            (height (constrain (if shrink-h (* child-h (or height-factor 1f0)) max-h)
-                               min-h max-h)))
+      (let ((width (constraints:constrain (if shrink-w (* child-w (or width-factor 1f0)) max-w)
+                                          min-w max-w))
+            (height (constraints:constrain (if shrink-h (* child-h (or height-factor 1f0)) max-h)
+                                           min-h max-h)))
         (values width height
                 (* (- width child-w) 0.5f0 (+ 1f0 align-x))
                 (* (- height child-h) 0.5f0 (+ 1f0 align-y)))))))

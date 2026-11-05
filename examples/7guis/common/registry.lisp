@@ -1,7 +1,6 @@
 (defpackage #:almighty-bolt-7guis/common/registry
   (:use #:cl)
-  (:import-from #:almighty-bolt/app
-                #:make-app-instance)
+  (:local-nicknames (#:app #:almighty-bolt/app))
   (:export #:app
            #:app-task
            #:app-constructor
@@ -51,7 +50,7 @@ new one, which is what hot reload needs. #'name would keep the old."
   "A new instance of APP, for the host to run: the function that its constructor makes, which
 describes the screen, in what the host runs. The constructor is a name, so one compiled again is
 the one that is called."
-  (make-app-instance (app-constructor app)))
+  (app:make-app-instance (app-constructor app)))
 
 (defun all-apps ()
   (reverse *apps*))

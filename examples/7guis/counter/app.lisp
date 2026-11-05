@@ -1,13 +1,7 @@
 (defpackage #:almighty-bolt-7guis/counter/app
   (:use #:cl)
-  (:import-from #:almighty-bolt-7guis/common/registry
-                #:register-app)
-  (:import-from #:almighty-bolt
-                #:label
-                #:button
-                #:padding
-                #:row
-                #:state-let)
+  (:local-nicknames (#:registry #:almighty-bolt-7guis/common/registry)
+                    (#:bolt #:almighty-bolt))
   (:export #:make-counter))
 
 (in-package #:almighty-bolt-7guis/counter/app)
@@ -16,12 +10,12 @@
 ;;; screen is called again for every frame. The button says whether it was clicked.
 
 (defun make-counter ()
-  (state-let ((count 0))
+  (bolt:state-let ((count 0))
     (lambda ()
-      (padding (:all 24)
-        (row (:gap 16 :cross-align :center)
-          (label (princ-to-string count) :id :count :size 32)
-          (when (button "Count" :id :count-button)
+      (bolt:padding (:all 24)
+        (bolt:row (:gap 16 :cross-align :center)
+          (bolt:label (princ-to-string count) :id :count :size 32)
+          (when (bolt:button "Count" :id :count-button)
             (incf count)))))))
 
-(register-app :counter 'make-counter :width 360 :height 160)
+(registry:register-app :counter 'make-counter :width 360 :height 160)

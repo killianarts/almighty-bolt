@@ -1,26 +1,12 @@
 (defpackage #:almighty-bolt-bench/results
   (:use #:cl)
   (:local-nicknames (#:core #:almighty-bolt/internals)
-                    (#:registry #:almighty-bolt-7guis/common/registry))
-  (:import-from #:almighty-bolt/platform/macos/objc
-                #:with-masked-float-traps
-                #:with-autorelease-pool)
-  (:import-from #:almighty-bolt/platform/macos/host
-                #:make-host
-                #:host-context
-                #:host-app
-                #:host-ring
-                #:host-display-list
-                #:host-acquire
-                #:run-frame)
-  (:import-from #:almighty-bolt/render/metal/device
-                #:default-device)
-  (:import-from #:almighty-bolt/render/metal/target
-                #:+pixel-format-bgra8-unorm+
-                #:make-offscreen-target
-                #:offscreen-target-descriptor)
-  (:import-from #:almighty-bolt-bench-null/null
-                #:make-null-app)
+                    (#:registry #:almighty-bolt-7guis/common/registry)
+                    (#:objc #:almighty-bolt/platform/macos/objc)
+                    (#:host #:almighty-bolt/platform/macos/host)
+                    (#:device #:almighty-bolt/render/metal/device)
+                    (#:target #:almighty-bolt/render/metal/target)
+                    (#:bench-null #:almighty-bolt-bench-null/null))
   (:export #:main
            #:overhead-main
            #:report
@@ -170,26 +156,26 @@ off-screen texture of the script's size. Returns the replay result and the rows 
 ring, one for each frame (see +RING-COLUMNS+)."
   (let* ((header (core:script-header script))
          (scale 2)
-         (device (default-device))
-         (target (make-offscreen-target device (* scale (getf header :width 400))
-                                        (* scale (getf header :height 300))))
-         (pass (offscreen-target-descriptor target))
-         (context (host-context host))
-         (ring (host-ring host))
+         (device (device:default-device))
+         (target (target:make-offscreen-target device (* scale (getf header :width 400))
+                                               (* scale (getf header :height 300))))
+         (pass (target:offscreen-target-descriptor target))
+         (context (host:host-context host))
+         (ring (host:host-ring host))
          (object (registry:make-app-object (registry:find-app task))))
-    (setf (host-app host) object
-          (host-acquire host) (lambda () (values pass 0))
+    (setf (host:host-app host) object
+          (host:host-acquire host) (lambda () (values pass 0))
           (core:context-scale context) (float scale 1f0))
     (core:clear-frame-ring ring)
     (let ((result (core:replay script object context
-                               :display-list (host-display-list host)
+                               :display-list (host:host-display-list host)
                                :frame-function
                                (lambda ()
-                                 (with-autorelease-pool
-                                   (run-frame host (core:context-width context)
-                                              (core:context-height context)
-                                              (core:context-scale context)))
-                                 (let ((last (1- (core:frame-ring-count ring))))
+                                        (objc:with-autorelease-pool
+                                   (host:run-frame host (core:context-width context)
+                                                   (core:context-height context)
+                                                   (core:context-scale context)))
+                                        (let ((last (1- (core:frame-ring-count ring))))
                                    (values (core:frame-builds ring last)
                                            (core:frame-capped-p ring last)))))))
       (values result (loop :for i :below (core:frame-ring-count ring) :collect (frame-row ring i))))))
@@ -284,11 +270,11 @@ is not set, those of the 7GUIs tasks and of the stress apps."
 
 (defun headless-run (scripts repetitions warmups directory date source machine)
   "The build of every app on its scripts, with the real text engine and no renderer."
-  (with-masked-float-traps
-    (with-autorelease-pool
-      (let* ((host (make-host (make-instance 'core:app-instance) (default-device)
-                              +pixel-format-bgra8-unorm+ :capacity 1024 :scale 2))
-             (context (host-context host)))
+  (objc:with-masked-float-traps
+    (objc:with-autorelease-pool
+      (let* ((host (host:make-host (make-instance 'core:app-instance) (device:default-device)
+                                   target:+pixel-format-bgra8-unorm+ :capacity 1024 :scale 2))
+             (context (host:host-context host)))
         (format t "~&Headless: ~d repetitions after ~d warm-ups; the time is of the app's build of a frame~%"
                 repetitions warmups)
         (dolist (path scripts)
@@ -310,11 +296,11 @@ is not set, those of the 7GUIs tasks and of the stress apps."
 (defun host-run (scripts repetitions warmups directory date source machine)
   "Every app on its scripts through the host's frame into an off-screen texture, with the
 instrumentation on."
-  (with-masked-float-traps
-    (with-autorelease-pool
-      (let ((host (make-host (make-instance 'core:app-instance) (default-device)
-                             +pixel-format-bgra8-unorm+ :capacity 65536 :ring-capacity 65536
-                                                        :scale 2 :phases t)))
+  (objc:with-masked-float-traps
+    (objc:with-autorelease-pool
+      (let ((host (host:make-host (make-instance 'core:app-instance) (device:default-device)
+                                  target:+pixel-format-bgra8-unorm+ :capacity 65536 :ring-capacity 65536
+                                                                    :scale 2 :phases t)))
         (format t "~&Host: ~d repetitions after ~d warm-ups; frames through the host into an off-screen texture (no vsync, no drawable): not a window's numbers~%"
                 repetitions warmups)
         (dolist (path scripts)
@@ -387,21 +373,21 @@ on, in rounds that do one and then the other (the other first in every second ro
   "The null app through the host, off-screen, with the instrumentation off and on: the
 median over repetitions of a run's median frame time and build time. The null app does
 nothing in a build, so the difference is the instrumentation's own."
-  (let* ((host (make-host (make-null-app)
-                          (default-device) +pixel-format-bgra8-unorm+
-                          :capacity 4096 :ring-capacity (+ frames 16) :scale 2))
-         (context (host-context host))
-         (ring (host-ring host))
-         (device (default-device))
-         (target (make-offscreen-target device 1200 800))
-         (pass (offscreen-target-descriptor target))
+  (let* ((host (host:make-host (bench-null:make-null-app)
+                               (device:default-device) target:+pixel-format-bgra8-unorm+
+                               :capacity 4096 :ring-capacity (+ frames 16) :scale 2))
+         (context (host:host-context host))
+         (ring (host:host-ring host))
+         (device (device:default-device))
+         (target (target:make-offscreen-target device 1200 800))
+         (pass (target:offscreen-target-descriptor target))
          (off '()) (on '()))
-    (setf (host-acquire host) (lambda () (values pass 0)))
+    (setf (host:host-acquire host) (lambda () (values pass 0)))
     (flet ((run (phases)
              (setf (core:context-phases-p context) phases)
              (core:clear-frame-ring ring)
              (dotimes (i frames)
-               (with-autorelease-pool (run-frame host 600f0 400f0 2f0)))
+               (objc:with-autorelease-pool (host:run-frame host 600f0 400f0 2f0)))
              (setf (core:context-phases-p context) nil)
              (let ((summary (core:summarize-ring ring :skip 10)))
                (list (getf (getf summary :duration) :median)
@@ -421,10 +407,10 @@ nothing in a build, so the difference is the instrumentation's own."
   (let* ((repetitions (environment-number "REPS" 10))
          (directory (uiop:ensure-directory-pathname (or (uiop:getenv "OUT") "results/")))
          (date (timestamp)) (source (source-state)) (machine (machine-profile)))
-    (with-masked-float-traps
-      (with-autorelease-pool
-        (let* ((context (host-context (make-host (make-instance 'core:app-instance) (default-device)
-                                                 +pixel-format-bgra8-unorm+ :capacity 1024 :scale 2)))
+    (objc:with-masked-float-traps
+      (objc:with-autorelease-pool
+        (let* ((context (host:host-context (host:make-host (make-instance 'core:app-instance) (device:default-device)
+                                                           target:+pixel-format-bgra8-unorm+ :capacity 1024 :scale 2)))
                (headless (overhead-headless (script-paths) repetitions context))
                (null (overhead-null repetitions 1000)))
           (format t "~&What the instrumentation adds (phases, build timing), median of ~d runs:~%" repetitions)

@@ -1,26 +1,8 @@
 (defpackage #:almighty-bolt-7guis/crud/app
   (:use #:cl)
-  (:import-from #:almighty-bolt
-                #:state-let
-                #:label
-                #:button
-                #:padding
-                #:column
-                #:row
-                #:text-field
-                #:list-box)
-  (:import-from #:almighty-bolt-7guis/common/registry
-                #:register-app)
-  (:import-from #:almighty-bolt-7guis/crud/model
-                #:make-entries
-                #:entry-id
-                #:entry-name
-                #:entry-surname
-                #:entry-display
-                #:entries-add
-                #:entries-update
-                #:entries-remove
-                #:entries-filtered)
+  (:local-nicknames (#:bolt #:almighty-bolt)
+                    (#:registry #:almighty-bolt-7guis/common/registry)
+                    (#:model #:almighty-bolt-7guis/crud/model))
   (:export #:make-crud))
 
 (in-package #:almighty-bolt-7guis/crud/app)
@@ -30,56 +12,56 @@
 ;;; every frame, and the buttons say whether they were pressed where they are described.
 
 (defun make-crud ()
-  (state-let ((entries (make-entries '("Hans" "Emil") '("Max" "Mustermann") '("Roman" "Tisch")))
-              (filter "")
-              (picked nil)
-              (name "")
-              (surname ""))
+  (bolt:state-let ((entries (model:make-entries '("Hans" "Emil") '("Max" "Mustermann") '("Roman" "Tisch")))
+                   (filter "")
+                   (picked nil)
+                   (name "")
+                   (surname ""))
     (lambda ()
-      (let* ((shown (entries-filtered entries filter))
-             (picked-entry (find picked shown :key #'entry-id)))
-        (padding (:all 20)
-          (column (:gap 14)
-            (row (:gap 10 :cross-align :center)
-              (label "Filter prefix:" :id :filter-label)
+      (let* ((shown (model:entries-filtered entries filter))
+             (picked-entry (find picked shown :key #'model:entry-id)))
+        (bolt:padding (:all 20)
+          (bolt:column (:gap 14)
+            (bolt:row (:gap 10 :cross-align :center)
+              (bolt:label "Filter prefix:" :id :filter-label)
               (multiple-value-bind (text changed)
-                  (text-field filter :id :filter :labelled-by :filter-label :width 160)
+                       (bolt:text-field filter :id :filter :labelled-by :filter-label :width 160)
                 (when changed
-                  (setf filter text))))
-            (row (:gap 20)
+                       (setf filter text))))
+            (bolt:row (:gap 20)
               (multiple-value-bind (index changed)
-                  (list-box (mapcar #'entry-display shown)
-                            (position picked shown :key #'entry-id) :id :list :width 220 :rows 6)
+                       (bolt:list-box (mapcar #'model:entry-display shown)
+                                      (position picked shown :key #'model:entry-id) :id :list :width 220 :rows 6)
                 (when changed
-                  (let ((entry (nth index shown)))
-                    (setf picked (entry-id entry)
-                          name (entry-name entry)
-                          surname (entry-surname entry)))))
-              (column (:gap 10)
-                (row (:gap 10 :cross-align :center)
-                  (label "Name:" :id :name-label)
-                  (multiple-value-bind (text changed)
-                      (text-field name :id :name :labelled-by :name-label :width 160)
+                       (let ((entry (nth index shown)))
+                    (setf picked (model:entry-id entry)
+                          name (model:entry-name entry)
+                          surname (model:entry-surname entry)))))
+              (bolt:column (:gap 10)
+                (bolt:row (:gap 10 :cross-align :center)
+                       (bolt:label "Name:" :id :name-label)
+                       (multiple-value-bind (text changed)
+                           (bolt:text-field name :id :name :labelled-by :name-label :width 160)
                     (when changed
-                      (setf name text))))
-                (row (:gap 10 :cross-align :center)
-                  (label "Surname:" :id :surname-label)
-                  (multiple-value-bind (text changed)
-                      (text-field surname :id :surname :labelled-by :surname-label :width 160)
+                           (setf name text))))
+                (bolt:row (:gap 10 :cross-align :center)
+                       (bolt:label "Surname:" :id :surname-label)
+                       (multiple-value-bind (text changed)
+                           (bolt:text-field surname :id :surname :labelled-by :surname-label :width 160)
                     (when changed
-                      (setf surname text))))))
-            (row (:gap 10)
-              (when (button "Create" :id :create
-                                     :enabled (plusp (+ (length name) (length surname))))
-                (multiple-value-bind (new entry) (entries-add entries name surname)
-                  (setf entries new
-                        picked (entry-id entry))))
-              (when (button "Update" :id :update :enabled (and picked-entry t))
-                (setf entries (entries-update entries picked name surname)))
-              (when (button "Delete" :id :delete :enabled (and picked-entry t))
-                (setf entries (entries-remove entries picked)
+                           (setf surname text))))))
+            (bolt:row (:gap 10)
+              (when (bolt:button "Create" :id :create
+                                          :enabled (plusp (+ (length name) (length surname))))
+                (multiple-value-bind (new entry) (model:entries-add entries name surname)
+                       (setf entries new
+                             picked (model:entry-id entry))))
+              (when (bolt:button "Update" :id :update :enabled (and picked-entry t))
+                (setf entries (model:entries-update entries picked name surname)))
+              (when (bolt:button "Delete" :id :delete :enabled (and picked-entry t))
+                (setf entries (model:entries-remove entries picked)
                       picked nil
                       name ""
                       surname "")))))))))
 
-(register-app :crud 'make-crud :width 640 :height 280)
+(registry:register-app :crud 'make-crud :width 640 :height 280)

@@ -7,6 +7,25 @@
 
 (defpackage #:almighty-bolt/internals
   (:use #:cl)
+  (:local-nicknames (#:clock #:almighty-bolt/clock)
+                    (#:ring #:almighty-bolt/ring)
+                    (#:trace #:almighty-bolt/trace)
+                    (#:ring-summary #:almighty-bolt/ring-summary)
+                    (#:event #:almighty-bolt/event)
+                    (#:stats #:almighty-bolt/stats)
+                    (#:wheel-lock #:almighty-bolt/wheel-lock)
+                    (#:text-edit #:almighty-bolt/text-edit)
+                    (#:dl #:almighty-bolt/display-list)
+                    (#:image #:almighty-bolt/image)
+                    (#:app-instance #:almighty-bolt/app-instance)
+                    (#:kept #:almighty-bolt/kept)
+                    (#:settle #:almighty-bolt/settle)
+                    (#:script #:almighty-bolt/replay/script)
+                    (#:player #:almighty-bolt/replay/player)
+                    (#:recorder #:almighty-bolt/replay/recorder)
+                    (#:constraints #:almighty-bolt/layout/constraints)
+                    (#:layout-box #:almighty-bolt/layout/box)
+                    (#:flex #:almighty-bolt/layout/flex))
   (:import-from #:almighty-bolt/clock
                 #:nanoseconds
                 #:now-ns
@@ -143,10 +162,6 @@
                 #:text-delete-forward
                 #:text-move
                 #:text-select-all
-           #:unit-range
-           #:text-select-units
-                #:unit-range
-                #:text-select-units
                 #:text-place-caret
                 #:text-replace
                 #:edit-text)
@@ -215,8 +230,6 @@
                 #:app-menus
                 #:inherit-state
                 #:retire-app
-           #:forget-painting
-                #:forget-painting
                 #:context
                 #:make-context
                 #:context-width
@@ -250,10 +263,6 @@
                 #:take-frame-request
                 #:deliver-event
                 #:no-text-support
-           #:glyphs-full
-           #:context-forget-glyphs
-                #:glyphs-full
-                #:context-forget-glyphs
                 #:no-text-support-operation
                 #:context-font
                 #:context-measure

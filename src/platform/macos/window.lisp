@@ -1,25 +1,9 @@
 (defpackage #:almighty-bolt/platform/macos/window
   (:use #:cl)
-  (:import-from #:almighty-bolt/platform/macos/objc
-                #:msg-send
-                #:objc-class
-                #:ns-string
-                #:release
-                #:define-callback
-                #:define-runtime-class
-                #:define-startup
-                #:ivar-offset
-                #:instance-slot
-                #:register-object
-                #:registered-object)
-  (:import-from #:almighty-bolt/platform/macos/main-queue
-                #:run-on-main)
-  (:import-from #:almighty-bolt/clock
-                #:now-ns)
-  (:import-from #:almighty-bolt/event
-                #:make-resize-event
-                #:make-scale-event
-                #:make-focus-event)
+  (:local-nicknames (#:objc #:almighty-bolt/platform/macos/objc)
+                    (#:main-queue #:almighty-bolt/platform/macos/main-queue)
+                    (#:clock #:almighty-bolt/clock)
+                    (#:event #:almighty-bolt/event))
   (:export #:make-window
            #:window-object
            #:set-content-view
@@ -49,48 +33,48 @@
 
 (declaim (inline window-of))
 (defun window-of (delegate offset)
-  (registered-object (instance-slot delegate offset)))
+  (objc:registered-object (objc:instance-slot delegate offset)))
 
 (defvar *delegate-slot-offset* 0
   "Offset of the instance variable that holds a delegate's window index.")
 
 (defun content-size (window)
   "The width and height of WINDOW's content in points, as two values."
-  (let ((view (msg-send :id (window-object window) "contentView")))
-    (multiple-value-bind (x y width height) (msg-send :rect view "bounds")
+  (let ((view (objc:msg-send :id (window-object window) "contentView")))
+    (multiple-value-bind (x y width height) (objc:msg-send :rect view "bounds")
       (declare (ignore x y))
       (values width height))))
 
-(define-callback window-will-close sb-alien:void
+(objc:define-callback window-will-close sb-alien:void
     ((self sb-alien:unsigned-long) (cmd sb-alien:unsigned-long) (notification sb-alien:unsigned-long))
   (funcall (window-on-close (window-of self *delegate-slot-offset*))))
 
-(define-callback window-did-resize sb-alien:void
+(objc:define-callback window-did-resize sb-alien:void
     ((self sb-alien:unsigned-long) (cmd sb-alien:unsigned-long) (notification sb-alien:unsigned-long))
   (let ((window (window-of self *delegate-slot-offset*)))
     (multiple-value-bind (width height) (content-size window)
       (funcall (window-event-handler window)
-               (make-resize-event :timestamp (now-ns) :width width :height height)))))
+               (event:make-resize-event :timestamp (clock:now-ns) :width width :height height)))))
 
-(define-callback window-did-change-backing-properties sb-alien:void
+(objc:define-callback window-did-change-backing-properties sb-alien:void
     ((self sb-alien:unsigned-long) (cmd sb-alien:unsigned-long) (notification sb-alien:unsigned-long))
   (let ((window (window-of self *delegate-slot-offset*)))
     (funcall (window-event-handler window)
-             (make-scale-event :timestamp (now-ns)
-                               :scale (msg-send :double (window-object window)
-                                                "backingScaleFactor")))))
+             (event:make-scale-event :timestamp (clock:now-ns)
+                                     :scale (objc:msg-send :double (window-object window)
+                                                           "backingScaleFactor")))))
 
-(define-callback window-did-become-key sb-alien:void
+(objc:define-callback window-did-become-key sb-alien:void
     ((self sb-alien:unsigned-long) (cmd sb-alien:unsigned-long) (notification sb-alien:unsigned-long))
   (funcall (window-event-handler (window-of self *delegate-slot-offset*))
-           (make-focus-event :timestamp (now-ns) :focused-p t)))
+           (event:make-focus-event :timestamp (clock:now-ns) :focused-p t)))
 
-(define-callback window-did-resign-key sb-alien:void
+(objc:define-callback window-did-resign-key sb-alien:void
     ((self sb-alien:unsigned-long) (cmd sb-alien:unsigned-long) (notification sb-alien:unsigned-long))
   (funcall (window-event-handler (window-of self *delegate-slot-offset*))
-           (make-focus-event :timestamp (now-ns) :focused-p nil)))
+           (event:make-focus-event :timestamp (clock:now-ns) :focused-p nil)))
 
-(define-runtime-class *delegate-class* "AlmightyBoltWindowDelegate" "NSObject"
+(objc:define-runtime-class *delegate-class* "AlmightyBoltWindowDelegate" "NSObject"
   :ivars '(("lispSlot" 8 3 "Q"))
   :methods '(("windowWillClose:" "v@:@" window-will-close)
              ("windowDidResize:" "v@:@" window-did-resize)
@@ -99,35 +83,35 @@
              ("windowDidBecomeKey:" "v@:@" window-did-become-key)
              ("windowDidResignKey:" "v@:@" window-did-resign-key)))
 
-(define-startup window-delegate-offset
-  (setf *delegate-slot-offset* (ivar-offset *delegate-class* "lispSlot")))
+(objc:define-startup window-delegate-offset
+  (setf *delegate-slot-offset* (objc:ivar-offset *delegate-class* "lispSlot")))
 
 (defun make-window (&key (title "") (width 480) (height 320)
                       (event-handler #'identity) (on-close (lambda ())))
   "A window whose content area is WIDTH by HEIGHT points, not yet shown. EVENT-HANDLER
 is called with each resize, scale and focus event; ON-CLOSE with no arguments when
 the window is closing. Call on the main thread."
-  (let* ((object (msg-send :id (msg-send :id (objc-class "NSWindow") "alloc")
-                           "initWithContentRect:styleMask:backing:defer:"
-                           (:rect 0 0 width height)
-                           (:ulong (logior +style-titled+ +style-closable+
-                                           +style-miniaturizable+ +style-resizable+))
-                           (:ulong 2)   ; NSBackingStoreBuffered
-                           (:bool nil)))
+  (let* ((object (objc:msg-send :id (objc:msg-send :id (objc:objc-class "NSWindow") "alloc")
+                                "initWithContentRect:styleMask:backing:defer:"
+                                (:rect 0 0 width height)
+                                (:ulong (logior +style-titled+ +style-closable+
+                                                +style-miniaturizable+ +style-resizable+))
+                                (:ulong 2)   ; NSBackingStoreBuffered
+                                (:bool nil)))
          (window (%make-window :object object :event-handler event-handler :on-close on-close))
-         (delegate (msg-send :id (msg-send :id *delegate-class* "alloc") "init"))
-         (ns-title (ns-string title)))
-    (setf (window-index window) (register-object window)
-          (instance-slot delegate *delegate-slot-offset*) (window-index window))
-    (msg-send :void object "setReleasedWhenClosed:" (:bool nil))
-    (msg-send :void object "setTitle:" (:id ns-title))
-    (msg-send :void object "setDelegate:" (:id delegate))
-    (release ns-title)
+         (delegate (objc:msg-send :id (objc:msg-send :id *delegate-class* "alloc") "init"))
+         (ns-title (objc:ns-string title)))
+    (setf (window-index window) (objc:register-object window)
+          (objc:instance-slot delegate *delegate-slot-offset*) (window-index window))
+    (objc:msg-send :void object "setReleasedWhenClosed:" (:bool nil))
+    (objc:msg-send :void object "setTitle:" (:id ns-title))
+    (objc:msg-send :void object "setDelegate:" (:id delegate))
+    (objc:release ns-title)
     window))
 
 (defun set-content-view (window view-object)
   "Make the NSView VIEW-OBJECT fill WINDOW."
-  (msg-send :void (window-object window) "setContentView:" (:id view-object)))
+  (objc:msg-send :void (window-object window) "setContentView:" (:id view-object)))
 
 ;;; --- where a window opens ---
 ;;;
@@ -147,16 +131,16 @@ the window is closing. Call on the main thread."
   "WINDOW's frame, with its title bar, as four values: x, y (from the top of the screen it is on, down)
 and width and height, in points. Call on the main thread."
   (let ((object (window-object window)))
-    (multiple-value-bind (x y w h) (msg-send :rect object "frame")
-      (multiple-value-bind (vx vy vw vh) (visible-frame (msg-send :id object "screen"))
+    (multiple-value-bind (x y w h) (objc:msg-send :rect object "frame")
+      (multiple-value-bind (vx vy vw vh) (visible-frame (objc:msg-send :id object "screen"))
         (declare (ignore vx vw))
         (values x (- (+ vy vh) (+ y h)) w h)))))
 
 (defun visible-frame (screen)
   "The part of SCREEN (an NSScreen, or 0 for the main one) that windows go in, as AppKit's x, y, width
 and height."
-  (msg-send :rect (if (zerop screen) (msg-send :id (objc-class "NSScreen") "mainScreen") screen)
-            "visibleFrame"))
+  (objc:msg-send :rect (if (zerop screen) (objc:msg-send :id (objc:objc-class "NSScreen") "mainScreen") screen)
+                 "visibleFrame"))
 
 (defun place-window (window placement)
   "Put WINDOW where PLACEMENT says (see above). Call on the main thread, before it is shown."
@@ -164,9 +148,9 @@ and height."
       placement
     (let* ((object (window-object window))
            (other (or beside cascade))
-           (screen (if other (msg-send :id (window-object other) "screen") 0)))
+           (screen (if other (objc:msg-send :id (window-object other) "screen") 0)))
       (multiple-value-bind (vx vy vw vh) (visible-frame screen)
-        (multiple-value-bind (fx fy w h) (msg-send :rect object "frame")
+        (multiple-value-bind (fx fy w h) (objc:msg-send :rect object "frame")
           (declare (ignore fx fy))
           (let ((gap (float gap 1d0))
                 ;; The top left corner, in AppKit's coordinates.
@@ -174,7 +158,7 @@ and height."
                 (ty (- (+ vy vh) (/ (- vh h) 2))))
             (cond
               (beside
-               (multiple-value-bind (ox oy ow oh) (msg-send :rect (window-object beside) "frame")
+               (multiple-value-bind (ox oy ow oh) (objc:msg-send :rect (window-object beside) "frame")
                  (flet ((fits-p (x y) (and (<= vx x) (<= (+ x w) (+ vx vw))
                                            (<= (+ vy h) y) (<= y (+ vy vh)))))
                    (let ((spots (list :right (list (+ ox ow gap) (+ oy oh))
@@ -190,7 +174,7 @@ and height."
                                                        (getf spots side)))
                        (setf tx x ty y))))))
               (cascade
-               (multiple-value-bind (ox oy ow oh) (msg-send :rect (window-object cascade) "frame")
+               (multiple-value-bind (ox oy ow oh) (objc:msg-send :rect (window-object cascade) "frame")
                  (declare (ignore ow))
                  (setf tx (+ ox +cascade-step+)
                        ty (- (+ oy oh) +cascade-step+))))
@@ -202,28 +186,28 @@ and height."
             ;; On the screen: as far as it fits, from the top left.
             (setf tx (max vx (min tx (- (+ vx vw) w)))
                   ty (min (+ vy vh) (max ty (+ vy h))))
-            (msg-send :void object "setFrameTopLeftPoint:" (:point tx ty))))))))
+            (objc:msg-send :void object "setFrameTopLeftPoint:" (:point tx ty))))))))
 
 (defun show-window (window &optional placement)
   "Put WINDOW where PLACEMENT says (see PLACE-WINDOW) and bring it to the front."
   (place-window window placement)
-  (msg-send :void (window-object window) "makeKeyAndOrderFront:" (:id 0)))
+  (objc:msg-send :void (window-object window) "makeKeyAndOrderFront:" (:id 0)))
 
 (defun close-window (window)
   "Close WINDOW as if the user had pressed its close button. Safe from any thread."
-  (run-on-main (lambda ()
-                 (msg-send :void (window-object window) "performClose:" (:id 0)))))
+  (main-queue:run-on-main (lambda ()
+                 (objc:msg-send :void (window-object window) "performClose:" (:id 0)))))
 
 (defun resize-window-content (window width height)
   "Resize WINDOW so that its content is WIDTH by HEIGHT points. Safe from any thread."
-  (run-on-main (lambda ()
-                 (msg-send :void (window-object window) "setContentSize:"
-                           (:size width height)))))
+  (main-queue:run-on-main (lambda ()
+                 (objc:msg-send :void (window-object window) "setContentSize:"
+                                (:size width height)))))
 
 (defun window-number (window)
   "The window server's number for WINDOW, as events carry it."
-  (msg-send :long (window-object window) "windowNumber"))
+  (objc:msg-send :long (window-object window) "windowNumber"))
 
 (defun window-scale-factor (window)
   "Device pixels per point on the screen WINDOW is on."
-  (msg-send :double (window-object window) "backingScaleFactor"))
+  (objc:msg-send :double (window-object window) "backingScaleFactor"))

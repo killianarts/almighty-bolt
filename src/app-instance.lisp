@@ -1,8 +1,6 @@
 (defpackage #:almighty-bolt/app-instance
   (:use #:cl)
-  (:import-from #:almighty-bolt/clock
-                #:now-ns
-                #:real-time-source)
+  (:local-nicknames (#:clock #:almighty-bolt/clock))
   (:export #:app-instance
            #:handle-event
            #:*show-frame-errors*
@@ -293,10 +291,10 @@ library's clock, which replay makes virtual) to PHASE (+PHASE-UPDATE+, +PHASE-LA
        (flet ((,f () ,@body))
          (declare (dynamic-extent #',f))
          (if (context-phases-p ,c)
-             (let ((,start (real-time-source)))
+             (let ((,start (clock:real-time-source)))
                (multiple-value-prog1 (,f)
                  (incf (aref (context-phase-ns ,c) ,phase)
-                       (the (unsigned-byte 62) (- (real-time-source) ,start)))))
+                       (the (unsigned-byte 62) (- (clock:real-time-source) ,start)))))
              (,f))))))
 
 (defun flag-frame-request (context)
@@ -318,16 +316,16 @@ runs its own loop; this is how it asks for the next frame of an animation."
 (defun context-now-ns (context)
   "The time in nanoseconds, from the library's clock (which replay can replace)."
   (declare (ignore context))
-  (now-ns))
+  (clock:now-ns))
 
 (defun deliver-event (instance context event)
   "Offer EVENT to INSTANCE and, if it wants a frame, request one. Returns true if a
 frame was requested. With the context's instrumentation on, the real time that
 HANDLE-EVENT took is added to the context's events (see TAKE-EVENTS)."
   (when (if (context-phases-p context)
-            (let ((start (real-time-source)))
+            (let ((start (clock:real-time-source)))
               (multiple-value-prog1 (handle-event instance event)
-                (incf (context-events-ns context) (- (real-time-source) start))
+                (incf (context-events-ns context) (- (clock:real-time-source) start))
                 (incf (context-events context))))
             (handle-event instance event))
     (request-frame context)

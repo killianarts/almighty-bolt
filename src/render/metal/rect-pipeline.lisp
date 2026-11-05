@@ -1,14 +1,8 @@
 (defpackage #:almighty-bolt/render/metal/rect-pipeline
   (:use #:cl)
-  (:import-from #:almighty-bolt/platform/macos/objc
-                #:msg-send
-                #:objc-class)
-  (:import-from #:almighty-bolt/render/metal/device
-                #:compile-library
-                #:make-function
-                #:make-pipeline-state)
-  (:import-from #:almighty-bolt/clock
-                #:now-ns)
+  (:local-nicknames (#:objc #:almighty-bolt/platform/macos/objc)
+                    (#:device #:almighty-bolt/render/metal/device)
+                    (#:clock #:almighty-bolt/clock))
   (:export #:+instance-bytes+
            #:+shader-source+
            #:make-rect-pipeline))
@@ -234,25 +228,25 @@ fragment float4 rect_fragment(VertexOut in [[stage_in]],
   "Compile the shaders and make the pipeline state for drawing into textures of
 PIXEL-FORMAT. Returns the state and, for measuring, the nanoseconds the shader
 compiler and the pipeline took, as three values."
-  (let* ((start (now-ns))
-         (library (compile-library device +shader-source+))
-         (compiled (now-ns))
-         (vertex (make-function library "rect_vertex"))
-         (fragment (make-function library "rect_fragment"))
-         (descriptor (msg-send :id (msg-send :id (objc-class "MTLRenderPipelineDescriptor")
-                                             "alloc")
-                               "init"))
-         (attachment (msg-send :id (msg-send :id descriptor "colorAttachments")
-                               "objectAtIndexedSubscript:" (:ulong 0))))
-    (msg-send :void descriptor "setVertexFunction:" (:id vertex))
-    (msg-send :void descriptor "setFragmentFunction:" (:id fragment))
-    (msg-send :void attachment "setPixelFormat:" (:ulong pixel-format))
-    (msg-send :void attachment "setBlendingEnabled:" (:bool t))
-    (msg-send :void attachment "setSourceRGBBlendFactor:" (:ulong +blend-one+))
-    (msg-send :void attachment "setDestinationRGBBlendFactor:"
-              (:ulong +blend-one-minus-source-alpha+))
-    (msg-send :void attachment "setSourceAlphaBlendFactor:" (:ulong +blend-one+))
-    (msg-send :void attachment "setDestinationAlphaBlendFactor:"
-              (:ulong +blend-one-minus-source-alpha+))
-    (let ((state (make-pipeline-state device descriptor)))
-      (values state (- compiled start) (- (now-ns) compiled)))))
+  (let* ((start (clock:now-ns))
+         (library (device:compile-library device +shader-source+))
+         (compiled (clock:now-ns))
+         (vertex (device:make-function library "rect_vertex"))
+         (fragment (device:make-function library "rect_fragment"))
+         (descriptor (objc:msg-send :id (objc:msg-send :id (objc:objc-class "MTLRenderPipelineDescriptor")
+                                                       "alloc")
+                                    "init"))
+         (attachment (objc:msg-send :id (objc:msg-send :id descriptor "colorAttachments")
+                                    "objectAtIndexedSubscript:" (:ulong 0))))
+    (objc:msg-send :void descriptor "setVertexFunction:" (:id vertex))
+    (objc:msg-send :void descriptor "setFragmentFunction:" (:id fragment))
+    (objc:msg-send :void attachment "setPixelFormat:" (:ulong pixel-format))
+    (objc:msg-send :void attachment "setBlendingEnabled:" (:bool t))
+    (objc:msg-send :void attachment "setSourceRGBBlendFactor:" (:ulong +blend-one+))
+    (objc:msg-send :void attachment "setDestinationRGBBlendFactor:"
+                   (:ulong +blend-one-minus-source-alpha+))
+    (objc:msg-send :void attachment "setSourceAlphaBlendFactor:" (:ulong +blend-one+))
+    (objc:msg-send :void attachment "setDestinationAlphaBlendFactor:"
+                   (:ulong +blend-one-minus-source-alpha+))
+    (let ((state (device:make-pipeline-state device descriptor)))
+      (values state (- compiled start) (- (clock:now-ns) compiled)))))

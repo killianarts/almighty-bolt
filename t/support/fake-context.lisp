@@ -1,18 +1,6 @@
 (defpackage #:almighty-bolt/test-support/fake-context
   (:use #:cl)
-  (:import-from #:almighty-bolt/internals
-                #:context
-                #:context-font
-                #:context-measure
-                #:context-break-lines
-                #:context-caret-x
-                #:context-index-at-x
-                #:context-push-text
-                #:context-push-image
-                #:image-id
-                #:pack-color
-                #:push-image
-                #:push-glyph)
+  (:local-nicknames (#:core #:almighty-bolt/internals))
   (:export #:fake-context
            #:make-fake-context
            #:+char-width+
@@ -31,11 +19,11 @@
 (defconstant +ascent+ 10f0)
 (defconstant +descent+ 4f0)
 
-(defstruct (fake-context (:include context)
+(defstruct (fake-context (:include core:context)
                          (:constructor make-fake-context
                              (&key (width 400f0) (height 300f0) (scale 1f0)))))
 
-(defmethod context-font ((context fake-context) name size &optional weight tracking)
+(defmethod core:context-font ((context fake-context) name size &optional weight tracking)
   (list name size (or weight :regular) (or tracking 0)))
 
 (defun heavy-p (weight)
@@ -51,17 +39,17 @@ and the font's tracking after each."
       (+ (if (heavy-p (third font)) 9f0 +char-width+) (float (or (fourth font) 0) 1f0))
       +char-width+))
 
-(defmethod context-measure ((context fake-context) font string)
+(defmethod core:context-measure ((context fake-context) font string)
   (values (* (width-of font) (length string)) +ascent+ +descent+))
 
-(defmethod context-caret-x ((context fake-context) font string index)
+(defmethod core:context-caret-x ((context fake-context) font string index)
   (declare (ignore string))
   (* (width-of font) index))
 
-(defmethod context-index-at-x ((context fake-context) font string x)
+(defmethod core:context-index-at-x ((context fake-context) font string x)
   (max 0 (min (length string) (round x (width-of font)))))
 
-(defmethod context-break-lines ((context fake-context) font string width)
+(defmethod core:context-break-lines ((context fake-context) font string width)
   ;; As Core Text's does, a line feed ends a line, and is the last character of it.
   (let ((per-line (max 1 (floor width (width-of font))))
         (length (length string))
@@ -77,8 +65,8 @@ and the font's tracking after each."
                       (setf start stop)))
           (nreverse lines)))))
 
-(defmethod context-push-text ((context fake-context) list font string x baseline color
-                              &optional turn)
+(defmethod core:context-push-text ((context fake-context) list font string x baseline color
+                                   &optional turn)
   ;; Turned, each character's cell is turned about X, BASELINE: up, the line goes up from there with
   ;; the ascent to the left; down, it goes down with the ascent to the right.
   (loop :with width = (width-of font)
@@ -86,16 +74,16 @@ and the font's tracking after each."
         :for i :from 0 :below (length string)
         :for code = (char-code (char string i))
         :do (ecase turn
-              ((nil) (push-glyph list (+ x (* i width)) (- baseline +ascent+) width tall code color))
-              (:up (push-glyph list (- x +ascent+) (- baseline (* (1+ i) width)) tall width code
-                               color :up))
-              (:down (push-glyph list (- x +descent+) (+ baseline (* i width)) tall width code
-                                 color :down))))
+              ((nil) (core:push-glyph list (+ x (* i width)) (- baseline +ascent+) width tall code color))
+              (:up (core:push-glyph list (- x +ascent+) (- baseline (* (1+ i) width)) tall width code
+                                    color :up))
+              (:down (core:push-glyph list (- x +descent+) (+ baseline (* i width)) tall width code
+                                      color :down))))
   (length string))
 
-(defmethod context-push-image ((context fake-context) list image x y width height &key tint (opacity 1))
+(defmethod core:context-push-image ((context fake-context) list image x y width height &key tint (opacity 1))
   ;; There is no atlas: the command's parameter is the image's id, so that a test can see which
   ;; image was drawn.
-  (push-image list x y width height (image-id image)
-              (or tint (pack-color 255 255 255 (round (* 255 (max 0 (min 1 opacity))))))
-              (and tint t)))
+  (core:push-image list x y width height (core:image-id image)
+                   (or tint (core:pack-color 255 255 255 (round (* 255 (max 0 (min 1 opacity))))))
+                   (and tint t)))

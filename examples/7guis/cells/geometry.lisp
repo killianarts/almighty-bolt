@@ -1,7 +1,6 @@
 (defpackage #:almighty-bolt-7guis/cells/geometry
   (:use #:cl)
-  (:import-from #:almighty-bolt
-                #:+points-per-line+)
+  (:local-nicknames (#:bolt #:almighty-bolt))
   (:export #:+columns-per-line+
            #:+cell-width+
            #:+cell-height+
@@ -27,7 +26,7 @@
 (defconstant +cell-height+ 24)
 (defconstant +header-width+ 40)
 (defconstant +header-height+ 24)
-(defconstant +columns-per-line+ (float (/ +points-per-line+ +cell-width+) 1f0)
+(defconstant +columns-per-line+ (float (/ bolt:+points-per-line+ +cell-width+) 1f0)
   "How far across a line of the wheel scrolls the grid, in columns: a line is the height of a
 row (24 points) and a column is 80 points wide. Down, a line is a row.")
 (defconstant +grid-width+ 600)

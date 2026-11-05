@@ -9,29 +9,16 @@
 
 (defpackage #:almighty-bolt-examples/smoke
   (:use #:cl)
-  (:import-from #:almighty-bolt
-                #:run-app
-                #:state)
-  (:import-from #:almighty-bolt/machine/host-session
-                #:open-session)
   (:local-nicknames (#:m #:almighty-bolt/machine)
                     (#:s #:almighty-bolt/ui/semantics)
                     (#:mcp #:almighty-bolt/mcp)
                     (#:json #:com.inuoe.jzon)
-                    (#:sockets #:sb-bsd-sockets))
-  (:import-from #:almighty-bolt/internals
-                #:lookup-target
-                #:frame-ring-total
-                #:make-pointer-event)
-  (:import-from #:almighty-bolt/platform/macos/main-queue
-                #:call-on-main)
-  (:import-from #:almighty-bolt/platform/macos/host
-                #:host-app
-                #:host-ring
-                #:host-deliver-event
-                #:host-idle-p
-                #:wait-for-idle
-                #:close-host-window))
+                    (#:sockets #:sb-bsd-sockets)
+                    (#:bolt #:almighty-bolt)
+                    (#:host-session #:almighty-bolt/machine/host-session)
+                    (#:core #:almighty-bolt/internals)
+                    (#:main-queue #:almighty-bolt/platform/macos/main-queue)
+                    (#:host #:almighty-bolt/platform/macos/host)))
 
 (in-package #:almighty-bolt-examples/smoke)
 
@@ -51,26 +38,26 @@
       (sleep 0.01))))
 
 (defun present-p (host id)
-  (and (lookup-target (host-app host) id) t))
+  (and (core:lookup-target (host:host-app host) id) t))
 
 (defun deliver (host event)
   ;; No pause after it: the events of a click arrive within a millisecond of each other, and the
   ;; ui takes one change of the button a frame, so the count is behind until the host is idle.
-  (call-on-main (lambda () (host-deliver-event host event))))
+  (main-queue:call-on-main (lambda () (host:host-deliver-event host event))))
 
 (defun click (host id)
-  (multiple-value-bind (x y w h) (lookup-target (host-app host) id)
+  (multiple-value-bind (x y w h) (core:lookup-target (host:host-app host) id)
     (let ((px (float (+ x (/ w 2)) 1d0)) (py (float (+ y (/ h 2)) 1d0)))
-      (deliver host (make-pointer-event :timestamp 0 :kind :move :x px :y py :button nil
-                                        :buttons 0 :click-count 0))
-      (deliver host (make-pointer-event :timestamp 0 :kind :down :x px :y py :button 0
-                                        :buttons 1 :click-count 1))
-      (deliver host (make-pointer-event :timestamp 0 :kind :up :x px :y py :button 0
-                                        :buttons 0 :click-count 1)))))
+      (deliver host (core:make-pointer-event :timestamp 0 :kind :move :x px :y py :button nil
+                                             :buttons 0 :click-count 0))
+      (deliver host (core:make-pointer-event :timestamp 0 :kind :down :x px :y py :button 0
+                                             :buttons 1 :click-count 1))
+      (deliver host (core:make-pointer-event :timestamp 0 :kind :up :x px :y py :button 0
+                                             :buttons 0 :click-count 1)))))
 
 (defun the-count (host)
   (declare (ignore host))
-  (state 'almighty-bolt-examples/counter::count))
+  (bolt:state 'almighty-bolt-examples/counter::count))
 
 (defun edited-counter ()
   "What compiling the example again, with a label added, does."
@@ -117,7 +104,7 @@ alone does not show), or NIL if it cannot."
 (defun through-the-machine-interface ()
   "The same window worked as an agent works it: seen as a tree, pressed by what things are called,
 waited for, and photographed."
-  (let* ((session (open-session))
+  (let* ((session (host-session:open-session))
          (before (s:node-name (m:find-node session :role :static-text :id :count))))
     (check "the tree has the button, called what it says"
            (m:find-node session :role :button :name "Count"))
@@ -230,10 +217,10 @@ that wants a pipe, through netcat."
   "Everything that is checked of the open window HOST."
   ;; First of all, before anything has waited for the window: a session is not handed out before
   ;; there is something to see.
-  (let ((size (png-size (m:screenshot (open-session)))))
+  (let ((size (png-size (m:screenshot (host-session:open-session)))))
     (check "a screenshot taken the moment a session is opened is of the whole window"
            (and size (= (first size) (* 2 360)) (= (second size) (* 2 160))) size))
-  (wait-for (lambda () (plusp (frame-ring-total (host-ring host)))) 20)
+  (wait-for (lambda () (plusp (core:frame-ring-total (host:host-ring host)))) 20)
   (sleep 1.0)
   (check "the window shows the example's button" (present-p host :count-button))
   (check "the count starts at 0" (eql 0 (the-count host)) (the-count host))
@@ -242,21 +229,21 @@ that wants a pipe, through netcat."
   ;; The ui takes one change of the button a frame and the host asks for the next frame, so
   ;; a quick double click is four frames from being counted: the host says when it is.
   (let* ((start (get-internal-real-time))
-         (idle (wait-for-idle host))
+         (idle (host:wait-for-idle host))
          (took (/ (- (get-internal-real-time) start) internal-time-units-per-second 1.0)))
     (check "the window answers and rests" idle)
     (check "and it is told in well under a second, not by the wait running out" (< took 1)
            (format nil "~,3f s" took)))
   (check "two clicks count two" (eql 2 (the-count host)) (the-count host))
-  (check "and a window at rest is idle" (host-idle-p host))
-  (let ((before (host-app host)))
+  (check "and a window at rest is idle" (host:host-idle-p host))
+  (let ((before (host:host-app host)))
     (edited-counter)
     (check "compiling the function again changes the window"
            (wait-for (lambda () (present-p host :probe)) 20))
-    (check "the app was made again" (not (eq before (host-app host))))
+    (check "the app was made again" (not (eq before (host:host-app host))))
     (check "and the count is still 2" (eql 2 (the-count host)) (the-count host))
     (click host :count-button)
-    (wait-for-idle host)
+    (host:wait-for-idle host)
     (check "the new app counts on from there" (eql 3 (the-count host)) (the-count host))
     ;; Again and again: a click, and the count is right the moment the host says it is idle,
     ;; whenever during the frames that take the click in the waiting is begun. A host that
@@ -265,7 +252,7 @@ that wants a pipe, through netcat."
       (dotimes (i 30)
         (click host :count-button)
         (sleep (* 0.001 (random 45)))
-        (wait-for-idle host)
+        (host:wait-for-idle host)
         (unless (eql (+ 4 i) (the-count host))
           (incf wrong)))
       (check "thirty clicks, each counted when the host says it is idle" (zerop wrong)
@@ -282,7 +269,7 @@ that wants a pipe, through netcat."
         (format t "~&The run-app check passed.~%")
         (format t "~&FAIL: ~d check~:p did not hold.~%" *failures*))
     (finish-output)
-    (close-host-window host)))
+    (host:close-host-window host)))
 
-(run-app 'almighty-bolt-examples/counter:make-counter
-         :title "Counter" :width 360 :height 160 :hot t :driver #'drive)
+(bolt:run-app 'almighty-bolt-examples/counter:make-counter
+              :title "Counter" :width 360 :height 160 :hot t :driver #'drive)

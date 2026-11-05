@@ -1,39 +1,10 @@
 (defpackage #:almighty-bolt/ui/inspection
   (:use #:cl)
-  (:import-from #:almighty-bolt/ui/hash
-                #:+seed+)
-  (:import-from #:almighty-bolt/ui/box
-                #:box-key
-                #:box-kind
-                #:box-children
-                #:box-pref-w
-                #:box-pref-h
-                #:box-color
-                #:box-x
-                #:box-y
-                #:box-w
-                #:box-h)
-  (:import-from #:almighty-bolt/ui/ui
-                #:*ui*
-                #:ui-root
-                #:ui-floats
-                #:ui-inspection
-                #:inspection-picking
-                #:inspection-picked
-                #:inspection-theme
-                #:inspection-hover
-                #:inspection-shown
-                #:ui-pressed
-                #:ui-pointer-x
-                #:ui-pointer-y
-                #:consume-press
-                #:make-float-spec
-                #:open-float
-                #:close-float)
-  (:import-from #:almighty-bolt/ui/theme
-                #:theme-ring)
-  (:import-from #:almighty-bolt/ui/widgets
-                #:shortcut)
+  (:local-nicknames (#:hash #:almighty-bolt/ui/hash)
+                    (#:box #:almighty-bolt/ui/box)
+                    (#:ui #:almighty-bolt/ui/ui)
+                    (#:theme #:almighty-bolt/ui/theme)
+                    (#:widgets #:almighty-bolt/ui/widgets))
   (:export #:*inspector-opener*
            #:inspection-take-input
            #:describe-outlines
@@ -68,20 +39,20 @@ where there are no windows to open, and then the keys are the app's.")
 the part of the window it shows in (left, top, right and bottom: a scroll container's window, or
 all of it), in the order they were described: the screen, then the app's floats."
   (labels ((walk (box x y left top right bottom)
-             (let ((x (+ x (box-x box))) (y (+ y (box-y box))))
+             (let ((x (+ x (box:box-x box))) (y (+ y (box:box-y box))))
                (funcall function box x y left top right bottom)
-               (if (member (box-kind box) '(:scroll :lazy-list))
+               (if (member (box:box-kind box) '(:scroll :lazy-list))
                    (let ((left (max x left)) (top (max y top))
-                         (right (min (+ x (box-w box)) right))
-                         (bottom (min (+ y (box-h box)) bottom)))
-                     (loop :for child :across (box-children box)
+                         (right (min (+ x (box:box-w box)) right))
+                         (bottom (min (+ y (box:box-h box)) bottom)))
+                     (loop :for child :across (box:box-children box)
                            :do (walk child x y left top right bottom)))
-                   (loop :for child :across (box-children box)
+                   (loop :for child :across (box:box-children box)
                          :do (walk child x y left top right bottom))))))
-    (when (ui-root ui)
-      (walk (ui-root ui) 0f0 0f0 -1f30 -1f30 1f30 1f30))
-    (loop :for float :across (ui-floats ui)
-          :unless (eq (box-kind float) :outline)
+    (when (ui:ui-root ui)
+      (walk (ui:ui-root ui) 0f0 0f0 -1f30 -1f30 1f30 1f30))
+    (loop :for float :across (ui:ui-floats ui)
+          :unless (eq (box:box-kind float) :outline)
             :do (walk float 0f0 0f0 -1f30 -1f30 1f30 1f30))))
 
 (defun box-at (ui px py)
@@ -89,8 +60,8 @@ all of it), in the order they were described: the screen, then the app's floats.
 the innermost, and a float before the screen under it), and where it is: three values, or NIL."
   (let ((found nil) (found-x 0f0) (found-y 0f0))
     (walk-frame ui (lambda (box x y left top right bottom)
-                     (when (and (<= (max x left) px) (< px (min (+ x (box-w box)) right))
-                                (<= (max y top) py) (< py (min (+ y (box-h box)) bottom)))
+                     (when (and (<= (max x left) px) (< px (min (+ x (box:box-w box)) right))
+                                (<= (max y top) py) (< py (min (+ y (box:box-h box)) bottom)))
                        (setf found box found-x x found-y y))))
     (values found found-x found-y)))
 
@@ -98,7 +69,7 @@ the innermost, and a float before the screen under it), and where it is: three v
   "The box of the last frame with KEY, and where it is: three values, or NIL."
   (walk-frame ui (lambda (box x y left top right bottom)
                    (declare (ignore left top right bottom))
-                   (when (= (box-key box) key)
+                   (when (= (box:box-key box) key)
                      (return-from box-by-key (values box x y)))))
   nil)
 
@@ -111,32 +82,32 @@ while it picks, Escape and the press that picks; then note where the outlines go
 before, whose boxes the ui still has. Called on the first build of a frame. Returns true if it took
 any of the frame's input: then the frame builds again, and the other windows (the inspector's) are
 drawn after it, as after any frame that took input."
-  (let ((*ui* ui)
+  (let ((ui:*ui* ui)
         (taken nil))
-    (when (and instance *inspector-opener* (shortcut #\i :command :option))
+    (when (and instance *inspector-opener* (widgets:shortcut #\i :command :option))
       (setf taken t)
       (funcall *inspector-opener* instance))
-    (let ((inspection (ui-inspection ui)))
+    (let ((inspection (ui:ui-inspection ui)))
       (when inspection
-        (when (and (inspection-picking inspection) (shortcut #\Escape))
+        (when (and (ui:inspection-picking inspection) (widgets:shortcut #\Escape))
           (setf taken t
-                (inspection-picking inspection) nil))
-        (setf (inspection-hover inspection) nil)
-        (when (inspection-picking inspection)
-          (multiple-value-bind (box x y) (box-at ui (ui-pointer-x ui) (ui-pointer-y ui))
+                (ui:inspection-picking inspection) nil))
+        (setf (ui:inspection-hover inspection) nil)
+        (when (ui:inspection-picking inspection)
+          (multiple-value-bind (box x y) (box-at ui (ui:ui-pointer-x ui) (ui:ui-pointer-y ui))
             (when box
-              (setf (inspection-hover inspection) (list x y (box-w box) (box-h box)))
+              (setf (ui:inspection-hover inspection) (list x y (box:box-w box) (box:box-h box)))
               ;; The press picks, and the app does not have it.
-              (when (ui-pressed ui)
-                (consume-press ui)
+              (when (ui:ui-pressed ui)
+                (ui:consume-press ui)
                 (setf taken t
-                      (inspection-picked inspection) (box-key box)
-                      (inspection-picking inspection) nil
-                      (inspection-hover inspection) nil)))))
-        (multiple-value-bind (box x y) (if (zerop (inspection-picked inspection))
+                      (ui:inspection-picked inspection) (box:box-key box)
+                      (ui:inspection-picking inspection) nil
+                      (ui:inspection-hover inspection) nil)))))
+        (multiple-value-bind (box x y) (if (zerop (ui:inspection-picked inspection))
                                            nil
-                                           (box-by-key ui (inspection-picked inspection)))
-          (setf (inspection-shown inspection) (and box (list x y (box-w box) (box-h box)))))))
+                                           (box-by-key ui (ui:inspection-picked inspection)))
+          (setf (ui:inspection-shown inspection) (and box (list x y (box:box-w box) (box:box-h box)))))))
     taken))
 
 ;;; --- what it describes after the app ---
@@ -146,18 +117,18 @@ drawn after it, as after any frame that took input."
   (when rect
     (destructuring-bind (x y w h) rect
       (multiple-value-bind (float open)
-          (open-float ui :outline +seed+ id
-                      (make-float-spec :placement :at :x (float x 1f0) :y (float y 1f0) :tool t))
-        (setf (box-pref-w float) (float w 1f0)
-              (box-pref-h float) (float h 1f0)
-              (box-color float) color)
-        (close-float ui open)))))
+          (ui:open-float ui :outline hash:+seed+ id
+                         (ui:make-float-spec :placement :at :x (float x 1f0) :y (float y 1f0) :tool t))
+        (setf (box:box-pref-w float) (float w 1f0)
+              (box:box-pref-h float) (float h 1f0)
+              (box:box-color float) color)
+        (ui:close-float ui open)))))
 
 (defun describe-outlines (ui)
   "The outlines round what the pointer is over while the inspector picks, and round what it picked,
 above everything else. Called after the app's function, the toasts and the tooltip."
-  (let ((inspection (ui-inspection ui)))
+  (let ((inspection (ui:ui-inspection ui)))
     (when inspection
-      (let ((color (theme-ring (inspection-theme inspection))))
-        (outline ui :inspector-hover (inspection-hover inspection) color)
-        (outline ui :inspector-picked (inspection-shown inspection) color)))))
+      (let ((color (theme:theme-ring (ui:inspection-theme inspection))))
+        (outline ui :inspector-hover (ui:inspection-hover inspection) color)
+        (outline ui :inspector-picked (ui:inspection-shown inspection) color)))))

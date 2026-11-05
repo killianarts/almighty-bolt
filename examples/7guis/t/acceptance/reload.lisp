@@ -1,13 +1,9 @@
 (defpackage #:almighty-bolt-7guis/t/acceptance/reload
   (:use #:cl #:lisp-unit2)
-  (:import-from #:almighty-bolt
-                #:label
-                #:button
-                #:padding
-                #:row)
   (:local-nicknames (#:d #:almighty-bolt-7guis/t/acceptance/driver)
                     (#:core #:almighty-bolt/internals)
-                    (#:app #:almighty-bolt/app)))
+                    (#:app #:almighty-bolt/app)
+                    (#:bolt #:almighty-bolt)))
 
 (in-package #:almighty-bolt-7guis/t/acceptance/reload)
 
@@ -124,10 +120,10 @@ return what the two ended showing."
    (lambda ()
      (let ((count 0))
        (lambda ()
-         (padding (:all 24)
-           (row (:gap 16 :cross-align :center)
-             (label (princ-to-string count) :id :count :size 32)
-             (when (button "Count" :id :count-button)
+         (bolt:padding (:all 24)
+           (bolt:row (:gap 16 :cross-align :center)
+             (bolt:label (princ-to-string count) :id :count :size 32)
+             (when (bolt:button "Count" :id :count-button)
                (incf count)))))))))
 
 (define-test an-app-written-with-let-keeps-nothing-and-starts-again ()

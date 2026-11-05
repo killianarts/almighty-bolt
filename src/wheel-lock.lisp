@@ -1,12 +1,6 @@
 (defpackage #:almighty-bolt/wheel-lock
   (:use #:cl)
-  (:import-from #:almighty-bolt/event
-                #:event-timestamp
-                #:wheel-event-dx
-                #:wheel-event-dy
-                #:wheel-event-precise-p
-                #:wheel-event-lines
-                #:+points-per-line+)
+  (:local-nicknames (#:event #:almighty-bolt/event))
   (:export #:axis-lock
            #:make-axis-lock
            #:lock-wheel))
@@ -40,11 +34,11 @@
   "The scroll of the wheel EVENT in lines, as two values, across and down, with a trackpad's
 (precise, in points) movement kept to the axis its gesture is locked to, and the other
 given as zero. LOCK remembers the gesture between calls and belongs to one app."
-  (if (not (wheel-event-precise-p event))
-      (wheel-event-lines event)
-      (let ((ns (event-timestamp event))
-            (dx (wheel-event-dx event))
-            (dy (wheel-event-dy event)))
+  (if (not (event:wheel-event-precise-p event))
+      (event:wheel-event-lines event)
+      (let ((ns (event:event-timestamp event))
+            (dx (event:wheel-event-dx event))
+            (dy (event:wheel-event-dy event)))
         (when (or (not (axis-lock-started lock))
                   (> (abs (- ns (axis-lock-last-ns lock))) +gesture-gap-ns+))
           (setf (axis-lock-axis lock) nil
@@ -62,5 +56,5 @@ given as zero. LOCK remembers the gesture between calls and belongs to one app."
         (let ((axis (or (axis-lock-axis lock)
                         (if (> (axis-lock-sum-x lock) (axis-lock-sum-y lock)) :x :y))))
           (if (eq axis :x)
-              (values (/ dx +points-per-line+) 0d0)
-              (values 0d0 (/ dy +points-per-line+)))))))
+              (values (/ dx event:+points-per-line+) 0d0)
+              (values 0d0 (/ dy event:+points-per-line+)))))))

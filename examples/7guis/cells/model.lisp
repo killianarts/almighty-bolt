@@ -1,8 +1,6 @@
 (defpackage #:almighty-bolt-7guis/cells/model
   (:use #:cl)
-  (:import-from #:almighty-bolt-7guis/common/numbers
-                #:parse-number
-                #:format-number)
+  (:local-nicknames (#:numbers #:almighty-bolt-7guis/common/numbers))
   (:export #:+columns+
            #:+rows+
            #:column-name
@@ -92,7 +90,7 @@
                      (loop :while (and (< i end) (or (digit-char-p (char text i))
                                                      (char= (char text i) #\.)))
                            :do (incf i))
-                     (let ((number (parse-number (subseq text start i))))
+                     (let ((number (numbers:parse-number (subseq text start i))))
                        (unless number (fail :error))
                        (push number tokens))))
                   ((alpha-char-p c)
@@ -179,7 +177,7 @@
          (if (keywordp ast)
              ast
              (catch 'cell-error (evaluate sheet ast)))))
-      (t (or (parse-number text) text)))))
+      (t (or (numbers:parse-number text) text)))))
 
 (defun numeric (value)
   "VALUE as a number for arithmetic: an error propagates, and text is an error."
@@ -248,7 +246,7 @@ errors."
     (cond ((numberp value)
            (if (null (svref (sheet-texts sheet) (index column row)))
                ""
-               (format-number value)))
+               (numbers:format-number value)))
           ((eq value :error) "#ERR")
           ((eq value :cycle) "#CYCLE")
           (t value))))

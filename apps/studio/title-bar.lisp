@@ -1,12 +1,8 @@
 (defpackage #:almighty-bolt-studio/title-bar
   (:use #:cl)
-  (:local-nicknames (#:bolt #:almighty-bolt))
-  (:import-from #:almighty-bolt-studio/theme
-                #:tool-color)
-  (:import-from #:almighty-bolt-studio/chrome
-                #:caps
-                #:words
-                #:+small+)
+  (:local-nicknames (#:bolt #:almighty-bolt)
+                    (#:studio-theme #:almighty-bolt-studio/theme)
+                    (#:chrome #:almighty-bolt-studio/chrome))
   (:export #:title-bar
            #:+modes+
            #:breadcrumb))
@@ -49,29 +45,29 @@ whether Save and whether Run Window was pressed."
         (bolt:row (:id :title-row :gap 12 :cross-align :center :fill t)
           (bolt:row (:id :brand :gap 8 :cross-align :center)
             (bolt:label "ALMIGHTY-BOLT STUDIO" :id :studio-name :font '(:label :size 10 :weight :bold))
-            (bolt:label "スタジオ" :id :studio-kana :font +small+ :color :dim-text))
+            (bolt:label "スタジオ" :id :studio-kana :font chrome:+small+ :color :dim-text))
           (multiple-value-bind (index changed)
-              (bolt:tabs (mapcar (lambda (m) (caps (second m))) +modes+)
+              (bolt:tabs (mapcar (lambda (m) (chrome:caps (second m))) +modes+)
                          (position mode +modes+ :key #'first)
-                         :id :modes :font +small+)
+                         :id :modes :font chrome:+small+)
             (when changed
               (setf chosen (first (nth index +modes+)))))
           (bolt:spacer)
-          (words :where (breadcrumb about app-name))
+          (chrome:words :where (breadcrumb about app-name))
           (bolt:spacer)
           ;; The Lisp the studio runs in; the dot is green while a view is live in it (an edit
           ;; changes the running app as it is made), which its help says in words.
           (bolt:row (:id :image-state :gap 6 :cross-align :center)
             (bolt:panel (:id :live-dot :radius 4 :width 8 :height 8
-                         :color (if (getf about :live) (tool-color :ok) (tool-color :line-strong))))
-            (words :lisp (list (format nil "~a ~a" (lisp-implementation-type)
-                                       (lisp-implementation-version)))
-                   :color :text
-                   :tooltip (if (getf about :live)
-                                (format nil "The view ~(~a~) is live in this image: an edit changes ~
+                         :color (if (getf about :live) (studio-theme:tool-color :ok) (studio-theme:tool-color :line-strong))))
+            (chrome:words :lisp (list (format nil "~a ~a" (lisp-implementation-type)
+                                              (lisp-implementation-version)))
+                          :color :text
+                          :tooltip (if (getf about :live)
+                                       (format nil "The view ~(~a~) is live in this image: an edit changes ~
                                              the running app as it is made."
-                                        (getf about :live))
-                                "No view is live in this image.")))
+                                               (getf about :live))
+                                       "No view is live in this image.")))
           (when (bolt:pressable (:id :title-save :all 8 :radius 4 :border-color :field-border
                                  :tooltip "Save the view")
                   (bolt:label "SAVE" :id :title-save-words :font :button))
@@ -79,5 +75,5 @@ whether Save and whether Run Window was pressed."
           (when (bolt:button "RUN WINDOW" :id :run-window :enabled runnable)
             (setf run t))))
       ;; The line under it.
-      (bolt:panel (:id :title-rule :color (tool-color :line) :radius 0 :height 1)))
+      (bolt:panel (:id :title-rule :color (studio-theme:tool-color :line) :radius 0 :height 1)))
     (values chosen save run)))

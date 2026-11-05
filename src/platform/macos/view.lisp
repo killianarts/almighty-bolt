@@ -1,40 +1,11 @@
 (defpackage #:almighty-bolt/platform/macos/view
   (:use #:cl)
-  (:import-from #:almighty-bolt/platform/macos/objc
-                #:msg-send
-                #:objc-class
-                #:define-callback
-                #:define-runtime-class
-                #:define-startup
-                #:ivar-offset
-                #:instance-slot
-                #:register-object
-                #:registered-object
-                #:objc-class
-                #:lisp-string)
-  (:import-from #:almighty-bolt/platform/macos/accessibility
-                #:make-bridge
-                #:bridge-children
-                #:bridge-hit-test
-                #:bridge-focused-element)
-  (:import-from #:almighty-bolt/clock
-                #:now-ns)
-  (:import-from #:almighty-bolt/event
-                #:make-key-event
-                #:+modifier-shift+
-                #:make-text-input-event
-                #:make-menu-event
-                #:make-composition-event
-                #:key-event-modifiers
-                #:modifier-down-p
-                #:+modifier-super+
-                #:+modifier-control+)
-  (:import-from #:almighty-bolt/platform/macos/main-queue
-                #:run-on-main)
-  (:import-from #:almighty-bolt/platform/macos/ns-event
-                #:pointer-event-from-ns-event
-                #:wheel-event-from-ns-event
-                #:key-event-from-ns-event)
+  (:local-nicknames (#:objc #:almighty-bolt/platform/macos/objc)
+                    (#:a11y #:almighty-bolt/platform/macos/accessibility)
+                    (#:clock #:almighty-bolt/clock)
+                    (#:event #:almighty-bolt/event)
+                    (#:main-queue #:almighty-bolt/platform/macos/main-queue)
+                    (#:ns-event #:almighty-bolt/platform/macos/ns-event))
   (:export #:make-metal-view
            #:metal-view-object
            #:metal-view-bridge
@@ -82,16 +53,16 @@
 
 (declaim (inline view-of))
 (defun view-of (object)
-  (registered-object (instance-slot object *view-slot-offset*)))
+  (objc:registered-object (objc:instance-slot object *view-slot-offset*)))
 
 ;;; Drawing and resizing (MTKViewDelegate)
 
-(define-callback view-draw sb-alien:void
+(objc:define-callback view-draw sb-alien:void
     ((self sb-alien:unsigned-long) (cmd sb-alien:unsigned-long) (sender sb-alien:unsigned-long))
   (let ((view (view-of self)))
     (funcall (metal-view-on-draw view) view)))
 
-(define-callback view-drawable-size-will-change sb-alien:void
+(objc:define-callback view-drawable-size-will-change sb-alien:void
     ((self sb-alien:unsigned-long) (cmd sb-alien:unsigned-long) (sender sb-alien:unsigned-long)
      (width sb-alien:double) (height sb-alien:double))
   ;; The CGSize argument arrives in the registers of two doubles.
@@ -103,10 +74,10 @@
 (defun view-appearance (object)
   "Whether the view OBJECT is shown dark or light now, as the system is: :dark or :light. (The
 high-contrast dark appearance is dark too.)"
-  (let ((name (lisp-string (msg-send :id (msg-send :id object "effectiveAppearance") "name"))))
+  (let ((name (objc:lisp-string (objc:msg-send :id (objc:msg-send :id object "effectiveAppearance") "name"))))
     (if (search "Dark" name) :dark :light)))
 
-(define-callback view-appearance-changed sb-alien:void
+(objc:define-callback view-appearance-changed sb-alien:void
     ((self sb-alien:unsigned-long) (cmd sb-alien:unsigned-long))
   (let ((view (view-of self)))
     (funcall (metal-view-on-appearance view) view)))
@@ -116,8 +87,8 @@ high-contrast dark appearance is dark too.)"
 
 (defun cursor-object (shape)
   "The NSCursor for SHAPE, one of the context's cursors."
-  (msg-send :id (objc-class "NSCursor")
-            (ecase shape
+  (objc:msg-send :id (objc:objc-class "NSCursor")
+                 (ecase shape
               (:arrow "arrowCursor")
               (:text "IBeamCursor")
               (:pointing-hand "pointingHandCursor")
@@ -133,13 +104,13 @@ high-contrast dark appearance is dark too.)"
   (unless (eq shape (metal-view-cursor view))
     (setf (metal-view-cursor view) shape)
     (when (metal-view-pointer-inside view)
-      (msg-send :void (cursor-object shape) "set"))))
+      (objc:msg-send :void (cursor-object shape) "set"))))
 
-(define-callback view-cursor-update sb-alien:void
+(objc:define-callback view-cursor-update sb-alien:void
     ((self sb-alien:unsigned-long) (cmd sb-alien:unsigned-long) (event sb-alien:unsigned-long))
   (let ((view (view-of self)))
     (setf (metal-view-pointer-inside view) t)
-    (msg-send :void (cursor-object (metal-view-cursor view)) "set")))
+    (objc:msg-send :void (cursor-object (metal-view-cursor view)) "set")))
 
 ;;; The Edit menu's commands. A menu item's shortcut is taken by the menu before the view sees the
 ;;; key, and its command is sent to the view (the first responder); a command chosen with the pointer
@@ -147,25 +118,25 @@ high-contrast dark appearance is dark too.)"
 ;;; Edit > Copy does what Command-C does in whatever has the keyboard.
 
 (defmacro define-edit-command (name character physical-key &rest modifiers)
-  `(define-callback ,name sb-alien:void
+  `(objc:define-callback ,name sb-alien:void
        ((self sb-alien:unsigned-long) (cmd sb-alien:unsigned-long) (sender sb-alien:unsigned-long))
      (let ((view (view-of self)))
        (funcall (metal-view-event-handler view)
-                (make-key-event :timestamp (now-ns) :kind :down :logical-key ,character
-                                :physical-key ,physical-key
-                                :modifiers (logior +modifier-super+ ,@modifiers))))))
+                (event:make-key-event :timestamp (clock:now-ns) :kind :down :logical-key ,character
+                                      :physical-key ,physical-key
+                                      :modifiers (logior event:+modifier-super+ ,@modifiers))))))
 
-(define-callback view-app-menu-item sb-alien:void
+(objc:define-callback view-app-menu-item sb-alien:void
     ((self sb-alien:unsigned-long) (cmd sb-alien:unsigned-long) (sender sb-alien:unsigned-long))
   "An item of the app's own menus was chosen: the app is told which, by the menu's title and its."
   (let ((view (view-of self)))
     (funcall (metal-view-event-handler view)
-             (make-menu-event :timestamp (now-ns)
-                              :menu (lisp-string (msg-send :id (msg-send :id sender "menu") "title"))
-                              :item (lisp-string (msg-send :id sender "title"))))))
+             (event:make-menu-event :timestamp (clock:now-ns)
+                                    :menu (objc:lisp-string (objc:msg-send :id (objc:msg-send :id sender "menu") "title"))
+                                    :item (objc:lisp-string (objc:msg-send :id sender "title"))))))
 
 (define-edit-command view-undo #\z 6)
-(define-edit-command view-redo #\z 6 +modifier-shift+)
+(define-edit-command view-redo #\z 6 event:+modifier-shift+)
 (define-edit-command view-cut #\x 7)
 (define-edit-command view-copy #\c 8)
 (define-edit-command view-paste #\v 9)
@@ -173,25 +144,25 @@ high-contrast dark appearance is dark too.)"
 
 ;;; Answers to AppKit's questions about the view
 
-(define-callback view-yes sb-alien:unsigned-char
+(objc:define-callback view-yes sb-alien:unsigned-char
     ((self sb-alien:unsigned-long) (cmd sb-alien:unsigned-long))
   1)
 
-(define-callback view-yes-for-event sb-alien:unsigned-char
+(objc:define-callback view-yes-for-event sb-alien:unsigned-char
     ((self sb-alien:unsigned-long) (cmd sb-alien:unsigned-long) (event sb-alien:unsigned-long))
   1)
 
 ;;; Input
 
 (defmacro define-pointer-callback (name kind)
-  `(define-callback ,name sb-alien:void
+  `(objc:define-callback ,name sb-alien:void
        ((self sb-alien:unsigned-long) (cmd sb-alien:unsigned-long) (event sb-alien:unsigned-long))
      (let ((view (view-of self)))
        ,@(case kind
            ((:enter :move) '((setf (metal-view-pointer-inside view) t)))
            (:leave '((setf (metal-view-pointer-inside view) nil))))
        (funcall (metal-view-event-handler view)
-                (pointer-event-from-ns-event event self ,kind)))))
+                (ns-event:pointer-event-from-ns-event event self ,kind)))))
 
 (define-pointer-callback view-mouse-down :down)
 (define-pointer-callback view-mouse-up :up)
@@ -199,33 +170,33 @@ high-contrast dark appearance is dark too.)"
 (define-pointer-callback view-mouse-entered :enter)
 (define-pointer-callback view-mouse-exited :leave)
 
-(define-callback view-scroll-wheel sb-alien:void
+(objc:define-callback view-scroll-wheel sb-alien:void
     ((self sb-alien:unsigned-long) (cmd sb-alien:unsigned-long) (event sb-alien:unsigned-long))
   (funcall (metal-view-event-handler (view-of self))
-           (wheel-event-from-ns-event event self)))
+           (ns-event:wheel-event-from-ns-event event self)))
 
-(define-callback view-key-down sb-alien:void
+(objc:define-callback view-key-down sb-alien:void
     ((self sb-alien:unsigned-long) (cmd sb-alien:unsigned-long) (event sb-alien:unsigned-long))
   (let* ((view (view-of self))
-         (key (key-event-from-ns-event event :down)))
+         (key (ns-event:key-event-from-ns-event event :down)))
     (if (and (funcall (metal-view-text-input view))
-             (not (or (modifier-down-p (key-event-modifiers key) +modifier-super+)
-                      (modifier-down-p (key-event-modifiers key) +modifier-control+))))
+             (not (or (event:modifier-down-p (event:key-event-modifiers key) event:+modifier-super+)
+                      (event:modifier-down-p (event:key-event-modifiers key) event:+modifier-control+))))
         ;; The app takes text. The key goes to the input method, which answers by inserting text,
         ;; composing, or, for a key that is a command (an arrow, Return), by calling
         ;; DOCOMMANDBYSELECTOR:, which gives the app the key as it is.
         (progn
           (setf (metal-view-pending-key view) key)
           (unwind-protect
-               (msg-send :void self "interpretKeyEvents:"
-                         (:id (msg-send :id (objc-class "NSArray") "arrayWithObject:" (:id event))))
+               (objc:msg-send :void self "interpretKeyEvents:"
+                              (:id (objc:msg-send :id (objc:objc-class "NSArray") "arrayWithObject:" (:id event))))
             (setf (metal-view-pending-key view) nil)))
         (funcall (metal-view-event-handler view) key))))
 
-(define-callback view-key-up sb-alien:void
+(objc:define-callback view-key-up sb-alien:void
     ((self sb-alien:unsigned-long) (cmd sb-alien:unsigned-long) (event sb-alien:unsigned-long))
   (funcall (metal-view-event-handler (view-of self))
-           (key-event-from-ns-event event :up)))
+           (ns-event:key-event-from-ns-event event :up)))
 
 ;;; Text input (NSTextInputClient). While the app takes text (its context says so), a key goes to the
 ;;; input method, and what comes back is a TEXT-INPUT-EVENT for text that is to be inserted as it is
@@ -238,10 +209,10 @@ high-contrast dark appearance is dark too.)"
 
 (defun plain-string (object)
   "The Lisp string of OBJECT, an NSString or an NSAttributedString."
-  (let ((string (if (msg-send :bool object "isKindOfClass:" (:id (objc-class "NSAttributedString")))
-                    (msg-send :id object "string")
+  (let ((string (if (objc:msg-send :bool object "isKindOfClass:" (:id (objc:objc-class "NSAttributedString")))
+                    (objc:msg-send :id object "string")
                     object)))
-    (lisp-string string)))
+    (objc:lisp-string string)))
 
 (defun utf-16-length (text &optional (end (length text)))
   "How many UTF-16 units the first END characters of TEXT take."
@@ -263,7 +234,7 @@ this is a place for it that is not allocated again for each call.")
 (defvar *rect-result* nil
   "The same for the methods that return an NSRect.")
 
-(define-startup text-input-results
+(objc:define-startup text-input-results
   (setf *range-result* (sb-alien:make-alien (sb-alien:struct almighty-bolt/platform/macos/objc::ns-range))
         *rect-result* (sb-alien:make-alien (sb-alien:struct almighty-bolt/platform/macos/objc::cg-rect))))
 
@@ -281,7 +252,7 @@ this is a place for it that is not allocated again for each call.")
           (sb-alien:slot size 'almighty-bolt/platform/macos/objc::height) height))
   (sb-alien:deref *rect-result*))
 
-(define-callback view-insert-text sb-alien:void
+(objc:define-callback view-insert-text sb-alien:void
     ((self sb-alien:unsigned-long) (cmd sb-alien:unsigned-long) (string sb-alien:unsigned-long)
      (location sb-alien:unsigned-long) (length sb-alien:unsigned-long))
   (let* ((view (view-of self))
@@ -291,12 +262,12 @@ this is a place for it that is not allocated again for each call.")
            (setf (metal-view-marked view) nil
                  (metal-view-marked-text view) "")
            (funcall (metal-view-event-handler view)
-                    (make-composition-event :timestamp (now-ns) :kind :committed :text text)))
+                    (event:make-composition-event :timestamp (clock:now-ns) :kind :committed :text text)))
           (t
            (funcall (metal-view-event-handler view)
-                    (make-text-input-event :timestamp (now-ns) :text text))))))
+                    (event:make-text-input-event :timestamp (clock:now-ns) :text text))))))
 
-(define-callback view-set-marked-text sb-alien:void
+(objc:define-callback view-set-marked-text sb-alien:void
     ((self sb-alien:unsigned-long) (cmd sb-alien:unsigned-long) (string sb-alien:unsigned-long)
      (selected-location sb-alien:unsigned-long) (selected-length sb-alien:unsigned-long)
      (replacement-location sb-alien:unsigned-long) (replacement-length sb-alien:unsigned-long))
@@ -309,19 +280,19 @@ this is a place for it that is not allocated again for each call.")
              (setf (metal-view-marked view) nil
                    (metal-view-marked-text view) "")
              (funcall (metal-view-event-handler view)
-                      (make-composition-event :timestamp (now-ns) :kind :committed :text ""))))
+                      (event:make-composition-event :timestamp (clock:now-ns) :kind :committed :text ""))))
           (t
            (setf (metal-view-marked view) t
                  (metal-view-marked-text view) text)
            (let* ((start (min (length text) (characters-in text selected-location)))
                   (end (min (length text) (characters-in text (+ selected-location selected-length)))))
              (funcall (metal-view-event-handler view)
-                      (make-composition-event :timestamp (now-ns)
-                                              :kind (if started :started :changed)
-                                              :text text :selection-start start
-                                              :selection-length (- end start))))))))
+                      (event:make-composition-event :timestamp (clock:now-ns)
+                                                    :kind (if started :started :changed)
+                                                    :text text :selection-start start
+                                                    :selection-length (- end start))))))))
 
-(define-callback view-unmark-text sb-alien:void
+(objc:define-callback view-unmark-text sb-alien:void
     ((self sb-alien:unsigned-long) (cmd sb-alien:unsigned-long))
   (let ((view (view-of self)))
     (when (metal-view-marked view)
@@ -330,7 +301,7 @@ this is a place for it that is not allocated again for each call.")
         (setf (metal-view-marked view) nil
               (metal-view-marked-text view) "")
         (funcall (metal-view-event-handler view)
-                 (make-composition-event :timestamp (now-ns) :kind :committed :text text))))))
+                 (event:make-composition-event :timestamp (clock:now-ns) :kind :committed :text text))))))
 
 ;;; When the app stops taking text with a composition going on (what had the keyboard lost it), the
 ;;; input method is told to drop what it was composing, at once: otherwise it goes on showing its
@@ -342,12 +313,12 @@ which nothing takes text."
   (when (metal-view-marked view)
     (setf (metal-view-marked view) nil
           (metal-view-marked-text view) "")
-    (let ((input (msg-send :id (metal-view-object view) "inputContext")))
+    (let ((input (objc:msg-send :id (metal-view-object view) "inputContext")))
       (unless (zerop input)
-        (msg-send :void input "discardMarkedText"))))
+        (objc:msg-send :void input "discardMarkedText"))))
   nil)
 
-(define-callback view-has-marked-text sb-alien:unsigned-char
+(objc:define-callback view-has-marked-text sb-alien:unsigned-char
     ((self sb-alien:unsigned-long) (cmd sb-alien:unsigned-long))
   (if (metal-view-marked (view-of self)) 1 0))
 
@@ -365,18 +336,18 @@ which nothing takes text."
   ;; The app has its own selection, which the input method is not told of.
   (range-result +not-found+ 0))
 
-(define-callback view-valid-attributes sb-alien:unsigned-long
+(objc:define-callback view-valid-attributes sb-alien:unsigned-long
     ((self sb-alien:unsigned-long) (cmd sb-alien:unsigned-long))
-  (msg-send :id (objc-class "NSArray") "array"))
+  (objc:msg-send :id (objc:objc-class "NSArray") "array"))
 
-(define-callback view-substring sb-alien:unsigned-long
+(objc:define-callback view-substring sb-alien:unsigned-long
     ((self sb-alien:unsigned-long) (cmd sb-alien:unsigned-long)
      (location sb-alien:unsigned-long) (length sb-alien:unsigned-long)
      (actual sb-alien:unsigned-long))
   ;; The app's text is not given to the input method (no reconversion).
   0)
 
-(define-callback view-character-index sb-alien:unsigned-long
+(objc:define-callback view-character-index sb-alien:unsigned-long
     ((self sb-alien:unsigned-long) (cmd sb-alien:unsigned-long)
      (x sb-alien:double) (y sb-alien:double))
   0)
@@ -386,11 +357,11 @@ which nothing takes text."
 flipped) on the screen, as four values, in the screen's own coordinates (from the bottom left). Worked
 out when it is asked, so that a window that was moved is where it is."
   (multiple-value-bind (wx wy ww wh)
-      (msg-send :rect object "convertRect:toView:" (:rect x y width height) (:id 0))
-    (let ((window (msg-send :id object "window")))
+      (objc:msg-send :rect object "convertRect:toView:" (:rect x y width height) (:id 0))
+    (let ((window (objc:msg-send :id object "window")))
       (if (zerop window)
           (values wx wy ww wh)
-          (msg-send :rect window "convertRectToScreen:" (:rect wx wy ww wh))))))
+          (objc:msg-send :rect window "convertRectToScreen:" (:rect wx wy ww wh))))))
 
 (sb-alien:define-alien-callable view-first-rect (sb-alien:struct almighty-bolt/platform/macos/objc::cg-rect)
     ((self sb-alien:unsigned-long) (cmd sb-alien:unsigned-long)
@@ -408,7 +379,7 @@ out when it is asked, so that a window that was moved is where it is."
       (format *error-output* "~&Error in the callback view-first-rect: ~a~%" condition)
       (rect-result 0d0 0d0 0d0 0d0))))
 
-(define-callback view-do-command sb-alien:void
+(objc:define-callback view-do-command sb-alien:void
     ((self sb-alien:unsigned-long) (cmd sb-alien:unsigned-long) (selector sb-alien:unsigned-long))
   ;; A key that the input method did not take as text, such as an arrow or Return, is a key.
   (let* ((view (view-of self))
@@ -421,31 +392,31 @@ out when it is asked, so that a window that was moved is where it is."
 ;;; the bridge makes from the semantic tree, which the view hands out as its children, finds under a
 ;;; point and names as the one that has the keyboard.
 
-(define-callback view-ax-children sb-alien:unsigned-long
+(objc:define-callback view-ax-children sb-alien:unsigned-long
     ((self sb-alien:unsigned-long) (cmd sb-alien:unsigned-long))
   (let ((bridge (metal-view-bridge (view-of self))))
-    (if bridge (bridge-children bridge) 0)))
+    (if bridge (a11y:bridge-children bridge) 0)))
 
-(define-callback view-ax-hit-test sb-alien:unsigned-long
+(objc:define-callback view-ax-hit-test sb-alien:unsigned-long
     ((self sb-alien:unsigned-long) (cmd sb-alien:unsigned-long)
      (x sb-alien:double) (y sb-alien:double))
   (let* ((bridge (metal-view-bridge (view-of self)))
-         (hit (if bridge (bridge-hit-test bridge x y) 0)))
+         (hit (if bridge (a11y:bridge-hit-test bridge x y) 0)))
     (if (zerop hit) self hit)))
 
 ;;; With no widget holding the keyboard it answers nothing, not the view: the view is not an element,
 ;;; and VoiceOver, put on it when the window came to the front, called it "unknown" and could not go
 ;;; from it to the widgets. Answered nothing, VoiceOver goes to the first widget of the window.
-(define-callback view-ax-focused sb-alien:unsigned-long
+(objc:define-callback view-ax-focused sb-alien:unsigned-long
     ((self sb-alien:unsigned-long) (cmd sb-alien:unsigned-long))
   (let ((bridge (metal-view-bridge (view-of self))))
-    (if bridge (bridge-focused-element bridge) 0)))
+    (if bridge (a11y:bridge-focused-element bridge) 0)))
 
 ;;; The class. Dragging and the right and other buttons are reported as the
 ;;; same pointer events (a drag is a move with buttons down), so their methods
 ;;; use the same callbacks.
 
-(define-runtime-class *view-class* "AlmightyBoltView" "MTKView"
+(objc:define-runtime-class *view-class* "AlmightyBoltView" "MTKView"
   :ivars '(("lispSlot" 8 3 "Q"))
   :methods '(("drawInMTKView:" "v@:@" view-draw)
              ("mtkView:drawableSizeWillChange:" "v@:@{CGSize=dd}"
@@ -499,8 +470,8 @@ out when it is asked, so that a window that was moved is where it is."
              ("accessibilityFocusedUIElement" "@@:" view-ax-focused))
   :protocols '("NSTextInputClient"))
 
-(define-startup view-slot-offset
-  (setf *view-slot-offset* (ivar-offset *view-class* "lispSlot")))
+(objc:define-startup view-slot-offset
+  (setf *view-slot-offset* (objc:ivar-offset *view-class* "lispSlot")))
 
 (defconstant +tracking-options+
   (logior 1       ; NSTrackingMouseEnteredAndExited
@@ -528,9 +499,9 @@ view when the system goes dark or light (VIEW-APPEARANCE says which). Call on th
                      (sb-alien:alien-funcall
                       (sb-alien:extern-alien "MTLCreateSystemDefaultDevice"
                                              (function sb-alien:unsigned-long)))))
-         (object (msg-send :id (msg-send :id *view-class* "alloc")
-                           "initWithFrame:device:"
-                           (:rect 0 0 width height) (:id device)))
+         (object (objc:msg-send :id (objc:msg-send :id *view-class* "alloc")
+                                "initWithFrame:device:"
+                                (:rect 0 0 width height) (:id device)))
          (view (%make-metal-view :object object :device device)))
     (when on-draw (setf (metal-view-on-draw view) on-draw))
     (when on-resize (setf (metal-view-on-resize view) on-resize))
@@ -539,24 +510,24 @@ view when the system goes dark or light (VIEW-APPEARANCE says which). Call on th
     (when on-appearance (setf (metal-view-on-appearance view) on-appearance))
     (when accessibility-tree
       (setf (metal-view-bridge view)
-            (make-bridge :view object :tree accessibility-tree
-                         :press (or accessibility-press (lambda (x y) (declare (ignore x y)) nil))
-                         :secondary-press accessibility-secondary-press
-                         :convert (lambda (x y width height)
-                                    (view-screen-rect object x y width height)))))
-    (setf (metal-view-index view) (register-object view)
-          (instance-slot object *view-slot-offset*) (metal-view-index view))
-    (msg-send :void object "setDelegate:" (:id object))
+            (a11y:make-bridge :view object :tree accessibility-tree
+                              :press (or accessibility-press (lambda (x y) (declare (ignore x y)) nil))
+                              :secondary-press accessibility-secondary-press
+                              :convert (lambda (x y width height)
+                                         (view-screen-rect object x y width height)))))
+    (setf (metal-view-index view) (objc:register-object view)
+          (objc:instance-slot object *view-slot-offset*) (metal-view-index view))
+    (objc:msg-send :void object "setDelegate:" (:id object))
     ;; Paused, with setNeedsDisplay enabled, a view draws only when asked.
-    (msg-send :void object "setPaused:" (:bool t))
-    (msg-send :void object "setEnableSetNeedsDisplay:" (:bool t))
-    (let ((area (msg-send :id (msg-send :id (objc-class "NSTrackingArea") "alloc")
-                          "initWithRect:options:owner:userInfo:"
-                          (:rect 0 0 0 0) (:ulong +tracking-options+) (:id object) (:id 0))))
-      (msg-send :void object "addTrackingArea:" (:id area)))
+    (objc:msg-send :void object "setPaused:" (:bool t))
+    (objc:msg-send :void object "setEnableSetNeedsDisplay:" (:bool t))
+    (let ((area (objc:msg-send :id (objc:msg-send :id (objc:objc-class "NSTrackingArea") "alloc")
+                               "initWithRect:options:owner:userInfo:"
+                               (:rect 0 0 0 0) (:ulong +tracking-options+) (:id object) (:id 0))))
+      (objc:msg-send :void object "addTrackingArea:" (:id area)))
     view))
 
 (defun request-draw (view)
   "Ask VIEW to draw one frame. Safe from any thread."
-  (run-on-main (lambda ()
-                 (msg-send :void (metal-view-object view) "setNeedsDisplay:" (:bool t)))))
+  (main-queue:run-on-main (lambda ()
+                 (objc:msg-send :void (metal-view-object view) "setNeedsDisplay:" (:bool t)))))

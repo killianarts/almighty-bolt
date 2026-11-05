@@ -1,8 +1,7 @@
 (defpackage #:almighty-bolt-studio/chrome
   (:use #:cl)
-  (:local-nicknames (#:bolt #:almighty-bolt))
-  (:import-from #:almighty-bolt-studio/theme
-                #:tool-color)
+  (:local-nicknames (#:bolt #:almighty-bolt)
+                    (#:studio-theme #:almighty-bolt-studio/theme))
   (:export #:caps
            #:words
            #:+small+
@@ -58,7 +57,7 @@ there is one."
                   :font '(:label :size 11 :weight :bold))
       (when known
         (bolt:label (third known) :id :kana :font +small+ :color :dim-text))
-      (bolt:panel (:id :line :color (tool-color :line) :radius 0 :height 1 :flex 1))
+      (bolt:panel (:id :line :color (studio-theme:tool-color :line) :radius 0 :height 1 :flex 1))
       (when count
         (bolt:label (princ-to-string count) :id :count :font +small+ :color :dim-text)))))
 
@@ -70,7 +69,7 @@ upwards."
     (bolt:column (:id :rail-column :fill t :cross-align :center :gap 12)
       (bolt:spacer)
       (bolt:panel (:id :rail-dot :radius 4 :width 8 :height 8
-                   :color (if (getf about :live) (tool-color :ok) (tool-color :line-strong))))
+                   :color (if (getf about :live) (studio-theme:tool-color :ok) (studio-theme:tool-color :line-strong))))
       (bolt:label (caps (format nil "~a ~a view ~a ~a ~d widget~:p"
                                 (symbol-name mode) +separator+
                                 (getf about :name) +separator+

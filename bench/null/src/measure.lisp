@@ -1,32 +1,9 @@
 (defpackage #:almighty-bolt-bench-null/measure
   (:use #:cl)
-  (:import-from #:almighty-bolt-bench-null/null
-                #:make-null-app
-                #:null-app-events-seen
-                #:null-app-animate-frames)
-  (:import-from #:almighty-bolt/internals
-                #:now-ns
-                #:request-frame
-                #:frame-ring-total
-                #:frame-duration-ns
-                #:frame-build-ns
-                #:frame-drawable-wait-ns
-                #:frame-encode-ns
-                #:frame-builds
-                #:frame-capped-p
-                #:frame-bytes-consed
-                #:display-list-count)
-  (:import-from #:almighty-bolt/platform/macos/host
-                #:run-host
-                #:host-app
-                #:host-context
-                #:host-ring
-                #:host-renderer
-                #:host-display-list
-                #:close-host-window)
-  (:import-from #:almighty-bolt/render/metal/renderer
-                #:wait-for-last-frame
-                #:last-frame-gpu-ns)
+  (:local-nicknames (#:bench-null #:almighty-bolt-bench-null/null)
+                    (#:core #:almighty-bolt/internals)
+                    (#:host #:almighty-bolt/platform/macos/host)
+                    (#:renderer #:almighty-bolt/render/metal/renderer))
   (:export #:main
            #:report))
 
@@ -42,14 +19,14 @@
 ;;; from 84 us to 5 ms between runs of identical code.
 
 (defun draws (host)
-  (frame-ring-total (host-ring host)))
+  (core:frame-ring-total (host:host-ring host)))
 
 (defun wait-until (predicate &key (timeout-ns 1000000000))
   "Poll PREDICATE every half millisecond. Returns true if it became true in time."
-  (let ((deadline (+ (now-ns) timeout-ns)))
+  (let ((deadline (+ (core:now-ns) timeout-ns)))
     (loop
       (when (funcall predicate) (return t))
-      (when (> (now-ns) deadline) (return nil))
+      (when (> (core:now-ns) deadline) (return nil))
       (sleep 0.0005))))
 
 (defun microseconds (ns)
@@ -60,24 +37,24 @@
 part of the frame in nanoseconds, how many frames waited over a millisecond, how
 many took more than one build or hit the cap, and the bytes consed. The ring has
 not wrapped, so a record's index is its order."
-  (let ((ring (host-ring host))
+  (let ((ring (host:host-ring host))
         (count (- end start))
         (sums (make-array 4 :initial-element 0))
         (maxes (make-array 4 :initial-element 0))
         (slow 0) (rebuilt 0) (capped 0) (consed 0))
     (loop :for i :from start :below end
-          :do (let ((parts (list (frame-build-ns ring i)
-                                 (frame-drawable-wait-ns ring i)
-                                 (frame-encode-ns ring i)
-                                 (frame-duration-ns ring i))))
+          :do (let ((parts (list (core:frame-build-ns ring i)
+                                 (core:frame-drawable-wait-ns ring i)
+                                 (core:frame-encode-ns ring i)
+                                 (core:frame-duration-ns ring i))))
                 (loop :for part :in parts
                       :for k :from 0
                       :do (incf (aref sums k) part)
                           (setf (aref maxes k) (max (aref maxes k) part)))
                 (when (> (second parts) 1000000) (incf slow))
-                (when (/= (frame-builds ring i) 1) (incf rebuilt))
-                (when (frame-capped-p ring i) (incf capped))
-                (incf consed (frame-bytes-consed ring i))))
+                (when (/= (core:frame-builds ring i) 1) (incf rebuilt))
+                (when (core:frame-capped-p ring i) (incf capped))
+                (incf consed (core:frame-bytes-consed ring i))))
     (values (map 'list (lambda (sum) (/ sum (max 1 count))) sums)
             (coerce maxes 'list)
             slow rebuilt capped consed)))
@@ -88,18 +65,18 @@ not wrapped, so a record's index is its order."
 (defun report (host frames animation-frames)
   "Draw FRAMES frames one at a time, leave the window alone for two seconds, ask for
 ANIMATION-FRAMES frames from inside the draws, and print what it saw."
-  (let* ((context (host-context host))
-         (instance (host-app host))
+  (let* ((context (host:host-context host))
+         (instance (host:host-app host))
          (begin (draws host))
          (latencies '())
          (timeouts 0))
     ;; Frames, one at a time, each timed from the request to the draw.
     (dotimes (i frames)
       (let ((target (1+ (draws host)))
-            (asked (now-ns)))
-        (request-frame context)
+            (asked (core:now-ns)))
+        (core:request-frame context)
         (if (wait-until (lambda () (>= (draws host) target)))
-            (push (- (now-ns) asked) latencies)
+            (push (- (core:now-ns) asked) latencies)
             (incf timeouts))))
     (let ((finish (draws host)))
       ;; Nothing is asked for: nothing must be drawn.
@@ -107,20 +84,20 @@ ANIMATION-FRAMES frames from inside the draws, and print what it saw."
       (let ((still (- (draws host) finish))
             (animation-before (draws host))
             (animation-consed-before (sb-ext:get-bytes-consed))
-            (animation-start (now-ns)))
+            (animation-start (core:now-ns)))
         ;; Frames asked for from inside the draws: the app requests the next
         ;; frame while a frame is being drawn, a request the host keeps until the
         ;; frame is presented.
-        (setf (null-app-animate-frames instance) animation-frames)
-        (request-frame context)
+        (setf (bench-null:null-app-animate-frames instance) animation-frames)
+        (core:request-frame context)
         (let* ((honoured (wait-until (lambda ()
-                                       (>= (draws host)
-                                           (+ animation-before animation-frames 1)))
+                                                  (>= (draws host)
+                                                      (+ animation-before animation-frames 1)))
                                      :timeout-ns 5000000000))
-               (animation-ns (- (now-ns) animation-start))
+               (animation-ns (- (core:now-ns) animation-start))
                (animation-consed (- (sb-ext:get-bytes-consed) animation-consed-before))
                (animation-draws (- (draws host) animation-before)))
-          (wait-for-last-frame (host-renderer host))
+          (renderer:wait-for-last-frame (host:host-renderer host))
           (multiple-value-bind (means maxes slow rebuilt capped consed)
               (summarize host begin finish)
             (format t "~&~%--- The null app: the library's own cost ---~%")
@@ -143,9 +120,9 @@ ANIMATION-FRAMES frames from inside the draws, and print what it saw."
             (line "bytes consed in the draw path:" "~:d (granular: the counter moves ~
                                                    in regions of about 64 KB)"
                   consed)
-            (line "commands in the list:" "~d" (display-list-count (host-display-list host)))
+            (line "commands in the list:" "~d" (core:display-list-count (host:host-display-list host)))
             (line "GPU time of the last frame:" "~,1f us"
-                  (microseconds (last-frame-gpu-ns (host-renderer host))))
+                  (microseconds (renderer:last-frame-gpu-ns (host:host-renderer host))))
             (line "frames asked for from inside draws:"
                   "~a: drew ~d of ~d in ~,2f s (~,1f ms a frame)"
                   (if honoured "honoured" "NOT HONOURED")
@@ -154,15 +131,15 @@ ANIMATION-FRAMES frames from inside the draws, and print what it saw."
             (line "bytes consed while animating:" "~:d (the whole process, so the driver counts too)"
                   animation-consed)
             (line "events the app saw:" "~d (move the mouse over the window to see this rise)"
-                  (null-app-events-seen instance))))))
+                  (bench-null:null-app-events-seen instance))))))
     (finish-output)))
 
 (defun main (&key (frames 300) (animation-frames 100))
   "Open a window, run the null app in it, print the report and quit."
-  (run-host (make-null-app)
+  (host:run-host (bench-null:make-null-app)
                :title "The null app"
                :width 800 :height 600
                :driver (lambda (host)
                          (sleep 0.5)            ; let the window appear and settle
                          (report host frames animation-frames)
-                         (close-host-window host))))
+                         (host:close-host-window host))))

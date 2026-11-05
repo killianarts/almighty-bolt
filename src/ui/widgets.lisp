@@ -1,189 +1,18 @@
 (defpackage #:almighty-bolt/ui/widgets
   (:use #:cl)
-  (:import-from #:almighty-bolt/ui/hash
-                #:mix
-                #:hash-of
-                #:+seed+)
-  (:import-from #:almighty-bolt/ui/box
-                #:box-theme
-                #:box-key
-                #:box-parent
-                #:box-tooltip
-                #:box-id
-                #:box-kind
-                #:box-text
-                #:box-size
-                #:box-weight
-                #:box-font
-                #:box-color
-                #:box-border-color
-                #:box-border-width
-                #:box-shadows
-                #:box-border-dash
-                #:box-flex
-                #:box-gap
-                #:box-main-align
-                #:box-cross-align
-                #:box-fill
-                #:box-pad-left
-                #:box-pad-top
-                #:box-pad-right
-                #:box-pad-bottom
-                #:box-pref-w
-                #:box-pref-h
-                #:box-min-w
-                #:box-max-w
-                #:box-min-h
-                #:box-max-h
-                #:box-enabled
-                #:box-look
-                #:box-n1
-                #:box-n2
-                #:box-n3
-                #:box-data
-                #:box-aux-doubles
-                #:box-interactive
-                #:box-focusable
-                #:box-moves
-                #:box-children)
-  (:import-from #:almighty-bolt/ui/ui
-                #:*ui*
-                #:ui-inert
-                #:ui-menus
-                #:ui-menu-chosen
-                #:ui-context
-                #:ui-parent
-                #:ui-consumed
-                #:ui-hot
-                #:ui-hot-since
-                #:ui-toasts
-                #:ui-tooltip-dismissed
-                #:ui-active
-                #:ui-focus
-                #:ui-started
-                #:ui-pointer-x
-                #:ui-pointer-y
-                #:ui-down
-                #:ui-pressed
-                #:ui-click-count
-                #:ui-released
-                #:ui-moved
-                #:ui-keys
-                #:ui-inputs
-                #:ui-secondary-pressed
-                #:ui-wheel-dy
-                #:ui-boxes
-                #:ui-count
-                #:consume-input
-                #:ui-states
-                #:open-box
-                #:close-box
-                #:consume-press
-                #:focus-by-click
-                #:want-cursor
-                #:consume-release
-                #:consume-secondary-press
-                #:consume-key
-                #:consume-wheel
-                #:rect-of
-                #:rect-x
-                #:rect-y
-                #:rect-w
-                #:rect-h
-                #:state-of
-                #:open-float
-                #:close-float
-                #:make-float-spec
-                #:float-spec-placement
-                #:float-spec-x
-                #:float-spec-y
-                #:float-spec-min-width
-                #:float-spec-anchor)
+  (:local-nicknames (#:hash #:almighty-bolt/ui/hash)
+                    (#:box #:almighty-bolt/ui/box)
+                    (#:ui #:almighty-bolt/ui/ui)
+                    (#:text-edit #:almighty-bolt/text-edit)
+                    (#:core #:almighty-bolt/internals)
+                    (#:theme #:almighty-bolt/ui/theme))
   (:import-from #:almighty-bolt/internals
-                #:image
-                #:image-p
-                #:image-id
-                #:image-width
-                #:image-height
-                #:context-height
-                #:+cursors+
-                #:with-painting
-                #:context-font
-                #:context-measure
-                #:context-caret-x
-                #:context-appearance
-                #:context-index-at-x
-                #:context-break-lines
-                #:make-text-state
-                #:text-state-string
-                #:text-state-caret
-                #:text-state-anchor
-                #:text-place-caret
-                #:text-select-all
-                #:text-select-units
-                #:unit-range
-                #:text-move
-                #:text-insert
-                #:text-state-selection-p
-                #:text-state-selected-string
-                #:edit-text
-                #:context-clipboard-text
-                #:context-set-clipboard-text
-                #:context-choose-file
-                #:key-event
-                #:key-event-kind
-                #:key-event-modifiers
-                #:text-input-event
-                #:text-input-event-text
-                #:composition-event
-                #:composition-event-kind
-                #:composition-event-text
-                #:composition-event-selection-start
-                #:composition-event-selection-length
-                #:set-text-input-caret
-                #:modifier-down-p
-                #:+modifier-super+
-                #:+modifier-control+
-                #:+modifier-shift+
-                #:+modifier-alt+
-                #:key-event-logical-key
-                #:make-display-list
-                #:clear-display-list
-                #:display-list-hash
-                #:+key-left+
-                #:+key-right+
-                #:+key-up+
-                #:+key-delete-forward+
-                #:+key-down+
-                #:+key-home+
-                #:+key-end+
-                #:+points-per-line+
-                #:now-ns
-                #:request-frame)
-  (:import-from #:almighty-bolt/ui/theme
-                #:*theme*
-                #:find-theme
-                #:theme-id
-                #:theme-font-name
-                #:theme-font-size
-                #:resolve-face
-                #:theme-face
-                #:face-variant
-                #:face-p
-                #:face-family
-                #:face-weight
-                #:face-size
-                #:face-tracking
-                #:face-line-height
-                #:face-id
-                #:theme-button-text
-                #:theme-dim-text
-                #:theme-color
-                #:theme-field-padding-x
-                #:theme-field-padding-y
-                #:theme-row-height
-                #:theme-menu-padding)
+                #:image)
   (:export #:missing-id
+           #:required-id
+           #:set-size-limits
+           #:look-of
+           #:area-state-lines
            #:missing-id-widget
            #:label
            #:paragraph
@@ -327,24 +156,24 @@ it), or NIL.")
   "Whether the window the app is drawn in is dark or light, as the system shows it: :dark or :light.
 An app that draws in a theme of its own picks its dark or its light one by it; it changes when the
 system's setting does, and the app is drawn again."
-  (let ((context (ui-context *ui*)))
-    (if context (context-appearance context) :dark)))
+  (let ((context (ui:ui-context ui:*ui*)))
+    (if context (core:context-appearance context) :dark)))
 
 (defun widget-face (font role)
   "The face a widget whose :FONT is FONT (a font designator, or NIL) and whose role is ROLE is drawn
 in, in the theme it is described in."
-  (resolve-face font role *theme*))
+  (theme:resolve-face font role theme:*theme*))
 
 (defun face-font (context face)
   "The font of CONTEXT that FACE is."
-  (context-font context (face-family face) (face-size face) (face-weight face) (face-tracking face)))
+  (core:context-font context (theme:face-family face) (theme:face-size face) (theme:face-weight face) (theme:face-tracking face)))
 
 (defun ui-face (&optional box)
   "The face of BOX if it has one, or of the widget being described, or the theme's body."
-  (let ((font (and box (box-font box))))
-    (cond ((face-p font) font)
+  (let ((font (and box (box:box-font box))))
+    (cond ((theme:face-p font) font)
           (*face*)
-          (t (theme-face *theme* :body)))))
+          (t (theme:theme-face theme:*theme* :body)))))
 
 (defun ui-font (context &optional box)
   "The font of BOX (see UI-FACE), in CONTEXT."
@@ -353,16 +182,16 @@ in, in the theme it is described in."
 (defun text-metrics (context face)
   "How far apart the lines of FACE are, and how far down a line its baseline is, as two values: the
 face's line height, or its font's ascent and descent; the text in the middle of the line."
-  (multiple-value-bind (width ascent descent) (context-measure context (face-font context face) "Hg")
+  (multiple-value-bind (width ascent descent) (core:context-measure context (face-font context face) "Hg")
     (declare (ignore width))
     (let* ((natural (float (+ ascent descent) 1f0))
-           (step (or (face-line-height face) natural)))
+           (step (or (theme:face-line-height face) natural)))
       (values step (+ (float ascent 1f0) (* 0.5f0 (- step natural)))))))
 
 (defmacro with-theme ((theme) &body body)
   "What BODY describes, drawn in THEME (a theme, or the name of one) rather than the theme it is in.
 A menu, a popover or a dialog that BODY opens is in THEME too."
-  `(let ((*theme* (find-theme ,theme)))
+  `(let ((theme:*theme* (theme:find-theme ,theme)))
      ,@body))
 
 ;;; Every widget takes an :id, and the call is an error without one. The id is what keeps a
@@ -385,7 +214,7 @@ A menu, a popover or a dialog that BODY opens is in THEME too."
   (let ((h (gensym "HASH")))
     `(let ((,h ,hash))
        ,@(loop :for number :in numbers
-               :collect `(setf ,h (mix ,h (hash-of ,number))))
+               :collect `(setf ,h (hash:mix ,h (hash:hash-of ,number))))
        ,h)))
 
 ;;; --- the look of a box from the pointer and keyboard ---
@@ -394,10 +223,10 @@ A menu, a popover or a dialog that BODY opens is in THEME too."
   "A small number for how the box KEY looks: 0 plain, 1 hovered, 2 pressed (the pointer over
 the box a press began on), 3 disabled, and 4 more if it has the keyboard."
   (+ (cond ((not enabled) 3)
-           ((and (= (ui-active ui) key) (= (ui-hot ui) key)) 2)
-           ((and (= (ui-hot ui) key) (zerop (ui-active ui))) 1)
+           ((and (= (ui:ui-active ui) key) (= (ui:ui-hot ui) key)) 2)
+           ((and (= (ui:ui-hot ui) key) (zerop (ui:ui-active ui))) 1)
            (t 0))
-     (if (and enabled (= (ui-focus ui) key)) 4 0)))
+     (if (and enabled (= (ui:ui-focus ui) key)) 4 0)))
 
 ;;; --- containers ---
 
@@ -409,15 +238,15 @@ the container's parent allows, which wins."
   (flet ((size (value) (and value (float value 1f0))))
     (let ((min-w (size (or width min-width))) (max-w (size (or width max-width)))
           (min-h (size (or height min-height))) (max-h (size (or height max-height))))
-      (setf (box-min-w box) (or min-w 0f0)
-            (box-max-w box) (or max-w -1f0)
-            (box-min-h box) (or min-h 0f0)
-            (box-max-h box) (or max-h -1f0)))))
+      (setf (box:box-min-w box) (or min-w 0f0)
+            (box:box-max-w box) (or max-w -1f0)
+            (box:box-min-h box) (or min-h 0f0)
+            (box:box-max-h box) (or max-h -1f0)))))
 
 (defmacro with-container ((box kind &rest keys) &body body)
-  `(let ((,box (open-box *ui* ,kind :id ,(getf keys :id))))
+  `(let ((,box (ui:open-box ui:*ui* ,kind :id ,(getf keys :id))))
      ,@body
-     (close-box *ui*)
+     (ui:close-box ui:*ui*)
      nil))
 
 (defmacro column ((&key id (gap 0) (main-align :start) (cross-align :start) fill (flex 0)
@@ -427,9 +256,9 @@ the container's parent allows, which wins."
   (let ((box (gensym "BOX")))
     `(with-container (,box :column :id ,id)
        (set-size-limits ,box ,width ,height ,min-width ,min-height ,max-width ,max-height)
-       (setf (box-gap ,box) (float ,gap 1f0) (box-main-align ,box) ,main-align
-             (box-cross-align ,box) ,cross-align (box-fill ,box) ,fill
-             (box-flex ,box) (float ,flex 1f0))
+       (setf (box:box-gap ,box) (float ,gap 1f0) (box:box-main-align ,box) ,main-align
+             (box:box-cross-align ,box) ,cross-align (box:box-fill ,box) ,fill
+             (box:box-flex ,box) (float ,flex 1f0))
        ,@body)))
 
 (defmacro row ((&key id (gap 0) (main-align :start) (cross-align :start) fill (flex 0)
@@ -439,9 +268,9 @@ the container's parent allows, which wins."
   (let ((box (gensym "BOX")))
     `(with-container (,box :row :id ,id)
        (set-size-limits ,box ,width ,height ,min-width ,min-height ,max-width ,max-height)
-       (setf (box-gap ,box) (float ,gap 1f0) (box-main-align ,box) ,main-align
-             (box-cross-align ,box) ,cross-align (box-fill ,box) ,fill
-             (box-flex ,box) (float ,flex 1f0))
+       (setf (box:box-gap ,box) (float ,gap 1f0) (box:box-main-align ,box) ,main-align
+             (box:box-cross-align ,box) ,cross-align (box:box-fill ,box) ,fill
+             (box:box-flex ,box) (float ,flex 1f0))
        ,@body)))
 
 (defmacro stack ((&key id (flex 0) width height min-width min-height max-width max-height) &body body)
@@ -449,18 +278,18 @@ the container's parent allows, which wins."
   (let ((box (gensym "BOX")))
     `(with-container (,box :stack :id ,id)
        (set-size-limits ,box ,width ,height ,min-width ,min-height ,max-width ,max-height)
-       (setf (box-flex ,box) (float ,flex 1f0))
+       (setf (box:box-flex ,box) (float ,flex 1f0))
        ,@body)))
 
 (defmacro padding ((&key id all left top right bottom (flex 0) width height min-width min-height max-width max-height) &body body)
   (let ((box (gensym "BOX")))
     `(with-container (,box :padding :id ,id)
        (set-size-limits ,box ,width ,height ,min-width ,min-height ,max-width ,max-height)
-       (setf (box-pad-left ,box) (float (or ,left ,all 0) 1f0)
-             (box-pad-top ,box) (float (or ,top ,all 0) 1f0)
-             (box-pad-right ,box) (float (or ,right ,all 0) 1f0)
-             (box-pad-bottom ,box) (float (or ,bottom ,all 0) 1f0)
-             (box-flex ,box) (float ,flex 1f0))
+       (setf (box:box-pad-left ,box) (float (or ,left ,all 0) 1f0)
+             (box:box-pad-top ,box) (float (or ,top ,all 0) 1f0)
+             (box:box-pad-right ,box) (float (or ,right ,all 0) 1f0)
+             (box:box-pad-bottom ,box) (float (or ,bottom ,all 0) 1f0)
+             (box:box-flex ,box) (float ,flex 1f0))
        ,@body)))
 
 (defun shadows (designator)
@@ -482,7 +311,7 @@ given); or a list of shadows, the first drawn first, as a design tool stacks the
                (check-type blur (real 0))
                (check-type spread real)
                (list (float x 1f0) (float y 1f0) (float blur 1f0) (float spread 1f0)
-                     (if color (theme-color color) #x00000040)))))
+                     (if color (theme:theme-color color) #x00000040)))))
     (cond ((null designator) '())
           ((keywordp (first designator)) (list (one designator)))
           (t (mapcar #'one designator)))))
@@ -503,7 +332,7 @@ solid edge, a number for dashes that long with gaps as long, or (DASH GAP)."
   (let ((hash 0))
     (dolist (shadow shadows hash)
       (dolist (number shadow)
-        (setf hash (mix hash (hash-of number)))))))
+        (setf hash (hash:mix hash (hash:hash-of number)))))))
 
 (defmacro panel ((&key id all left top right bottom color (radius 8) (flex 0) border-color (border-width 1) border-dash shadow width height min-width min-height max-width max-height) &body body)
   "Children on a rounded background, with an edge of BORDER-COLOR, BORDER-WIDTH points wide, if given:
@@ -513,17 +342,17 @@ scroll container, a pane)."
   (let ((box (gensym "BOX")))
     `(with-container (,box :panel :id ,id)
        (set-size-limits ,box ,width ,height ,min-width ,min-height ,max-width ,max-height)
-       (setf (box-pad-left ,box) (float (or ,left ,all 0) 1f0)
-             (box-pad-top ,box) (float (or ,top ,all 0) 1f0)
-             (box-pad-right ,box) (float (or ,right ,all 0) 1f0)
-             (box-pad-bottom ,box) (float (or ,bottom ,all 0) 1f0)
-             (box-color ,box) (theme-color ,color)
-             (box-border-color ,box) (theme-color ,border-color)
-             (box-border-width ,box) (float ,border-width 1f0)
-             (box-border-dash ,box) (border-dash ,border-dash)
-             (box-shadows ,box) (shadows ,shadow)
-             (box-n1 ,box) (float ,radius 1f0)
-             (box-flex ,box) (float ,flex 1f0))
+       (setf (box:box-pad-left ,box) (float (or ,left ,all 0) 1f0)
+             (box:box-pad-top ,box) (float (or ,top ,all 0) 1f0)
+             (box:box-pad-right ,box) (float (or ,right ,all 0) 1f0)
+             (box:box-pad-bottom ,box) (float (or ,bottom ,all 0) 1f0)
+             (box:box-color ,box) (theme:theme-color ,color)
+             (box:box-border-color ,box) (theme:theme-color ,border-color)
+             (box:box-border-width ,box) (float ,border-width 1f0)
+             (box:box-border-dash ,box) (border-dash ,border-dash)
+             (box:box-shadows ,box) (shadows ,shadow)
+             (box:box-n1 ,box) (float ,radius 1f0)
+             (box:box-flex ,box) (float ,flex 1f0))
        ,@body)))
 
 (defmacro grid ((&key id (columns 1) (gap 0) row-gap (column-widths :equal) (row-heights :auto)
@@ -537,11 +366,11 @@ between rows."
   (let ((box (gensym "BOX")))
     `(with-container (,box :grid :id ,id)
        (set-size-limits ,box ,width ,height ,min-width ,min-height ,max-width ,max-height)
-       (setf (box-n3 ,box) (max 1 ,columns)
-             (box-gap ,box) (float ,gap 1f0)
-             (box-n1 ,box) (float (or ,row-gap ,gap) 1f0)
-             (box-data ,box) (cons ,column-widths ,row-heights)
-             (box-flex ,box) (float ,flex 1f0))
+       (setf (box:box-n3 ,box) (max 1 ,columns)
+             (box:box-gap ,box) (float ,gap 1f0)
+             (box:box-n1 ,box) (float (or ,row-gap ,gap) 1f0)
+             (box:box-data ,box) (cons ,column-widths ,row-heights)
+             (box:box-flex ,box) (float ,flex 1f0))
        ,@body)))
 
 (defvar *foreground* nil
@@ -551,39 +380,39 @@ text. A pressable that looks like a button makes it the theme's button text, for
 (defun begin-pressable (id tooltip enabled selected look color radius left top right bottom flex)
   "Open the box of a pressable and take the pointer and the keys a button takes. Returns the box,
 and true if it was clicked this frame."
-  (let* ((ui *ui*)
-         (box (open-box ui :pressable :id (or id (required-id 'pressable)) :tooltip tooltip))
-         (key (box-key box))
+  (let* ((ui ui:*ui*)
+         (box (ui:open-box ui :pressable :id (or id (required-id 'pressable)) :tooltip tooltip))
+         (key (box:box-key box))
          (clicked nil))
-    (setf (box-enabled box) enabled
-          (box-interactive box) enabled
-          (box-focusable box) enabled
-          (box-pad-left box) (float left 1f0)
-          (box-pad-top box) (float top 1f0)
-          (box-pad-right box) (float right 1f0)
-          (box-pad-bottom box) (float bottom 1f0)
-          (box-color box) (theme-color color)
-          (box-n1 box) (float radius 1f0)
+    (setf (box:box-enabled box) enabled
+          (box:box-interactive box) enabled
+          (box:box-focusable box) enabled
+          (box:box-pad-left box) (float left 1f0)
+          (box:box-pad-top box) (float top 1f0)
+          (box:box-pad-right box) (float right 1f0)
+          (box:box-pad-bottom box) (float bottom 1f0)
+          (box:box-color box) (theme:theme-color color)
+          (box:box-n1 box) (float radius 1f0)
           ;; 1 for the look of a button, 0 for a plain one.
-          (box-n2 box) (if (eq look :button) 1f0 0f0)
+          (box:box-n2 box) (if (eq look :button) 1f0 0f0)
           ;; 0 a button, 1 a toggle that is off, 2 one that is on.
-          (box-n3 box) (cond ((eq selected :none) 0) (selected 2) (t 1))
-          (box-flex box) (float flex 1f0))
+          (box:box-n3 box) (cond ((eq selected :none) 0) (selected 2) (t 1))
+          (box:box-flex box) (float flex 1f0))
     (when enabled
-      (when (and (= (ui-hot ui) key) (ui-pressed ui))
-        (consume-press ui)
-        (setf (ui-active ui) key))
-      (when (and (= (ui-active ui) key) (ui-released ui))
-        (consume-release ui)
-        (setf (ui-active ui) 0)
-        (when (= (ui-hot ui) key)
+      (when (and (= (ui:ui-hot ui) key) (ui:ui-pressed ui))
+        (ui:consume-press ui)
+        (setf (ui:ui-active ui) key))
+      (when (and (= (ui:ui-active ui) key) (ui:ui-released ui))
+        (ui:consume-release ui)
+        (setf (ui:ui-active ui) 0)
+        (when (= (ui:ui-hot ui) key)
           (setf clicked t)))
-      (when (= (ui-focus ui) key)
-        (dolist (event (copy-list (ui-keys ui)))
-          (when (member (key-event-logical-key event) '(#\Space #\Return))
-            (consume-key ui event)
+      (when (= (ui:ui-focus ui) key)
+        (dolist (event (copy-list (ui:ui-keys ui)))
+          (when (member (core:key-event-logical-key event) '(#\Space #\Return))
+            (ui:consume-key ui event)
             (setf clicked t)))))
-    (setf (box-look box) (look-of ui key enabled))
+    (setf (box:box-look box) (look-of ui key enabled))
     (values box clicked)))
 
 (defmacro pressable ((&key id tooltip (enabled t) (selected :none) name (look :plain) color
@@ -605,26 +434,26 @@ or several, and BORDER-DASH dashes its edge, as a panel's."
                             (or ,left ,all 0) (or ,top ,all 0) (or ,right ,all 0) (or ,bottom ,all 0)
                             ,flex)
          (set-size-limits ,box ,width ,height ,min-width ,min-height ,max-width ,max-height)
-         (setf (box-data ,box) ,name
-               (box-border-color ,box) (theme-color ,border-color)
-               (box-border-width ,box) (float ,border-width 1f0)
-               (box-border-dash ,box) (border-dash ,border-dash)
-               (box-shadows ,box) (shadows ,shadow))
+         (setf (box:box-data ,box) ,name
+               (box:box-border-color ,box) (theme:theme-color ,border-color)
+               (box:box-border-width ,box) (float ,border-width 1f0)
+               (box:box-border-dash ,box) (border-dash ,border-dash)
+               (box:box-shadows ,box) (shadows ,shadow))
          (let ((*foreground* (cond ((not (eq ,looks :button)) *foreground*)
-                                   ((box-enabled ,box) (theme-button-text *theme*))
-                                   (t (theme-dim-text *theme*)))))
+                                   ((box:box-enabled ,box) (theme:theme-button-text theme:*theme*))
+                                   (t (theme:theme-dim-text theme:*theme*)))))
            (column (:gap ,gap :cross-align :stretch)
              ,@body))
-         (close-box *ui*)
+         (ui:close-box ui:*ui*)
          ,clicked))))
 
 (defun spacer (&key (flex 1))
   "Empty room that takes FLEX shares of the free space of the row or column it is in: in a row, what
 is after it goes to the right edge. It holds nothing, so it needs no id, and it is not in the semantic
 tree."
-  (let ((box (open-box *ui* :spacer)))
-    (setf (box-flex box) (float flex 1f0))
-    (close-box *ui*)
+  (let ((box (ui:open-box ui:*ui* :spacer)))
+    (setf (box:box-flex box) (float flex 1f0))
+    (ui:close-box ui:*ui*)
     nil))
 
 (defmacro center ((&key id (flex 0) width height min-width min-height max-width max-height) &body body)
@@ -632,7 +461,7 @@ tree."
   (let ((box (gensym "BOX")))
     `(with-container (,box :center :id ,id)
        (set-size-limits ,box ,width ,height ,min-width ,min-height ,max-width ,max-height)
-       (setf (box-flex ,box) (float ,flex 1f0))
+       (setf (box:box-flex ,box) (float ,flex 1f0))
        ,@body)))
 
 (defmacro stage ((&key id width height) &body body)
@@ -643,9 +472,9 @@ shows a view or an app at the size it is made for, which the person changes, not
 The :id is required."
   (let ((box (gensym "BOX")))
     `(with-container (,box :stage :id (or ,id (required-id 'stage)))
-       (setf (box-pref-w ,box) (float ,width 1f0)
-             (box-pref-h ,box) (float ,height 1f0)
-             (box-cross-align ,box) :stretch)
+       (setf (box:box-pref-w ,box) (float ,width 1f0)
+             (box:box-pref-h ,box) (float ,height 1f0)
+             (box:box-cross-align ,box) :stretch)
        ,@body)))
 
 ;;; --- a scroll container ---
@@ -681,25 +510,25 @@ moves it toward 0, and a negative one toward MOST."
   (following nil))
 
 (defun begin-scroll (id height flex)
-  (let* ((ui *ui*)
-         (box (open-box ui :scroll :id (or id (required-id 'scroll))))
-         (state (state-of ui (box-key box) #'make-scroll-state)))
-    (setf (box-interactive box) t
-          (box-pref-h box) (if height (float height 1f0) 0f0)
-          (box-flex box) (float flex 1f0)
-          (box-data box) state
-          (scroll-state-first-inside state) (ui-count ui))
+  (let* ((ui ui:*ui*)
+         (box (ui:open-box ui :scroll :id (or id (required-id 'scroll))))
+         (state (ui:state-of ui (box:box-key box) #'make-scroll-state)))
+    (setf (box:box-interactive box) t
+          (box:box-pref-h box) (if height (float height 1f0) 0f0)
+          (box:box-flex box) (float flex 1f0)
+          (box:box-data box) state
+          (scroll-state-first-inside state) (ui:ui-count ui))
     box))
 
 (defun inside-scroll-p (ui scroll key)
   "True if the box KEY was made inside the scroll container SCROLL this build: after it, and with it
 among its parents. (A float that a widget inside opens, a menu, is made after it too, but is in no
 container, and is not inside.)"
-  (let ((boxes (ui-boxes ui)))
-    (loop :for index :from (scroll-state-first-inside (box-data scroll)) :below (ui-count ui)
+  (let ((boxes (ui:ui-boxes ui)))
+    (loop :for index :from (scroll-state-first-inside (box:box-data scroll)) :below (ui:ui-count ui)
           :for box = (svref boxes index)
-            :thereis (and (= (box-key box) key)
-                          (loop :for parent = (box-parent box) :then (box-parent parent)
+            :thereis (and (= (box:box-key box) key)
+                          (loop :for parent = (box:box-parent box) :then (box:box-parent parent)
                                 :while parent
                                   :thereis (eq parent scroll))))))
 
@@ -707,26 +536,26 @@ container, and is not inside.)"
   "Close the scroll container BOX: the wheel over it moves it, and the keyboard come to something
 inside brings that into sight. If FOLLOW, and it is at the end of what it holds, it stays at the
 end when more is put there (its layout puts it there)."
-  (let* ((ui *ui*)
-         (key (box-key box))
-         (state (box-data box))
-         (rect (rect-of ui key))
+  (let* ((ui ui:*ui*)
+         (key (box:box-key box))
+         (state (box:box-data box))
+         (rect (ui:rect-of ui key))
          (offset (scroll-state-offset state))
          (viewport (scroll-state-viewport-height state))
          (most (max 0f0 (- (scroll-state-content-height state) viewport))))
-    (when (and rect (wheel-can-move-p (ui-wheel-dy ui) offset most)
-               (or (= (ui-hot ui) key) (inside-scroll-p ui box (ui-hot ui))))
-      (multiple-value-bind (dx dy) (consume-wheel ui)
+    (when (and rect (wheel-can-move-p (ui:ui-wheel-dy ui) offset most)
+               (or (= (ui:ui-hot ui) key) (inside-scroll-p ui box (ui:ui-hot ui))))
+      (multiple-value-bind (dx dy) (ui:consume-wheel ui)
         (declare (ignore dx))
-        (decf offset (* dy (float +points-per-line+ 1f0)))))
+        (decf offset (* dy (float core:+points-per-line+ 1f0)))))
     ;; The keyboard came to something inside: show all of it, moving the window as little as can be.
-    (let ((focus (ui-focus ui)))
+    (let ((focus (ui:ui-focus ui)))
       (when (and rect (/= focus (scroll-state-last-focus state)) (/= focus 0)
                  (inside-scroll-p ui box focus))
-        (let ((target (rect-of ui focus)))
+        (let ((target (ui:rect-of ui focus)))
           (when target
-            (let* ((top (+ (- (rect-y target) (rect-y rect)) offset))
-                   (bottom (+ top (rect-h target))))
+            (let* ((top (+ (- (ui:rect-y target) (ui:rect-y rect)) offset))
+                   (bottom (+ top (ui:rect-h target))))
               ;; With room for its ring: the edge of the window may be where nothing is drawn.
               (cond ((< (- top +ring-reach+) offset) (setf offset (- top +ring-reach+)))
                     ((> (+ bottom +ring-reach+) (+ offset viewport))
@@ -734,11 +563,11 @@ end when more is put there (its layout puts it there)."
       (setf (scroll-state-last-focus state) focus))
     (setf offset (max 0f0 (min offset most)))
     (setf (scroll-state-offset state) offset
-          (box-n1 box) offset
+          (box:box-n1 box) offset
           ;; Following: at the end (where the wheel left it, or where it was), so that the layout
           ;; keeps it at the end of what is inside now.
           (scroll-state-following state) (and follow (>= offset (- most 0.5f0))))
-    (close-box ui)
+    (ui:close-box ui)
     nil))
 
 (defmacro scroll ((&key id height (flex 0) follow) &body body)
@@ -766,23 +595,23 @@ chat); the wheel takes it back from the end, and it follows again once it is at 
   "How tall a lazy list is when it is given no height and nothing gives it one.")
 
 (defun begin-lazy-list (id count row-height height width flex)
-  (let* ((ui *ui*)
-         (box (open-box ui :lazy-list :id (or id (required-id 'lazy-list))))
-         (state (state-of ui (box-key box) #'make-scroll-state))
+  (let* ((ui ui:*ui*)
+         (box (ui:open-box ui :lazy-list :id (or id (required-id 'lazy-list))))
+         (state (ui:state-of ui (box:box-key box) #'make-scroll-state))
          (row-height (float row-height 1f0)))
-    (setf (box-interactive box) t
-          (box-pref-h box) (if height (float height 1f0) 0f0)
-          (box-pref-w box) (if width (float width 1f0) 0f0)
-          (box-flex box) (float flex 1f0)
-          (box-n2 box) row-height
-          (box-n3 box) count
-          (box-data box) state
+    (setf (box:box-interactive box) t
+          (box:box-pref-h box) (if height (float height 1f0) 0f0)
+          (box:box-pref-w box) (if width (float width 1f0) 0f0)
+          (box:box-flex box) (float flex 1f0)
+          (box:box-n2 box) row-height
+          (box:box-n3 box) count
+          (box:box-data box) state
           (scroll-state-content-height state) (* count row-height)
-          (scroll-state-first-inside state) (ui-count ui))
+          (scroll-state-first-inside state) (ui:ui-count ui))
     ;; Where the window is, kept inside what there is now (the list may have become shorter).
     (let ((viewport (lazy-list-viewport box state)))
-      (setf (box-n1 box) (max 0f0 (min (scroll-state-offset state)
-                                       (- (* count row-height) viewport)))))
+      (setf (box:box-n1 box) (max 0f0 (min (scroll-state-offset state)
+                                           (- (* count row-height) viewport)))))
     box))
 
 (defun lazy-list-viewport (box state)
@@ -790,23 +619,23 @@ chat); the wheel takes it back from the end, and it follows again once it is at 
 will be given if nothing gives it a height."
   (if (plusp (scroll-state-viewport-height state))
       (scroll-state-viewport-height state)
-      (if (plusp (box-pref-h box)) (box-pref-h box) +lazy-list-height+)))
+      (if (plusp (box:box-pref-h box)) (box:box-pref-h box) +lazy-list-height+)))
 
 (defun lazy-list-rows (box items key function)
   "Describe the rows of the lazy list BOX that show: FUNCTION is called with each of those ITEMS, in a
 column of its own whose id is what KEY returns for the item (or, with no KEY, its index)."
-  (let* ((ui *ui*)
-         (state (box-data box))
-         (row-height (box-n2 box))
-         (count (box-n3 box))
-         (offset (box-n1 box))
+  (let* ((ui ui:*ui*)
+         (state (box:box-data box))
+         (row-height (box:box-n2 box))
+         (count (box:box-n3 box))
+         (offset (box:box-n1 box))
          (first (min count (floor offset row-height)))
          (end (min count (ceiling (+ offset (lazy-list-viewport box state)) row-height))))
     (flet ((row (item index)
-             (let ((row (open-box ui :column :id (if key (funcall key item) index))))
-               (setf (box-n3 row) index)
+             (let ((row (ui:open-box ui :column :id (if key (funcall key item) index))))
+               (setf (box:box-n3 row) index)
                (funcall function item)
-               (close-box ui))))
+               (ui:close-box ui))))
       (etypecase items
         (vector (loop :for index :from first :below end
                       :do (row (aref items index) index)))
@@ -846,9 +675,9 @@ wide, or as wide as it is allowed to be. The :id is required."
 
 (defun index-at (context font string x)
   "Two values: the place between characters of STRING nearest X, and the character X is over."
-  (let* ((index (context-index-at-x context font string x)))
+  (let* ((index (core:context-index-at-x context font string x)))
     (values index
-            (if (and (plusp index) (< x (context-caret-x context font string index)))
+            (if (and (plusp index) (< x (core:context-caret-x context font string index)))
                 (1- index)
                 index))))
 
@@ -857,19 +686,19 @@ wide, or as wide as it is allowed to be. The :id is required."
   (let ((unit (case clicks (1 :char) (2 :word) (t :line))))
     (setf (text-press-unit press) unit)
     (if (eq unit :char)
-        (text-place-caret state index)
-        (multiple-value-bind (from to) (unit-range (text-state-string state) character unit)
+        (core:text-place-caret state index)
+        (multiple-value-bind (from to) (text-edit:unit-range (core:text-state-string state) character unit)
           (setf (text-press-from press) from
                 (text-press-to press) to)
-          (text-select-units state character unit from to)))))
+          (text-edit:text-select-units state character unit from to)))))
 
 (defun drag-text (press state index character)
   "The text STATE with the button still down after a press, and the pointer at INDEX (over
 CHARACTER): the selection goes from the press to there, by what the press selected by."
   (if (eq (text-press-unit press) :char)
-      (text-place-caret state index :extend t)
-      (text-select-units state character (text-press-unit press)
-                         (text-press-from press) (text-press-to press))))
+      (core:text-place-caret state index :extend t)
+      (text-edit:text-select-units state character (text-press-unit press)
+                                   (text-press-from press) (text-press-to press))))
 
 ;;; --- text ---
 
@@ -879,60 +708,60 @@ CHARACTER): the selection goes from the press to there, by what the press select
 ;;; while it has the keyboard.
 
 (defstruct (selection-state (:include text-press) (:constructor make-selection-state ()))
-  (state (make-text-state "") :type almighty-bolt/internals:text-state))
+  (state (core:make-text-state "") :type almighty-bolt/internals:text-state))
 
 (defun text-font (ui box)
   "The font BOX's text is drawn in, in UI's context."
-  (let ((context (ui-context ui)))
+  (let ((context (ui:ui-context ui)))
     (and context (box-text-font context box))))
 
 (defun select-text (ui box selection index-at)
   "Let the pointer select in the text of BOX, whose SELECTION it is, and Command-A and Command-C
 select all of it and copy. INDEX-AT is called with the pointer's x and y and gives the place in the
 text nearest them and the character they are over."
-  (let ((key (box-key box))
-        (text (box-text box)))
-    (unless (string= (text-state-string (selection-state-state selection)) text)
-      (setf (selection-state-state selection) (make-text-state text :caret 0)))
-    (setf (box-interactive box) t
-          (box-n2 box) 1f0
-          (box-data box) selection)
-    (want-cursor ui key :text)
-    (let ((x (ui-pointer-x ui)) (y (ui-pointer-y ui)))
-      (when (and (= (ui-hot ui) key) (ui-pressed ui))
-        (consume-press ui)
-        (focus-by-click ui key)
-        (setf (ui-active ui) key)
+  (let ((key (box:box-key box))
+        (text (box:box-text box)))
+    (unless (string= (core:text-state-string (selection-state-state selection)) text)
+      (setf (selection-state-state selection) (core:make-text-state text :caret 0)))
+    (setf (box:box-interactive box) t
+          (box:box-n2 box) 1f0
+          (box:box-data box) selection)
+    (ui:want-cursor ui key :text)
+    (let ((x (ui:ui-pointer-x ui)) (y (ui:ui-pointer-y ui)))
+      (when (and (= (ui:ui-hot ui) key) (ui:ui-pressed ui))
+        (ui:consume-press ui)
+        (ui:focus-by-click ui key)
+        (setf (ui:ui-active ui) key)
         (multiple-value-bind (index character) (funcall index-at x y)
           (setf (selection-state-state selection)
                 (press-text selection (selection-state-state selection) index character
-                            (ui-click-count ui)))))
-      (when (and (= (ui-active ui) key) (ui-down ui))
+                            (ui:ui-click-count ui)))))
+      (when (and (= (ui:ui-active ui) key) (ui:ui-down ui))
         (multiple-value-bind (index character) (funcall index-at x y)
           (setf (selection-state-state selection)
                 (drag-text selection (selection-state-state selection) index character))))
-      (when (and (= (ui-active ui) key) (ui-released ui))
-        (consume-release ui)
-        (setf (ui-active ui) 0)))
-    (when (= (ui-focus ui) key)
-      (dolist (event (copy-list (ui-keys ui)))
-        (let ((character (key-event-logical-key event))
-              (modifiers (key-event-modifiers event)))
-          (when (and (eq (key-event-kind event) :down)
+      (when (and (= (ui:ui-active ui) key) (ui:ui-released ui))
+        (ui:consume-release ui)
+        (setf (ui:ui-active ui) 0)))
+    (when (= (ui:ui-focus ui) key)
+      (dolist (event (copy-list (ui:ui-keys ui)))
+        (let ((character (core:key-event-logical-key event))
+              (modifiers (core:key-event-modifiers event)))
+          (when (and (eq (core:key-event-kind event) :down)
                      (characterp character)
-                     (modifier-down-p modifiers +modifier-super+)
-                     (not (modifier-down-p modifiers +modifier-control+)))
+                     (core:modifier-down-p modifiers core:+modifier-super+)
+                     (not (core:modifier-down-p modifiers core:+modifier-control+)))
             (cond ((char-equal character #\a)
-                   (consume-key ui event)
+                   (ui:consume-key ui event)
                    (setf (selection-state-state selection)
-                         (text-select-all (selection-state-state selection))))
+                         (core:text-select-all (selection-state-state selection))))
                   ((char-equal character #\c)
-                   (consume-key ui event)
+                   (ui:consume-key ui event)
                    (let ((state (selection-state-state selection)))
-                     (when (text-state-selection-p state)
-                       (context-set-clipboard-text (ui-context ui)
-                                                   (text-state-selected-string state))))))))))
-    (setf (box-look box) (look-of ui key t))))
+                     (when (core:text-state-selection-p state)
+                          (core:context-set-clipboard-text (ui:ui-context ui)
+                                                           (core:text-state-selected-string state))))))))))
+    (setf (box:box-look box) (look-of ui key t))))
 
 (defun box-text-font (context box)
   "The font of the label or paragraph BOX (its face)."
@@ -941,7 +770,7 @@ text nearest them and the character they are over."
 (defun text-face (font size weight role)
   "The face of a label or a paragraph whose :FONT is FONT, with SIZE and WEIGHT, if given, in place of
 its own."
-  (face-variant (widget-face font role) size weight))
+  (theme:face-variant (widget-face font role) size weight))
 
 (defun label (text &key (id (required-id 'label)) tooltip size color (flex 0) live selectable
                      weight font turn)
@@ -956,25 +785,25 @@ cannot be selectable."
   (check-type turn (member nil :up :down))
   (when (and turn selectable)
     (error "A turned label cannot be selectable."))
-  (let* ((ui *ui*)
-         (box (open-box ui :label :id id :tooltip tooltip)))
-    (setf (box-text box) text
-          (box-n1 box) (case turn (:up 1f0) (:down 2f0) (t 0f0))
-          (box-font box) (text-face font size weight :body)
-          (box-size box) (round (face-size (box-font box)))
-          (box-color box) (or (theme-color color) *foreground*)
-          (box-flex box) (float flex 1f0)
-          (box-n3 box) (if live 1 0))
+  (let* ((ui ui:*ui*)
+         (box (ui:open-box ui :label :id id :tooltip tooltip)))
+    (setf (box:box-text box) text
+          (box:box-n1 box) (case turn (:up 1f0) (:down 2f0) (t 0f0))
+          (box:box-font box) (text-face font size weight :body)
+          (box:box-size box) (round (theme:face-size (box:box-font box)))
+          (box:box-color box) (or (theme:theme-color color) *foreground*)
+          (box:box-flex box) (float flex 1f0)
+          (box:box-n3 box) (if live 1 0))
     (when selectable
-      (select-text ui box (state-of ui (box-key box) #'make-selection-state)
+      (select-text ui box (ui:state-of ui (box:box-key box) #'make-selection-state)
                    (lambda (x y)
-                     (declare (ignore y))
-                     (let ((rect (rect-of ui (box-key box)))
-                           (font (text-font ui box)))
-                       (if (and rect font)
-                           (index-at (ui-context ui) font text (- x (rect-x rect)))
-                           (values 0 0))))))
-    (close-box ui)
+                         (declare (ignore y))
+                         (let ((rect (ui:rect-of ui (box:box-key box)))
+                               (font (text-font ui box)))
+                           (if (and rect font)
+                               (index-at (ui:ui-context ui) font text (- x (ui:rect-x rect)))
+                               (values 0 0))))))
+    (ui:close-box ui)
     nil))
 
 ;;; A paragraph is text broken into lines to the width it is given, so its height depends on
@@ -996,57 +825,57 @@ are not the ones that were drawn before."
   (setf (paragraph-state-text state) text
         (paragraph-state-wrapped-at state) wrapped-at
         (paragraph-state-lines state) lines
-        (paragraph-state-theme-id state) (theme-id *theme*))
+        (paragraph-state-theme-id state) (theme:theme-id theme:*theme*))
   (incf (paragraph-state-generation state))
   state)
 
 (defun paragraph-index-at (ui box state x y)
   "The place in the text of the paragraph BOX (with STATE) nearest X, Y, and the character there, by
 the lines it was drawn in."
-  (let ((rect (rect-of ui (box-key box)))
+  (let ((rect (ui:rect-of ui (box:box-key box)))
         (font (text-font ui box))
         (lines (paragraph-state-lines state))
         (text (paragraph-state-text state)))
     (if (not (and rect font lines))
         (values 0 0)
-        (let ((step (text-metrics (ui-context ui) (ui-face box))))
+        (let ((step (text-metrics (ui:ui-context ui) (ui-face box))))
           (let* ((row (max 0 (min (1- (length lines))
-                                  (floor (- y (rect-y rect)) step))))
+                                  (floor (- y (ui:rect-y rect)) step))))
                  (line (nth row lines)))
             (destructuring-bind (start end) line
               ;; Not after the line feed that ends a line: that is the start of the next.
               (when (and (> end start) (char= (char text (1- end)) #\Linefeed))
                 (decf end))
               (multiple-value-bind (index character)
-                  (index-at (ui-context ui) font (subseq text start end) (- x (rect-x rect)))
+                  (index-at (ui:ui-context ui) font (subseq text start end) (- x (ui:rect-x rect)))
                 (values (+ start index) (+ start character)))))))))
 
 (defun paragraph (text &key (id (required-id 'paragraph)) tooltip size color (flex 0) live
                          selectable weight font)
   "TEXT broken into lines to the width it is given, the lines as far apart as FONT's line height (or
 its ascent and descent). LIVE, SELECTABLE, SIZE, WEIGHT and FONT are as for a label."
-  (let* ((ui *ui*)
-         (box (open-box ui :paragraph :id id :tooltip tooltip))
-         (state (state-of ui (box-key box) #'make-paragraph-state)))
-    (setf (box-text box) text
-          (box-font box) (text-face font size weight :body)
-          (box-size box) (round (face-size (box-font box)))
-          (box-color box) (or (theme-color color) *foreground*)
-          (box-flex box) (float flex 1f0)
-          (box-n3 box) (if live 1 0)
-          (box-data box) state)
+  (let* ((ui ui:*ui*)
+         (box (ui:open-box ui :paragraph :id id :tooltip tooltip))
+         (state (ui:state-of ui (box:box-key box) #'make-paragraph-state)))
+    (setf (box:box-text box) text
+          (box:box-font box) (text-face font size weight :body)
+          (box:box-size box) (round (theme:face-size (box:box-font box)))
+          (box:box-color box) (or (theme:theme-color color) *foreground*)
+          (box:box-flex box) (float flex 1f0)
+          (box:box-n3 box) (if live 1 0)
+          (box:box-data box) state)
     (when selectable
       (select-text ui box state (lambda (x y) (paragraph-index-at ui box state x y))))
-    (close-box ui)
+    (ui:close-box ui)
     nil))
 
 (defun progress (fraction &key (id (required-id 'progress)) tooltip labelled-by (width 200) (flex 0))
   "A bar that is FRACTION (0 to 1) full."
-  (let ((box (open-box *ui* :progress :id id :tooltip tooltip :labelled-by labelled-by)))
-    (setf (box-n1 box) (float (max 0 (min 1 fraction)) 1f0)
-          (box-pref-w box) (float width 1f0)
-          (box-flex box) (float flex 1f0))
-    (close-box *ui*)
+  (let ((box (ui:open-box ui:*ui* :progress :id id :tooltip tooltip :labelled-by labelled-by)))
+    (setf (box:box-n1 box) (float (max 0 (min 1 fraction)) 1f0)
+          (box:box-pref-w box) (float width 1f0)
+          (box:box-flex box) (float flex 1f0))
+    (ui:close-box ui:*ui*)
     nil))
 
 ;;; --- an image ---
@@ -1059,27 +888,27 @@ it is drawn as an icon is: its own colours are not used, and the tint covers it 
 alpha does, so that it can follow the theme. Without, it is drawn as it is, OPACITY (0 to 1)
 opaque. A screen reader reads it by its LABEL; one without a label is taken to be decoration, and
 is not read."
-  (unless (image-p source)
+  (unless (core:image-p source)
     (error "An image widget draws an image from MAKE-IMAGE or LOAD-IMAGE, not ~s." source))
   (check-type opacity (real 0 1))
-  (let* ((ui *ui*)
-         (box (open-box ui :image :id id :tooltip tooltip))
-         (natural-w (float (image-width source) 1f0))
-         (natural-h (float (image-height source) 1f0))
+  (let* ((ui ui:*ui*)
+         (box (ui:open-box ui :image :id id :tooltip tooltip))
+         (natural-w (float (core:image-width source) 1f0))
+         (natural-h (float (core:image-height source) 1f0))
          (w (cond (width (float width 1f0))
                   (height (* (float height 1f0) (/ natural-w natural-h)))
                   (t natural-w)))
          (h (cond (height (float height 1f0))
                   (width (* (float width 1f0) (/ natural-h natural-w)))
                   (t natural-h))))
-    (setf (box-data box) source
-          (box-text box) (or label "")
-          (box-pref-w box) w
-          (box-pref-h box) h
-          (box-color box) (theme-color tint)
-          (box-n1 box) (float opacity 1f0)
-          (box-flex box) (float flex 1f0))
-    (close-box ui)
+    (setf (box:box-data box) source
+          (box:box-text box) (or label "")
+          (box:box-pref-w box) w
+          (box:box-pref-h box) h
+          (box:box-color box) (theme:theme-color tint)
+          (box:box-n1 box) (float opacity 1f0)
+          (box:box-flex box) (float flex 1f0))
+    (ui:close-box ui)
     nil))
 
 ;;; --- a button ---
@@ -1087,32 +916,32 @@ is not read."
 (defun button (text &key (id (required-id 'button)) tooltip (enabled t) (flex 0) font)
   "A button. Returns true when it is clicked: the primary button went down and up over it,
 or the space bar or Return was pressed with the keyboard on it."
-  (let* ((ui *ui*)
-         (box (open-box ui :button :id id :tooltip tooltip))
-         (key (box-key box))
+  (let* ((ui ui:*ui*)
+         (box (ui:open-box ui :button :id id :tooltip tooltip))
+         (key (box:box-key box))
          (clicked nil))
-    (setf (box-font box) (widget-face font :button)
-          (box-text box) text
-          (box-enabled box) enabled
-          (box-interactive box) enabled
-          (box-focusable box) enabled
-          (box-flex box) (float flex 1f0))
+    (setf (box:box-font box) (widget-face font :button)
+          (box:box-text box) text
+          (box:box-enabled box) enabled
+          (box:box-interactive box) enabled
+          (box:box-focusable box) enabled
+          (box:box-flex box) (float flex 1f0))
     (when enabled
-      (when (and (= (ui-hot ui) key) (ui-pressed ui))
-        (consume-press ui)
-        (setf (ui-active ui) key))
-      (when (and (= (ui-active ui) key) (ui-released ui))
-        (consume-release ui)
-        (setf (ui-active ui) 0)
-        (when (= (ui-hot ui) key)
+      (when (and (= (ui:ui-hot ui) key) (ui:ui-pressed ui))
+        (ui:consume-press ui)
+        (setf (ui:ui-active ui) key))
+      (when (and (= (ui:ui-active ui) key) (ui:ui-released ui))
+        (ui:consume-release ui)
+        (setf (ui:ui-active ui) 0)
+        (when (= (ui:ui-hot ui) key)
           (setf clicked t)))
-      (when (= (ui-focus ui) key)
-        (dolist (event (copy-list (ui-keys ui)))
-          (when (member (key-event-logical-key event) '(#\Space #\Return))
-            (consume-key ui event)
+      (when (= (ui:ui-focus ui) key)
+        (dolist (event (copy-list (ui:ui-keys ui)))
+          (when (member (core:key-event-logical-key event) '(#\Space #\Return))
+            (ui:consume-key ui event)
             (setf clicked t)))))
-    (setf (box-look box) (look-of ui key enabled))
-    (close-box ui)
+    (setf (box:box-look box) (look-of ui key enabled))
+    (ui:close-box ui)
     clicked))
 
 ;;; --- copy, cut and paste ---
@@ -1144,22 +973,22 @@ or the space bar or Return was pressed with the keyboard on it."
 values: the new state, and true if it was one of them. Copy and cut take the selection, and do
 nothing without one; paste puts the clipboard's text in place of the selection, with its line breaks
 made spaces if SINGLE-LINE and line feeds if not."
-  (let ((key (key-event-logical-key event))
-        (modifiers (key-event-modifiers event)))
-    (if (not (and (eq (key-event-kind event) :down)
+  (let ((key (core:key-event-logical-key event))
+        (modifiers (core:key-event-modifiers event)))
+    (if (not (and (eq (core:key-event-kind event) :down)
                   (characterp key)
-                  (modifier-down-p modifiers +modifier-super+)
-                  (not (modifier-down-p modifiers +modifier-control+))
+                  (core:modifier-down-p modifiers core:+modifier-super+)
+                  (not (core:modifier-down-p modifiers core:+modifier-control+))
                   (member key '(#\c #\x #\v) :test #'char-equal)))
         (values state nil)
         (values (cond ((char-equal key #\v)
-                       (let ((text (context-clipboard-text context)))
+                       (let ((text (core:context-clipboard-text context)))
                          (if text
-                             (text-insert state (if single-line (one-line text) (newlines text)))
+                             (core:text-insert state (if single-line (one-line text) (newlines text)))
                              state)))
-                      ((not (text-state-selection-p state)) state)
-                      (t (context-set-clipboard-text context (text-state-selected-string state))
-                         (if (char-equal key #\x) (text-insert state "") state)))
+                      ((not (core:text-state-selection-p state)) state)
+                      (t (core:context-set-clipboard-text context (core:text-state-selected-string state))
+                         (if (char-equal key #\x) (core:text-insert state "") state)))
                 t))))
 
 ;;; --- a line of editable text ---
@@ -1209,10 +1038,10 @@ and the caret where the input method has it in that."
   (let ((marked (editable-marked editable)))
     (if (null marked)
         state
-        (let ((at (text-state-caret state))
-              (string (text-state-string state)))
-          (make-text-state (concatenate 'string (subseq string 0 at) marked (subseq string at))
-                           :caret (+ at (editable-marked-selection editable)))))))
+        (let ((at (core:text-state-caret state))
+              (string (core:text-state-string state)))
+          (core:make-text-state (concatenate 'string (subseq string 0 at) marked (subseq string at))
+                                :caret (+ at (editable-marked-selection editable)))))))
 
 (defun marked-range (editable state)
   "Where what the input method composes is in the text of EDITABLE as it is shown (SHOWN-TEXT-STATE
@@ -1220,7 +1049,7 @@ of STATE): its start and end, and the start and end of the part the input method
 if nothing is being composed."
   (let ((marked (editable-marked editable)))
     (when marked
-      (let* ((at (text-state-caret state))
+      (let* ((at (core:text-state-caret state))
              (from (+ at (editable-marked-selection editable))))
         (values at (+ at (length marked))
                 from (+ from (editable-marked-selection-length editable)))))))
@@ -1231,20 +1060,20 @@ STATE of EDITABLE, as two values: the new state and T. Only text that is committ
 state; what is composed is kept in EDITABLE until then. Line breaks are made spaces if SINGLE-LINE."
   (flet ((clean (text) (if single-line (one-line text) (newlines text))))
     (etypecase event
-      (text-input-event
+      (core:text-input-event
        (setf (editable-marked editable) nil)
-       (values (text-insert state (clean (text-input-event-text event))) t))
-      (composition-event
-       (let ((text (composition-event-text event)))
-         (cond ((or (eq (composition-event-kind event) :committed) (zerop (length text)))
+       (values (core:text-insert state (clean (core:text-input-event-text event))) t))
+      (core:composition-event
+       (let ((text (core:composition-event-text event)))
+         (cond ((or (eq (core:composition-event-kind event) :committed) (zerop (length text)))
                 (setf (editable-marked editable) nil)
-                (values (if (zerop (length text)) state (text-insert state (clean text))) t))
+                (values (if (zerop (length text)) state (core:text-insert state (clean text))) t))
                (t
                 ;; What is composed takes the place of the selection, as what is typed does.
-                (let* ((state (if (text-state-selection-p state) (text-insert state "") state))
-                       (start (min (length text) (composition-event-selection-start event)))
+                (let* ((state (if (core:text-state-selection-p state) (core:text-insert state "") state))
+                       (start (min (length text) (core:composition-event-selection-start event)))
                        (length (min (- (length text) start)
-                                    (composition-event-selection-length event))))
+                                    (core:composition-event-selection-length event))))
                   (setf (editable-marked editable) text
                         (editable-marked-selection editable) start
                         (editable-marked-selection-length editable) length)
@@ -1253,46 +1082,46 @@ state; what is composed is kept in EDITABLE until then. Line breaks are made spa
 (defun take-text-input (ui editable state event single-line)
   "Take EVENT, a text or composition event, for EDITABLE, whose text is STATE: the new state, as
 TYPE-INPUT gives it, with the edit noted to be undone."
-  (consume-input ui event)
+  (ui:consume-input ui event)
   (values (edit-with-history editable state event
                              (lambda (state event) (type-input editable state event single-line)))))
 
 (defun say-text-input-caret (ui x y height)
   "Say that what is being described takes text, with its caret at X, Y in the window and HEIGHT
 tall: the window sends what is typed through the input method, and puts its candidates there."
-  (let ((context (ui-context ui)))
+  (let ((context (ui:ui-context ui)))
     (when context
-      (set-text-input-caret context (float x 1f0) (float y 1f0) 1.5f0 (float height 1f0)))))
+      (core:set-text-input-caret context (float x 1f0) (float y 1f0) 1.5f0 (float height 1f0)))))
 
 (defun edit-kind (event)
   "What the key EVENT does to text, if it edits it: :typing, :deleting or :other. Text from the input
 method is typing, and what it composes, once committed, an edit of its own."
   (typecase event
-    (text-input-event :typing)
-    (composition-event :other)
+    (core:text-input-event :typing)
+    (core:composition-event :other)
     (t (key-edit-kind event))))
 
 (defun key-edit-kind (event)
-  (let ((key (key-event-logical-key event))
-        (modifiers (key-event-modifiers event)))
-    (cond ((or (modifier-down-p modifiers +modifier-super+)
-               (modifier-down-p modifiers +modifier-control+))
+  (let ((key (core:key-event-logical-key event))
+        (modifiers (core:key-event-modifiers event)))
+    (cond ((or (core:modifier-down-p modifiers core:+modifier-super+)
+               (core:modifier-down-p modifiers core:+modifier-control+))
            :other)
-          ((or (eql key #\Backspace) (eql key +key-delete-forward+)) :deleting)
+          ((or (eql key #\Backspace) (eql key core:+key-delete-forward+)) :deleting)
           ((and (characterp key) (graphic-char-p key)) :typing)
           (t :other))))
 
 (defun undo-key (event)
   "The key EVENT as :undo (Command-Z) or :redo (Command-Shift-Z), or NIL (for any other event too)."
-  (let ((key (and (typep event 'key-event) (key-event-logical-key event)))
-        (modifiers (if (typep event 'key-event) (key-event-modifiers event) 0)))
-    (and (typep event 'key-event)
-         (eq (key-event-kind event) :down)
+  (let ((key (and (typep event 'core:key-event) (core:key-event-logical-key event)))
+        (modifiers (if (typep event 'core:key-event) (core:key-event-modifiers event) 0)))
+    (and (typep event 'core:key-event)
+         (eq (core:key-event-kind event) :down)
          (characterp key)
          (char-equal key #\z)
-         (modifier-down-p modifiers +modifier-super+)
-         (not (modifier-down-p modifiers +modifier-control+))
-         (if (modifier-down-p modifiers +modifier-shift+) :redo :undo))))
+         (core:modifier-down-p modifiers core:+modifier-super+)
+         (not (core:modifier-down-p modifiers core:+modifier-control+))
+         (if (core:modifier-down-p modifiers core:+modifier-shift+) :redo :undo))))
 
 (defun edit-with-history (editable state event edit)
   "What the key EVENT does to the text STATE of EDITABLE, as two values, the new state and true if the
@@ -1318,7 +1147,7 @@ that it can be undone."
       (t
        (multiple-value-bind (new taken) (funcall edit state event)
          (when taken
-           (if (string= (text-state-string new) (text-state-string state))
+           (if (string= (core:text-state-string new) (core:text-state-string state))
                ;; Only the caret or the selection moved: the next edit is one of its own.
                (setf (editable-run editable) nil)
                (let ((kind (edit-kind event)))
@@ -1333,35 +1162,35 @@ that it can be undone."
          (values new taken))))))
 
 (defstruct (field-state (:include editable) (:constructor make-field-state ()))
-  (state (make-text-state "") :type almighty-bolt/internals:text-state)
+  (state (core:make-text-state "") :type almighty-bolt/internals:text-state)
   (view-start 0 :type fixnum))
 
 (defun field-index-at (ui key state x)
   "Two values: the index in the text of the field KEY that the pointer, at X, is nearest, and the
 index of the character it is over."
-  (let ((rect (rect-of ui key))
-        (context (ui-context ui)))
+  (let ((rect (ui:rect-of ui key))
+        (context (ui:ui-context ui)))
     (if (and rect context)
-        (let* ((string (text-state-string (field-state-state state)))
+        (let* ((string (core:text-state-string (field-state-state state)))
                (start (field-state-view-start state)))
           (multiple-value-bind (index character)
               (index-at context (ui-font context) (subseq string start)
-                        (- x (rect-x rect) (theme-field-padding-x *theme*)))
+                        (- x (ui:rect-x rect) (theme:theme-field-padding-x theme:*theme*)))
             (values (+ start index) (+ start character))))
-        (let ((caret (text-state-caret (field-state-state state))))
+        (let ((caret (core:text-state-caret (field-state-state state))))
           (values caret caret)))))
 
 (defun keep-caret-visible (ui state width)
-  (let ((context (ui-context ui)))
+  (let ((context (ui:ui-context ui)))
     (when context
       (let* ((font (ui-font context))
              (shown (shown-text-state state (field-state-state state)))
-             (string (text-state-string shown))
-             (caret (text-state-caret shown))
+             (string (core:text-state-string shown))
+             (caret (core:text-state-caret shown))
              (start (min (field-state-view-start state) caret))
-             (inner (- width (* 2 (theme-field-padding-x *theme*)))))
+             (inner (- width (* 2 (theme:theme-field-padding-x theme:*theme*)))))
         (loop :while (and (< start caret)
-                          (> (context-caret-x context font (subseq string start) (- caret start))
+                          (> (core:context-caret-x context font (subseq string start) (- caret start))
                              inner))
               :do (incf start))
         (setf (field-state-view-start state) start)))))
@@ -1369,19 +1198,19 @@ index of the character it is over."
 (defun say-field-caret (ui key field)
   "Say where the caret of the text field KEY, whose state is FIELD, is in the window, from where the
 field was laid out last."
-  (let ((rect (rect-of ui key))
-        (context (ui-context ui)))
+  (let ((rect (ui:rect-of ui key))
+        (context (ui:ui-context ui)))
     (if (not (and rect context))
         (say-text-input-caret ui 0f0 0f0 0f0)
         (let* ((shown (shown-text-state field (field-state-state field)))
                (start (field-state-view-start field))
-               (pad (theme-field-padding-y *theme*))
-               (x (context-caret-x context (ui-font context)
-                                   (subseq (text-state-string shown) start)
-                                   (max 0 (- (text-state-caret shown) start)))))
-          (say-text-input-caret ui (+ (rect-x rect) (theme-field-padding-x *theme*) x)
-                                (+ (rect-y rect) pad -1)
-                                (max 0f0 (- (rect-h rect) (* 2 (- pad 1)))))))))
+               (pad (theme:theme-field-padding-y theme:*theme*))
+               (x (core:context-caret-x context (ui-font context)
+                                        (subseq (core:text-state-string shown) start)
+                                        (max 0 (- (core:text-state-caret shown) start)))))
+          (say-text-input-caret ui (+ (ui:rect-x rect) (theme:theme-field-padding-x theme:*theme*) x)
+                                (+ (ui:rect-y rect) pad -1)
+                                (max 0f0 (- (ui:rect-h rect) (* 2 (- pad 1)))))))))
 
 (defun text-field (string
                    &key (id (required-id 'text-field)) tooltip labelled-by
@@ -1390,61 +1219,61 @@ field was laid out last."
 frame, and whether Return was pressed. Command-C, Command-X and Command-V copy, cut and paste
 (a line break that is pasted becomes a space). Pass what it returned back in the next frame; if the
 application passes something else, that is what is shown."
-  (let* ((ui *ui*)
-         (box (open-box ui :text-field :id id :tooltip tooltip :labelled-by labelled-by))
-         (key (box-key box))
-         (*face* (setf (box-font box) (widget-face font :body)))
-         (state (state-of ui key #'make-field-state))
+  (let* ((ui ui:*ui*)
+         (box (ui:open-box ui :text-field :id id :tooltip tooltip :labelled-by labelled-by))
+         (key (box:box-key box))
+         (*face* (setf (box:box-font box) (widget-face font :body)))
+         (state (ui:state-of ui key #'make-field-state))
          (changed nil)
          (submitted nil))
-    (unless (string= (text-state-string (field-state-state state)) string)
-      (setf (field-state-state state) (make-text-state string)
+    (unless (string= (core:text-state-string (field-state-state state)) string)
+      (setf (field-state-state state) (core:make-text-state string)
             (field-state-view-start state) 0)
       (forget-edits state))
-    (setf (box-enabled box) enabled
-          (box-interactive box) enabled
-          (box-focusable box) enabled
-          (box-pref-w box) (float width 1f0)
-          (box-n3 box) (if invalid 1 0)
-          (box-data box) state
-          (box-flex box) (float flex 1f0))
+    (setf (box:box-enabled box) enabled
+          (box:box-interactive box) enabled
+          (box:box-focusable box) enabled
+          (box:box-pref-w box) (float width 1f0)
+          (box:box-n3 box) (if invalid 1 0)
+          (box:box-data box) state
+          (box:box-flex box) (float flex 1f0))
     (when enabled
-      (want-cursor ui key :text)
-      (let ((x (ui-pointer-x ui)))
+      (ui:want-cursor ui key :text)
+      (let ((x (ui:ui-pointer-x ui)))
         ;; A press on the field gives it the keyboard and puts the caret there (two select a word,
         ;; three all of it).
-        (when (and (= (ui-hot ui) key) (ui-pressed ui))
-          (consume-press ui)
-          (focus-by-click ui key)
-          (setf (ui-active ui) key
+        (when (and (= (ui:ui-hot ui) key) (ui:ui-pressed ui))
+          (ui:consume-press ui)
+          (ui:focus-by-click ui key)
+          (setf (ui:ui-active ui) key
                 ;; What is typed after a press is an edit of its own.
                 (editable-run state) nil)
           (multiple-value-bind (index character) (field-index-at ui key state x)
             (setf (field-state-state state)
                   (press-text state (field-state-state state) index character
-                              (ui-click-count ui)))))
+                              (ui:ui-click-count ui)))))
         ;; Dragging with the button down extends the selection.
-        (when (and (= (ui-active ui) key) (ui-down ui))
+        (when (and (= (ui:ui-active ui) key) (ui:ui-down ui))
           (multiple-value-bind (index character) (field-index-at ui key state x)
             (setf (field-state-state state)
                   (drag-text state (field-state-state state) index character))))
-        (when (and (= (ui-active ui) key) (ui-released ui))
-          (consume-release ui)
-          (setf (ui-active ui) 0)))
+        (when (and (= (ui:ui-active ui) key) (ui:ui-released ui))
+          (ui:consume-release ui)
+          (setf (ui:ui-active ui) 0)))
       ;; What was typed, in the order it came: keys (those another widget did not take) and text
       ;; and compositions from the input method.
-      (when (= (ui-focus ui) key)
-        (dolist (event (copy-list (ui-inputs ui)))
+      (when (= (ui:ui-focus ui) key)
+        (dolist (event (copy-list (ui:ui-inputs ui)))
           (cond
-            ((not (typep event 'key-event))
+            ((not (typep event 'core:key-event))
              (let ((new (take-text-input ui state (field-state-state state) event t)))
-               (unless (string= (text-state-string new)
-                                (text-state-string (field-state-state state)))
+               (unless (string= (core:text-state-string new)
+                                (core:text-state-string (field-state-state state)))
                  (setf changed t))
                (setf (field-state-state state) new)))
-            ((not (member event (ui-keys ui) :test #'eq)))
-            ((eql (key-event-logical-key event) #\Return)
-             (consume-key ui event)
+            ((not (member event (ui:ui-keys ui) :test #'eq)))
+            ((eql (core:key-event-logical-key event) #\Return)
+             (ui:consume-key ui event)
              (setf submitted t))
             (t
              (multiple-value-bind (new edited)
@@ -1452,26 +1281,26 @@ application passes something else, that is what is shown."
                   state (field-state-state state) event
                   (lambda (text event)
                     (multiple-value-bind (pasted command)
-                        (clipboard-edit text event (ui-context ui) :single-line t)
+                        (clipboard-edit text event (ui:ui-context ui) :single-line t)
                       (if command
                           (values pasted t)
-                          (edit-text text event)))))
+                          (core:edit-text text event)))))
                (when edited
-                 (consume-key ui event)
-                 (unless (string= (text-state-string new)
-                                  (text-state-string (field-state-state state)))
+                 (ui:consume-key ui event)
+                 (unless (string= (core:text-state-string new)
+                                  (core:text-state-string (field-state-state state)))
                    (setf changed t))
                  (setf (field-state-state state) new))))))))
     ;; What is composed is the field's only while it has the keyboard.
-    (unless (and enabled (= (ui-focus ui) key))
+    (unless (and enabled (= (ui:ui-focus ui) key))
       (setf (editable-marked state) nil))
     (keep-caret-visible ui state (float width 1f0))
-    (when (and enabled (= (ui-focus ui) key))
+    (when (and enabled (= (ui:ui-focus ui) key))
       (say-field-caret ui key state))
-    (setf (box-look box) (look-of ui key enabled)
-          (box-text box) (text-state-string (shown-text-state state (field-state-state state))))
-    (close-box ui)
-    (values (text-state-string (field-state-state state)) changed submitted)))
+    (setf (box:box-look box) (look-of ui key enabled)
+          (box:box-text box) (core:text-state-string (shown-text-state state (field-state-state state))))
+    (ui:close-box ui)
+    (values (core:text-state-string (field-state-state state)) changed submitted)))
 
 ;;; --- several lines of editable text ---
 ;;;
@@ -1482,7 +1311,7 @@ application passes something else, that is what is shown."
 ;;; ROWS lines and scrolls itself to keep the caret in sight.
 
 (defstruct (area-state (:include editable) (:constructor make-area-state ()))
-  (state (make-text-state "") :type almighty-bolt/internals:text-state)
+  (state (core:make-text-state "") :type almighty-bolt/internals:text-state)
   ;; How far down the lines are scrolled, in points.
   (offset 0f0 :type single-float)
   ;; The lines that are shown, each (START . END), END before the line feed that ends it if one does;
@@ -1517,15 +1346,15 @@ application passes something else, that is what is shown."
 were made for this string, width and face. There is always one: an empty text, and a text that ends in a line
 feed, end in an empty line, where the caret can be."
   (unless (and (= (area-state-wrapped-at state) width)
-               (= (area-state-theme-id state) (theme-id *theme*))
+               (= (area-state-theme-id state) (theme:theme-id theme:*theme*))
                (eq (area-state-face state) face)
                (string= (area-state-lines-text state) string))
     (let* ((length (length string))
            (lines (loop :for (start end) :in (if (zerop length)
                                                   '()
-                                                  (context-break-lines context
-                                                                       (face-font context face)
-                                                                       string width))
+                                                  (core:context-break-lines context
+                                                                            (face-font context face)
+                                                                            string width))
                         :collect (cons start (if (and (> end start)
                                                       (char= (char string (1- end)) #\Linefeed))
                                                  (1- end)
@@ -1535,7 +1364,7 @@ feed, end in an empty line, where the caret can be."
       (setf (area-state-lines state) (coerce lines 'simple-vector)
             (area-state-lines-text state) (copy-seq string)
             (area-state-wrapped-at state) width
-            (area-state-theme-id state) (theme-id *theme*)
+            (area-state-theme-id state) (theme:theme-id theme:*theme*)
             (area-state-face state) face)
       (incf (area-state-generation state))))
   (area-state-lines state))
@@ -1553,12 +1382,12 @@ that a caret where a long line goes on is at the start of the next)."
 (defun area-inner-width (state width)
   (if (plusp (area-state-inner-width state))
       (area-state-inner-width state)
-      (- width (* 2 (theme-field-padding-x *theme*)) (area-state-gutter state))))
+      (- width (* 2 (theme:theme-field-padding-x theme:*theme*)) (area-state-gutter state))))
 
 (defun area-left (state)
   "How far from the left of a text area its lines start: past its padding and, in a code view,
 the numbers of its lines."
-  (+ (theme-field-padding-x *theme*) (area-state-gutter state)))
+  (+ (theme:theme-field-padding-x theme:*theme*) (area-state-gutter state)))
 
 (defun line-count (string)
   "How many lines STRING has: one more than its line feeds."
@@ -1570,9 +1399,9 @@ lines are numbered (as wide as the widest number, and as two digits at the least
   (if (not (area-state-numbered state))
       0f0
       (let ((digits (max 2 (length (princ-to-string (line-count string))))))
-        (float (+ (context-caret-x context (face-font context face)
-                                   (make-string digits :initial-element #\0) digits)
-                  (theme-field-padding-x *theme*))
+        (float (+ (core:context-caret-x context (face-font context face)
+                                        (make-string digits :initial-element #\0) digits)
+                  (theme:theme-field-padding-x theme:*theme*))
                1f0))))
 
 (defun line-of (string index)
@@ -1582,88 +1411,88 @@ lines are numbered (as wide as the widest number, and as two digits at the least
 (defun area-index-at (ui key area x y)
   "Two values: the index in the text of the area KEY that the pointer at X, Y is nearest, and the
 index of the character it is over."
-  (let* ((rect (rect-of ui key))
-         (context (ui-context ui))
+  (let* ((rect (ui:rect-of ui key))
+         (context (ui:ui-context ui))
          (state (area-state-state area))
-         (string (text-state-string state)))
+         (string (core:text-state-string state)))
     (if (not (and rect context))
-        (values (text-state-caret state) (text-state-caret state))
-        (let* ((lines (area-lines context area string (area-inner-width area (rect-w rect))))
+        (values (core:text-state-caret state) (core:text-state-caret state))
+        (let* ((lines (area-lines context area string (area-inner-width area (ui:rect-w rect))))
                (height (area-line-height context))
                (row (max 0 (min (1- (length lines))
-                                (floor (+ (- y (rect-y rect) (theme-field-padding-y *theme*)) (area-state-offset area))
+                                (floor (+ (- y (ui:rect-y rect) (theme:theme-field-padding-y theme:*theme*)) (area-state-offset area))
                                        height))))
                (line (svref lines row)))
           (multiple-value-bind (index character)
               (index-at context (ui-font context) (subseq string (car line) (cdr line))
-                        (- x (rect-x rect) (area-left area)))
+                        (- x (ui:rect-x rect) (area-left area)))
             (values (+ (car line) index) (+ (car line) character)))))))
 
 (defun area-move-vertically (context area lines down extend)
   "The text state of AREA with the caret a line up (or DOWN), at the x it was at when Up or Down
 was first pressed; at the first or last line, to the start or the end."
   (let* ((state (area-state-state area))
-         (string (text-state-string state))
-         (caret (text-state-caret state))
+         (string (core:text-state-string state))
+         (caret (core:text-state-caret state))
          (font (ui-font context))
          (row (area-line-of lines caret))
          (line (svref lines row))
          (x (or (area-state-goal-x area)
                 (setf (area-state-goal-x area)
-                      (float (context-caret-x context font (subseq string (car line) (cdr line))
-                                              (- caret (car line)))
+                      (float (core:context-caret-x context font (subseq string (car line) (cdr line))
+                                                   (- caret (car line)))
                              1f0))))
          (target (+ row (if down 1 -1))))
-    (cond ((< target 0) (text-place-caret state 0 :extend extend))
-          ((>= target (length lines)) (text-place-caret state (length string) :extend extend))
+    (cond ((< target 0) (core:text-place-caret state 0 :extend extend))
+          ((>= target (length lines)) (core:text-place-caret state (length string) :extend extend))
           (t (let ((line (svref lines target)))
-               (text-place-caret state
-                                 (+ (car line)
-                                    (context-index-at-x context font
-                                                        (subseq string (car line) (cdr line)) x))
-                                 :extend extend))))))
+               (core:text-place-caret state
+                                      (+ (car line)
+                                         (core:context-index-at-x context font
+                                                                  (subseq string (car line) (cdr line)) x))
+                                      :extend extend))))))
 
 (defun area-key (ui area event width)
   "What the key EVENT does to the text of AREA, as two values: the new text state and true if the
 key was one for the area."
-  (let* ((context (ui-context ui))
+  (let* ((context (ui:ui-context ui))
          (state (area-state-state area))
-         (key (key-event-logical-key event))
-         (modifiers (key-event-modifiers event))
-         (shift (modifier-down-p modifiers +modifier-shift+))
-         (command (modifier-down-p modifiers +modifier-super+))
-         (down (eq (key-event-kind event) :down)))
+         (key (core:key-event-logical-key event))
+         (modifiers (core:key-event-modifiers event))
+         (shift (core:modifier-down-p modifiers core:+modifier-shift+))
+         (command (core:modifier-down-p modifiers core:+modifier-super+))
+         (down (eq (core:key-event-kind event) :down)))
     (flet ((lines ()
-             (area-lines context area (text-state-string state) (area-inner-width area width))))
+             (area-lines context area (core:text-state-string state) (area-inner-width area width))))
       (cond
         ((not down) (values state nil))
-        ((eql key #\Return) (values (text-insert state (string #\Linefeed)) t))
-        ((and (or (eql key +key-up+) (eql key +key-down+)) command)
-         (values (text-move state (if (eql key +key-up+) :start :end) :extend shift) t))
+        ((eql key #\Return) (values (core:text-insert state (string #\Linefeed)) t))
+        ((and (or (eql key core:+key-up+) (eql key core:+key-down+)) command)
+         (values (core:text-move state (if (eql key core:+key-up+) :start :end) :extend shift) t))
         ;; The x it keeps to is kept for the next Up or Down; any other key forgets it (TEXT-AREA).
-        ((or (eql key +key-up+) (eql key +key-down+))
-         (values (area-move-vertically context area (lines) (eql key +key-down+) shift) t))
-        ((and (or (eql key +key-left+) (eql key +key-right+)) command)
+        ((or (eql key core:+key-up+) (eql key core:+key-down+))
+         (values (area-move-vertically context area (lines) (eql key core:+key-down+) shift) t))
+        ((and (or (eql key core:+key-left+) (eql key core:+key-right+)) command)
          ;; The start or the end of the line the caret is on.
          (let* ((lines (lines))
-                (line (svref lines (area-line-of lines (text-state-caret state)))))
-           (values (text-place-caret state (if (eql key +key-left+) (car line) (cdr line))
-                                     :extend shift)
+                (line (svref lines (area-line-of lines (core:text-state-caret state)))))
+           (values (core:text-place-caret state (if (eql key core:+key-left+) (car line) (cdr line))
+                                          :extend shift)
                    t)))
         (t
          (multiple-value-bind (pasted command)
              (clipboard-edit state event context)
            (if command
                (values pasted t)
-               (edit-text state event))))))))
+               (core:edit-text state event))))))))
 
 (defun area-most-offset (ui area width rows)
   "How far down the lines of the text AREA can be scrolled, in points, or NIL if UI has no context to
 lay the lines out with."
-  (let ((context (ui-context ui)))
+  (let ((context (ui:ui-context ui)))
     (when context
       (let ((lines (area-lines context area
-                               (text-state-string (shown-text-state area (area-state-state area)))
+                               (core:text-state-string (shown-text-state area (area-state-state area)))
                                (area-inner-width area width)))
             (height (area-line-height context))
             (inner (if (plusp (area-state-inner-height area))
@@ -1672,15 +1501,15 @@ lay the lines out with."
         (max 0f0 (- (* (length lines) height) inner))))))
 
 (defun keep-area-caret-visible (ui area width rows)
-  (let ((context (ui-context ui)))
+  (let ((context (ui:ui-context ui)))
     (when context
       (let* ((state (shown-text-state area (area-state-state area)))
-             (lines (area-lines context area (text-state-string state) (area-inner-width area width)))
+             (lines (area-lines context area (core:text-state-string state) (area-inner-width area width)))
              (height (area-line-height context))
              (inner (if (plusp (area-state-inner-height area))
                         (area-state-inner-height area)
                         (* rows height)))
-             (top (* height (area-line-of lines (text-state-caret state))))
+             (top (* height (area-line-of lines (core:text-state-caret state))))
              (offset (area-state-offset area)))
         (cond ((< top offset) (setf offset top))
               ((> (+ top height) (+ offset inner)) (setf offset (- (+ top height) inner))))
@@ -1690,20 +1519,20 @@ lay the lines out with."
 (defun say-area-caret (ui key area width)
   "Say where the caret of the text area KEY, whose state is AREA and which is WIDTH wide, is in the
 window, from where the area was laid out last."
-  (let ((rect (rect-of ui key))
-        (context (ui-context ui)))
+  (let ((rect (ui:rect-of ui key))
+        (context (ui:ui-context ui)))
     (if (not (and rect context))
         (say-text-input-caret ui 0f0 0f0 0f0)
         (let* ((shown (shown-text-state area (area-state-state area)))
-               (string (text-state-string shown))
+               (string (core:text-state-string shown))
                (lines (area-lines context area string (area-inner-width area width)))
                (height (area-line-height context))
-               (row (area-line-of lines (text-state-caret shown)))
+               (row (area-line-of lines (core:text-state-caret shown)))
                (line (svref lines row))
-               (x (context-caret-x context (ui-font context) (subseq string (car line) (cdr line))
-                                   (- (text-state-caret shown) (car line)))))
-          (say-text-input-caret ui (+ (rect-x rect) (area-left area) x)
-                                (+ (rect-y rect) (theme-field-padding-y *theme*)
+               (x (core:context-caret-x context (ui-font context) (subseq string (car line) (cdr line))
+                                        (- (core:text-state-caret shown) (car line)))))
+          (say-text-input-caret ui (+ (ui:rect-x rect) (area-left area) x)
+                                (+ (ui:rect-y rect) (theme:theme-field-padding-y theme:*theme*)
                                    (* row height) (- (area-state-offset area)) 1)
                                 (- height 2))))))
 
@@ -1746,98 +1575,98 @@ is on."
           mark
           (error "A mark of a code view is (LINE COLOUR) or (LINE COLOUR NOTE), with LINE a line's ~
                   number from 1 and NOTE a string, not ~s." mark))
-    (list line (theme-color color) (theme-color (list color :alpha 0.25)) note)))
+    (list line (theme:theme-color color) (theme:theme-color (list color :alpha 0.25)) note)))
 
 (defun lines-of-text (string id tooltip labelled-by width rows enabled flex face numbered marks)
   "A text area or a code view (NUMBERED, with MARKS): see TEXT-AREA and CODE-VIEW."
-  (let* ((ui *ui*)
-         (box (open-box ui :text-area :id id :tooltip tooltip :labelled-by labelled-by))
-         (key (box-key box))
-         (*face* (setf (box-font box) face))
-         (area (state-of ui key #'make-area-state))
+  (let* ((ui ui:*ui*)
+         (box (ui:open-box ui :text-area :id id :tooltip tooltip :labelled-by labelled-by))
+         (key (box:box-key box))
+         (*face* (setf (box:box-font box) face))
+         (area (ui:state-of ui key #'make-area-state))
          (width (float width 1f0))
          (changed nil)
          (moved nil))
-    (unless (string= (text-state-string (area-state-state area)) string)
-      (setf (area-state-state area) (make-text-state string)
+    (unless (string= (core:text-state-string (area-state-state area)) string)
+      (setf (area-state-state area) (core:make-text-state string)
             (area-state-offset area) 0f0
             (area-state-goal-x area) nil)
       (forget-edits area))
-    (setf (box-enabled box) enabled
-          (box-interactive box) enabled
-          (box-focusable box) enabled
-          (box-pref-w box) width
-          (box-n3 box) rows
-          (box-data box) area
-          (box-flex box) (float flex 1f0)
+    (setf (box:box-enabled box) enabled
+          (box:box-interactive box) enabled
+          (box:box-focusable box) enabled
+          (box:box-pref-w box) width
+          (box:box-n3 box) rows
+          (box:box-data box) area
+          (box:box-flex box) (float flex 1f0)
           ;; Numbered or not, which the layout hash takes.
-          (box-n2 box) (if numbered 1f0 0f0)
+          (box:box-n2 box) (if numbered 1f0 0f0)
           (area-state-numbered area) numbered
           (area-state-marks area) marks)
     (unless numbered
       (setf (area-state-gutter area) 0f0))
     (when enabled
-      (want-cursor ui key :text)
-      (let ((x (ui-pointer-x ui))
-            (y (ui-pointer-y ui)))
-        (when (and (= (ui-hot ui) key) (ui-pressed ui))
-          (consume-press ui)
-          (focus-by-click ui key)
-          (setf (ui-active ui) key
+      (ui:want-cursor ui key :text)
+      (let ((x (ui:ui-pointer-x ui))
+            (y (ui:ui-pointer-y ui)))
+        (when (and (= (ui:ui-hot ui) key) (ui:ui-pressed ui))
+          (ui:consume-press ui)
+          (ui:focus-by-click ui key)
+          (setf (ui:ui-active ui) key
                 (area-state-goal-x area) nil
                 (editable-run area) nil
                 moved t)
           (multiple-value-bind (index character) (area-index-at ui key area x y)
             (setf (area-state-state area)
-                  (press-text area (area-state-state area) index character (ui-click-count ui)))))
-        (when (and (= (ui-active ui) key) (ui-down ui))
+                  (press-text area (area-state-state area) index character (ui:ui-click-count ui)))))
+        (when (and (= (ui:ui-active ui) key) (ui:ui-down ui))
           (let ((new (multiple-value-bind (index character) (area-index-at ui key area x y)
                        (drag-text area (area-state-state area) index character))))
             (unless (eq new (area-state-state area))
               (setf (area-state-state area) new
                     moved t))))
-        (when (and (= (ui-active ui) key) (ui-released ui))
-          (consume-release ui)
-          (setf (ui-active ui) 0))
+        (when (and (= (ui:ui-active ui) key) (ui:ui-released ui))
+          (ui:consume-release ui)
+          (setf (ui:ui-active ui) 0))
         ;; The wheel moves the lines if they can go its way, and is otherwise left for what the text
         ;; area is in (with no context to know how far they go, it is taken).
-        (when (and (= (ui-hot ui) key)
+        (when (and (= (ui:ui-hot ui) key)
                    (let ((most (area-most-offset ui area width rows)))
                      (or (null most)
-                         (wheel-can-move-p (ui-wheel-dy ui) (area-state-offset area) most))))
-          (multiple-value-bind (dx dy) (consume-wheel ui)
+                         (wheel-can-move-p (ui:ui-wheel-dy ui) (area-state-offset area) most))))
+          (multiple-value-bind (dx dy) (ui:consume-wheel ui)
             (declare (ignore dx))
             (when (/= dy 0f0)
-              (decf (area-state-offset area) (* dy (float +points-per-line+ 1f0)))))))
-      (when (= (ui-focus ui) key)
-        (dolist (event (copy-list (ui-inputs ui)))
+              (decf (area-state-offset area) (* dy (float core:+points-per-line+ 1f0)))))))
+      (when (= (ui:ui-focus ui) key)
+        (dolist (event (copy-list (ui:ui-inputs ui)))
           (cond
-            ((not (typep event 'key-event))
+            ((not (typep event 'core:key-event))
              (let ((new (take-text-input ui area (area-state-state area) event nil)))
-               (unless (string= (text-state-string new)
-                                (text-state-string (area-state-state area)))
+               (unless (string= (core:text-state-string new)
+                                (core:text-state-string (area-state-state area)))
                  (setf changed t))
                (setf (area-state-state area) new
                      (area-state-goal-x area) nil
                      moved t)))
-            ((not (member event (ui-keys ui) :test #'eq)))
+            ((not (member event (ui:ui-keys ui) :test #'eq)))
             (t
-             (let ((vertical (member (key-event-logical-key event) (list +key-up+ +key-down+))))
+             (let ((vertical (member (core:key-event-logical-key event) (list core:+key-up+ core:+key-down+))))
                (multiple-value-bind (new edited)
                    (edit-with-history area (area-state-state area) event
                                       (lambda (text event)
                                         (declare (ignore text))
                                         (area-key ui area event width)))
                  (when edited
-                   (consume-key ui event)
+                   (ui:consume-key ui event)
                    (unless vertical
                      (setf (area-state-goal-x area) nil))
-                   (unless (string= (text-state-string new)
-                                    (text-state-string (area-state-state area)))
+                   (unless (string= (core:text-state-string new)
+                                    (core:text-state-string (area-state-state area)))
                      (setf changed t))
                    (setf (area-state-state area) new
                          moved t)))))))))
-    (unless (and enabled (= (ui-focus ui) key))
+    (unless (and enabled (= (ui:ui-focus ui) key))
       (setf (editable-marked area) nil))
     (if moved
         (keep-area-caret-visible ui area width rows)
@@ -1845,15 +1674,15 @@ is on."
         (let ((most (area-most-offset ui area width rows)))
           (when most
             (setf (area-state-offset area) (max 0f0 (min (area-state-offset area) most))))))
-    (when (and enabled (= (ui-focus ui) key))
+    (when (and enabled (= (ui:ui-focus ui) key))
       (say-area-caret ui key area width))
-    (setf (box-look box) (look-of ui key enabled)
-          (box-text box) (text-state-string (shown-text-state area (area-state-state area)))
-          (box-n1 box) (area-state-offset area))
-    (close-box ui)
+    (setf (box:box-look box) (look-of ui key enabled)
+          (box:box-text box) (core:text-state-string (shown-text-state area (area-state-state area)))
+          (box:box-n1 box) (area-state-offset area))
+    (ui:close-box ui)
     (let ((state (area-state-state area)))
-      (values (text-state-string state) changed
-              (line-of (text-state-string state) (text-state-caret state))))))
+      (values (core:text-state-string state) changed
+              (line-of (core:text-state-string state) (core:text-state-caret state))))))
 
 ;;; --- a slider ---
 
@@ -1870,63 +1699,63 @@ is on."
                &key (id (required-id 'slider)) tooltip labelled-by (width 200) (enabled t) (flex 0))
   "A slider showing VALUE between MINIMUM and MAXIMUM. Returns the value now and whether the
 person changed it this frame."
-  (let* ((ui *ui*)
-         (box (open-box ui :slider :id id :tooltip tooltip :labelled-by labelled-by))
-         (key (box-key box))
-         (state (state-of ui key #'make-slider-state))
+  (let* ((ui ui:*ui*)
+         (box (ui:open-box ui :slider :id id :tooltip tooltip :labelled-by labelled-by))
+         (key (box:box-key box))
+         (state (ui:state-of ui key #'make-slider-state))
          (new (float value 1d0))
          (range (- (float maximum 1d0) (float minimum 1d0))))
     (flet ((slide-to (x)
-             (let ((rect (rect-of ui key)))
+             (let ((rect (ui:rect-of ui key)))
                (when rect
-                 (let ((travel (max 1f0 (- (rect-w rect) +thumb-size+))))
+                 (let ((travel (max 1f0 (- (ui:rect-w rect) +thumb-size+))))
                    (setf new (+ minimum
-                                (* (max 0d0 (min 1d0 (/ (- x (rect-x rect) (/ +thumb-size+ 2))
+                                (* (max 0d0 (min 1d0 (/ (- x (ui:rect-x rect) (/ +thumb-size+ 2))
                                                         travel)))
                                    range))))))))
-      (setf (box-enabled box) enabled
-            (box-interactive box) enabled
-            (box-focusable box) enabled
-            (box-pref-w box) (float width 1f0)
-            (box-flex box) (float flex 1f0))
+      (setf (box:box-enabled box) enabled
+            (box:box-interactive box) enabled
+            (box:box-focusable box) enabled
+            (box:box-pref-w box) (float width 1f0)
+            (box:box-flex box) (float flex 1f0))
       (when enabled
-        (when (and (= (ui-hot ui) key) (ui-pressed ui))
-          (consume-press ui)
-          (focus-by-click ui key)
-          (setf (ui-active ui) key
+        (when (and (= (ui:ui-hot ui) key) (ui:ui-pressed ui))
+          (ui:consume-press ui)
+          (ui:focus-by-click ui key)
+          (setf (ui:ui-active ui) key
                 (slider-state-slid-x state) nil))
-        (when (= (ui-active ui) key)
-          (let ((x (ui-pointer-x ui)))
-            (when (and (ui-down ui) (not (eql x (slider-state-slid-x state))))
+        (when (= (ui:ui-active ui) key)
+          (let ((x (ui:ui-pointer-x ui)))
+            (when (and (ui:ui-down ui) (not (eql x (slider-state-slid-x state))))
               (setf (slider-state-slid-x state) x)
               (slide-to x)))
-          (when (ui-released ui)
-            (consume-release ui)
-            (setf (ui-active ui) 0)))
-        (when (= (ui-focus ui) key)
-          (dolist (event (copy-list (ui-keys ui)))
-            (let* ((k (key-event-logical-key event))
+          (when (ui:ui-released ui)
+            (ui:consume-release ui)
+            (setf (ui:ui-active ui) 0)))
+        (when (= (ui:ui-focus ui) key)
+          (dolist (event (copy-list (ui:ui-keys ui)))
+            (let* ((k (core:key-event-logical-key event))
                    (step (/ range 20))
-                   (moved (cond ((or (eql k +key-left+) (eql k +key-down+)) (- new step))
-                                ((or (eql k +key-right+) (eql k +key-up+)) (+ new step))
-                                ((eql k +key-home+) (float minimum 1d0))
-                                ((eql k +key-end+) (float maximum 1d0)))))
+                   (moved (cond ((or (eql k core:+key-left+) (eql k core:+key-down+)) (- new step))
+                                ((or (eql k core:+key-right+) (eql k core:+key-up+)) (+ new step))
+                                ((eql k core:+key-home+) (float minimum 1d0))
+                                ((eql k core:+key-end+) (float maximum 1d0)))))
               (when moved
-                (consume-key ui event)
+                (ui:consume-key ui event)
                 (setf new (max (float minimum 1d0) (min (float maximum 1d0) moved))))))))
       (setf new (max (float minimum 1d0) (min (float maximum 1d0) new)))
       ;; A new value may change what the application shows before the slider.
       (when (/= new (float value 1d0))
-        (setf (ui-consumed ui) t))
-      (setf (box-n1 box) (if (plusp range)
-                             (float (/ (- new (float minimum 1d0)) range) 1f0)
-                             0f0)
-            (box-look box) (look-of ui key enabled))
-      (let ((aux (box-aux-doubles box)))
+        (setf (ui:ui-consumed ui) t))
+      (setf (box:box-n1 box) (if (plusp range)
+                                 (float (/ (- new (float minimum 1d0)) range) 1f0)
+                                 0f0)
+            (box:box-look box) (look-of ui key enabled))
+      (let ((aux (box:box-aux-doubles box)))
         (setf (aref aux 0) new
               (aref aux 1) (float minimum 1d0)
               (aref aux 2) (float maximum 1d0)))
-      (close-box ui)
+      (ui:close-box ui)
       (values new (/= new (float value 1d0))))))
 
 ;;; --- a choice between options ---
@@ -1957,50 +1786,50 @@ STYLE :TABS draws them as the tabs of a tab bar, the chosen one marked under its
 Returns the index now and whether the person changed it this frame."
   (check-type direction (member :horizontal :vertical))
   (check-type style (member :radio :segmented :tabs))
-  (let* ((ui *ui*)
-         (box (open-box ui :choice :id id :tooltip tooltip :labelled-by labelled-by))
-         (*face* (setf (box-font box) (widget-face font (if (eq style :radio) :body :button))))
-         (key (box-key box))
-         (state (state-of ui key #'make-choice-state))
+  (let* ((ui ui:*ui*)
+         (box (ui:open-box ui :choice :id id :tooltip tooltip :labelled-by labelled-by))
+         (*face* (setf (box:box-font box) (widget-face font (if (eq style :radio) :body :button))))
+         (key (box:box-key box))
+         (state (ui:state-of ui key #'make-choice-state))
          (new selected))
-    (setf (box-enabled box) enabled
-          (box-interactive box) enabled
-          (box-focusable box) enabled
-          (box-data box) (cons options state)
+    (setf (box:box-enabled box) enabled
+          (box:box-interactive box) enabled
+          (box:box-focusable box) enabled
+          (box:box-data box) (cons options state)
           ;; Which way the options go, which decides the layout; :SEGMENTED for joined segments.
-          (box-main-align box) (if (eq style :radio) direction style)
-          (box-flex box) (float flex 1f0))
+          (box:box-main-align box) (if (eq style :radio) direction style)
+          (box:box-flex box) (float flex 1f0))
     (when enabled
-      (when (and (= (ui-hot ui) key) (ui-pressed ui))
-        (consume-press ui)
-        (setf (ui-active ui) key))
-      (when (and (= (ui-active ui) key) (ui-released ui))
-        (consume-release ui)
-        (setf (ui-active ui) 0)
-        (let ((rect (rect-of ui key))
+      (when (and (= (ui:ui-hot ui) key) (ui:ui-pressed ui))
+        (ui:consume-press ui)
+        (setf (ui:ui-active ui) key))
+      (when (and (= (ui:ui-active ui) key) (ui:ui-released ui))
+        (ui:consume-release ui)
+        (setf (ui:ui-active ui) 0)
+        (let ((rect (ui:rect-of ui key))
               (lefts (choice-state-lefts state))
               (tops (choice-state-tops state))
               (widths (choice-state-widths state))
               (height (choice-state-option-height state)))
-          (when (and rect (= (ui-hot ui) key))
+          (when (and rect (= (ui:ui-hot ui) key))
             (dotimes (i (length lefts))
-              (let ((left (+ (rect-x rect) (svref lefts i)))
-                    (top (+ (rect-y rect) (svref tops i))))
-                (when (and (<= left (ui-pointer-x ui) (+ left (svref widths i)))
-                           (<= top (ui-pointer-y ui) (+ top height)))
+              (let ((left (+ (ui:rect-x rect) (svref lefts i)))
+                    (top (+ (ui:rect-y rect) (svref tops i))))
+                (when (and (<= left (ui:ui-pointer-x ui) (+ left (svref widths i)))
+                           (<= top (ui:ui-pointer-y ui) (+ top height)))
                   (setf new i)
                   (return)))))))
-      (when (= (ui-focus ui) key)
-        (dolist (event (copy-list (ui-keys ui)))
-          (let ((k (key-event-logical-key event))
+      (when (= (ui:ui-focus ui) key)
+        (dolist (event (copy-list (ui:ui-keys ui)))
+          (let ((k (core:key-event-logical-key event))
                 (count (length options)))
-            (cond ((and (or (eql k +key-left+) (eql k +key-up+)) (plusp new))
-                   (consume-key ui event) (decf new))
-                  ((and (or (eql k +key-right+) (eql k +key-down+)) (< new (1- count)))
-                   (consume-key ui event) (incf new)))))))
-    (setf (box-n3 box) new
-          (box-look box) (look-of ui key enabled))
-    (close-box ui)
+            (cond ((and (or (eql k core:+key-left+) (eql k core:+key-up+)) (plusp new))
+                   (ui:consume-key ui event) (decf new))
+                  ((and (or (eql k core:+key-right+) (eql k core:+key-down+)) (< new (1- count)))
+                   (ui:consume-key ui event) (incf new)))))))
+    (setf (box:box-n3 box) new
+          (box:box-look box) (look-of ui key enabled))
+    (ui:close-box ui)
     (values new (/= new selected))))
 
 ;;; --- menus ---
@@ -2033,14 +1862,14 @@ Returns the index now and whether the person changed it this frame."
         (menu-state-highlight state) highlight
         (menu-state-x state) (float x 1f0)
         (menu-state-y state) (float y 1f0))
-  (setf (ui-consumed *ui*) t))
+  (setf (ui:ui-consumed ui:*ui*) t))
 
 (defun menu-rows-shown (ui count max-rows)
   "How many of COUNT rows a menu shows: as many as fit in the window, and no more than MAX-ROWS."
-  (let* ((context (ui-context ui))
-         (height (if context (context-height context) 0f0))
-         (fit (max 3 (floor (- height (* 2 (theme-menu-padding *theme*)) 16f0)
-                            (theme-row-height *theme*)))))
+  (let* ((context (ui:ui-context ui))
+         (height (if context (core:context-height context) 0f0))
+         (fit (max 3 (floor (- height (* 2 (theme:theme-menu-padding theme:*theme*)) 16f0)
+                            (theme:theme-row-height theme:*theme*)))))
     (max 0 (min count fit (or max-rows count)))))
 
 (defun menu (ui owner state items spec &key checked typing max-rows)
@@ -2078,81 +1907,81 @@ letters typed move the highlight to the first row they begin."
       (clamp-top)
       (let ((top (menu-state-top state)))
         (multiple-value-bind (catcher open)
-            (open-float ui :catcher owner :catcher (make-float-spec :placement :fill))
-          (setf (box-interactive catcher) t)
-          (close-float ui open)
-          (when (= (ui-hot ui) (box-key catcher))
-            (when (ui-pressed ui)
-              (consume-press ui)
+            (ui:open-float ui :catcher owner :catcher (ui:make-float-spec :placement :fill))
+          (setf (box:box-interactive catcher) t)
+          (ui:close-float ui open)
+          (when (= (ui:ui-hot ui) (box:box-key catcher))
+            (when (ui:ui-pressed ui)
+              (ui:consume-press ui)
               (setf closed t))
             ;; Nothing under an open menu scrolls.
-            (consume-wheel ui)))
-        (multiple-value-bind (float open) (open-float ui :menu owner :menu spec)
+            (ui:consume-wheel ui)))
+        (multiple-value-bind (float open) (ui:open-float ui :menu owner :menu spec)
           ;; A press between the rows is the menu's, and not a press outside it.
-          (setf (box-interactive float) t)
-          (when (and (= (ui-hot ui) (box-key float)) (ui-pressed ui))
-            (consume-press ui))
+          (setf (box:box-interactive float) t)
+          (when (and (= (ui:ui-hot ui) (box:box-key float)) (ui:ui-pressed ui))
+            (ui:consume-press ui))
           (loop :for item :in (nthcdr top items)
                 :for i :from top :below (+ top shown)
-                :do (let* ((row (open-box ui :menu-item :id i))
-                           (key (box-key row)))
+                :do (let* ((row (ui:open-box ui :menu-item :id i))
+                           (key (box:box-key row)))
                       (push row rows)
-                      (setf (box-text row) item
-                            (box-interactive row) t
-                            (box-moves row) t
-                            (box-n2 row) (if (eql i checked) 1f0 0f0))
-                      (when (= (ui-hot ui) key)
+                      (setf (box:box-text row) item
+                            (box:box-interactive row) t
+                            (box:box-moves row) t
+                            (box:box-n2 row) (if (eql i checked) 1f0 0f0))
+                      (when (= (ui:ui-hot ui) key)
                         ;; The row the pointer moves onto; rows that the wheel or the keys move
                         ;; under a pointer at rest do not take the highlight from the keys.
-                        (when (and (ui-moved ui) (/= (menu-state-highlight state) i))
+                        (when (and (ui:ui-moved ui) (/= (menu-state-highlight state) i))
                           (setf (menu-state-highlight state) i
-                                (ui-consumed ui) t))
-                        (when (ui-pressed ui)
-                          (consume-press ui)
-                          (setf (ui-active ui) key)))
-                      (when (and (= (ui-active ui) key) (ui-released ui))
-                        (consume-release ui)
-                        (setf (ui-active ui) 0)
-                        (when (= (ui-hot ui) key)
+                                (ui:ui-consumed ui) t))
+                        (when (ui:ui-pressed ui)
+                          (ui:consume-press ui)
+                          (setf (ui:ui-active ui) key)))
+                      (when (and (= (ui:ui-active ui) key) (ui:ui-released ui))
+                        (ui:consume-release ui)
+                        (setf (ui:ui-active ui) 0)
+                        (when (= (ui:ui-hot ui) key)
                           (setf chosen i)))
-                      (close-box ui)))
+                      (ui:close-box ui)))
           ;; The wheel over the menu moves its rows (and nothing under it).
-          (when (or (= (ui-hot ui) (box-key float))
-                    (find (ui-hot ui) rows :key #'box-key))
-            (multiple-value-bind (dx dy) (consume-wheel ui)
+          (when (or (= (ui:ui-hot ui) (box:box-key float))
+                    (find (ui:ui-hot ui) rows :key #'box:box-key))
+            (multiple-value-bind (dx dy) (ui:consume-wheel ui)
               (declare (ignore dx))
               (let ((whole (truncate (- dy))))
                 (unless (zerop whole)
                   (setf (menu-state-top state) (+ top whole)
-                        (ui-consumed ui) t)
+                        (ui:ui-consumed ui) t)
                   (clamp-top)))))
           ;; For the painter: where the rows shown are among them all.
-          (setf (box-n3 float) count
-                (box-n1 float) (float top 1f0)
-                (box-n2 float) (float shown 1f0))
-          (close-float ui open)))
-      (dolist (event (copy-list (ui-keys ui)))
-        (let ((k (key-event-logical-key event))
+          (setf (box:box-n3 float) count
+                (box:box-n1 float) (float top 1f0)
+                (box:box-n2 float) (float shown 1f0))
+          (ui:close-float ui open)))
+      (dolist (event (copy-list (ui:ui-keys ui)))
+        (let ((k (core:key-event-logical-key event))
               (highlight (menu-state-highlight state)))
-          (cond ((eql k +key-down+)
-                 (consume-key ui event)
+          (cond ((eql k core:+key-down+)
+                 (ui:consume-key ui event)
                  (setf (menu-state-highlight state)
                        (if (< highlight 0) 0 (min (1- count) (1+ highlight)))))
-                ((eql k +key-up+)
-                 (consume-key ui event)
+                ((eql k core:+key-up+)
+                 (ui:consume-key ui event)
                  (setf (menu-state-highlight state)
                        (if (< highlight 0) (1- count) (max 0 (1- highlight)))))
                 ((and (member k '(#\Return #\Space))
                       (not (and typing (eql k #\Space))))
-                 (consume-key ui event)
+                 (ui:consume-key ui event)
                  (when (<= 0 highlight (1- count))
                    (setf chosen highlight)))
                 ((eql k #\Escape)
-                 (consume-key ui event)
+                 (ui:consume-key ui event)
                  (setf closed t))
                 ;; Letters find the first row that begins with what was typed in the last second.
                 ((and (not typing) (characterp k) (graphic-char-p k) (not (eql k #\Space)))
-                 (consume-key ui event)
+                 (ui:consume-key ui event)
                  (let ((now (get-internal-real-time)))
                    (when (> (- now (menu-state-typed-at state)) internal-time-units-per-second)
                      (setf (menu-state-typed state) ""))
@@ -2169,14 +1998,14 @@ letters typed move the highlight to the first row they begin."
       ;; A highlight the keys moved is kept in view, from the next frame.
       (unless (= highlight-before (menu-state-highlight state))
         (reveal (menu-state-highlight state))
-        (setf (ui-consumed ui) t)))
+        (setf (ui:ui-consumed ui) t)))
     (dolist (row rows)
-      (setf (box-n3 row) (if (= (box-id row) (menu-state-highlight state)) 1 0)))
+      (setf (box:box-n3 row) (if (= (box:box-id row) (menu-state-highlight state)) 1 0)))
     (when chosen
       (setf closed t))
     (when closed
       (setf (menu-state-open state) nil
-            (ui-consumed ui) t))
+            (ui:ui-consumed ui) t))
     (values chosen closed)))
 
 ;;; --- a dropdown ---
@@ -2189,43 +2018,43 @@ of them all: a pop-up button. WIDTH is how wide it is (by default, as wide as th
 Its menu shows as many options as fit in the window, or MAX-ROWS, and scrolls.
 Returns the index now and whether the person changed it this frame. With the keyboard on it, the
 space bar, Return and the arrows open the menu."
-  (let* ((ui *ui*)
-         (box (open-box ui :dropdown :id id :tooltip tooltip :labelled-by labelled-by))
-         (*face* (setf (box-font box) (widget-face font :body)))
-         (key (box-key box))
-         (state (state-of ui key #'make-menu-state))
+  (let* ((ui ui:*ui*)
+         (box (ui:open-box ui :dropdown :id id :tooltip tooltip :labelled-by labelled-by))
+         (*face* (setf (box:box-font box) (widget-face font :body)))
+         (key (box:box-key box))
+         (state (ui:state-of ui key #'make-menu-state))
          (new selected))
-    (setf (box-text box) (or (and selected (nth selected options)) "")
-          (box-enabled box) enabled
-          (box-interactive box) enabled
-          (box-focusable box) enabled
-          (box-pref-w box) (if width (float width 1f0) 0f0)
-          (box-data box) options
-          (box-flex box) (float flex 1f0))
+    (setf (box:box-text box) (or (and selected (nth selected options)) "")
+          (box:box-enabled box) enabled
+          (box:box-interactive box) enabled
+          (box:box-focusable box) enabled
+          (box:box-pref-w box) (if width (float width 1f0) 0f0)
+          (box:box-data box) options
+          (box:box-flex box) (float flex 1f0))
     (cond
       ((not enabled) (setf (menu-state-open state) nil))
       ((not (menu-state-open state))
        ;; A press opens it (as a Mac pop-up button does, at once), and gives it the keyboard.
-       (when (and (= (ui-hot ui) key) (ui-pressed ui))
-         (consume-press ui)
-         (focus-by-click ui key)
+       (when (and (= (ui:ui-hot ui) key) (ui:ui-pressed ui))
+         (ui:consume-press ui)
+         (ui:focus-by-click ui key)
          (open-menu state (or selected 0)))
-       (when (= (ui-focus ui) key)
-         (dolist (event (copy-list (ui-keys ui)))
-           (when (member (key-event-logical-key event) (list #\Space #\Return +key-down+ +key-up+))
-             (consume-key ui event)
+       (when (= (ui:ui-focus ui) key)
+         (dolist (event (copy-list (ui:ui-keys ui)))
+           (when (member (core:key-event-logical-key event) (list #\Space #\Return core:+key-down+ core:+key-up+))
+             (ui:consume-key ui event)
              (open-menu state (or selected 0)))))))
-    (close-box ui)
+    (ui:close-box ui)
     (when (menu-state-open state)
       (let ((chosen (menu ui key state options
-                          (make-float-spec :anchor box :placement :below
-                                           :min-width (let ((rect (rect-of ui key)))
-                                                        (if rect (rect-w rect) 0f0)))
+                          (ui:make-float-spec :anchor box :placement :below
+                                              :min-width (let ((rect (ui:rect-of ui key)))
+                                                             (if rect (ui:rect-w rect) 0f0)))
                           :checked selected :max-rows max-rows)))
         (when chosen
           (setf new chosen))))
-    (setf (box-n3 box) (if (menu-state-open state) 1 0)
-          (box-look box) (look-of ui key enabled))
+    (setf (box:box-n3 box) (if (menu-state-open state) 1 0)
+          (box:box-look box) (look-of ui key enabled))
     (values new (not (eql new selected)))))
 
 ;;; --- a button with a menu of commands ---
@@ -2235,40 +2064,40 @@ space bar, Return and the arrows open the menu."
   "A button with TEXT that a press opens into a menu of ITEMS (strings): commands, of which none is
 chosen beforehand. Returns the item chosen, on the frame it is chosen, and otherwise NIL. With the
 keyboard on it, the space bar, Return and the arrows open the menu."
-  (let* ((ui *ui*)
-         (box (open-box ui :menu-button :id id :tooltip tooltip))
-         (*face* (setf (box-font box) (widget-face font :button)))
-         (key (box-key box))
-         (state (state-of ui key #'make-menu-state))
+  (let* ((ui ui:*ui*)
+         (box (ui:open-box ui :menu-button :id id :tooltip tooltip))
+         (*face* (setf (box:box-font box) (widget-face font :button)))
+         (key (box:box-key box))
+         (state (ui:state-of ui key #'make-menu-state))
          (chosen nil))
-    (setf (box-text box) text
-          (box-enabled box) enabled
-          (box-interactive box) enabled
-          (box-focusable box) enabled
-          (box-flex box) (float flex 1f0))
+    (setf (box:box-text box) text
+          (box:box-enabled box) enabled
+          (box:box-interactive box) enabled
+          (box:box-focusable box) enabled
+          (box:box-flex box) (float flex 1f0))
     (cond
       ((not enabled) (setf (menu-state-open state) nil))
       ((not (menu-state-open state))
-       (when (and (= (ui-hot ui) key) (ui-pressed ui))
-         (consume-press ui)
-         (focus-by-click ui key)
+       (when (and (= (ui:ui-hot ui) key) (ui:ui-pressed ui))
+         (ui:consume-press ui)
+         (ui:focus-by-click ui key)
          (open-menu state -1))
-       (when (= (ui-focus ui) key)
-         (dolist (event (copy-list (ui-keys ui)))
-           (when (member (key-event-logical-key event) (list #\Space #\Return +key-down+ +key-up+))
-             (consume-key ui event)
+       (when (= (ui:ui-focus ui) key)
+         (dolist (event (copy-list (ui:ui-keys ui)))
+           (when (member (core:key-event-logical-key event) (list #\Space #\Return core:+key-down+ core:+key-up+))
+             (ui:consume-key ui event)
              (open-menu state 0))))))
-    (close-box ui)
+    (ui:close-box ui)
     (when (menu-state-open state)
       (let ((index (menu ui key state items
-                         (make-float-spec :anchor box :placement :below
-                                          :min-width (let ((rect (rect-of ui key)))
-                                                       (if rect (rect-w rect) 0f0)))
+                         (ui:make-float-spec :anchor box :placement :below
+                                             :min-width (let ((rect (ui:rect-of ui key)))
+                                                            (if rect (ui:rect-w rect) 0f0)))
                          :max-rows max-rows)))
         (when index
           (setf chosen (nth index items)))))
-    (setf (box-n3 box) (if (menu-state-open state) 1 0)
-          (box-look box) (look-of ui key enabled))
+    (setf (box:box-n3 box) (if (menu-state-open state) 1 0)
+          (box:box-look box) (look-of ui key enabled))
     chosen))
 
 ;;; --- a menu on a secondary press ---
@@ -2282,39 +2111,39 @@ keyboard on it, the space bar, Return and the arrows open the menu."
   (first-inside 0 :type fixnum))
 
 (defun begin-context-menu (id)
-  (let* ((ui *ui*)
-         (box (open-box ui :context-area :id (or id (required-id 'context-menu))))
-         (state (state-of ui (box-key box) #'make-context-state)))
+  (let* ((ui ui:*ui*)
+         (box (ui:open-box ui :context-area :id (or id (required-id 'context-menu))))
+         (state (ui:state-of ui (box:box-key box) #'make-context-state)))
     ;; It takes the pointer where nothing inside it does, so that a press there is in the area.
-    (setf (box-interactive box) t
-          (box-data box) state
-          (context-state-first-inside state) (ui-count ui))
+    (setf (box:box-interactive box) t
+          (box:box-data box) state
+          (context-state-first-inside state) (ui:ui-count ui))
     box))
 
 (defun in-area-p (ui box key)
   "True if KEY is the key of BOX or of a box made inside it this build."
-  (or (= key (box-key box))
-      (let ((boxes (ui-boxes ui)))
-        (loop :for index :from (context-state-first-inside (box-data box)) :below (ui-count ui)
+  (or (= key (box:box-key box))
+      (let ((boxes (ui:ui-boxes ui)))
+        (loop :for index :from (context-state-first-inside (box:box-data box)) :below (ui:ui-count ui)
               :for inside = (svref boxes index)
-                :thereis (and (= (box-key inside) key)
-                              (loop :for parent = (box-parent inside) :then (box-parent parent)
+                :thereis (and (= (box:box-key inside) key)
+                              (loop :for parent = (box:box-parent inside) :then (box:box-parent parent)
                                     :while parent
                                       :thereis (eq parent box)))))))
 
 (defun end-context-menu (box items)
-  (let* ((ui *ui*)
-         (key (box-key box))
-         (state (box-data box))
+  (let* ((ui ui:*ui*)
+         (key (box:box-key box))
+         (state (box:box-data box))
          (chosen nil))
-    (close-box ui)
-    (when (and (ui-secondary-pressed ui) (in-area-p ui box (ui-hot ui)))
-      (consume-secondary-press ui)
-      (open-menu state -1 (ui-pointer-x ui) (ui-pointer-y ui)))
+    (ui:close-box ui)
+    (when (and (ui:ui-secondary-pressed ui) (in-area-p ui box (ui:ui-hot ui)))
+      (ui:consume-secondary-press ui)
+      (open-menu state -1 (ui:ui-pointer-x ui) (ui:ui-pointer-y ui)))
     (when (menu-state-open state)
       (let ((index (menu ui key state items
-                         (make-float-spec :placement :at :x (menu-state-x state)
-                                          :y (menu-state-y state)))))
+                         (ui:make-float-spec :placement :at :x (menu-state-x state)
+                                             :y (menu-state-y state)))))
         (when index
           (setf chosen (nth index items)))))
     chosen))
@@ -2337,10 +2166,10 @@ chosen, on the frame it is chosen, and otherwise NIL. The :id is required."
 app gives the suggestions that fit what has been typed, each frame. Down and Up move into them, Return
 or a press takes one, Escape closes them. Returns the text now, whether it changed this frame, and
 whether it changed because a suggestion was taken."
-  (let* ((ui *ui*)
+  (let* ((ui ui:*ui*)
          (owner (owner-key ui (or id (required-id 'combo-box))))
-         (state (state-of ui owner #'make-menu-state))
-         (spec (make-float-spec :placement :below))
+         (state (ui:state-of ui owner #'make-menu-state))
+         (spec (ui:make-float-spec :placement :below))
          (taken nil))
     (when (or (not enabled) (null suggestions))
       (setf (menu-state-open state) nil))
@@ -2350,25 +2179,25 @@ whether it changed because a suggestion was taken."
       (let ((chosen (menu ui owner state suggestions spec :typing t)))
         (when chosen
           (setf taken (nth chosen suggestions)))))
-    (let ((index (ui-count ui)))
+    (let ((index (ui:ui-count ui)))
       (multiple-value-bind (text changed submitted)
           (text-field (or taken string) :id id :tooltip tooltip :labelled-by labelled-by
                                         :width width :enabled enabled :flex flex :font font)
         (declare (ignore submitted))
-        (let ((field (svref (ui-boxes ui) index)))
-          (setf (box-kind field) :combo-box
-                (float-spec-anchor spec) field
-                (float-spec-min-width spec) (box-pref-w field))
-          (when (= (ui-focus ui) (box-key field))
+        (let ((field (svref (ui:ui-boxes ui) index)))
+          (setf (box:box-kind field) :combo-box
+                (ui:float-spec-anchor spec) field
+                (ui:float-spec-min-width spec) (box:box-pref-w field))
+          (when (= (ui:ui-focus ui) (box:box-key field))
             ;; Typing opens the suggestions (whatever the app gave for the text before: it gives those
             ;; for the new text in the next build, which closes the menu if there are none); Down
             ;; opens them too.
             (when (and changed (not taken))
               (open-menu state -1))
             (unless (menu-state-open state)
-              (dolist (event (copy-list (ui-keys ui)))
-                (when (and (eql (key-event-logical-key event) +key-down+) suggestions)
-                  (consume-key ui event)
+              (dolist (event (copy-list (ui:ui-keys ui)))
+                (when (and (eql (core:key-event-logical-key event) core:+key-down+) suggestions)
+                  (ui:consume-key ui event)
                   (open-menu state 0))))))
         (values text (or changed (and taken (string/= taken string))) (and taken t))))))
 
@@ -2384,20 +2213,20 @@ whether it changed because a suggestion was taken."
   (chosen nil))
 
 (defun file-dialog (kind widget id show types name)
-  (let* ((ui *ui*)
-         (context (ui-context ui))
-         (state (state-of ui (owner-key ui (or id (required-id widget))) #'make-file-dialog-state)))
+  (let* ((ui ui:*ui*)
+         (context (ui:ui-context ui))
+         (state (ui:state-of ui (owner-key ui (or id (required-id widget))) #'make-file-dialog-state)))
     (when (and show (not (file-dialog-state-waiting state)))
       (setf (file-dialog-state-waiting state) t)
-      (context-choose-file context kind types name
-                           (lambda (path)
-                             (setf (file-dialog-state-chosen state) path
-                                   (file-dialog-state-waiting state) nil)
-                             (request-frame context))))
+      (core:context-choose-file context kind types name
+                                (lambda (path)
+                                (setf (file-dialog-state-chosen state) path
+                                      (file-dialog-state-waiting state) nil)
+                                (core:request-frame context))))
     (let ((path (file-dialog-state-chosen state)))
       (when path
         (setf (file-dialog-state-chosen state) nil
-              (ui-consumed ui) t))
+              (ui:ui-consumed ui) t))
       path)))
 
 (defun open-file-dialog (&key id show types)
@@ -2430,54 +2259,54 @@ NIL. The :id is required."
 
 (defun owner-key (ui id)
   "The key a thing with ID would have in the open container, for a thing that has no box there."
-  (let ((parent (ui-parent ui)))
-    (let ((key (mix (if parent (box-key parent) +seed+) (mix (hash-of :floating) (hash-of id)))))
+  (let ((parent (ui:ui-parent ui)))
+    (let ((key (hash:mix (if parent (box:box-key parent) hash:+seed+) (hash:mix (hash:hash-of :floating) (hash:hash-of id)))))
       (if (zerop key) 1 key))))
 
 (defun escape-pressed-p (ui)
   "Take Escape from the frame's keys, if it is there."
-  (let ((event (find #\Escape (ui-keys ui) :key #'key-event-logical-key)))
+  (let ((event (find #\Escape (ui:ui-keys ui) :key #'core:key-event-logical-key)))
     (when event
-      (consume-key ui event)
+      (ui:consume-key ui event)
       t)))
 
 (defun begin-popover (id open anchor placement)
   "Start the float of a popover if it is OPEN: returns its box, the box that was open, and true if a
 press outside dismissed it; or NIL."
   (when open
-    (let* ((ui *ui*)
+    (let* ((ui ui:*ui*)
            (owner (owner-key ui (or id (required-id 'popover))))
-           (parent (ui-parent ui))
+           (parent (ui:ui-parent ui))
            (anchor-box (and parent
-                            (find anchor (box-children parent) :key #'box-id :test #'equal
+                            (find anchor (box:box-children parent) :key #'box:box-id :test #'equal
                                                                 :from-end t)))
            (dismissed nil))
       (unless anchor-box
         (error 'missing-anchor :anchor anchor))
       (multiple-value-bind (catcher open)
-          (open-float ui :catcher owner :catcher (make-float-spec :placement :fill))
-        (setf (box-interactive catcher) t)
-        (close-float ui open)
-        (when (= (ui-hot ui) (box-key catcher))
-          (when (ui-pressed ui)
-            (consume-press ui)
+          (ui:open-float ui :catcher owner :catcher (ui:make-float-spec :placement :fill))
+        (setf (box:box-interactive catcher) t)
+        (ui:close-float ui open)
+        (when (= (ui:ui-hot ui) (box:box-key catcher))
+          (when (ui:ui-pressed ui)
+            (ui:consume-press ui)
             (setf dismissed t))
-          (consume-wheel ui)))
+          (ui:consume-wheel ui)))
       (multiple-value-bind (float open)
-          (open-float ui :popover owner id
-                      (make-float-spec :anchor anchor-box :placement placement))
-        (setf (box-interactive float) t)
-        (when (and (= (ui-hot ui) (box-key float)) (ui-pressed ui))
-          (consume-press ui))
+          (ui:open-float ui :popover owner id
+                         (ui:make-float-spec :anchor anchor-box :placement placement))
+        (setf (box:box-interactive float) t)
+        (when (and (= (ui:ui-hot ui) (box:box-key float)) (ui:ui-pressed ui))
+          (ui:consume-press ui))
         (values float open dismissed)))))
 
 (defun end-popover (float open dismissed)
-  (let ((ui *ui*))
-    (close-float ui open)
+  (let ((ui ui:*ui*))
+    (ui:close-float ui open)
     (when (escape-pressed-p ui)
       (setf dismissed t))
     (when dismissed
-      (setf (ui-consumed ui) t))
+      (setf (ui:ui-consumed ui) t))
     (and float dismissed)))
 
 (defmacro popover ((&key id open anchor (placement :below)) &body body)
@@ -2493,30 +2322,30 @@ person dismissed it, by a press outside it or Escape. The :id is required."
 (defun begin-dialog (id open title &optional font)
   "Start the float of a dialog if it is OPEN: returns its box and the box that was open; or NIL."
   (when open
-    (let* ((ui *ui*)
+    (let* ((ui ui:*ui*)
            (owner (owner-key ui (or id (required-id 'dialog)))))
       (multiple-value-bind (scrim open)
-          (open-float ui :scrim owner :scrim (make-float-spec :placement :fill))
+          (ui:open-float ui :scrim owner :scrim (ui:make-float-spec :placement :fill))
         ;; It takes the pointer from all under it (being over it), and does nothing with it.
-        (setf (box-interactive scrim) t)
-        (close-float ui open))
+        (setf (box:box-interactive scrim) t)
+        (ui:close-float ui open))
       (multiple-value-bind (float open)
-          (open-float ui :dialog owner id (make-float-spec :placement :center :modal t))
-        (setf (box-interactive float) t
-              (box-font float) (widget-face font :body)
-              (box-text float) (or title ""))
-        (when (and (= (ui-hot ui) (box-key float)) (ui-pressed ui))
-          (consume-press ui))
+          (ui:open-float ui :dialog owner id (ui:make-float-spec :placement :center :modal t))
+        (setf (box:box-interactive float) t
+              (box:box-font float) (widget-face font :body)
+              (box:box-text float) (or title ""))
+        (when (and (= (ui:ui-hot ui) (box:box-key float)) (ui:ui-pressed ui))
+          (ui:consume-press ui))
         (when title
           (label title :id :title :size 18))
         (values float open)))))
 
 (defun end-dialog (float open)
   (declare (ignore float))
-  (let ((ui *ui*))
-    (close-float ui open)
+  (let ((ui ui:*ui*))
+    (ui:close-float ui open)
     (when (escape-pressed-p ui)
-      (setf (ui-consumed ui) t)
+      (setf (ui:ui-consumed ui) t)
       t)))
 
 (defmacro dialog ((&key id open title font) &body body)
@@ -2536,33 +2365,33 @@ frame the person dismissed it with Escape (its buttons say what they do as any b
   "A box with LABEL beside it, CHECKED or not (what the application holds). Returns the state now
 and whether the person changed it this frame: the primary button went down and up over the box or
 the label, or the space bar was pressed with the keyboard on it."
-  (let* ((ui *ui*)
-         (box (open-box ui :checkbox :id id :tooltip tooltip))
-         (*face* (setf (box-font box) (widget-face font :body)))
-         (key (box-key box))
+  (let* ((ui ui:*ui*)
+         (box (ui:open-box ui :checkbox :id id :tooltip tooltip))
+         (*face* (setf (box:box-font box) (widget-face font :body)))
+         (key (box:box-key box))
          (new (and checked t)))
-    (setf (box-text box) label
-          (box-enabled box) enabled
-          (box-interactive box) enabled
-          (box-focusable box) enabled
-          (box-flex box) (float flex 1f0))
+    (setf (box:box-text box) label
+          (box:box-enabled box) enabled
+          (box:box-interactive box) enabled
+          (box:box-focusable box) enabled
+          (box:box-flex box) (float flex 1f0))
     (when enabled
-      (when (and (= (ui-hot ui) key) (ui-pressed ui))
-        (consume-press ui)
-        (setf (ui-active ui) key))
-      (when (and (= (ui-active ui) key) (ui-released ui))
-        (consume-release ui)
-        (setf (ui-active ui) 0)
-        (when (= (ui-hot ui) key)
+      (when (and (= (ui:ui-hot ui) key) (ui:ui-pressed ui))
+        (ui:consume-press ui)
+        (setf (ui:ui-active ui) key))
+      (when (and (= (ui:ui-active ui) key) (ui:ui-released ui))
+        (ui:consume-release ui)
+        (setf (ui:ui-active ui) 0)
+        (when (= (ui:ui-hot ui) key)
           (setf new (not new))))
-      (when (= (ui-focus ui) key)
-        (dolist (event (copy-list (ui-keys ui)))
-          (when (eql (key-event-logical-key event) #\Space)
-            (consume-key ui event)
+      (when (= (ui:ui-focus ui) key)
+        (dolist (event (copy-list (ui:ui-keys ui)))
+          (when (eql (core:key-event-logical-key event) #\Space)
+            (ui:consume-key ui event)
             (setf new (not new))))))
-    (setf (box-n3 box) (if new 1 0)
-          (box-look box) (look-of ui key enabled))
-    (close-box ui)
+    (setf (box:box-n3 box) (if new 1 0)
+          (box:box-look box) (look-of ui key enabled))
+    (ui:close-box ui)
     (values new (not (eq new (and checked t))))))
 
 ;;; --- a switch, on or off ---
@@ -2572,33 +2401,33 @@ the label, or the space bar was pressed with the keyboard on it."
 like a light switch, for a setting that takes effect at once. Returns the state now and whether the
 person changed it this frame: the primary button went down and up over it, or the space bar was
 pressed with the keyboard on it."
-  (let* ((ui *ui*)
-         (box (open-box ui :switch :id id :tooltip tooltip))
-         (*face* (setf (box-font box) (widget-face font :body)))
-         (key (box-key box))
+  (let* ((ui ui:*ui*)
+         (box (ui:open-box ui :switch :id id :tooltip tooltip))
+         (*face* (setf (box:box-font box) (widget-face font :body)))
+         (key (box:box-key box))
          (new (and on t)))
-    (setf (box-text box) label
-          (box-enabled box) enabled
-          (box-interactive box) enabled
-          (box-focusable box) enabled
-          (box-flex box) (float flex 1f0))
+    (setf (box:box-text box) label
+          (box:box-enabled box) enabled
+          (box:box-interactive box) enabled
+          (box:box-focusable box) enabled
+          (box:box-flex box) (float flex 1f0))
     (when enabled
-      (when (and (= (ui-hot ui) key) (ui-pressed ui))
-        (consume-press ui)
-        (setf (ui-active ui) key))
-      (when (and (= (ui-active ui) key) (ui-released ui))
-        (consume-release ui)
-        (setf (ui-active ui) 0)
-        (when (= (ui-hot ui) key)
+      (when (and (= (ui:ui-hot ui) key) (ui:ui-pressed ui))
+        (ui:consume-press ui)
+        (setf (ui:ui-active ui) key))
+      (when (and (= (ui:ui-active ui) key) (ui:ui-released ui))
+        (ui:consume-release ui)
+        (setf (ui:ui-active ui) 0)
+        (when (= (ui:ui-hot ui) key)
           (setf new (not new))))
-      (when (= (ui-focus ui) key)
-        (dolist (event (copy-list (ui-keys ui)))
-          (when (eql (key-event-logical-key event) #\Space)
-            (consume-key ui event)
+      (when (= (ui:ui-focus ui) key)
+        (dolist (event (copy-list (ui:ui-keys ui)))
+          (when (eql (core:key-event-logical-key event) #\Space)
+            (ui:consume-key ui event)
             (setf new (not new))))))
-    (setf (box-n3 box) (if new 1 0)
-          (box-look box) (look-of ui key enabled))
-    (close-box ui)
+    (setf (box:box-n3 box) (if new 1 0)
+          (box:box-look box) (look-of ui key enabled))
+    (ui:close-box ui)
     (values new (not (eq new (and on t))))))
 
 ;;; --- something going on whose end is not known ---
@@ -2608,14 +2437,14 @@ pressed with the keyboard on it."
   "A ring of dots that goes round while it is shown, for work whose end is not known (for work whose
 end is known, a progress bar). It asks for the frames it needs to move, about ten a second: an app
 with a spinner showing is not at rest."
-  (let ((box (open-box *ui* :spinner :id id :tooltip tooltip :labelled-by labelled-by)))
-    (setf (box-pref-w box) (float size 1f0)
-          (box-pref-h box) (float size 1f0)
+  (let ((box (ui:open-box ui:*ui* :spinner :id id :tooltip tooltip :labelled-by labelled-by)))
+    (setf (box:box-pref-w box) (float size 1f0)
+          (box:box-pref-h box) (float size 1f0)
           ;; The step the ring is at, from the time of the frame.
-          (box-n3 box) (mod (floor (now-ns) 100000000) +spinner-steps+)
-          (box-flex box) (float flex 1f0))
-    (request-frame (ui-context *ui*))
-    (close-box *ui*)
+          (box:box-n3 box) (mod (floor (core:now-ns) 100000000) +spinner-steps+)
+          (box:box-flex box) (float flex 1f0))
+    (core:request-frame (ui:ui-context ui:*ui*))
+    (ui:close-box ui:*ui*)
     nil))
 
 ;;; --- a list to pick from ---
@@ -2631,11 +2460,11 @@ with a spinner showing is not at rest."
                    (rows 8) (width 200) (enabled t) (flex 0) font)
   "A list of ITEMS (strings), showing ROWS at a time, with the SELECTED one (an index, or
 NIL) marked. Returns the index now and whether the person changed it this frame."
-  (let* ((ui *ui*)
-         (box (open-box ui :list-box :id id :tooltip tooltip :labelled-by labelled-by))
-         (*face* (setf (box-font box) (widget-face font :body)))
-         (key (box-key box))
-         (state (state-of ui key #'make-list-state))
+  (let* ((ui ui:*ui*)
+         (box (ui:open-box ui :list-box :id id :tooltip tooltip :labelled-by labelled-by))
+         (*face* (setf (box:box-font box) (widget-face font :body)))
+         (key (box:box-key box))
+         (state (ui:state-of ui key #'make-list-state))
          (count (length items))
          (new selected))
     (labels ((reveal (index)
@@ -2653,31 +2482,31 @@ NIL) marked. Returns the index now and whether the person changed it this frame.
         (setf (list-state-given state) selected)
         (when (and selected (< -1 selected count))
           (reveal selected)))
-      (setf (box-enabled box) enabled
-            (box-interactive box) enabled
-            (box-focusable box) enabled
-            (box-pref-w box) (float width 1f0)
-            (box-n3 box) rows
-            (box-flex box) (float flex 1f0))
+      (setf (box:box-enabled box) enabled
+            (box:box-interactive box) enabled
+            (box:box-focusable box) enabled
+            (box:box-pref-w box) (float width 1f0)
+            (box:box-n3 box) rows
+            (box:box-flex box) (float flex 1f0))
       (when enabled
-        (let ((rect (rect-of ui key)))
-          (when (and (= (ui-hot ui) key) (ui-pressed ui))
-            (consume-press ui)
-            (focus-by-click ui key)
-            (setf (ui-active ui) key)
+        (let ((rect (ui:rect-of ui key)))
+          (when (and (= (ui:ui-hot ui) key) (ui:ui-pressed ui))
+            (ui:consume-press ui)
+            (ui:focus-by-click ui key)
+            (setf (ui:ui-active ui) key)
             (when rect
               (let ((index (+ (list-state-top state)
-                              (floor (- (ui-pointer-y ui) (rect-y rect) 1) (theme-row-height *theme*)))))
+                              (floor (- (ui:ui-pointer-y ui) (ui:rect-y rect) 1) (theme:theme-row-height theme:*theme*)))))
                 (when (and (< index count) (not (eql index selected)))
                   (pick index)))))
-          (when (and (= (ui-active ui) key) (ui-released ui))
-            (consume-release ui)
-            (setf (ui-active ui) 0)))
+          (when (and (= (ui:ui-active ui) key) (ui:ui-released ui))
+            (ui:consume-release ui)
+            (setf (ui:ui-active ui) 0)))
         ;; The wheel moves the rows if they can go its way, and is otherwise left for what the list
         ;; is in.
-        (when (and (= (ui-hot ui) key)
-                   (wheel-can-move-p (ui-wheel-dy ui) (list-state-top state) (max 0 (- count rows))))
-          (multiple-value-bind (dx dy) (consume-wheel ui)
+        (when (and (= (ui:ui-hot ui) key)
+                   (wheel-can-move-p (ui:ui-wheel-dy ui) (list-state-top state) (max 0 (- count rows))))
+          (multiple-value-bind (dx dy) (ui:consume-wheel ui)
             (declare (ignore dx))
             (let* ((amount (+ (list-state-remainder state) (- dy)))
                    (whole (truncate amount))
@@ -2687,26 +2516,26 @@ NIL) marked. Returns the index now and whether the person changed it this frame.
               ;; would hold back the first turn of the wheel the other way.
               (setf (list-state-remainder state) (if (<= 0 top most) (- amount whole) 0f0)
                     (list-state-top state) (max 0 (min most top))))))
-        (when (= (ui-focus ui) key)
-          (dolist (event (copy-list (ui-keys ui)))
-            (let ((k (key-event-logical-key event)))
-              (cond ((eql k +key-down+)
-                     (consume-key ui event)
+        (when (= (ui:ui-focus ui) key)
+          (dolist (event (copy-list (ui:ui-keys ui)))
+            (let ((k (core:key-event-logical-key event)))
+              (cond ((eql k core:+key-down+)
+                     (ui:consume-key ui event)
                      (pick (if new (min (1- count) (1+ new)) 0)))
-                    ((eql k +key-up+)
-                     (consume-key ui event)
+                    ((eql k core:+key-up+)
+                     (ui:consume-key ui event)
                      (pick (if new (max 0 (1- new)) 0))))))))
       (setf (list-state-top state) (max 0 (min (list-state-top state) (max 0 (- count rows)))))
-      (setf (box-data box) (cons items state)
-            (box-n2 box) (float (or new -1) 1f0)
-            (box-look box) (look-of ui key enabled))
-      (close-box ui)
+      (setf (box:box-data box) (cons items state)
+            (box:box-n2 box) (float (or new -1) 1f0)
+            (box:box-look box) (look-of ui key enabled))
+      (ui:close-box ui)
       (values new (not (eql new selected))))))
 
 ;;; --- a canvas the application draws on ---
 
 (defstruct (canvas-state (:constructor make-canvas-state ()))
-  (fragment (make-display-list :capacity 256))
+  (fragment (core:make-display-list :capacity 256))
   (was-hot nil))
 
 (defun canvas (width height painter
@@ -2722,66 +2551,66 @@ them can ask CURRENT-CONTEXT for the context, which measures text. A FOCUSABLE c
 also AUTOFOCUS has the keyboard when the window opens, if nothing has it by then. CURSOR is the shape
 the pointer has over it (one of +CURSORS+; the arrow if not given), which the app can change from
 frame to frame, as what is under the pointer changes."
-  (let* ((ui *ui*)
-         (box (open-box ui :canvas :id id :tooltip tooltip :labelled-by labelled-by))
-         (key (box-key box))
-         (state (state-of ui key #'make-canvas-state))
+  (let* ((ui ui:*ui*)
+         (box (ui:open-box ui :canvas :id id :tooltip tooltip :labelled-by labelled-by))
+         (key (box:box-key box))
+         (state (ui:state-of ui key #'make-canvas-state))
          (events '())
-         (rect (rect-of ui key))
-         (hot (= (ui-hot ui) key)))
+         (rect (ui:rect-of ui key))
+         (hot (= (ui:ui-hot ui) key)))
     ;; Not in a design surface, where nothing takes the keyboard.
-    (when (and autofocus focusable (not (ui-started ui)) (zerop (ui-focus ui)) (zerop (ui-inert ui)))
-      (setf (ui-focus ui) key))
+    (when (and autofocus focusable (not (ui:ui-started ui)) (zerop (ui:ui-focus ui)) (zerop (ui:ui-inert ui)))
+      (setf (ui:ui-focus ui) key))
     (when cursor
-      (unless (member cursor +cursors+)
-        (error "~s is not a cursor; the cursors are ~{~s~^, ~}." cursor +cursors+))
-      (want-cursor ui key cursor))
-    (setf (box-interactive box) t
-          (box-focusable box) focusable
-          (box-moves box) t
-          (box-pref-w box) (float width 1f0)
-          (box-pref-h box) (float height 1f0)
-          (box-flex box) (float flex 1f0))
+      (unless (member cursor core:+cursors+)
+        (error "~s is not a cursor; the cursors are ~{~s~^, ~}." cursor core:+cursors+))
+      (ui:want-cursor ui key cursor))
+    (setf (box:box-interactive box) t
+          (box:box-focusable box) focusable
+          (box:box-moves box) t
+          (box:box-pref-w box) (float width 1f0)
+          (box:box-pref-h box) (float height 1f0)
+          (box:box-flex box) (float flex 1f0))
     (when rect
-      (let ((x (- (ui-pointer-x ui) (rect-x rect)))
-            (y (- (ui-pointer-y ui) (rect-y rect))))
-        (when (and hot (ui-pressed ui))
-          (consume-press ui)
-          (setf (ui-active ui) key)
-          (when focusable (focus-by-click ui key))
-          (push (list :press x y 0 (ui-click-count ui)) events))
-        (when (and hot (consume-secondary-press ui))
+      (let ((x (- (ui:ui-pointer-x ui) (ui:rect-x rect)))
+            (y (- (ui:ui-pointer-y ui) (ui:rect-y rect))))
+        (when (and hot (ui:ui-pressed ui))
+          (ui:consume-press ui)
+          (setf (ui:ui-active ui) key)
+          (when focusable (ui:focus-by-click ui key))
+          (push (list :press x y 0 (ui:ui-click-count ui)) events))
+        (when (and hot (ui:consume-secondary-press ui))
           (push (list :press x y 1 1) events))
-        (when (and (ui-moved ui) (or hot (= (ui-active ui) key)))
-          (setf (ui-moved ui) nil
-                (ui-consumed ui) t)
-          (push (list (if (and (= (ui-active ui) key) (ui-down ui)) :drag :move) x y) events))
-        (when (and (= (ui-active ui) key) (ui-released ui))
-          (consume-release ui)
-          (setf (ui-active ui) 0)
+        (when (and (ui:ui-moved ui) (or hot (= (ui:ui-active ui) key)))
+          (setf (ui:ui-moved ui) nil
+                (ui:ui-consumed ui) t)
+          (push (list (if (and (= (ui:ui-active ui) key) (ui:ui-down ui)) :drag :move) x y) events))
+        (when (and (= (ui:ui-active ui) key) (ui:ui-released ui))
+          (ui:consume-release ui)
+          (setf (ui:ui-active ui) 0)
           (push (list :release x y hot) events))
         (when hot
-          (multiple-value-bind (dx dy) (consume-wheel ui)
+          (multiple-value-bind (dx dy) (ui:consume-wheel ui)
             (when (or (/= dx 0f0) (/= dy 0f0))
               (push (list :wheel dx dy) events))))))
     (when (and (canvas-state-was-hot state) (not hot))
-      (setf (ui-consumed ui) t)
+      (setf (ui:ui-consumed ui) t)
       (push (list :exit) events))
     (setf (canvas-state-was-hot state) hot)
-    (when (and focusable (= (ui-focus ui) key))
-      (dolist (event (copy-list (ui-inputs ui)))
+    (when (and focusable (= (ui:ui-focus ui) key))
+      (dolist (event (copy-list (ui:ui-inputs ui)))
         (typecase event
           (almighty-bolt/internals:key-event
            ;; A key that a widget took is gone from the keys, and is not the canvas's.
-           (when (member event (ui-keys ui) :test #'eq)
-             (consume-key ui event)
-             (consume-input ui event)
+           (when (member event (ui:ui-keys ui) :test #'eq)
+             (ui:consume-key ui event)
+             (ui:consume-input ui event)
              (push (list :key event) events)))
           (almighty-bolt/internals:text-input-event
-           (consume-input ui event)
+           (ui:consume-input ui event)
            (push (list :text (almighty-bolt/internals:text-input-event-text event)) events))
           (almighty-bolt/internals:composition-event
-           (consume-input ui event)
+           (ui:consume-input ui event)
            (push (list :composition (almighty-bolt/internals:composition-event-kind event)
                        (almighty-bolt/internals:composition-event-text event)
                        (almighty-bolt/internals:composition-event-selection-start event)
@@ -2790,19 +2619,19 @@ frame to frame, as what is under the pointer changes."
     ;; What it draws now, compared with what it drew before.
     (let ((fragment (canvas-state-fragment state)))
       (loop
-        (clear-display-list fragment)
-        (handler-case (progn (with-painting ((ui-context ui) id)
-                               (funcall painter fragment (ui-context ui) (float width 1f0)
-                                        (float height 1f0)))
+        (core:clear-display-list fragment)
+        (handler-case (progn (core:with-painting ((ui:ui-context ui) id)
+                                  (funcall painter fragment (ui:ui-context ui) (float width 1f0)
+                                           (float height 1f0)))
                              (return))
           (almighty-bolt/internals:display-list-full ()
-            (setf fragment (make-display-list
+            (setf fragment (core:make-display-list
                             :capacity (* 2 (almighty-bolt/internals:display-list-capacity fragment)))
                   (canvas-state-fragment state) fragment))))
-      (setf (box-data box) fragment
-            (box-n3 box) (display-list-hash fragment)))
-    (setf (box-look box) (look-of ui key t))
-    (close-box ui)
+      (setf (box:box-data box) fragment
+            (box:box-n3 box) (core:display-list-hash fragment)))
+    (setf (box:box-look box) (look-of ui key t))
+    (ui:close-box ui)
     (nreverse events)))
 
 ;;; --- a veil that takes the pointer ---
@@ -2810,15 +2639,15 @@ frame to frame, as what is under the pointer changes."
 (defun scrim (&key (id (required-id 'scrim)) tooltip)
   "A translucent layer over everything before it in a stack, as large as it is allowed to be,
 that takes the pointer from what is under it. Returns true when it is pressed."
-  (let* ((ui *ui*)
-         (box (open-box ui :scrim :id id :tooltip tooltip))
-         (key (box-key box))
+  (let* ((ui ui:*ui*)
+         (box (ui:open-box ui :scrim :id id :tooltip tooltip))
+         (key (box:box-key box))
          (pressed nil))
-    (setf (box-interactive box) t)
-    (when (and (= (ui-hot ui) key) (ui-pressed ui))
-      (consume-press ui)
+    (setf (box:box-interactive box) t)
+    (when (and (= (ui:ui-hot ui) key) (ui:ui-pressed ui))
+      (ui:consume-press ui)
       (setf pressed t))
-    (close-box ui)
+    (ui:close-box ui)
     pressed))
 
 ;;; --- a tooltip ---
@@ -2833,19 +2662,19 @@ that takes the pointer from what is under it. Returns true when it is pressed."
 (defun describe-tooltip (ui)
   "Describe the tooltip of the widget the pointer is on, if it has one and its time has come. Called
 after the app's function, with the build's boxes made."
-  (let ((hot (ui-hot ui)))
-    (unless (or (zerop hot) (ui-tooltip-dismissed ui) (ui-down ui))
-      (let ((box (loop :for index :below (ui-count ui)
-                       :for box = (svref (ui-boxes ui) index)
-                       :when (= (box-key box) hot) :return box)))
-        (when (and box (box-tooltip box))
-          (if (< (- (now-ns) (ui-hot-since ui)) +tooltip-delay-ns+)
-              (request-frame (ui-context ui))
+  (let ((hot (ui:ui-hot ui)))
+    (unless (or (zerop hot) (ui:ui-tooltip-dismissed ui) (ui:ui-down ui))
+      (let ((box (loop :for index :below (ui:ui-count ui)
+                       :for box = (svref (ui:ui-boxes ui) index)
+                       :when (= (box:box-key box) hot) :return box)))
+        (when (and box (box:box-tooltip box))
+          (if (< (- (core:now-ns) (ui:ui-hot-since ui)) +tooltip-delay-ns+)
+              (core:request-frame (ui:ui-context ui))
               (multiple-value-bind (float open)
-                  (open-float ui :tooltip hot :tooltip
-                              (make-float-spec :anchor box :placement :below))
-                (setf (box-text float) (box-tooltip box))
-                (close-float ui open))))))))
+                  (ui:open-float ui :tooltip hot :tooltip
+                                 (ui:make-float-spec :anchor box :placement :below))
+                (setf (box:box-text float) (box:box-tooltip box))
+                (ui:close-float ui open))))))))
 
 ;;; --- toasts ---
 ;;;
@@ -2864,13 +2693,13 @@ and Option if they are true. Described in every frame, as a widget is; the menu 
 of the window that has the keyboard, after the application's menu and before Edit and Window.
 Returns the item chosen (its string), on the frame it is chosen by the menu or its shortcut, and
 otherwise NIL."
-  (let ((ui *ui*))
-    (vector-push-extend title (ui-menus ui))
-    (vector-push-extend items (ui-menus ui))
-    (let ((chosen (ui-menu-chosen ui)))
+  (let ((ui ui:*ui*))
+    (vector-push-extend title (ui:ui-menus ui))
+    (vector-push-extend items (ui:ui-menus ui))
+    (let ((chosen (ui:ui-menu-chosen ui)))
       (when (and chosen (string= (car chosen) title))
-        (setf (ui-menu-chosen ui) nil
-              (ui-consumed ui) t)
+        (setf (ui:ui-menu-chosen ui) nil
+              (ui:ui-consumed ui) t)
         (cdr chosen)))))
 
 (defvar *shortcuts-heard* t
@@ -2884,56 +2713,56 @@ this sees it. A widget described before it that has the keyboard takes the keys 
 field takes Command-A, -C, -V, -X and -Z). The menu bar's keys (Command-H, -M, -Q and -W) never
 reach the app. In a pane of a dock, it is heard only while the pane is the active one: the one last
 pressed in, or that has the keyboard."
-  (let ((ui *ui*)
+  (let ((ui ui:*ui*)
         (want (loop :for modifier :in modifiers
                     :sum (ecase modifier
-                           (:command +modifier-super+)
-                           (:shift +modifier-shift+)
-                           (:option +modifier-alt+)
-                           (:control +modifier-control+))))
-        (held (logior +modifier-super+ +modifier-shift+ +modifier-alt+ +modifier-control+)))
-    (dolist (event (and *shortcuts-heard* (copy-list (ui-keys ui))) nil)
-      (let ((pressed (key-event-logical-key event)))
-        (when (and (eq (key-event-kind event) :down)
+                           (:command core:+modifier-super+)
+                           (:shift core:+modifier-shift+)
+                           (:option core:+modifier-alt+)
+                           (:control core:+modifier-control+))))
+        (held (logior core:+modifier-super+ core:+modifier-shift+ core:+modifier-alt+ core:+modifier-control+)))
+    (dolist (event (and *shortcuts-heard* (copy-list (ui:ui-keys ui))) nil)
+      (let ((pressed (core:key-event-logical-key event)))
+        (when (and (eq (core:key-event-kind event) :down)
                    pressed
                    (if (and (characterp key) (alpha-char-p key))
                        (char-equal pressed key)
                        (eql pressed key))
-                   (= (logand (key-event-modifiers event) held) want))
-          (consume-key ui event)
+                   (= (logand (core:key-event-modifiers event) held) want))
+          (ui:consume-key ui event)
           (return t))))))
 
 (defun toast (words &key (seconds 3))
   "Show WORDS at the bottom of the window for SECONDS. Returns WORDS."
-  (let ((ui *ui*))
-    (setf (ui-toasts ui)
-          (append (ui-toasts ui)
-                  (list (cons words (+ (now-ns) (round (* seconds 1000000000)))))))
+  (let ((ui ui:*ui*))
+    (setf (ui:ui-toasts ui)
+          (append (ui:ui-toasts ui)
+                  (list (cons words (+ (core:now-ns) (round (* seconds 1000000000)))))))
     words))
 
 (defun describe-toasts (ui)
   "Describe the toasts whose time has not come, and forget the others. Called after the app's
 function."
-  (let ((now (now-ns)))
-    (setf (ui-toasts ui) (remove-if (lambda (toast) (<= (cdr toast) now)) (ui-toasts ui))))
-  (when (ui-toasts ui)
-    (request-frame (ui-context ui))
+  (let ((now (core:now-ns)))
+    (setf (ui:ui-toasts ui) (remove-if (lambda (toast) (<= (cdr toast) now)) (ui:ui-toasts ui))))
+  (when (ui:ui-toasts ui)
+    (core:request-frame (ui:ui-context ui))
     (multiple-value-bind (float open)
-        (open-float ui :toasts +seed+ :toasts (make-float-spec :placement :bottom))
+        (ui:open-float ui :toasts hash:+seed+ :toasts (ui:make-float-spec :placement :bottom))
       (let ((pressed nil))
-        (loop :for toast :in (ui-toasts ui)
+        (loop :for toast :in (ui:ui-toasts ui)
               :for i :from 0
-              :do (let* ((box (open-box ui :toast :id i))
-                         (key (box-key box)))
-                    (setf (box-text box) (car toast)
-                          (box-interactive box) t)
-                    (when (and (= (ui-hot ui) key) (ui-pressed ui))
-                      (consume-press ui)
-                      (setf pressed toast))
-                    (close-box ui)))
-        (close-float ui open)
+              :do (let* ((box (ui:open-box ui :toast :id i))
+                         (key (box:box-key box)))
+                       (setf (box:box-text box) (car toast)
+                             (box:box-interactive box) t)
+                       (when (and (= (ui:ui-hot ui) key) (ui:ui-pressed ui))
+                           (ui:consume-press ui)
+                           (setf pressed toast))
+                       (ui:close-box ui)))
+        (ui:close-float ui open)
         (when pressed
-          (setf (ui-toasts ui) (remove pressed (ui-toasts ui))))
+          (setf (ui:ui-toasts ui) (remove pressed (ui:ui-toasts ui))))
         float))))
 
 ;;; --- what decides size and look ---
@@ -2941,86 +2770,86 @@ function."
 (defun own-hashes (box)
   "The hash of what decides BOX's size and of what decides how it looks, as two values, not
 counting its children."
-  (let* ((layout (hash-numbers +seed+ (theme-id (box-theme box))
-                               (hash-of (box-kind box)) (hash-of (box-text box))
-                               (box-size box) (hash-of (box-flex box)) (hash-of (box-gap box))
-                               (hash-of (box-main-align box)) (hash-of (box-cross-align box))
-                               (hash-of (box-fill box)) (hash-of (box-id box))
-                               (hash-of (box-interactive box)) (hash-of (box-focusable box))
-                               (hash-of (box-moves box)) (hash-of (box-tooltip box))
-                               (hash-of (box-pad-left box)) (hash-of (box-pad-top box))
-                               (hash-of (box-pad-right box)) (hash-of (box-pad-bottom box))
-                               (hash-of (box-pref-w box)) (hash-of (box-pref-h box))
-                               (hash-of (box-min-w box)) (hash-of (box-max-w box))
-                               (hash-of (box-min-h box)) (hash-of (box-max-h box))
+  (let* ((layout (hash-numbers hash:+seed+ (theme:theme-id (box:box-theme box))
+                               (hash:hash-of (box:box-kind box)) (hash:hash-of (box:box-text box))
+                               (box:box-size box) (hash:hash-of (box:box-flex box)) (hash:hash-of (box:box-gap box))
+                               (hash:hash-of (box:box-main-align box)) (hash:hash-of (box:box-cross-align box))
+                               (hash:hash-of (box:box-fill box)) (hash:hash-of (box:box-id box))
+                               (hash:hash-of (box:box-interactive box)) (hash:hash-of (box:box-focusable box))
+                               (hash:hash-of (box:box-moves box)) (hash:hash-of (box:box-tooltip box))
+                               (hash:hash-of (box:box-pad-left box)) (hash:hash-of (box:box-pad-top box))
+                               (hash:hash-of (box:box-pad-right box)) (hash:hash-of (box:box-pad-bottom box))
+                               (hash:hash-of (box:box-pref-w box)) (hash:hash-of (box:box-pref-h box))
+                               (hash:hash-of (box:box-min-w box)) (hash:hash-of (box:box-max-w box))
+                               (hash:hash-of (box:box-min-h box)) (hash:hash-of (box:box-max-h box))
                                ;; The font it is drawn in, by its face's hash.
-                               (let ((font (box-font box)))
-                                 (if (face-p font) (face-id font) (hash-of font)))))
-         (layout (case (box-kind box)
-                   (:choice (mix layout (hash-options (car (box-data box)))))
-                   (:list-box (mix layout (box-n3 box)))
+                               (let ((font (box:box-font box)))
+                                 (if (theme:face-p font) (theme:face-id font) (hash:hash-of font)))))
+         (layout (case (box:box-kind box)
+                   (:choice (hash:mix layout (hash-options (car (box:box-data box)))))
+                   (:list-box (hash:mix layout (box:box-n3 box)))
                    ;; Its rows, and whether its lines are numbered (which takes room from them).
-                   (:text-area (mix (mix layout (box-n3 box)) (hash-of (box-n2 box))))
+                   (:text-area (hash:mix (hash:mix layout (box:box-n3 box)) (hash:hash-of (box:box-n2 box))))
                    ;; Turned, or not.
-                   (:label (mix layout (hash-of (box-n1 box))))
+                   (:label (hash:mix layout (hash:hash-of (box:box-n1 box))))
                    ;; Which image it is.
-                   (:image (mix layout (image-id (box-data box))))
-                   (:scroll (mix layout (hash-of (box-n1 box))))
+                   (:image (hash:mix layout (core:image-id (box:box-data box))))
+                   (:scroll (hash:mix layout (hash:hash-of (box:box-n1 box))))
                    ;; Side by side or one over the other.
-                   (:split (mix layout (box-n3 box)))
-                   (:lazy-list (hash-numbers layout (hash-of (box-n1 box)) (hash-of (box-n2 box))
-                                             (box-n3 box)))
+                   (:split (hash:mix layout (box:box-n3 box)))
+                   (:lazy-list (hash-numbers layout (hash:hash-of (box:box-n1 box)) (hash:hash-of (box:box-n2 box))
+                                             (box:box-n3 box)))
                    ;; A row of a lazy list is placed by its index.
-                   (:column (mix layout (box-n3 box)))
-                   (:grid (hash-numbers layout (box-n3 box) (hash-of (box-n1 box))
-                                        (hash-of (car (box-data box))) (hash-of (cdr (box-data box)))))
+                   (:column (hash:mix layout (box:box-n3 box)))
+                   (:grid (hash-numbers layout (box:box-n3 box) (hash:hash-of (box:box-n1 box))
+                                        (hash:hash-of (car (box:box-data box))) (hash:hash-of (cdr (box:box-data box)))))
                    ;; A float is put where its spec says, by its anchor: which box that is (its
                    ;; place is the screen's), so that a float put by another box (an outline of
                    ;; what is selected, when the selection changes) is laid out again.
                    ((:menu :catcher :tooltip :popover :dialog :toasts :outline)
-                    (let* ((spec (box-data box))
-                           (anchor (float-spec-anchor spec)))
-                      (hash-numbers layout (hash-of (float-spec-placement spec))
-                                    (hash-of (float-spec-x spec)) (hash-of (float-spec-y spec))
-                                    (hash-of (float-spec-min-width spec))
-                                    (if anchor (box-key anchor) 0))))
+                    (let* ((spec (box:box-data box))
+                           (anchor (ui:float-spec-anchor spec)))
+                      (hash-numbers layout (hash:hash-of (ui:float-spec-placement spec))
+                                    (hash:hash-of (ui:float-spec-x spec)) (hash:hash-of (ui:float-spec-y spec))
+                                    (hash:hash-of (ui:float-spec-min-width spec))
+                                    (if anchor (box:box-key anchor) 0))))
                    (t layout)))
          ;; One more than the colour, so that NIL (the theme's) and 0 (transparent) differ.
-         (paint (hash-numbers layout (if (box-color box) (1+ (box-color box)) 0) (box-look box)
-                              (if (box-border-color box) (1+ (box-border-color box)) 0)
-                              (hash-of (box-border-width box)) (shadows-hash (box-shadows box))
-                              (let ((dash (box-border-dash box)))
-                                (if dash (mix (hash-of (car dash)) (hash-of (cdr dash))) 0))
-                              (hash-of (box-n1 box))
-                              (hash-of (box-n2 box)) (box-n3 box)
-                              (hash-of (box-enabled box)))))
+         (paint (hash-numbers layout (if (box:box-color box) (1+ (box:box-color box)) 0) (box:box-look box)
+                              (if (box:box-border-color box) (1+ (box:box-border-color box)) 0)
+                              (hash:hash-of (box:box-border-width box)) (shadows-hash (box:box-shadows box))
+                              (let ((dash (box:box-border-dash box)))
+                                (if dash (hash:mix (hash:hash-of (car dash)) (hash:hash-of (cdr dash))) 0))
+                              (hash:hash-of (box:box-n1 box))
+                              (hash:hash-of (box:box-n2 box)) (box:box-n3 box)
+                              (hash:hash-of (box:box-enabled box)))))
     (setf paint
-          (case (box-kind box)
+          (case (box:box-kind box)
             ;; The input method can move the part of what it composes that it has selected without
             ;; changing the text.
-            ((:text-field :combo-box) (let ((state (box-data box)))
+            ((:text-field :combo-box) (let ((state (box:box-data box)))
                            (hash-numbers paint
-                                         (text-state-caret (field-state-state state))
-                                         (text-state-anchor (field-state-state state))
+                                         (core:text-state-caret (field-state-state state))
+                                         (core:text-state-anchor (field-state-state state))
                                          (field-state-view-start state)
                                          (editable-marked-selection state)
                                          (editable-marked-selection-length state))))
-            (:text-area (let* ((area (box-data box))
+            (:text-area (let* ((area (box:box-data box))
                                (state (area-state-state area)))
                           (hash-numbers (marks-hash paint (area-state-marks area))
-                                        (text-state-caret state) (text-state-anchor state)
+                                        (core:text-state-caret state) (core:text-state-anchor state)
                                         (editable-marked-selection area)
                                         (editable-marked-selection-length area))))
             ((:label :paragraph)
-             (let ((selection (box-data box)))
+             (let ((selection (box:box-data box)))
                (if (selection-state-p selection)
                    (let ((state (selection-state-state selection)))
-                     (hash-numbers paint (text-state-caret state) (text-state-anchor state)))
+                     (hash-numbers paint (core:text-state-caret state) (core:text-state-anchor state)))
                    paint)))
-            (:list-box (destructuring-bind (items . state) (box-data box)
+            (:list-box (destructuring-bind (items . state) (box:box-data box)
                          (hash-numbers paint (length items) (list-state-top state)
                                        (visible-items-hash items (list-state-top state)
-                                                           (box-n3 box)))))
+                                                           (box:box-n3 box)))))
             (t paint)))
     (values layout paint)))
 
@@ -3030,13 +2859,13 @@ counting its children."
     (setf hash (hash-numbers hash (first mark) (second mark) (third mark)))))
 
 (defun hash-options (options)
-  (let ((hash +seed+))
+  (let ((hash hash:+seed+))
     (dolist (option options hash)
-      (setf hash (mix hash (hash-of option))))))
+      (setf hash (hash:mix hash (hash:hash-of option))))))
 
 (defun visible-items-hash (items top rows)
-  (let ((hash +seed+))
+  (let ((hash hash:+seed+))
     (loop :for item :in (nthcdr top items)
           :repeat rows
-          :do (setf hash (mix hash (hash-of item))))
+          :do (setf hash (hash:mix hash (hash:hash-of item))))
     hash))

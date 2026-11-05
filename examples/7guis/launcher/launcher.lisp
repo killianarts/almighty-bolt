@@ -1,58 +1,10 @@
 (defpackage #:almighty-bolt-7guis/launcher
   (:use #:cl)
-  (:import-from #:almighty-bolt/internals
-                #:make-kept-state
-                #:with-kept-state
-                #:now-ns
-                #:make-recorder
-                #:record-event
-                #:recorder-script
-                #:save-script
-                #:handle-event
-                #:hit-target
-                #:app-instance
-                #:frame-ring-total
-                #:frame-end-ns
-                #:pointer-event
-                #:pointer-event-kind
-                #:pointer-event-x
-                #:pointer-event-y
-                #:pointer-event-button
-                #:wheel-event
-                #:wheel-event-x
-                #:wheel-event-y
-                #:wheel-event-dx
-                #:wheel-event-dy
-                #:wheel-event-precise-p
-                #:key-event
-                #:key-event-kind
-                #:key-event-logical-key
-                #:key-event-physical-key
-                #:key-event-modifiers
-                #:key-event-repeat-p
-                #:modifier-down-p
-                #:+modifier-shift+
-                #:+modifier-control+
-                #:+modifier-alt+
-                #:+modifier-super+)
-  (:import-from #:almighty-bolt/platform/macos/host
-                #:run-host
-                #:host-ring
-                #:host-keyboard-state
-                #:close-host-window)
-  (:import-from #:almighty-bolt/app
-                #:open-app
-                #:close-app)
-  (:import-from #:almighty-bolt-7guis/common/registry
-                #:find-app
-                #:make-app-object
-                #:app-constructor
-                #:app-width
-                #:app-height
-                #:app-title)
-  (:import-from #:almighty-bolt/sources
-                #:watch-sources
-                #:stop-watching-files)
+  (:local-nicknames (#:core #:almighty-bolt/internals)
+                    (#:host #:almighty-bolt/platform/macos/host)
+                    (#:app #:almighty-bolt/app)
+                    (#:registry #:almighty-bolt-7guis/common/registry)
+                    (#:sources #:almighty-bolt/sources))
   (:export #:run
            #:open-task
            #:close-task
@@ -70,35 +22,35 @@
   (:documentation "Prints the events that matter, before the app handles them."))
 
 (defun modifier-names (modifiers)
-  (let ((names (loop :for (flag name) :in (list (list +modifier-shift+ "shift")
-                                                  (list +modifier-control+ "control")
-                                                  (list +modifier-alt+ "option")
-                                                  (list +modifier-super+ "command"))
-                     :when (modifier-down-p modifiers flag)
+  (let ((names (loop :for (flag name) :in (list (list core:+modifier-shift+ "shift")
+                                                  (list core:+modifier-control+ "control")
+                                                  (list core:+modifier-alt+ "option")
+                                                  (list core:+modifier-super+ "command"))
+                     :when (core:modifier-down-p modifiers flag)
                        :collect name)))
     (if names (format nil "~{~a~^+~}" names) "none")))
 
-(defmethod handle-event :before ((instance logging-mixin) event)
+(defmethod core:handle-event :before ((instance logging-mixin) event)
   (typecase event
-    (pointer-event
-     (when (member (pointer-event-kind event) '(:down :up))
-       (let ((x (float (pointer-event-x event) 1f0))
-             (y (float (pointer-event-y event) 1f0)))
+    (core:pointer-event
+     (when (member (core:pointer-event-kind event) '(:down :up))
+       (let ((x (float (core:pointer-event-x event) 1f0))
+             (y (float (core:pointer-event-y event) 1f0)))
          (format t "~&pointer ~(~4a~) button ~a at ~,1f, ~,1f   under it: ~s~%"
-                 (pointer-event-kind event) (pointer-event-button event) x y
-                 (hit-target instance x y)))))
-    (wheel-event
-     (let ((x (float (wheel-event-x event) 1f0))
-           (y (float (wheel-event-y event) 1f0)))
+                 (core:pointer-event-kind event) (core:pointer-event-button event) x y
+                 (core:hit-target instance x y)))))
+    (core:wheel-event
+     (let ((x (float (core:wheel-event-x event) 1f0))
+           (y (float (core:wheel-event-y event) 1f0)))
        (format t "~&wheel dx ~,2f dy ~,2f in ~:[lines~;points~] at ~,1f, ~,1f   under it: ~s~%"
-               (wheel-event-dx event) (wheel-event-dy event) (wheel-event-precise-p event)
-               x y (hit-target instance x y))))
-    (key-event
-     (when (eq (key-event-kind event) :down)
-       (let ((key (key-event-logical-key event)))
+               (core:wheel-event-dx event) (core:wheel-event-dy event) (core:wheel-event-precise-p event)
+               x y (core:hit-target instance x y))))
+    (core:key-event
+     (when (eq (core:key-event-kind event) :down)
+       (let ((key (core:key-event-logical-key event)))
          (format t "~&key down  ~s (code ~a) physical ~d modifiers ~a~:[~; (repeat)~]~%"
-                 key (and key (char-code key)) (key-event-physical-key event)
-                 (modifier-names (key-event-modifiers event)) (key-event-repeat-p event))))))
+                 key (and key (char-code key)) (core:key-event-physical-key event)
+                 (modifier-names (core:key-event-modifiers event)) (core:key-event-repeat-p event))))))
   (finish-output))
 
 (defclass recording-mixin ()
@@ -113,15 +65,15 @@ A window that closes ends the process from AppKit without returning to Lisp, so 
 written as the session goes and not when it ends; the moves and the wheel in between wait for
 the next of these."
   (typecase event
-    (pointer-event (member (pointer-event-kind event) '(:down :up)))
-    (key-event t)
+    (core:pointer-event (member (core:pointer-event-kind event) '(:down :up)))
+    (core:key-event t)
     (t nil)))
 
-(defmethod handle-event :before ((instance recording-mixin) event)
+(defmethod core:handle-event :before ((instance recording-mixin) event)
   (when (mixin-recorder instance)
-    (record-event (mixin-recorder instance) instance event)
+    (core:record-event (mixin-recorder instance) instance event)
     (when (saves-script-p event)
-      (save-script (recorder-script (mixin-recorder instance)) (mixin-path instance)))))
+      (core:save-script (core:recorder-script (mixin-recorder instance)) (mixin-path instance)))))
 
 (defun with-mixins (instance &rest mixins)
   "INSTANCE, changed into an instance of a subclass of its class that has the MIXINS."
@@ -139,43 +91,43 @@ the next of these."
 (defun smoke-check (host)
   "Wait for the app to draw, then see that it draws nothing while nothing happens."
   (sleep 1)
-  (let ((first (frame-ring-total (host-ring host))))
+  (let ((first (core:frame-ring-total (host:host-ring host))))
     (sleep 1.5)
     (format t "~&drew ~d frames in the first second; ~d more in 1.5 s of nobody at the window~%"
-            first (- (frame-ring-total (host-ring host)) first))
-    (multiple-value-bind (responder key active) (host-keyboard-state host)
+            first (- (core:frame-ring-total (host:host-ring host)) first))
+    (multiple-value-bind (responder key active) (host:host-keyboard-state host)
       (format t "~&keyboard: the view is the first responder ~a, the window is the key window ~a, ~
                  the application is active ~a~%" responder key active)
       (unless (and responder key active)
         (format t "~&WARNING: a key typed now would not reach the app until the window is clicked~%")))
     (finish-output)
-    (close-host-window host)))
+    (host:close-host-window host)))
 
 (defun measure-driver (host)
   "For a measurement from outside (bench/app-metrics.lisp): print the end time of the first frame
 on the library's clock, the one an outside process can read too, and then once a second the frames
 drawn so far and the bytes in use in the Lisp heap, until the process is killed. Everything is a
 line of words and numbers."
-  (let ((ring (host-ring host)))
-    (loop :until (plusp (frame-ring-total ring))
+  (let ((ring (host:host-ring host)))
+    (loop :until (plusp (core:frame-ring-total ring))
           :do (sleep 0.001))
-    (format t "~&first-frame-ns ~d~%" (frame-end-ns ring 0))
+    (format t "~&first-frame-ns ~d~%" (core:frame-end-ns ring 0))
     (finish-output)
     (loop
       (sleep 1)
-      (format t "~&tick ~d ~d~%" (frame-ring-total ring) (sb-kernel:dynamic-usage))
+      (format t "~&tick ~d ~d~%" (core:frame-ring-total ring) (sb-kernel:dynamic-usage))
       (finish-output))))
 
 (defun task-app (task)
   "The app registered for TASK, or an error."
-  (or (find-app task)
+  (or (registry:find-app task)
       (error "There is no app for ~(~a~)." task)))
 
 (defun make-task-app (task log)
   "A new instance of the app of TASK, made by the constructor that is registered now: the app may
 have been defined again since the window opened. With LOG it logs."
   (let* ((app (task-app task))
-         (object (make-app-object app)))
+         (object (registry:make-app-object app)))
     (if log (logged object) object)))
 
 (defun loaded-system-names ()
@@ -195,39 +147,39 @@ widgets hold, is kept."
         (sources nil))
     (when (and hot record)
       (error "HOT and RECORD do not go together: a new app would not be recorded."))
-    (let* ((state (make-kept-state))
-           (object (with-kept-state (state)
+    (let* ((state (core:make-kept-state))
+           (object (core:with-kept-state (state)
                      (make-task-app task log))))
       (when log
         (format t "~&~a: press, drag, type; what arrives is printed. Close the window to finish.~%"
-                (app-title app))
+                (registry:app-title app))
         (finish-output))
       (when record
         (setf object (with-mixins object 'recording-mixin)
-              recorder (make-recorder :header (list :app task
-                                                    :width (app-width app)
-                                                    :height (app-height app)))
+              recorder (core:make-recorder :header (list :app task
+                                                         :width (registry:app-width app)
+                                                         :height (registry:app-height app)))
               (mixin-recorder object) recorder
               (mixin-path object) record)
-        (save-script (recorder-script recorder) record)
+        (core:save-script (core:recorder-script recorder) record)
         (format t "~&~a: what you do is recorded to ~a as you go (after each press, release and key).~%"
-                (app-title app) record)
+                (registry:app-title app) record)
         (finish-output))
       (when hot
-        (setf sources (watch-sources (loaded-system-names)))
+        (setf sources (sources:watch-sources (loaded-system-names)))
         (format t "~&~a: hot reload is on. Save a source file, or compile a definition, and the ~
-                   app is made again here.~%" (app-title app))
+                   app is made again here.~%" (registry:app-title app))
         (finish-output))
       (unwind-protect
-           (run-host object :title (app-title app) :width (app-width app)
-                               :height (app-height app)
-                               :kept-state state
-                               :driver (cond (smoke #'smoke-check)
-                                             (measure #'measure-driver))
-                               :rebuild (and hot
-                                             (lambda () (make-task-app task log))))
+           (host:run-host object :title (registry:app-title app) :width (registry:app-width app)
+                                        :height (registry:app-height app)
+                                        :kept-state state
+                                        :driver (cond (smoke #'smoke-check)
+                                                      (measure #'measure-driver))
+                                        :rebuild (and hot
+                                                      (lambda () (make-task-app task log))))
         (when sources
-          (stop-watching-files sources))))))
+          (sources:stop-watching-files sources))))))
 
 (defun open-task (task)
   "Open the app of TASK (a keyword) in a window and return its host at once, with the
@@ -235,12 +187,12 @@ REPL free: the library's OPEN-APP, for an app that is registered here. Whenever 
 into the image the app is made again in the same window, with the state it keeps (STATE-LET);
 closing the window leaves the Lisp running."
   (let ((app (task-app task)))
-    (open-app (app-constructor app)
-              :title (app-title app) :width (app-width app) :height (app-height app))))
+    (app:open-app (registry:app-constructor app)
+                  :title (registry:app-title app) :width (registry:app-width app) :height (registry:app-height app))))
 
 (defun close-task ()
   "Close the window that OPEN-TASK opened. Returns its host, or NIL if there was none."
-  (close-app))
+  (app:close-app))
 
 (defun environment (name)
   (let ((value (uiop:getenv name)))

@@ -1,34 +1,11 @@
 (defpackage #:almighty-bolt/render/metal/renderer
   (:use #:cl)
-  (:import-from #:almighty-bolt/platform/macos/objc
-                #:msg-send
-                #:release)
-  (:import-from #:almighty-bolt/render/metal/device
-                #:make-command-queue)
-  (:import-from #:almighty-bolt/render/metal/rect-pipeline
-                #:+instance-bytes+
-                #:make-rect-pipeline)
-  (:import-from #:almighty-bolt/render/metal/glyph-atlas
-                #:make-glyph-atlas
-                #:glyph-atlas-texture
-                #:glyph-atlas-uv-buffer)
-  (:import-from #:almighty-bolt/render/metal/image-atlas
-                #:make-image-atlas
-                #:image-atlas-texture
-                #:image-atlas-uv-buffer)
-  (:import-from #:almighty-bolt/display-list
-                #:display-list
-                #:display-list-count
-                #:display-list-kind
-                #:display-list-x
-                #:display-list-y
-                #:display-list-width
-                #:display-list-height
-                #:display-list-parameter
-                #:display-list-color
-                #:display-list-extra
-                #:+command-clip+
-                #:+command-unclip+)
+  (:local-nicknames (#:objc #:almighty-bolt/platform/macos/objc)
+                    (#:device #:almighty-bolt/render/metal/device)
+                    (#:rect-pipeline #:almighty-bolt/render/metal/rect-pipeline)
+                    (#:atlas #:almighty-bolt/render/metal/glyph-atlas)
+                    (#:image-atlas #:almighty-bolt/render/metal/image-atlas)
+                    (#:dl #:almighty-bolt/display-list))
   (:export #:renderer
            #:make-renderer
            #:renderer-capacity
@@ -93,17 +70,17 @@ commands a frame. Compiles the shaders, which takes a few milliseconds. Its glyp
 atlas is ATLAS-SIZE pixels square, rasterized at SCALE pixels a point, which is the scale that
 text must be drawn at; its image atlas is IMAGE-ATLAS-SIZE pixels square."
   (multiple-value-bind (pipeline compile-ns pipeline-ns)
-      (make-rect-pipeline device pixel-format)
-    (let ((buffer (msg-send :id device "newBufferWithLength:options:"
-                            (:ulong (* capacity +instance-bytes+)) (:ulong 0))))
+      (rect-pipeline:make-rect-pipeline device pixel-format)
+    (let ((buffer (objc:msg-send :id device "newBufferWithLength:options:"
+                                 (:ulong (* capacity rect-pipeline:+instance-bytes+)) (:ulong 0))))
       (%make-renderer :device device
-                      :queue (make-command-queue device)
+                      :queue (device:make-command-queue device)
                       :pipeline pipeline
                       :buffer buffer
-                      :contents (msg-send :id buffer "contents")
+                      :contents (objc:msg-send :id buffer "contents")
                       :capacity capacity
-                      :atlas (make-glyph-atlas device :scale scale :width atlas-size :height atlas-size)
-                      :images (make-image-atlas device :size image-atlas-size)
+                      :atlas (atlas:make-glyph-atlas device :scale scale :width atlas-size :height atlas-size)
+                      :images (image-atlas:make-image-atlas device :size image-atlas-size)
                       :shader-compile-ns compile-ns
                       :pipeline-ns pipeline-ns))))
 
@@ -111,23 +88,23 @@ text must be drawn at; its image atlas is IMAGE-ATLAS-SIZE pixels square."
   "Block until the GPU has finished the last frame that RENDERER committed."
   (let ((previous (renderer-last-command-buffer renderer)))
     (unless (zerop previous)
-      (msg-send :void previous "waitUntilCompleted"))))
+      (objc:msg-send :void previous "waitUntilCompleted"))))
 
 (defun last-frame-gpu-ns (renderer)
   "Nanoseconds the GPU took for the last frame, once it has finished."
   (let ((buffer (renderer-last-command-buffer renderer)))
     (if (zerop buffer)
         0
-        (values (round (* 1d9 (- (the double-float (msg-send :double buffer "GPUEndTime"))
-                                 (the double-float (msg-send :double buffer "GPUStartTime")))))))))
+        (values (round (* 1d9 (- (the double-float (objc:msg-send :double buffer "GPUEndTime"))
+                                 (the double-float (objc:msg-send :double buffer "GPUStartTime")))))))))
 
 (defun copy-commands (renderer display-list width height scale)
   "Write the drawing commands of DISPLAY-LIST into the renderer's instance buffer, and
 note the stretches of them that share a clip. Returns how many instances there are."
-  (declare (type renderer renderer) (type display-list display-list)
+  (declare (type renderer renderer) (type dl:display-list display-list)
            (type single-float width height scale)
            (optimize (speed 1) (safety 1)))
-  (let* ((count (display-list-count display-list))
+  (let* ((count (dl:display-list-count display-list))
          (sap (sb-sys:int-sap (renderer-contents renderer)))
          (firsts (renderer-run-firsts renderer))
          (counts (renderer-run-counts renderer))
@@ -160,9 +137,9 @@ note the stretches of them that share a clip. Returns how many instances there a
                (incf runs))
              (setf run-first instances)))
       (dotimes (i count)
-        (let ((kind (display-list-kind display-list i)))
+        (let ((kind (dl:display-list-kind display-list i)))
           (cond
-            ((= kind +command-clip+)
+            ((= kind dl:+command-clip+)
              (end-run)
              (setf clipped t)
              (when (>= depth +max-clip-depth+)
@@ -172,15 +149,15 @@ note the stretches of them that share a clip. Returns how many instances there a
                    (aref stack (+ (* 4 depth) 2)) x1
                    (aref stack (+ (* 4 depth) 3)) y1)
              (incf depth)
-             (let ((left (floor (* scale (display-list-x display-list i))))
-                   (top (floor (* scale (display-list-y display-list i))))
-                   (right (ceiling (* scale (+ (display-list-x display-list i)
-                                               (display-list-width display-list i)))))
-                   (bottom (ceiling (* scale (+ (display-list-y display-list i)
-                                                (display-list-height display-list i))))))
+             (let ((left (floor (* scale (dl:display-list-x display-list i))))
+                   (top (floor (* scale (dl:display-list-y display-list i))))
+                   (right (ceiling (* scale (+ (dl:display-list-x display-list i)
+                                               (dl:display-list-width display-list i)))))
+                   (bottom (ceiling (* scale (+ (dl:display-list-y display-list i)
+                                                (dl:display-list-height display-list i))))))
                (setf x0 (max x0 left) y0 (max y0 top)
                      x1 (min x1 right) y1 (min y1 bottom))))
-            ((= kind +command-unclip+)
+            ((= kind dl:+command-unclip+)
              (end-run)
              (when (plusp depth)
                (decf depth)
@@ -189,15 +166,15 @@ note the stretches of them that share a clip. Returns how many instances there a
                      x1 (aref stack (+ (* 4 depth) 2))
                      y1 (aref stack (+ (* 4 depth) 3)))))
             (t
-             (let ((offset (* instances +instance-bytes+)))
-               (setf (sb-sys:sap-ref-single sap offset) (display-list-x display-list i)
-                     (sb-sys:sap-ref-single sap (+ offset 4)) (display-list-y display-list i)
-                     (sb-sys:sap-ref-single sap (+ offset 8)) (display-list-width display-list i)
-                     (sb-sys:sap-ref-single sap (+ offset 12)) (display-list-height display-list i)
-                     (sb-sys:sap-ref-single sap (+ offset 16)) (display-list-parameter display-list i)
-                     (sb-sys:sap-ref-32 sap (+ offset 20)) (display-list-color display-list i)
+             (let ((offset (* instances rect-pipeline:+instance-bytes+)))
+               (setf (sb-sys:sap-ref-single sap offset) (dl:display-list-x display-list i)
+                     (sb-sys:sap-ref-single sap (+ offset 4)) (dl:display-list-y display-list i)
+                     (sb-sys:sap-ref-single sap (+ offset 8)) (dl:display-list-width display-list i)
+                     (sb-sys:sap-ref-single sap (+ offset 12)) (dl:display-list-height display-list i)
+                     (sb-sys:sap-ref-single sap (+ offset 16)) (dl:display-list-parameter display-list i)
+                     (sb-sys:sap-ref-32 sap (+ offset 20)) (dl:display-list-color display-list i)
                      (sb-sys:sap-ref-32 sap (+ offset 24)) kind
-                     (sb-sys:sap-ref-single sap (+ offset 28)) (display-list-extra display-list i)))
+                     (sb-sys:sap-ref-single sap (+ offset 28)) (dl:display-list-extra display-list i)))
              (incf instances)))))
       (end-run))
     (setf (renderer-run-count renderer) runs
@@ -212,8 +189,8 @@ four words and so is passed by address, as the region of the pixel read-back is.
           (sb-alien:deref rectangle 1) y
           (sb-alien:deref rectangle 2) width
           (sb-alien:deref rectangle 3) height)
-    (msg-send :void encoder "setScissorRect:"
-              (:pointer (sb-sys:sap-int (sb-alien:alien-sap rectangle))))))
+    (objc:msg-send :void encoder "setScissorRect:"
+                   (:pointer (sb-sys:sap-int (sb-alien:alien-sap rectangle))))))
 
 (defun render-display-list (renderer display-list pass drawable width height scale)
   "Draw DISPLAY-LIST with the render pass descriptor PASS (a window's current one,
@@ -224,21 +201,21 @@ Returns the command buffer. Must run inside an autorelease pool."
   (wait-for-last-frame renderer)
   (let* ((count (copy-commands renderer display-list (float width 1f0) (float height 1f0)
                                (float scale 1f0)))
-         (buffer (msg-send :id (renderer-queue renderer) "commandBuffer"))
-         (encoder (msg-send :id buffer "renderCommandEncoderWithDescriptor:" (:id pass))))
-    (msg-send :void encoder "setRenderPipelineState:" (:id (renderer-pipeline renderer)))
-    (msg-send :void encoder "setVertexBuffer:offset:atIndex:"
-              (:id (renderer-buffer renderer)) (:ulong 0) (:ulong 0))
+         (buffer (objc:msg-send :id (renderer-queue renderer) "commandBuffer"))
+         (encoder (objc:msg-send :id buffer "renderCommandEncoderWithDescriptor:" (:id pass))))
+    (objc:msg-send :void encoder "setRenderPipelineState:" (:id (renderer-pipeline renderer)))
+    (objc:msg-send :void encoder "setVertexBuffer:offset:atIndex:"
+                   (:id (renderer-buffer renderer)) (:ulong 0) (:ulong 0))
     ;; The glyph atlas: where each glyph lies in the texture, and the texture.
-    (msg-send :void encoder "setVertexBuffer:offset:atIndex:"
-              (:id (glyph-atlas-uv-buffer (renderer-atlas renderer))) (:ulong 0) (:ulong 2))
-    (msg-send :void encoder "setFragmentTexture:atIndex:"
-              (:id (glyph-atlas-texture (renderer-atlas renderer))) (:ulong 0))
+    (objc:msg-send :void encoder "setVertexBuffer:offset:atIndex:"
+                   (:id (atlas:glyph-atlas-uv-buffer (renderer-atlas renderer))) (:ulong 0) (:ulong 2))
+    (objc:msg-send :void encoder "setFragmentTexture:atIndex:"
+                   (:id (atlas:glyph-atlas-texture (renderer-atlas renderer))) (:ulong 0))
     ;; The image atlas, the same way.
-    (msg-send :void encoder "setVertexBuffer:offset:atIndex:"
-              (:id (image-atlas-uv-buffer (renderer-images renderer))) (:ulong 0) (:ulong 3))
-    (msg-send :void encoder "setFragmentTexture:atIndex:"
-              (:id (image-atlas-texture (renderer-images renderer))) (:ulong 1))
+    (objc:msg-send :void encoder "setVertexBuffer:offset:atIndex:"
+                   (:id (image-atlas:image-atlas-uv-buffer (renderer-images renderer))) (:ulong 0) (:ulong 3))
+    (objc:msg-send :void encoder "setFragmentTexture:atIndex:"
+                   (:id (image-atlas:image-atlas-texture (renderer-images renderer))) (:ulong 1))
     ;; The frame constants: the size in points, the scale, and a pad word. Four
     ;; floats are 16 bytes, which Metal takes as bytes in the command.
     (sb-alien:with-alien ((constants (array sb-alien:single-float 4)))
@@ -246,15 +223,15 @@ Returns the command buffer. Must run inside an autorelease pool."
             (sb-alien:deref constants 1) (float height 1f0)
             (sb-alien:deref constants 2) (float scale 1f0)
             (sb-alien:deref constants 3) 0f0)
-      (msg-send :void encoder "setVertexBytes:length:atIndex:"
-                (:pointer (sb-sys:sap-int (sb-alien:alien-sap constants)))
-                (:ulong 16) (:ulong 1)))
+      (objc:msg-send :void encoder "setVertexBytes:length:atIndex:"
+                     (:pointer (sb-sys:sap-int (sb-alien:alien-sap constants)))
+                     (:ulong 16) (:ulong 1)))
     (cond
       ((zerop count))
       ((not (renderer-clipped renderer))
        ;; A strip of four vertices (a quad) for each of COUNT instances.
-       (msg-send :void encoder "drawPrimitives:vertexStart:vertexCount:instanceCount:"
-                 (:ulong 4) (:ulong 0) (:ulong 4) (:ulong count)))
+       (objc:msg-send :void encoder "drawPrimitives:vertexStart:vertexCount:instanceCount:"
+                      (:ulong 4) (:ulong 0) (:ulong 4) (:ulong count)))
       (t
        ;; The same, a stretch at a time, each clipped to its scissor rectangle. A stretch
        ;; that is clipped to nothing is not drawn.
@@ -267,19 +244,19 @@ Returns the command buffer. Must run inside an autorelease pool."
                  (w (aref scissors (+ (* 4 run) 2)))
                  (h (aref scissors (+ (* 4 run) 3))))
              (when (and (plusp w) (plusp h))
-               (set-scissor encoder x y w h)
-               (msg-send :void encoder
-                         "drawPrimitives:vertexStart:vertexCount:instanceCount:baseInstance:"
-                         (:ulong 4) (:ulong 0) (:ulong 4)
-                         (:ulong (aref counts run)) (:ulong (aref firsts run)))))))))
-    (msg-send :void encoder "endEncoding")
+                    (set-scissor encoder x y w h)
+                    (objc:msg-send :void encoder
+                                   "drawPrimitives:vertexStart:vertexCount:instanceCount:baseInstance:"
+                                   (:ulong 4) (:ulong 0) (:ulong 4)
+                                   (:ulong (aref counts run)) (:ulong (aref firsts run)))))))))
+    (objc:msg-send :void encoder "endEncoding")
     (unless (zerop drawable)
-      (msg-send :void buffer "presentDrawable:" (:id drawable)))
-    (msg-send :void buffer "commit")
+      (objc:msg-send :void buffer "presentDrawable:" (:id drawable)))
+    (objc:msg-send :void buffer "commit")
     ;; Keep the command buffer to wait on at the next frame.
-    (msg-send :id buffer "retain")
+    (objc:msg-send :id buffer "retain")
     (let ((previous (renderer-last-command-buffer renderer)))
       (unless (zerop previous)
-        (release previous)))
+        (objc:release previous)))
     (setf (renderer-last-command-buffer renderer) buffer)
     buffer))

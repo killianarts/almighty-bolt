@@ -1,13 +1,6 @@
 (defpackage #:almighty-bolt-stress/rows/model
   (:use #:cl)
-  (:import-from #:almighty-bolt
-                #:+points-per-line+
-                #:+key-up+
-                #:+key-down+
-                #:+key-page-up+
-                #:+key-page-down+
-                #:+key-home+
-                #:+key-end+)
+  (:local-nicknames (#:bolt #:almighty-bolt))
   (:export #:+row-count+
            #:+row-height+
            #:+visible-rows+
@@ -41,7 +34,7 @@
 (defconstant +list-width+ 600)
 (defconstant +list-height+ (* +visible-rows+ +row-height+))
 (defconstant +bar-width+ 14)
-(defconstant +rows-per-line+ (float (/ +points-per-line+ +row-height+) 1f0)
+(defconstant +rows-per-line+ (float (/ bolt:+points-per-line+ +row-height+) 1f0)
   "How far a line of the wheel scrolls the list, in rows: a line is 24 points and a row 22.")
 (defconstant +thumb-height+ 24 "The thumb of the bar: a million rows would make it a hair.")
 
@@ -83,12 +76,12 @@ enough."
                              (t top))))
              (values new (clamp-top top) t))))
     (let ((selected (or selected 0)))
-      (cond ((eql key +key-up+) (to (1- selected)))
-            ((eql key +key-down+) (to (1+ selected)))
-            ((eql key +key-page-up+) (to (- selected +visible-rows+)))
-            ((eql key +key-page-down+) (to (+ selected +visible-rows+)))
-            ((eql key +key-home+) (to 0))
-            ((eql key +key-end+) (to (1- +row-count+)))
+      (cond ((eql key bolt:+key-up+) (to (1- selected)))
+            ((eql key bolt:+key-down+) (to (1+ selected)))
+            ((eql key bolt:+key-page-up+) (to (- selected +visible-rows+)))
+            ((eql key bolt:+key-page-down+) (to (+ selected +visible-rows+)))
+            ((eql key bolt:+key-home+) (to 0))
+            ((eql key bolt:+key-end+) (to (1- +row-count+)))
             (t (values selected top nil))))))
 
 ;;; What a row shows. The names and values are from small tables; only the number of the row is

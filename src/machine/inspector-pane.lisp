@@ -1,29 +1,12 @@
 (defpackage #:almighty-bolt/machine/inspector-pane
   (:use #:cl)
-  (:import-from #:almighty-bolt/app-instance
-                #:handle-event
-                #:request-frame)
-  (:import-from #:almighty-bolt/ui/ui
-                #:*ui*
-                #:open-box
-                #:close-box
-                #:state-of
-                #:ui-context)
-  (:import-from #:almighty-bolt/ui/box
-                #:box-key
-                #:box-cross-align
-                #:box-fill
-                #:box-flex)
-  (:import-from #:almighty-bolt/ui/widgets
-                #:required-id
-                #:label)
-  (:import-from #:almighty-bolt/ui/inspector
-                #:make-inspector)
-  (:import-from #:almighty-bolt/ui/app-pane
-                #:settle-app-pane)
-  (:import-from #:almighty-bolt/machine
-                #:make-session
-                #:perform-actions)
+  (:local-nicknames (#:app-instance #:almighty-bolt/app-instance)
+                    (#:ui #:almighty-bolt/ui/ui)
+                    (#:box #:almighty-bolt/ui/box)
+                    (#:widgets #:almighty-bolt/ui/widgets)
+                    (#:inspector #:almighty-bolt/ui/inspector)
+                    (#:app-pane #:almighty-bolt/ui/app-pane)
+                    (#:m #:almighty-bolt/machine))
   (:export #:inspector-pane))
 
 (in-package #:almighty-bolt/machine/inspector-pane)
@@ -51,17 +34,17 @@
     (loop :while (inspector-pane-state-asked state)
           :do (destructuring-bind (action . report) (pop (inspector-pane-state-asked state))
                 (when target
-                  (let* ((session (make-session :app (lambda () target)
-                                                :deliver (lambda (event)
-                                                           (handle-event target event))
-                                                :settle (lambda () (settle-app-pane target))
-                                                :on-main #'funcall))
-                         (message (handler-case (progn (perform-actions session (list action)) nil)
+                  (let* ((session (m:make-session :app (lambda () target)
+                                                  :deliver (lambda (event)
+                                                           (app-instance:handle-event target event))
+                                                  :settle (lambda () (app-pane:settle-app-pane target))
+                                                  :on-main #'funcall))
+                         (message (handler-case (progn (m:perform-actions session (list action)) nil)
                                     (error (condition) (princ-to-string condition)))))
                     (when message
                       (funcall report message))))))))
 
-(defun inspector-pane (target &key (id (required-id 'inspector-pane)) (flex 1) edit-view
+(defun inspector-pane (target &key (id (widgets:required-id 'inspector-pane)) (flex 1) edit-view
                                   edit-source)
   "The inspector, here, of TARGET: an app in an app pane of this window, as APP-PANE returns it, or
 NIL (it then says there is nothing to inspect). Pick, then a press on the app in the pane, says what
@@ -71,32 +54,32 @@ if given, is called with the view's name and the widget's id when Edit in the Vi
 EDIT-SOURCE, if given, with what to show (:view, :wiring or :code) and the widget's facts (a property
 list: :view, :view-widget, :id, :kind ...) when Edit Source or Edit Wiring is, and returns NIL or what
 went wrong. The :id is required: what it picked is kept by it."
-  (let* ((ui *ui*)
-         (box (open-box ui :column :id id))
-         (state (state-of ui (box-key box) #'make-inspector-pane-state)))
-    (setf (box-cross-align box) :stretch
-          (box-fill box) t
-          (box-flex box) (float flex 1f0)
+  (let* ((ui ui:*ui*)
+         (box (ui:open-box ui :column :id id))
+         (state (ui:state-of ui (box:box-key box) #'make-inspector-pane-state)))
+    (setf (box:box-cross-align box) :stretch
+          (box:box-fill box) t
+          (box:box-flex box) (float flex 1f0)
           (inspector-pane-state-target state) target
           (inspector-pane-state-edit-view state) edit-view
           (inspector-pane-state-edit-source state) edit-source)
     (unless (inspector-pane-state-describe state)
       (setf (inspector-pane-state-describe state)
-            (make-inspector (lambda () (inspector-pane-state-target state))
-                            (lambda (action report)
-                              (setf (inspector-pane-state-asked state)
-                                    (append (inspector-pane-state-asked state)
-                                            (list (cons action report))))
-                              (request-frame (ui-context ui)))
-                            :edit-view (lambda (name widget)
-                                         (let ((edit (inspector-pane-state-edit-view state)))
+            (inspector:make-inspector (lambda () (inspector-pane-state-target state))
+                                      (lambda (action report)
+                                  (setf (inspector-pane-state-asked state)
+                                        (append (inspector-pane-state-asked state)
+                                                (list (cons action report))))
+                                  (app-instance:request-frame (ui:ui-context ui)))
+                                      :edit-view (lambda (name widget)
+                                                (let ((edit (inspector-pane-state-edit-view state)))
                                            (when edit (funcall edit name widget))))
-                            :edit-source (lambda (what facts)
+                                      :edit-source (lambda (what facts)
                                            (let ((edit (inspector-pane-state-edit-source state)))
-                                             (and edit (funcall edit what facts)))))))
+                                                              (and edit (funcall edit what facts)))))))
     (do-asked state)
     (if target
         (funcall (inspector-pane-state-describe state))
-        (label "Nothing to inspect: no app is running in a pane." :id :nothing))
-    (close-box ui)
+        (widgets:label "Nothing to inspect: no app is running in a pane." :id :nothing))
+    (ui:close-box ui)
     nil))

@@ -1,54 +1,10 @@
 (defpackage #:almighty-bolt/ui/design-surface
   (:use #:cl)
-  (:import-from #:almighty-bolt/ui/box
-                #:box-key
-                #:box-id
-                #:box-kind
-                #:box-parent
-                #:box-flex
-                #:box-color
-                #:box-interactive
-                #:box-moves)
-  (:import-from #:almighty-bolt/ui/ui
-                #:*ui*
-                #:open-box
-                #:close-box
-                #:ui-boxes
-                #:ui-count
-                #:ui-hot
-                #:ui-pressed
-                #:ui-pointer-x
-                #:ui-pointer-y
-                #:ui-released
-                #:ui-secondary-pressed
-                #:ui-keys
-                #:ui-inputs
-                #:ui-wheel-dx
-                #:ui-wheel-dy
-                #:ui-inert
-                #:consume-press
-                #:open-float
-                #:close-float
-                #:make-float-spec
-                #:rect-of
-                #:rect-x
-                #:rect-y
-                #:rect-w
-                #:rect-h)
-  (:import-from #:almighty-bolt/ui/theme
-                #:*theme*
-                #:theme-ring
-                #:theme-dim-text)
-  (:import-from #:almighty-bolt/ui/drag
-                #:begin-drag
-                #:follow-drag
-                #:drag-ghost
-                #:insertion-place
-                #:show-insertion
-                #:take-drop
-                #:dragging)
-  (:import-from #:almighty-bolt/ui/widgets
-                #:required-id)
+  (:local-nicknames (#:box #:almighty-bolt/ui/box)
+                    (#:ui #:almighty-bolt/ui/ui)
+                    (#:theme #:almighty-bolt/ui/theme)
+                    (#:drag #:almighty-bolt/ui/drag)
+                    (#:widgets #:almighty-bolt/ui/widgets))
   (:export #:design-surface))
 
 (in-package #:almighty-bolt/ui/design-surface)
@@ -68,29 +24,29 @@
 (defun begin-design-surface (id flex)
   "Open the surface's box, and put the frame's input aside. Returns the box, the index of the first
 box inside it, and the input put aside, for PUT-INPUT-BACK."
-  (let* ((ui *ui*)
-         (box (open-box ui :surface :id (or id (required-id 'design-surface))))
-         (held (list (ui-pressed ui) (ui-released ui) (ui-secondary-pressed ui) (ui-keys ui)
-                     (ui-inputs ui) (ui-wheel-dx ui) (ui-wheel-dy ui))))
-    (setf (box-interactive box) t
+  (let* ((ui ui:*ui*)
+         (box (ui:open-box ui :surface :id (or id (widgets:required-id 'design-surface))))
+         (held (list (ui:ui-pressed ui) (ui:ui-released ui) (ui:ui-secondary-pressed ui) (ui:ui-keys ui)
+                     (ui:ui-inputs ui) (ui:ui-wheel-dx ui) (ui:ui-wheel-dy ui))))
+    (setf (box:box-interactive box) t
           ;; Every move over it wants a frame, for the outline that follows the pointer.
-          (box-moves box) t
-          (box-flex box) (float flex 1f0)
-          (ui-pressed ui) nil (ui-released ui) nil (ui-secondary-pressed ui) nil
-          (ui-keys ui) '() (ui-inputs ui) '() (ui-wheel-dx ui) 0f0 (ui-wheel-dy ui) 0f0)
-    (incf (ui-inert ui))
-    (values box (ui-count ui) held)))
+          (box:box-moves box) t
+          (box:box-flex box) (float flex 1f0)
+          (ui:ui-pressed ui) nil (ui:ui-released ui) nil (ui:ui-secondary-pressed ui) nil
+          (ui:ui-keys ui) '() (ui:ui-inputs ui) '() (ui:ui-wheel-dx ui) 0f0 (ui:ui-wheel-dy ui) 0f0)
+    (incf (ui:ui-inert ui))
+    (values box (ui:ui-count ui) held)))
 
 (defun put-input-back (held)
   "Give the frame back the input BEGIN-DESIGN-SURFACE put aside."
-  (let ((ui *ui*))
+  (let ((ui ui:*ui*))
     (destructuring-bind (pressed released secondary keys inputs dx dy) held
-      (setf (ui-pressed ui) pressed (ui-released ui) released (ui-secondary-pressed ui) secondary
-            (ui-keys ui) keys (ui-inputs ui) inputs (ui-wheel-dx ui) dx (ui-wheel-dy ui) dy))
-    (setf (ui-inert ui) (max 0 (1- (ui-inert ui))))))
+      (setf (ui:ui-pressed ui) pressed (ui:ui-released ui) released (ui:ui-secondary-pressed ui) secondary
+            (ui:ui-keys ui) keys (ui:ui-inputs ui) inputs (ui:ui-wheel-dx ui) dx (ui:ui-wheel-dy ui) dy))
+    (setf (ui:ui-inert ui) (max 0 (1- (ui:ui-inert ui))))))
 
 (defun inside-p (box surface)
-  (loop :for parent = (box-parent box) :then (box-parent parent)
+  (loop :for parent = (box:box-parent box) :then (box:box-parent parent)
         :while parent
           :thereis (eq parent surface)))
 
@@ -99,33 +55,33 @@ box inside it, and the input put aside, for PUT-INPUT-BACK."
 this frame: a widget that has changed its size is outlined as it is now."
   (when box
     (multiple-value-bind (float open)
-        (open-float ui :outline (box-key surface) id
-                    (make-float-spec :anchor box :placement :over :tool t))
-      (setf (box-color float) color)
-      (close-float ui open))))
+        (ui:open-float ui :outline (box:box-key surface) id
+                       (ui:make-float-spec :anchor box :placement :over :tool t))
+      (setf (box:box-color float) color)
+      (ui:close-float ui open))))
 
 (defun thing-under (ui surface first x y)
   "The innermost box with an id inside SURFACE (its boxes are FIRST and after, this build) that was
 under the point X, Y in the last frame, or NIL."
-  (let ((boxes (ui-boxes ui))
+  (let ((boxes (ui:ui-boxes ui))
         (found nil))
     ;; In the order they were described, a box comes before what is in it, and boxes beside each
     ;; other do not overlap: the last that holds the point is the innermost.
-    (loop :for index :from first :below (ui-count ui)
+    (loop :for index :from first :below (ui:ui-count ui)
           :for box = (svref boxes index)
-          :do (when (and (box-id box) (inside-p box surface))
-                (let ((rect (rect-of ui (box-key box))))
+          :do (when (and (box:box-id box) (inside-p box surface))
+                (let ((rect (ui:rect-of ui (box:box-key box))))
                   (when (and rect
-                             (<= (rect-x rect) x) (< x (+ (rect-x rect) (rect-w rect)))
-                             (<= (rect-y rect) y) (< y (+ (rect-y rect) (rect-h rect))))
+                             (<= (ui:rect-x rect) x) (< x (+ (ui:rect-x rect) (ui:rect-w rect)))
+                             (<= (ui:rect-y rect) y) (< y (+ (ui:rect-y rect) (ui:rect-h rect))))
                     (setf found box)))))
     found))
 
 (defun thing-with-id (ui surface first id)
-  (let ((boxes (ui-boxes ui)))
-    (loop :for index :from first :below (ui-count ui)
+  (let ((boxes (ui:ui-boxes ui)))
+    (loop :for index :from first :below (ui:ui-count ui)
           :for box = (svref boxes index)
-            :thereis (and (equal (box-id box) id) (inside-p box surface) box))))
+            :thereis (and (equal (box:box-id box) id) (inside-p box surface) box))))
 
 (defparameter +containers+ '(:column :row :grid :stack :padding :panel :center :scroll :pressable)
   "The kinds of box that hold others, which a drop on a surface goes into.")
@@ -133,19 +89,19 @@ under the point X, Y in the last frame, or NIL."
 (defun container-under (ui surface first x y)
   "The innermost box with an id inside SURFACE that holds others and was under X, Y in the last
 frame, or the surface's first box if none was (the view's outermost), or NIL."
-  (let ((boxes (ui-boxes ui))
+  (let ((boxes (ui:ui-boxes ui))
         (found nil))
-    (loop :for index :from first :below (ui-count ui)
+    (loop :for index :from first :below (ui:ui-count ui)
           :for box = (svref boxes index)
-          :do (when (and (box-id box) (member (box-kind box) +containers+) (inside-p box surface))
-                (let ((rect (rect-of ui (box-key box))))
+          :do (when (and (box:box-id box) (member (box:box-kind box) +containers+) (inside-p box surface))
+                (let ((rect (ui:rect-of ui (box:box-key box))))
                   (when (and rect
-                             (<= (rect-x rect) x) (< x (+ (rect-x rect) (rect-w rect)))
-                             (<= (rect-y rect) y) (< y (+ (rect-y rect) (rect-h rect))))
+                             (<= (ui:rect-x rect) x) (< x (+ (ui:rect-x rect) (ui:rect-w rect)))
+                             (<= (ui:rect-y rect) y) (< y (+ (ui:rect-y rect) (ui:rect-h rect))))
                     (setf found box)))))
     (or found
-        (let ((first-box (and (< first (ui-count ui)) (svref boxes first))))
-          (and first-box (box-id first-box) (member (box-kind first-box) +containers+)
+        (let ((first-box (and (< first (ui:ui-count ui)) (svref boxes first))))
+          (and first-box (box:box-id first-box) (member (box:box-kind first-box) +containers+)
                first-box)))))
 
 (defun end-design-surface (surface first selected)
@@ -154,38 +110,38 @@ Returns the id of the thing the press was on, on the frame of the press, or NIL;
 dropped on it this frame, as a list of what was dragged, the id of the container it goes into and
 the index among that container's children, or NIL. A press on a thing and a move drags it, as
 (:move id)."
-  (let* ((ui *ui*)
-         (key (box-key surface))
-         (hot (= (ui-hot ui) key))
+  (let* ((ui ui:*ui*)
+         (key (box:box-key surface))
+         (hot (= (ui:ui-hot ui) key))
          (pressed nil)
          (drop nil))
-    (close-box ui)
+    (ui:close-box ui)
     (let ((under (and hot
-                      (thing-under ui surface first (ui-pointer-x ui) (ui-pointer-y ui))))
+                      (thing-under ui surface first (ui:ui-pointer-x ui) (ui:ui-pointer-y ui))))
           (chosen (and selected (thing-with-id ui surface first selected))))
-      (when (and hot (ui-pressed ui))
-        (consume-press ui)
-        (setf pressed (and under (box-id under)))
+      (when (and hot (ui:ui-pressed ui))
+        (ui:consume-press ui)
+        (setf pressed (and under (box:box-id under)))
         (when pressed
-          (begin-drag key (list :move pressed) (format nil "~(~s~)" pressed))))
-      (follow-drag key)
+          (drag:begin-drag key (list :move pressed) (format nil "~(~s~)" pressed))))
+      (drag:follow-drag key)
       ;; What is dragged over the surface goes into the container under the pointer, where it is.
-      (when (and hot (dragging))
-        (let ((container (container-under ui surface first (ui-pointer-x ui) (ui-pointer-y ui))))
+      (when (and hot (drag:dragging))
+        (let ((container (container-under ui surface first (ui:ui-pointer-x ui) (ui:ui-pointer-y ui))))
           (when container
             (multiple-value-bind (index mx my mw mh)
-                (insertion-place container (eq (box-kind container) :row)
-                                 (ui-pointer-x ui) (ui-pointer-y ui))
-              (let ((payload (take-drop)))
+                (drag:insertion-place container (eq (box:box-kind container) :row)
+                                      (ui:ui-pointer-x ui) (ui:ui-pointer-y ui))
+              (let ((payload (drag:take-drop)))
                 (if payload
-                    (setf drop (list payload (box-id container) index))
-                    (show-insertion key mx my mw mh)))))))
-      (drag-ghost key)
+                    (setf drop (list payload (box:box-id container) index))
+                    (drag:show-insertion key mx my mw mh)))))))
+      (drag:drag-ghost key)
       ;; Where the pointer is over is found in the last frame's places, which is where the person
       ;; saw things; the outlines are put where things are now.
       (outline-over ui surface :hover (and under (not (eq under chosen)) under)
-                    (theme-dim-text *theme*))
-      (outline-over ui surface :selected chosen (theme-ring *theme*)))
+                    (theme:theme-dim-text theme:*theme*))
+      (outline-over ui surface :selected chosen (theme:theme-ring theme:*theme*)))
     (values pressed drop)))
 
 (defmacro design-surface ((&key id selected (flex 0)) &body body)

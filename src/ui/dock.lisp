@@ -1,57 +1,13 @@
 (defpackage #:almighty-bolt/ui/dock
   (:use #:cl)
-  (:import-from #:almighty-bolt/internals
-                #:+key-left+
-                #:+key-right+)
-  (:import-from #:almighty-bolt/ui/box
-                #:box-key
-                #:box-cross-align
-                #:box-fill
-                #:box-flex
-                #:box-color
-                #:box-pref-w
-                #:box-pref-h)
-  (:import-from #:almighty-bolt/ui/hash
-                #:mix
-                #:hash-of)
-  (:import-from #:almighty-bolt/ui/ui
-                #:*ui*
-                #:open-box
-                #:close-box
-                #:open-float
-                #:close-float
-                #:make-float-spec
-                #:state-of
-                #:rect-of
-                #:rect-x
-                #:rect-y
-                #:rect-w
-                #:rect-h
-                #:ui-pointer-x
-                #:ui-pointer-y
-                #:ui-pressed
-                #:ui-focus
-                #:ui-count
-                #:ui-boxes
-                #:ui-consumed)
-  (:import-from #:almighty-bolt/ui/theme
-                #:*theme*
-                #:theme-ring)
-  (:import-from #:almighty-bolt/ui/widgets
-                #:required-id
-                #:set-size-limits
-                #:stack
-                #:panel
-                #:label
-                #:context-menu
-                #:shortcut
-                #:*shortcuts-heard*)
-  (:import-from #:almighty-bolt/ui/drag
-                #:drag-source
-                #:dragging
-                #:take-drop)
-  (:import-from #:almighty-bolt/ui/split
-                #:split)
+  (:local-nicknames (#:core #:almighty-bolt/internals)
+                    (#:box #:almighty-bolt/ui/box)
+                    (#:hash #:almighty-bolt/ui/hash)
+                    (#:ui #:almighty-bolt/ui/ui)
+                    (#:theme #:almighty-bolt/ui/theme)
+                    (#:widgets #:almighty-bolt/ui/widgets)
+                    (#:drag #:almighty-bolt/ui/drag)
+                    (#:split #:almighty-bolt/ui/split))
   (:export #:dock
            #:dock-panes
            #:remove-pane
@@ -216,12 +172,12 @@ front (the dock takes up a layout given that is not the one it was given before)
 (defun drop-zone (rect bar-rect x y)
   "Where in a group whose rectangle is RECT (its tabs' BAR-RECT) the point X, Y is, for a drop:
 :INTO, an edge, or NIL if it is outside it."
-  (when (and rect (<= (rect-x rect) x (+ (rect-x rect) (rect-w rect)))
-             (<= (rect-y rect) y (+ (rect-y rect) (rect-h rect))))
-    (if (and bar-rect (<= y (+ (rect-y bar-rect) (rect-h bar-rect))))
+  (when (and rect (<= (ui:rect-x rect) x (+ (ui:rect-x rect) (ui:rect-w rect)))
+             (<= (ui:rect-y rect) y (+ (ui:rect-y rect) (ui:rect-h rect))))
+    (if (and bar-rect (<= y (+ (ui:rect-y bar-rect) (ui:rect-h bar-rect))))
         :into
-        (let ((fx (/ (- x (rect-x rect)) (max 1f0 (rect-w rect))))
-              (fy (/ (- y (rect-y rect)) (max 1f0 (rect-h rect)))))
+        (let ((fx (/ (- x (ui:rect-x rect)) (max 1f0 (ui:rect-w rect))))
+              (fy (/ (- y (ui:rect-y rect)) (max 1f0 (ui:rect-h rect)))))
           (cond ((< fx +edge-fraction+) :left)
                 ((> fx (- 1 +edge-fraction+)) :right)
                 ((< fy +edge-fraction+) :top)
@@ -230,7 +186,7 @@ front (the dock takes up a layout given that is not the one it was given before)
 
 (defun zone-rect (rect zone)
   "The part of RECT that a drop in ZONE gives the pane: x, y, width, height."
-  (let ((x (rect-x rect)) (y (rect-y rect)) (w (rect-w rect)) (h (rect-h rect)))
+  (let ((x (ui:rect-x rect)) (y (ui:rect-y rect)) (w (ui:rect-w rect)) (h (ui:rect-h rect)))
     (ecase zone
       (:into (values x y w h))
       (:left (values x y (/ w 2) h))
@@ -241,22 +197,22 @@ front (the dock takes up a layout given that is not the one it was given before)
 (defun show-zone (owner rect zone)
   "Outline, in the ring's colour, where a pane let go of now would go."
   (multiple-value-bind (x y w h) (zone-rect rect zone)
-    (let ((ui *ui*))
+    (let ((ui ui:*ui*))
       (multiple-value-bind (float open)
-          (open-float ui :outline owner :dock-zone
-                      (make-float-spec :placement :at :x (float x 1f0) :y (float y 1f0) :tool t))
-        (setf (box-pref-w float) (float w 1f0)
-              (box-pref-h float) (float h 1f0)
-              (box-color float) (theme-ring *theme*))
-        (close-float ui open)))))
+          (ui:open-float ui :outline owner :dock-zone
+                         (ui:make-float-spec :placement :at :x (float x 1f0) :y (float y 1f0) :tool t))
+        (setf (box:box-pref-w float) (float w 1f0)
+              (box:box-pref-h float) (float h 1f0)
+              (box:box-color float) (theme:theme-ring theme:*theme*))
+        (ui:close-float ui open)))))
 
 (defun open-pane-box (dock-key key)
   "Open the container a pane's contents are in, keyed by the dock and the pane wherever it is."
   ;; Called :pane, so that the pane's key names its tab alone.
-  (let ((box (open-box *ui* :column :id :pane :rooted-at (mix dock-key (hash-of key)))))
-    (setf (box-cross-align box) :stretch
-          (box-fill box) t
-          (box-flex box) 1f0)
+  (let ((box (ui:open-box ui:*ui* :column :id :pane :rooted-at (hash:mix dock-key (hash:hash-of key)))))
+    (setf (box:box-cross-align box) :stretch
+          (box:box-fill box) t
+          (box:box-flex box) 1f0)
     box))
 
 (defvar *dock-min* 80
@@ -268,82 +224,82 @@ front (the dock takes up a layout given that is not the one it was given before)
 (defun draw-pane (dock-key pane)
   "Draw PANE, (key title function), in its box: its shortcuts heard if it is the active pane, and
 made the active one if the keyboard is in it."
-  (let* ((ui *ui*)
+  (let* ((ui ui:*ui*)
          (state *dock-state*)
          (key (first pane))
          (box (open-pane-box dock-key key))
-         (first-box (ui-count ui)))
-    (setf (gethash key (dock-state-pane-boxes state)) (box-key box))
-    (let ((*shortcuts-heard* (and *shortcuts-heard* (equal key (dock-state-active state)))))
+         (first-box (ui:ui-count ui)))
+    (setf (gethash key (dock-state-pane-boxes state)) (box:box-key box))
+    (let ((widgets:*shortcuts-heard* (and widgets:*shortcuts-heard* (equal key (dock-state-active state)))))
       (funcall (third pane)))
-    (let ((focus (ui-focus ui)))
+    (let ((focus (ui:ui-focus ui)))
       (when (and (/= focus 0)
-                 (loop :for index :from first-box :below (ui-count ui)
-                         :thereis (= (box-key (svref (ui-boxes ui) index)) focus)))
+                 (loop :for index :from first-box :below (ui:ui-count ui)
+                         :thereis (= (box:box-key (svref (ui:ui-boxes ui) index)) focus)))
         (setf (dock-state-active state) key)))
-    (close-box ui)))
+    (ui:close-box ui)))
 
 (defun draw-group (dock-key layout node path panes)
   "Draw the group NODE at PATH: its tabs and the pane it shows. Returns the layout it makes of NODE
 (another pane chosen), and what was let go of on it, if anything: (values node (key anchor zone
 size))."
   (destructuring-bind (selected &rest keys) (rest node)
-    (let* ((ui *ui*)
+    (let* ((ui ui:*ui*)
            (new node)
            (drop nil)
-           (group (open-box ui :column :id (path-id "GROUP" path)))
-           (group-key (box-key group))
+           (group (ui:open-box ui :column :id (path-id "GROUP" path)))
+           (group-key (box:box-key group))
            (bar-key 0))
-      (setf (box-cross-align group) :stretch
-            (box-fill group) t
-            (box-flex group) 1f0)
-      (let ((bar (open-box ui :row :id :bar)))
-        (setf bar-key (box-key bar))
+      (setf (box:box-cross-align group) :stretch
+            (box:box-fill group) t
+            (box:box-flex group) 1f0)
+      (let ((bar (ui:open-box ui :row :id :bar)))
+        (setf bar-key (box:box-key bar))
         (dolist (key keys)
           (let* ((title (second (assoc key panes :test #'equal)))
-                 (item (context-menu (:id (list :tab-menu key) :items (tab-items layout keys))
-                         (when (drag-source (:id key :payload (list :dock-pane key) :label title)
-                                 (panel (:id :tab :left 10 :right 10 :top 4 :bottom 4 :radius 4
-                                         :color (if (equal key selected) :row-selected :panel))
-                                   ;; On the chosen tab's fill, in the colour words on it take.
-                                   (label title :id :title
-                                                :color (and (equal key selected) :button-text))))
-                           ;; Chosen, its pane is shown, and its shortcuts heard.
-                           (setf new (list* :tabs key keys)
-                                 (dock-state-active *dock-state*) key)))))
+                 (item (widgets:context-menu (:id (list :tab-menu key) :items (tab-items layout keys))
+                         (when (drag:drag-source (:id key :payload (list :dock-pane key) :label title)
+                                 (widgets:panel (:id :tab :left 10 :right 10 :top 4 :bottom 4 :radius 4
+                                                 :color (if (equal key selected) :row-selected :panel))
+                                       ;; On the chosen tab's fill, in the colour words on it take.
+                                       (widgets:label title :id :title
+                                                            :color (and (equal key selected) :button-text))))
+                              ;; Chosen, its pane is shown, and its shortcuts heard.
+                              (setf new (list* :tabs key keys)
+                                    (dock-state-active *dock-state*) key)))))
             ;; Moved by its menu: as if it were let go of there.
             (when item
               (let ((side (cdr (assoc item *split-items* :test #'string=)))
-                    (rect (rect-of ui group-key)))
+                    (rect (ui:rect-of ui group-key)))
                 (setf drop
                       (if side
                           (list key (find key keys :test-not #'equal) side
                                 (if rect
-                                    (/ (if (member side '(:left :right)) (rect-w rect) (rect-h rect))
+                                    (/ (if (member side '(:left :right)) (ui:rect-w rect) (ui:rect-h rect))
                                        2)
                                     240))
                           (group-move layout key
                                       (if (string= item "Move to Next Group") 1 -1))))))))
-        (close-box ui))
-      (stack (:id :body :flex 1)
+        (ui:close-box ui))
+      (widgets:stack (:id :body :flex 1)
         (let ((pane (assoc (second new) panes :test #'equal)))
           (when pane
             (draw-pane dock-key pane))))
-      (close-box ui)
+      (ui:close-box ui)
       ;; Where a pane being dragged would go here, and taking it when it is let go of.
-      (let ((payload (dragging)))
+      (let ((payload (drag:dragging)))
         (when (and (consp payload) (eq (first payload) :dock-pane))
           (let* ((moved (second payload))
-                 (rect (rect-of ui group-key))
-                 (zone (drop-zone rect (rect-of ui bar-key) (ui-pointer-x ui) (ui-pointer-y ui)))
+                 (rect (ui:rect-of ui group-key))
+                 (zone (drop-zone rect (ui:rect-of ui bar-key) (ui:ui-pointer-x ui) (ui:ui-pointer-y ui)))
                  (anchor (or (find moved keys :test-not #'equal) moved)))
             ;; Into the group it is in already, or beside the group that is only it: nowhere new.
             (when (and zone
                        (not (and (eq zone :into) (member moved keys :test #'equal)))
                        (not (equal anchor moved)))
-              (if (take-drop)
+              (if (drag:take-drop)
                   (setf drop (list moved anchor zone
-                                   (/ (if (member zone '(:left :right)) (rect-w rect) (rect-h rect))
+                                   (/ (if (member zone '(:left :right)) (ui:rect-w rect) (ui:rect-h rect))
                                       2)))
                   (show-zone group-key rect zone))))))
       (values new drop))))
@@ -355,8 +311,8 @@ size))."
     (:split
      (destructuring-bind (direction size first second &optional (keep :first)) (rest node)
        (let ((new-first first) (new-second second) (drop nil))
-         (let ((now (split (:id (path-id "SPLIT" path) :direction direction :size size
-                            :min *dock-min* :keep keep :flex 1)
+         (let ((now (split:split (:id (path-id "SPLIT" path) :direction direction :size size
+                                  :min *dock-min* :keep keep :flex 1)
                       (multiple-value-bind (node there) (draw-node dock-key layout first (append path '(0))
                                                                panes)
                         (setf new-first node drop (or drop there)))
@@ -366,14 +322,14 @@ size))."
            (values (list* :split direction now new-first new-second (nthcdr 5 node)) drop)))))))
 
 (defun draw-dock (id layout flex width height panes &optional (min 80))
-  (let* ((ui *ui*)
-         (box (open-box ui :column :id (or id (required-id 'dock))))
-         (key (box-key box))
-         (state (state-of ui key #'make-dock-state)))
-    (set-size-limits box width height nil nil nil nil)
-    (setf (box-cross-align box) :stretch
-          (box-fill box) t
-          (box-flex box) (float flex 1f0))
+  (let* ((ui ui:*ui*)
+         (box (ui:open-box ui :column :id (or id (widgets:required-id 'dock))))
+         (key (box:box-key box))
+         (state (ui:state-of ui key #'make-dock-state)))
+    (widgets:set-size-limits box width height nil nil nil nil)
+    (setf (box:box-cross-align box) :stretch
+          (box:box-fill box) t
+          (box:box-flex box) (float flex 1f0))
     ;; A layout the app gives that is not the one it gave before is taken up.
     (unless (equal layout (dock-state-given state))
       (setf (dock-state-layout state) layout
@@ -383,13 +339,13 @@ size))."
           (*dock-min* min))
       ;; A press in a pane, where it was in the last frame, makes it the active one; until there is
       ;; one, the first pane is.
-      (when (ui-pressed ui)
+      (when (ui:ui-pressed ui)
         (maphash (lambda (pane box-key)
-                   (let ((rect (rect-of ui box-key)))
-                     (when (and rect
-                                (<= (rect-x rect) (ui-pointer-x ui) (+ (rect-x rect) (rect-w rect)))
-                                (<= (rect-y rect) (ui-pointer-y ui) (+ (rect-y rect) (rect-h rect))))
-                       (setf (dock-state-active state) pane))))
+                   (let ((rect (ui:rect-of ui box-key)))
+                             (when (and rect
+                                        (<= (ui:rect-x rect) (ui:ui-pointer-x ui) (+ (ui:rect-x rect) (ui:rect-w rect)))
+                                        (<= (ui:rect-y rect) (ui:ui-pointer-y ui) (+ (ui:rect-y rect) (ui:rect-h rect))))
+                           (setf (dock-state-active state) pane))))
                  (dock-state-pane-boxes state)))
       (unless (member (dock-state-active state) (dock-panes old) :test #'equal)
         (setf (dock-state-active state) (first (dock-panes old))))
@@ -397,8 +353,8 @@ size))."
       (multiple-value-bind (new drop) (draw-node key old old '() panes)
         ;; The active pane moved by the keyboard, if what is in the panes did not take the keys.
         (unless drop
-          (let ((step (cond ((shortcut +key-right+ :control :shift) 1)
-                            ((shortcut +key-left+ :control :shift) -1))))
+          (let ((step (cond ((widgets:shortcut core:+key-right+ :control :shift) 1)
+                            ((widgets:shortcut core:+key-left+ :control :shift) -1))))
             (when step
               (setf drop (group-move old (dock-state-active state) step)))))
         (when drop
@@ -406,9 +362,9 @@ size))."
             (setf new (place-pane new moved anchor zone size))))
         ;; What was drawn this frame was the layout before: draw it again as it is now.
         (unless (equal new old)
-          (setf (ui-consumed ui) t))
+          (setf (ui:ui-consumed ui) t))
         (setf (dock-state-layout state) new)
-        (close-box ui)
+        (ui:close-box ui)
         new))))
 
 (defmacro dock ((&key id layout (flex 0) width height (min 80)) &body panes)

@@ -1,18 +1,6 @@
 (defpackage #:almighty-bolt/platform/macos/accessibility
   (:use #:cl)
-  (:import-from #:almighty-bolt/platform/macos/objc
-                #:msg-send
-                #:objc-class
-                #:foreign-constant
-                #:release
-                #:define-callback
-                #:define-runtime-class
-                #:define-startup
-                #:ivar-offset
-                #:instance-slot
-                #:register-object
-                #:registered-object
-                #:unregister-object)
+  (:local-nicknames (#:objc #:almighty-bolt/platform/macos/objc))
   (:export #:make-bridge
            #:bridge-tree
            #:bridge-watched
@@ -126,12 +114,12 @@
 
 (defun item-of (object)
   "The item that the element OBJECT says things for, or NIL if it was taken away."
-  (registered-object (instance-slot object *element-slot-offset*)))
+  (objc:registered-object (objc:instance-slot object *element-slot-offset*)))
 
 (defmacro define-item-callback (name result-type default &body body)
   "A callback of an element: BODY runs with ITEM bound to its item, and DEFAULT is what a taken-away
 element (that a client still holds) answers."
-  `(define-callback ,name ,result-type
+  `(objc:define-callback ,name ,result-type
        ((self sb-alien:unsigned-long) (cmd sb-alien:unsigned-long))
      (let ((item (item-of self)))
        (if item
@@ -139,38 +127,38 @@ element (that a client still holds) answers."
            ,default))))
 
 (defun autoreleased-string (string)
-  (msg-send :id (objc-class "NSString") "stringWithUTF8String:" (:c-string string)))
+  (objc:msg-send :id (objc:objc-class "NSString") "stringWithUTF8String:" (:c-string string)))
 
 (defun role-constant (role)
   (ecase role
-    (:static-text (foreign-constant "NSAccessibilityStaticTextRole"))
-    (:button (foreign-constant "NSAccessibilityButtonRole"))
-    (:text-field (foreign-constant "NSAccessibilityTextFieldRole"))
-    (:combo-box (foreign-constant "NSAccessibilityComboBoxRole"))
-    (:text-area (foreign-constant "NSAccessibilityTextAreaRole"))
-    (:checkbox (foreign-constant "NSAccessibilityCheckBoxRole"))
-    (:busy-indicator (foreign-constant "NSAccessibilityBusyIndicatorRole"))
-    (:pop-up-button (foreign-constant "NSAccessibilityPopUpButtonRole"))
-    (:menu-button (foreign-constant "NSAccessibilityMenuButtonRole"))
-    (:menu-item (foreign-constant "NSAccessibilityMenuItemRole"))
-    (:progress-bar (foreign-constant "NSAccessibilityProgressIndicatorRole"))
-    (:image (foreign-constant "NSAccessibilityImageRole"))
-    (:slider (foreign-constant "NSAccessibilitySliderRole"))
-    (:radio-group (foreign-constant "NSAccessibilityRadioGroupRole"))
-    (:tab-group (foreign-constant "NSAccessibilityTabGroupRole"))
-    (:radio-button (foreign-constant "NSAccessibilityRadioButtonRole"))
-    (:list (foreign-constant "NSAccessibilityListRole"))
-    (:outline (foreign-constant "NSAccessibilityOutlineRole"))
-    (:row (foreign-constant "NSAccessibilityRowRole"))
-    (:splitter (foreign-constant "NSAccessibilitySplitterRole"))
-    (:group (foreign-constant "NSAccessibilityGroupRole"))))
+    (:static-text (objc:foreign-constant "NSAccessibilityStaticTextRole"))
+    (:button (objc:foreign-constant "NSAccessibilityButtonRole"))
+    (:text-field (objc:foreign-constant "NSAccessibilityTextFieldRole"))
+    (:combo-box (objc:foreign-constant "NSAccessibilityComboBoxRole"))
+    (:text-area (objc:foreign-constant "NSAccessibilityTextAreaRole"))
+    (:checkbox (objc:foreign-constant "NSAccessibilityCheckBoxRole"))
+    (:busy-indicator (objc:foreign-constant "NSAccessibilityBusyIndicatorRole"))
+    (:pop-up-button (objc:foreign-constant "NSAccessibilityPopUpButtonRole"))
+    (:menu-button (objc:foreign-constant "NSAccessibilityMenuButtonRole"))
+    (:menu-item (objc:foreign-constant "NSAccessibilityMenuItemRole"))
+    (:progress-bar (objc:foreign-constant "NSAccessibilityProgressIndicatorRole"))
+    (:image (objc:foreign-constant "NSAccessibilityImageRole"))
+    (:slider (objc:foreign-constant "NSAccessibilitySliderRole"))
+    (:radio-group (objc:foreign-constant "NSAccessibilityRadioGroupRole"))
+    (:tab-group (objc:foreign-constant "NSAccessibilityTabGroupRole"))
+    (:radio-button (objc:foreign-constant "NSAccessibilityRadioButtonRole"))
+    (:list (objc:foreign-constant "NSAccessibilityListRole"))
+    (:outline (objc:foreign-constant "NSAccessibilityOutlineRole"))
+    (:row (objc:foreign-constant "NSAccessibilityRowRole"))
+    (:splitter (objc:foreign-constant "NSAccessibilitySplitterRole"))
+    (:group (objc:foreign-constant "NSAccessibilityGroupRole"))))
 
 (defun object-for (thing)
   "An Objective-C object for THING, a string or a number, or zero for NIL."
   (typecase thing
     (string (autoreleased-string thing))
-    (real (msg-send :id (objc-class "NSNumber") "numberWithDouble:"
-                    (:double (float thing 1d0))))
+    (real (objc:msg-send :id (objc:objc-class "NSNumber") "numberWithDouble:"
+                         (:double (float thing 1d0))))
     (t 0)))
 
 (define-item-callback element-role sb-alien:unsigned-long 0
@@ -204,7 +192,7 @@ element (that a client still holds) answers."
   "Where the method that returns an NSRect puts it: a callback returns a structure by value, and
 this is a place for it that is not allocated again for each call.")
 
-(define-startup accessibility-frame-result
+(objc:define-startup accessibility-frame-result
   (setf *frame-result* (sb-alien:make-alien (sb-alien:struct almighty-bolt/platform/macos/objc::cg-rect))))
 
 (defun frame-result (x y width height)
@@ -317,7 +305,7 @@ by pressing where the value then is, as a hand would. True if that is a change."
 (define-item-callback element-maximum sb-alien:unsigned-long 0
   (object-for (item-maximum item)))
 
-(define-callback element-set-focused sb-alien:void
+(objc:define-callback element-set-focused sb-alien:void
     ((self sb-alien:unsigned-long) (cmd sb-alien:unsigned-long) (flag sb-alien:unsigned-char))
   ;; A screen reader that is asked to follow the keyboard, or to type into a field, asks for the focus
   ;; of a field. A press on it is what gives a field the keyboard here. Other things do not need it.
@@ -326,7 +314,7 @@ by pressing where the value then is, as a hand would. True if that is a change."
                (member (item-role item) '(:text-field :combo-box :text-area)))
       (press-item item))))
 
-(define-runtime-class *element-class* "AlmightyBoltAccessibilityElement" "NSAccessibilityElement"
+(objc:define-runtime-class *element-class* "AlmightyBoltAccessibilityElement" "NSAccessibilityElement"
   :ivars '(("lispSlot" 8 3 "Q"))
   :methods '(("accessibilityRole" "@@:" element-role)
              ("accessibilityLabel" "@@:" element-label)
@@ -346,23 +334,23 @@ by pressing where the value then is, as a hand would. True if that is a change."
 
 ;;; AppKit offers an action to a client when the class has the method that does it, so a thing that
 ;;; can be pressed is of another class, and a label does not offer to be pressed.
-(define-runtime-class *pressable-class* "AlmightyBoltAccessibilityPressable"
+(objc:define-runtime-class *pressable-class* "AlmightyBoltAccessibilityPressable"
   "AlmightyBoltAccessibilityElement"
   :methods '(("accessibilityPerformPress" "B@:" element-press)))
 
 ;;; A thing that is pressed and has a menu (a tab of a dock) offers to show the menu too.
-(define-runtime-class *menu-pressable-class* "AlmightyBoltAccessibilityMenuPressable"
+(objc:define-runtime-class *menu-pressable-class* "AlmightyBoltAccessibilityMenuPressable"
   "AlmightyBoltAccessibilityPressable"
   :methods '(("accessibilityPerformShowMenu" "B@:" element-show-menu)))
 
 ;;; A slider is adjusted, up and down, and is not pressed.
-(define-runtime-class *adjustable-class* "AlmightyBoltAccessibilityAdjustable"
+(objc:define-runtime-class *adjustable-class* "AlmightyBoltAccessibilityAdjustable"
   "AlmightyBoltAccessibilityElement"
   :methods '(("accessibilityPerformIncrement" "B@:" element-increment)
              ("accessibilityPerformDecrement" "B@:" element-decrement)))
 
-(define-startup accessibility-slot-offset
-  (setf *element-slot-offset* (ivar-offset *element-class* "lispSlot")))
+(objc:define-startup accessibility-slot-offset
+  (setf *element-slot-offset* (objc:ivar-offset *element-class* "lispSlot")))
 
 (defun make-element (item)
   "Make the element for ITEM, and remember the item for it."
@@ -372,17 +360,17 @@ by pressing where the value then is, as a hand would. True if that is a change."
                    (if (item-menu item) *menu-pressable-class* *pressable-class*))
                   (:slider *adjustable-class*)
                   (t *element-class*)))
-         (element (msg-send :id (msg-send :id class "alloc") "init")))
+         (element (objc:msg-send :id (objc:msg-send :id class "alloc") "init")))
     (setf (item-element item) element
-          (item-index item) (register-object item)
-          (instance-slot element *element-slot-offset*) (item-index item))
+          (item-index item) (objc:register-object item)
+          (objc:instance-slot element *element-slot-offset*) (item-index item))
     element))
 
 (defun drop-item (item)
   "Take ITEM away: its element, which a client may still hold, answers with nothing from now on."
-  (setf (instance-slot (item-element item) *element-slot-offset*) 0)
-  (unregister-object (item-index item))
-  (release (item-element item)))
+  (setf (objc:instance-slot (item-element item) *element-slot-offset*) 0)
+  (objc:unregister-object (item-index item))
+  (objc:release (item-element item)))
 
 ;;; --- making the items from the tree ---
 
@@ -626,9 +614,9 @@ that were already there and have moved and the ones that have a new size."
 ;;; --- what the view answers ---
 
 (defun elements-array (items)
-  (let ((array (msg-send :id (objc-class "NSMutableArray") "array")))
+  (let ((array (objc:msg-send :id (objc:objc-class "NSMutableArray") "array")))
     (dolist (item items array)
-      (msg-send :void array "addObject:" (:id (item-element item))))))
+      (objc:msg-send :void array "addObject:" (:id (item-element item))))))
 
 (defun bridge-children (bridge)
   "An NSArray of the elements that are not inside another: the view's accessibility children."
@@ -674,14 +662,14 @@ it is what makes VoiceOver draw its cursor again where the thing it is on has go
          (notification-constant notification)))))
 
 (defun relayout (view elements)
-  (let* ((window (msg-send :id view "window"))
+  (let* ((window (objc:msg-send :id view "window"))
          (target (if (zerop window) view window))
-         (array (msg-send :id (objc-class "NSMutableArray") "array"))
-         (information (msg-send :id (objc-class "NSMutableDictionary") "dictionary")))
+         (array (objc:msg-send :id (objc:objc-class "NSMutableArray") "array"))
+         (information (objc:msg-send :id (objc:objc-class "NSMutableDictionary") "dictionary")))
     (dolist (element elements)
-      (msg-send :void array "addObject:" (:id element)))
-    (msg-send :void information "setObject:forKey:"
-              (:id array) (:id (foreign-constant "NSAccessibilityUIElementsKey")))
+      (objc:msg-send :void array "addObject:" (:id element)))
+    (objc:msg-send :void information "setObject:forKey:"
+                   (:id array) (:id (objc:foreign-constant "NSAccessibilityUIElementsKey")))
     (sb-alien:alien-funcall
      (sb-alien:extern-alien "NSAccessibilityPostNotificationWithUserInfo"
                             (function sb-alien:void sb-alien:unsigned-long
@@ -690,44 +678,44 @@ it is what makes VoiceOver draw its cursor again where the thing it is on has go
 
 (defun notification-constant (notification)
   (ecase notification
-       (:layout-changed (foreign-constant "NSAccessibilityLayoutChangedNotification"))
-       (:value-changed (foreign-constant "NSAccessibilityValueChangedNotification"))
-       (:moved (foreign-constant "NSAccessibilityMovedNotification"))
-       (:resized (foreign-constant "NSAccessibilityResizedNotification"))
+       (:layout-changed (objc:foreign-constant "NSAccessibilityLayoutChangedNotification"))
+       (:value-changed (objc:foreign-constant "NSAccessibilityValueChangedNotification"))
+       (:moved (objc:foreign-constant "NSAccessibilityMovedNotification"))
+       (:resized (objc:foreign-constant "NSAccessibilityResizedNotification"))
        (:selection-changed
-        (foreign-constant "NSAccessibilitySelectedChildrenChangedNotification"))
+        (objc:foreign-constant "NSAccessibilitySelectedChildrenChangedNotification"))
        (:focused-changed
-        (foreign-constant "NSAccessibilityFocusedUIElementChangedNotification"))))
+        (objc:foreign-constant "NSAccessibilityFocusedUIElementChangedNotification"))))
 
 (defun speak (view text)
   "Have a screen reader read TEXT out now, though its cursor is on something else: an announcement,
 told through the window of VIEW."
-  (let* ((window (if (zerop view) 0 (msg-send :id view "window")))
+  (let* ((window (if (zerop view) 0 (objc:msg-send :id view "window")))
          (target (if (zerop window) view window)))
     (unless (or (zerop target) (zerop (length text)))
       ;; Not DICTIONARYWITHOBJECTSANDKEYS:, which takes any number of arguments and so cannot be sent
       ;; as a fixed number of them.
-      (let ((information (msg-send :id (objc-class "NSMutableDictionary") "dictionary")))
-        (msg-send :void information "setObject:forKey:"
-                  (:id (autoreleased-string text))
-                  (:id (foreign-constant "NSAccessibilityAnnouncementKey")))
-        (msg-send :void information "setObject:forKey:"
-                  (:id (msg-send :id (objc-class "NSNumber") "numberWithInteger:" (:long 50)))
-                  (:id (foreign-constant "NSAccessibilityPriorityKey")))
+      (let ((information (objc:msg-send :id (objc:objc-class "NSMutableDictionary") "dictionary")))
+        (objc:msg-send :void information "setObject:forKey:"
+                       (:id (autoreleased-string text))
+                       (:id (objc:foreign-constant "NSAccessibilityAnnouncementKey")))
+        (objc:msg-send :void information "setObject:forKey:"
+                       (:id (objc:msg-send :id (objc:objc-class "NSNumber") "numberWithInteger:" (:long 50)))
+                       (:id (objc:foreign-constant "NSAccessibilityPriorityKey")))
         (sb-alien:alien-funcall
          (sb-alien:extern-alien "NSAccessibilityPostNotificationWithUserInfo"
                                 (function sb-alien:void sb-alien:unsigned-long
                                           sb-alien:unsigned-long sb-alien:unsigned-long))
          target
-         (foreign-constant "NSAccessibilityAnnouncementRequestedNotification")
+         (objc:foreign-constant "NSAccessibilityAnnouncementRequestedNotification")
          information)))))
 
 (defun assistive-client-p ()
   "True if VoiceOver or Switch Control is running: the ones that follow changes as they happen and
 need to be told."
-  (let ((workspace (msg-send :id (objc-class "NSWorkspace") "sharedWorkspace")))
-    (or (msg-send :bool workspace "isVoiceOverEnabled")
-        (msg-send :bool workspace "isSwitchControlEnabled"))))
+  (let ((workspace (objc:msg-send :id (objc:objc-class "NSWorkspace") "sharedWorkspace")))
+    (or (objc:msg-send :bool workspace "isVoiceOverEnabled")
+        (objc:msg-send :bool workspace "isSwitchControlEnabled"))))
 
 (defun announce (bridge)
   "Make the items again and tell the system what is new: a layout change if things came or went, a

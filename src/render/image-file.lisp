@@ -1,12 +1,7 @@
 (defpackage #:almighty-bolt/render/image-file
   (:use #:cl)
-  (:import-from #:almighty-bolt/text/core-foundation
-                #:ccall
-                #:cf-constant
-                #:cf-release
-                #:cf-string)
-  (:import-from #:almighty-bolt/image
-                #:make-premultiplied-image)
+  (:local-nicknames (#:cf #:almighty-bolt/text/core-foundation)
+                    (#:image #:almighty-bolt/image))
   (:export #:load-image))
 
 (in-package #:almighty-bolt/render/image-file)
@@ -39,38 +34,38 @@ once, not each frame: each one read is a new image to copy to the GPU."
       (error "There is no image file ~a." path))
     (when scale
       (check-type scale (real (0))))
-    (let* ((cf-path (cf-string (namestring file)))
-           (url (ccall "CFURLCreateWithFileSystemPath" :ulong
-                       (:ulong 0) (:ulong cf-path) (:long 0) (:bool nil)))
-           (source (ccall "CGImageSourceCreateWithURL" :ulong (:ulong url) (:ulong 0)))
+    (let* ((cf-path (cf:cf-string (namestring file)))
+           (url (cf:ccall "CFURLCreateWithFileSystemPath" :ulong
+                          (:ulong 0) (:ulong cf-path) (:long 0) (:bool nil)))
+           (source (cf:ccall "CGImageSourceCreateWithURL" :ulong (:ulong url) (:ulong 0)))
            (picture (if (zerop source)
                         0
-                        (ccall "CGImageSourceCreateImageAtIndex" :ulong
-                               (:ulong source) (:ulong 0) (:ulong 0)))))
-      (cf-release cf-path)
-      (cf-release url)
-      (unless (zerop source) (cf-release source))
+                        (cf:ccall "CGImageSourceCreateImageAtIndex" :ulong
+                                  (:ulong source) (:ulong 0) (:ulong 0)))))
+      (cf:cf-release cf-path)
+      (cf:cf-release url)
+      (unless (zerop source) (cf:cf-release source))
       (when (zerop picture)
         (error "The file ~a is not an image that can be read." (namestring file)))
       (unwind-protect
-           (let* ((width (ccall "CGImageGetWidth" :ulong (:ulong picture)))
-                  (height (ccall "CGImageGetHeight" :ulong (:ulong picture)))
+           (let* ((width (cf:ccall "CGImageGetWidth" :ulong (:ulong picture)))
+                  (height (cf:ccall "CGImageGetHeight" :ulong (:ulong picture)))
                   (pixels (make-array (* 4 width height) :element-type '(unsigned-byte 8)
                                                          :initial-element 0))
-                  (space (ccall "CGColorSpaceCreateWithName" :ulong
-                                (:ulong (cf-constant "kCGColorSpaceSRGB")))))
+                  (space (cf:ccall "CGColorSpaceCreateWithName" :ulong
+                                   (:ulong (cf:cf-constant "kCGColorSpaceSRGB")))))
              (sb-sys:with-pinned-objects (pixels)
-               (let ((context (ccall "CGBitmapContextCreate" :ulong
-                                     (:pointer (sb-sys:sap-int (sb-sys:vector-sap pixels)))
-                                     (:ulong width) (:ulong height) (:ulong 8) (:ulong (* 4 width))
-                                     (:ulong space) (:uint +premultiplied-last-big-endian+))))
-                 (ccall "CGColorSpaceRelease" :void (:ulong space))
+               (let ((context (cf:ccall "CGBitmapContextCreate" :ulong
+                                        (:pointer (sb-sys:sap-int (sb-sys:vector-sap pixels)))
+                                        (:ulong width) (:ulong height) (:ulong 8) (:ulong (* 4 width))
+                                        (:ulong space) (:uint +premultiplied-last-big-endian+))))
+                 (cf:ccall "CGColorSpaceRelease" :void (:ulong space))
                  (when (zerop context)
                    (error "Core Graphics could not make a bitmap for ~a." (namestring file)))
-                 (ccall "CGContextDrawImage" :void (:ulong context)
-                        (:double 0d0) (:double 0d0)
-                        (:double (float width 1d0)) (:double (float height 1d0))
-                        (:ulong picture))
-                 (ccall "CGContextRelease" :void (:ulong context))))
-             (make-premultiplied-image width height pixels (or scale (scale-from-name file))))
-        (cf-release picture)))))
+                 (cf:ccall "CGContextDrawImage" :void (:ulong context)
+                           (:double 0d0) (:double 0d0)
+                           (:double (float width 1d0)) (:double (float height 1d0))
+                           (:ulong picture))
+                 (cf:ccall "CGContextRelease" :void (:ulong context))))
+             (image:make-premultiplied-image width height pixels (or scale (scale-from-name file))))
+        (cf:cf-release picture)))))

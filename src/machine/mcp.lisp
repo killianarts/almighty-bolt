@@ -1,20 +1,10 @@
 (defpackage #:almighty-bolt/mcp
   (:use #:cl)
-  (:import-from #:almighty-bolt/ui/semantics
-                #:node-id
-                #:node-role
-                #:node-name
-                #:node-value
-                #:node-state
-                #:node-help
-                #:node-bounds
-                #:node-children
-                #:walk-nodes)
-  (:import-from #:almighty-bolt/machine/host-session
-                #:open-session)
   (:local-nicknames (#:json #:com.inuoe.jzon)
                     (#:sockets #:sb-bsd-sockets)
-                    (#:m #:almighty-bolt/machine))
+                    (#:m #:almighty-bolt/machine)
+                    (#:s #:almighty-bolt/ui/semantics)
+                    (#:host-session #:almighty-bolt/machine/host-session))
   (:export #:start-mcp-server
            #:stop-mcp-server
            #:mcp-server
@@ -98,26 +88,26 @@ lay things out, with no id and no name, are left out and what is in them is not 
   (let ((*print-pretty* nil))
     (with-output-to-string (out)
       (labels ((anonymous-group-p (node depth)
-                 (and (eq (node-role node) :group) (null (node-id node)) (null (node-name node))
+                 (and (eq (s:node-role node) :group) (null (s:node-id node)) (null (s:node-name node))
                       (plusp depth)))
                (line (node depth)
                  (if (anonymous-group-p node depth)
-                     (dolist (child (node-children node))
+                     (dolist (child (s:node-children node))
                        (line child depth))
                      (progn
                        (fresh-line out)
                        (dotimes (i depth) (write-string "  " out))
-                       (format out "~(~a~)" (if (zerop depth) :window (node-role node)))
-                       (when (node-name node) (format out " ~s" (node-name node)))
-                       (when (node-id node) (format out " id=~a" (id-text (node-id node))))
+                       (format out "~(~a~)" (if (zerop depth) :window (s:node-role node)))
+                       (when (s:node-name node) (format out " ~s" (s:node-name node)))
+                       (when (s:node-id node) (format out " id=~a" (id-text (s:node-id node))))
                        (let ((value (getf node :value)))
-                         (when (or value (member (node-role node) '(:checkbox :switch)))
+                         (when (or value (member (s:node-role node) '(:checkbox :switch)))
                            (format out " value=~a" (cond ((eq value t) "true")
                                                          ((null value) "false")
                                                          ((stringp value) (format nil "~s" value))
                                                          ((realp value) (number-text value))
                                                          (t value)))))
-                       (loop :for (key state) :on (node-state node) :by #'cddr
+                       (loop :for (key state) :on (s:node-state node) :by #'cddr
                              :do (case key
                                    ((:focused :disabled :invalid :hovered :hidden :expanded
                                      :highlighted :checked)
@@ -127,9 +117,9 @@ lay things out, with no id and no name, are left out and what is in them is not 
                                    (:selection (format out " selection=~a-~a" (first state) (second state)))
                                    ((:minimum :maximum) (format out " ~(~a~)=~a" key (number-text state)))
                                    ((:options :items) (format out " ~(~a~)=~s" key state))))
-                       (when (node-help node) (format out " help=~s" (node-help node)))
-                       (format out " @~{~a~^,~}" (mapcar #'round (node-bounds node)))
-                       (dolist (child (node-children node))
+                       (when (s:node-help node) (format out " help=~s" (s:node-help node)))
+                       (format out " @~{~a~^,~}" (mapcar #'round (s:node-bounds node)))
+                       (dolist (child (s:node-children node))
                          (line child (1+ depth)))))))
         (line tree 0)))))
 
@@ -159,10 +149,10 @@ lay things out, with no id and no name, are left out and what is in them is not 
   "The id in the tree that is written TEXT, or NIL if none."
   (when text
     (let ((found nil))
-      (walk-nodes (lambda (node)
-                    (when (and (null found) (node-id node) (string= (id-text (node-id node)) text))
-                      (setf found (node-id node))))
-                  (m:see session))
+      (s:walk-nodes (lambda (node)
+                    (when (and (null found) (s:node-id node) (string= (id-text (s:node-id node)) text))
+                      (setf found (s:node-id node))))
+                    (m:see session))
       (or found (error 'm:no-such-node
                        :message (format nil "There is nothing on the screen with the id ~a." text))))))
 
@@ -392,7 +382,7 @@ result that says why and that an agent can read and go on from."
 
 (defvar *server* nil "The server that START-MCP-SERVER started and STOP-MCP-SERVER has not stopped.")
 
-(defun start-mcp-server (&key (port 0) (session-function #'open-session) (announce t))
+(defun start-mcp-server (&key (port 0) (session-function #'host-session:open-session) (announce t))
   "Start an MCP server for the app that is open, on PORT of 127.0.0.1 (0, the default, takes a free
 one), and return it. SESSION-FUNCTION, called for each tool call, returns the session to work on (the
 window that OPEN-APP or RUN-APP opened, by default). An MCP client that wants a pipe runs

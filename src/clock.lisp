@@ -1,7 +1,5 @@
 (defpackage #:almighty-bolt/clock
   (:use #:cl)
-  (:import-from #:cffi
-                #:foreign-funcall)
   (:export #:nanoseconds
            #:now-ns
            #:*time-source*
@@ -31,9 +29,9 @@ mach_absolute_time, which NSEvent timestamps also use.")
 (defun real-time-source ()
   "Nanoseconds on the operating system's monotonic clock."
   (the nanoseconds
-       (foreign-funcall "clock_gettime_nsec_np"
-                        :int +clock-uptime-raw+
-                        :unsigned-long-long)))
+       (cffi:foreign-funcall "clock_gettime_nsec_np"
+                             :int +clock-uptime-raw+
+                             :unsigned-long-long)))
 
 (defvar *time-source* 'real-time-source
   "A function of no arguments (or a symbol naming one) that returns the current

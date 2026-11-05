@@ -1,55 +1,9 @@
 (defpackage #:almighty-bolt/ui/split
   (:use #:cl)
-  (:import-from #:almighty-bolt/internals
-                #:key-event-logical-key
-                #:+key-left+
-                #:+key-right+
-                #:+key-up+
-                #:+key-down+)
-  (:import-from #:almighty-bolt/ui/box
-                #:box-key
-                #:box-interactive
-                #:box-focusable
-                #:box-pref-w
-                #:box-pref-h
-                #:box-cross-align
-                #:box-fill
-                #:box-flex
-                #:box-look
-                #:box-n1
-                #:box-n3
-                #:box-min-w
-                #:box-max-w
-                #:box-min-h
-                #:box-max-h)
-  (:import-from #:almighty-bolt/ui/ui
-                #:*ui*
-                #:open-box
-                #:close-box
-                #:state-of
-                #:rect-of
-                #:rect-x
-                #:rect-y
-                #:rect-w
-                #:rect-h
-                #:ui-hot
-                #:ui-active
-                #:ui-focus
-                #:ui-pressed
-                #:ui-released
-                #:ui-down
-                #:ui-pointer-x
-                #:ui-pointer-y
-                #:ui-keys
-                #:consume-press
-                #:consume-release
-                #:consume-key
-                #:focus-by-click
-                #:want-cursor)
-  (:import-from #:almighty-bolt/ui/widgets
-                #:required-id
-                #:look-of
-                #:set-size-limits)
+  (:local-nicknames (#:core #:almighty-bolt/internals)
+                    (#:box #:almighty-bolt/ui/box)
+                    (#:ui #:almighty-bolt/ui/ui)
+                    (#:widgets #:almighty-bolt/ui/widgets))
   (:export #:split
            #:+divider-width+))
 
@@ -77,22 +31,22 @@ middle is thin, and the rest is there to be pressed.")
   (given nil :type (or null single-float)))
 
 (defun open-pane (ui id)
-  (let ((pane (open-box ui :pane :id id)))
-    (setf (box-cross-align pane) :stretch)
+  (let ((pane (ui:open-box ui :pane :id id)))
+    (setf (box:box-cross-align pane) :stretch)
     pane))
 
 (defun begin-split (id direction size flex width height &optional least)
   "Open the split and its first pane. Returns the split, its state and the first pane."
-  (let* ((ui *ui*)
-         (box (open-box ui :split :id (or id (required-id 'split))))
-         (state (state-of ui (box-key box) #'make-split-state)))
-    (set-size-limits box width height nil nil nil nil)
-    (setf (box-cross-align box) :stretch
-          (box-fill box) t
-          (box-n3 box) (if (eq direction :vertical) 1 0)
+  (let* ((ui ui:*ui*)
+         (box (ui:open-box ui :split :id (or id (widgets:required-id 'split))))
+         (state (ui:state-of ui (box:box-key box) #'make-split-state)))
+    (widgets:set-size-limits box width height nil nil nil nil)
+    (setf (box:box-cross-align box) :stretch
+          (box:box-fill box) t
+          (box:box-n3 box) (if (eq direction :vertical) 1 0)
           ;; How small a pane may be made, which the layout keeps the pane that flexes.
-          (box-n1 box) (float (or least 0) 1f0)
-          (box-flex box) (float flex 1f0))
+          (box:box-n1 box) (float (or least 0) 1f0)
+          (box:box-flex box) (float flex 1f0))
     ;; The size the split was first given, and a new one it is given after, wins over the one it
     ;; keeps; the same one given again does not, so a split given a constant is moved by its
     ;; divider, and one given back what it returned is the app's.
@@ -107,84 +61,84 @@ middle is thin, and the rest is there to be pressed.")
 (:first or :second) its size, and open the second pane. The size is the one the person chose; the
 layout shows the pane smaller while there is not room for it (see LAYOUT-SPLIT), and it is as it was
 when there is again."
-  (let* ((ui *ui*)
+  (let* ((ui ui:*ui*)
          (horizontal (not (eq direction :vertical)))
-         (outer (rect-of ui (box-key box)))
+         (outer (ui:rect-of ui (box:box-key box)))
          (size (split-state-size state))
          (least (float least 1f0))
          (second-kept (eq keep :second))
          (moved nil))
-    (close-box ui)
-    (let* ((divider (open-box ui :splitter :id :divider))
-           (key (box-key divider)))
+    (ui:close-box ui)
+    (let* ((divider (ui:open-box ui :splitter :id :divider))
+           (key (box:box-key divider)))
       (flet ((along (x y) (if horizontal x y)))
-        (setf (box-interactive divider) t
-              (box-focusable divider) t)
+        (setf (box:box-interactive divider) t
+              (box:box-focusable divider) t)
         (if horizontal
-            (setf (box-pref-w divider) +divider-width+)
-            (setf (box-pref-h divider) +divider-width+))
-        (when (and (= (ui-hot ui) key) (ui-pressed ui))
-          (consume-press ui)
-          (focus-by-click ui key)
-          (setf (ui-active ui) key)
-          (let ((rect (rect-of ui key)))
+            (setf (box:box-pref-w divider) +divider-width+)
+            (setf (box:box-pref-h divider) +divider-width+))
+        (when (and (= (ui:ui-hot ui) key) (ui:ui-pressed ui))
+          (ui:consume-press ui)
+          (ui:focus-by-click ui key)
+          (setf (ui:ui-active ui) key)
+          (let ((rect (ui:rect-of ui key)))
             (setf (split-state-grab state)
                   (if rect
-                      (- (along (ui-pointer-x ui) (ui-pointer-y ui)) (along (rect-x rect) (rect-y rect)))
+                      (- (along (ui:ui-pointer-x ui) (ui:ui-pointer-y ui)) (along (ui:rect-x rect) (ui:rect-y rect)))
                       0f0))))
-        (when (= (ui-active ui) key)
-          (when (and (ui-down ui) outer)
-            (let ((first (- (along (ui-pointer-x ui) (ui-pointer-y ui))
-                            (along (rect-x outer) (rect-y outer))
+        (when (= (ui:ui-active ui) key)
+          (when (and (ui:ui-down ui) outer)
+            (let ((first (- (along (ui:ui-pointer-x ui) (ui:ui-pointer-y ui))
+                            (along (ui:rect-x outer) (ui:rect-y outer))
                             (split-state-grab state))))
               (setf moved t
                     size (if second-kept
-                             (- (along (rect-w outer) (rect-h outer)) +divider-width+ first)
+                             (- (along (ui:rect-w outer) (ui:rect-h outer)) +divider-width+ first)
                              first))))
-          (when (ui-released ui)
-            (consume-release ui)
-            (setf (ui-active ui) 0)))
-        (when (= (ui-focus ui) key)
-          (dolist (event (copy-list (ui-keys ui)))
-            (let* ((k (key-event-logical-key event))
-                   (step (cond ((eql k (if horizontal +key-left+ +key-up+)) (- +divider-step+))
-                               ((eql k (if horizontal +key-right+ +key-down+)) +divider-step+))))
+          (when (ui:ui-released ui)
+            (ui:consume-release ui)
+            (setf (ui:ui-active ui) 0)))
+        (when (= (ui:ui-focus ui) key)
+          (dolist (event (copy-list (ui:ui-keys ui)))
+            (let* ((k (core:key-event-logical-key event))
+                   (step (cond ((eql k (if horizontal core:+key-left+ core:+key-up+)) (- +divider-step+))
+                               ((eql k (if horizontal core:+key-right+ core:+key-down+)) +divider-step+))))
               (when step
-                (consume-key ui event)
+                (ui:consume-key ui event)
                 (setf moved t)
                 (if second-kept (decf size step) (incf size step))))))
-        (want-cursor ui key (if horizontal :resize-left-right :resize-up-down))
+        (ui:want-cursor ui key (if horizontal :resize-left-right :resize-up-down))
         ;; No less than LEAST, no more than MOST, and leaving the second pane LEAST too.
         ;; Within the person's limits. Moved by the person, within the room there is: they cannot
         ;; choose more than they see. Made smaller by the window, the size is kept, and the layout
         ;; shows the pane smaller until there is room again.
         (when most (setf size (min size (float most 1f0))))
         (when (and moved outer)
-          (setf size (min size (- (along (rect-w outer) (rect-h outer)) +divider-width+ least))))
+          (setf size (min size (- (along (ui:rect-w outer) (ui:rect-h outer)) +divider-width+ least))))
         (setf size (max least size))
         (setf (split-state-size state) size
-              (box-look divider) (look-of ui key t)
-              (box-n1 divider) size
-              (box-n3 divider) (if horizontal 0 1))
+              (box:box-look divider) (widgets:look-of ui key t)
+              (box:box-n1 divider) size
+              (box:box-n3 divider) (if horizontal 0 1))
         (unless second-kept
           (if horizontal
-              (setf (box-min-w pane) size (box-max-w pane) size)
-              (setf (box-min-h pane) size (box-max-h pane) size)))
-        (close-box ui)))
+              (setf (box:box-min-w pane) size (box:box-max-w pane) size)
+              (setf (box:box-min-h pane) size (box:box-max-h pane) size)))
+        (ui:close-box ui)))
     (let ((second (open-pane ui :second)))
       (if second-kept
           (progn
-            (setf (box-flex pane) 1f0)
+            (setf (box:box-flex pane) 1f0)
             (if horizontal
-                (setf (box-min-w second) size (box-max-w second) size)
-                (setf (box-min-h second) size (box-max-h second) size)))
-          (setf (box-flex second) 1f0)))
+                (setf (box:box-min-w second) size (box:box-max-w second) size)
+                (setf (box:box-min-h second) size (box:box-max-h second) size)))
+          (setf (box:box-flex second) 1f0)))
     size))
 
 (defun end-split (size)
-  (let ((ui *ui*))
-    (close-box ui)
-    (close-box ui)
+  (let ((ui ui:*ui*))
+    (ui:close-box ui)
+    (ui:close-box ui)
     size))
 
 (defmacro split ((&key id (direction :horizontal) (size 240) (min 80) max (keep :first) (flex 0)

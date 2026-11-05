@@ -16,23 +16,9 @@
 
 (defpackage #:almighty-bolt-7guis/hot-smoke
   (:use #:cl)
-  (:import-from #:almighty-bolt/internals
-                #:lookup-target
-                #:frame-ring-total
-                #:make-pointer-event
-                #:make-key-event
-                #:kept-value
-                #:text-state-caret
-                #:text-state-string)
-  (:import-from #:almighty-bolt/platform/macos/main-queue
-                #:call-on-main)
-  (:import-from #:almighty-bolt/platform/macos/host
-                #:running-host
-                #:host-app
-                #:host-ring
-                #:host-deliver-event
-                #:host-kept-state
-                #:close-host-window))
+  (:local-nicknames (#:core #:almighty-bolt/internals)
+                    (#:main-queue #:almighty-bolt/platform/macos/main-queue)
+                    (#:host #:almighty-bolt/platform/macos/host)))
 
 (in-package #:almighty-bolt-7guis/hot-smoke)
 
@@ -64,34 +50,34 @@
       (sleep 0.01))))
 
 (defun present-p (host id)
-  (and (lookup-target (host-app host) id) t))
+  (and (core:lookup-target (host:host-app host) id) t))
 
 (defun symbol-in (package name)
   (or (find-symbol name package) (error "No ~a in ~a." name package)))
 
 (defun deliver (host event)
-  (call-on-main (lambda () (host-deliver-event host event)))
+  (main-queue:call-on-main (lambda () (host:host-deliver-event host event)))
   (sleep 0.05))
 
 (defun click (host id)
-  (multiple-value-bind (x y w h) (lookup-target (host-app host) id)
+  (multiple-value-bind (x y w h) (core:lookup-target (host:host-app host) id)
     (let ((px (float (+ x (/ w 2)) 1d0)) (py (float (+ y (/ h 2)) 1d0)))
-      (deliver host (make-pointer-event :timestamp 0 :kind :move :x px :y py :button nil
-                                        :buttons 0 :click-count 0))
-      (deliver host (make-pointer-event :timestamp 0 :kind :down :x px :y py :button 0
-                                        :buttons 1 :click-count 1))
-      (deliver host (make-pointer-event :timestamp 0 :kind :up :x px :y py :button 0
-                                        :buttons 0 :click-count 1)))))
+      (deliver host (core:make-pointer-event :timestamp 0 :kind :move :x px :y py :button nil
+                                             :buttons 0 :click-count 0))
+      (deliver host (core:make-pointer-event :timestamp 0 :kind :down :x px :y py :button 0
+                                             :buttons 1 :click-count 1))
+      (deliver host (core:make-pointer-event :timestamp 0 :kind :up :x px :y py :button 0
+                                             :buttons 0 :click-count 1)))))
 
 (defun type-text (host string)
   (loop :for character :across string
-        :do (deliver host (make-key-event :timestamp 0 :kind :down :logical-key character
-                                          :modifiers 0))))
+        :do (deliver host (core:make-key-event :timestamp 0 :kind :down :logical-key character
+                                               :modifiers 0))))
 
 (defun entries (host)
   "How the app's entries are shown, read from the state the host keeps for it."
-  (let ((state (kept-value (host-kept-state host)
-                           (symbol-in "ALMIGHTY-BOLT-7GUIS/CRUD/APP" "ENTRIES"))))
+  (let ((state (core:kept-value (host:host-kept-state host)
+                                (symbol-in "ALMIGHTY-BOLT-7GUIS/CRUD/APP" "ENTRIES"))))
     (mapcar (symbol-in "ALMIGHTY-BOLT-7GUIS/CRUD/MODEL" "ENTRY-DISPLAY")
             (funcall (symbol-in "ALMIGHTY-BOLT-7GUIS/CRUD/MODEL" "ENTRIES-LIST") state))))
 
@@ -100,7 +86,7 @@
 and the text of its field, as a list, or (NIL) if no field has the keyboard."
   (sleep 0.2)
   (let* ((ui (funcall (symbol-in "ALMIGHTY-BOLT/UI/IMMEDIATE" "IMMEDIATE-APP-UI")
-                      (host-app host)))
+                      (host:host-app host)))
          (key (funcall (symbol-in "ALMIGHTY-BOLT/UI/UI" "UI-FOCUS") ui))
          (field (gethash key (funcall (symbol-in "ALMIGHTY-BOLT/UI/UI" "UI-STATES")
                                       ui))))
@@ -108,7 +94,7 @@ and the text of its field, as a list, or (NIL) if no field has the keyboard."
         (let ((state (funcall (symbol-in "ALMIGHTY-BOLT/UI/WIDGETS"
                                          "FIELD-STATE-STATE")
                               field)))
-          (list key (text-state-caret state) (text-state-string state)))
+          (list key (core:text-state-caret state) (core:text-state-string state)))
         (list nil))))
 
 (defun save-with (replacement)
@@ -127,7 +113,7 @@ and the text of its field, as a list, or (NIL) if no field has the keyboard."
 (defun what-saving-does (host)
   (let ((before-entries (entries host))
         (before-caret (caret host))
-        (before-app (host-app host)))
+        (before-app (host:host-app host)))
     (check "the person was added" (= 4 (length before-entries)) (format nil "~s" before-entries))
     (check "the keyboard is in the name field, after Zed!"
            (and (first before-caret) (equal "Zed!" (third before-caret)))
@@ -135,7 +121,7 @@ and the text of its field, as a list, or (NIL) if no field has the keyboard."
     (save-with *labelled*)
     (let ((took (wait-for (lambda () (present-p host :probe)) 90)))
       (check "the saved file changed the app" took (and took (format nil "~,2f s" took))))
-    (check "the app was made again" (not (eq before-app (host-app host))))
+    (check "the app was made again" (not (eq before-app (host:host-app host))))
     (sleep 1)
     (let ((after-entries (entries host))
           (after-caret (caret host)))
@@ -157,30 +143,30 @@ and the text of its field, as a list, or (NIL) if no field has the keyboard."
     (check "and the entries are still there" (equal before-entries (entries host)))))
 
 (defun what-a-bad-save-does (host)
-  (let ((instance (host-app host))
+  (let ((instance (host:host-app host))
         (entries (entries host)))
     ;; A file that does not read: the parenthesis is not closed.
     (save-with "(label \"Filter prefix:\" :id :filter-label")
     (sleep 3)
     (check "a file that does not read changes nothing"
-           (and (eq instance (host-app host)) (present-p host :name)))
+           (and (eq instance (host:host-app host)) (present-p host :name)))
     ;; Code that compiles and fails when the app runs: the new app is made, fails in its first
     ;; frame, and the old one is put back.
     (save-with "(label (error \"broken on purpose\") :id :filter-label)")
     (sleep 4)
     (check "an edit that fails when the app runs leaves the old app"
-           (and (eq instance (host-app host)) (present-p host :name)))
+           (and (eq instance (host:host-app host)) (present-p host :name)))
     (check "and the entries are still there" (equal entries (entries host)))
     ;; The file put back: the app is made again, from code that works.
     (write-file *original*)
-    (let ((took (wait-for (lambda () (not (eq instance (host-app host)))) 90)))
+    (let ((took (wait-for (lambda () (not (eq instance (host:host-app host)))) 90)))
       (check "the file put back is made into the app again" took
              (and took (format nil "~,2f s" took))))
     (sleep 1)
     (check "and the entries are still there" (equal entries (entries host)))))
 
 (defun drive ()
-  (let ((host (loop :for host = (running-host) :until host :do (sleep 0.05)
+  (let ((host (loop :for host = (host:running-host) :until host :do (sleep 0.05)
                     :finally (return host))))
     (unwind-protect
          ;; An error in the check is a failure of it: without this, the Lisp quits on it (the
@@ -188,7 +174,7 @@ and the text of its field, as a list, or (NIL) if no field has the keyboard."
          (handler-bind ((error (lambda (condition)
                                  (check "the check runs to its end" nil
                                         (princ-to-string condition)))))
-           (wait-for (lambda () (plusp (frame-ring-total (host-ring host)))) 20)
+           (wait-for (lambda () (plusp (core:frame-ring-total (host:host-ring host)))) 20)
            (sleep 1.5)
            (use-the-app host)
            (what-saving-does host)
@@ -198,7 +184,7 @@ and the text of its field, as a list, or (NIL) if no field has the keyboard."
           (format t "~&The hot reload check passed.~%")
           (format t "~&FAIL: ~d check~:p did not hold.~%" *failures*))
       (finish-output)
-      (close-host-window host))))
+      (host:close-host-window host))))
 
 (when (search *labelled* *original*)
   ;; A run that was killed in the middle left the file as it saves it. Put it back.

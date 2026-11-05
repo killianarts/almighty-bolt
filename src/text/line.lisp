@@ -1,19 +1,7 @@
 (defpackage #:almighty-bolt/text/line
   (:use #:cl)
-  (:import-from #:almighty-bolt/text/core-foundation
-                #:ccall
-                #:cf-string
-                #:cf-release
-                #:cf-constant
-                #:cf-array-count
-                #:cf-array-ref
-                #:font-attributes)
-  (:import-from #:almighty-bolt/text/font
-                #:font
-                #:font-tracking
-                #:font-ct-font
-                #:font-lines
-                #:font-older-lines)
+  (:local-nicknames (#:cf #:almighty-bolt/text/core-foundation)
+                    (#:font #:almighty-bolt/text/font))
   (:export #:text-line
            #:shape-line
            #:get-line
@@ -62,7 +50,7 @@
 
 (defstruct (text-line (:constructor %make-text-line))
   (string "" :type simple-string :read-only t)
-  (font nil :type (or null font) :read-only t)
+  (font nil :type (or null font:font) :read-only t)
   (ct-line 0 :type (unsigned-byte 64) :read-only t)
   (width 0f0 :type single-float :read-only t)
   (ascent 0f0 :type single-float :read-only t)
@@ -116,12 +104,12 @@
 
 (defun attributed-string (font string)
   "A new attributed string of STRING in FONT. The caller owns it."
-  (let* ((cf (cf-string string))
-         (attributes (font-attributes (font-ct-font font) (font-tracking font)))
-         (attributed (ccall "CFAttributedStringCreate" :ulong
-                            (:ulong 0) (:ulong cf) (:ulong attributes))))
-    (cf-release cf)
-    (cf-release attributes)
+  (let* ((cf (cf:cf-string string))
+         (attributes (cf:font-attributes (font:font-ct-font font) (font:font-tracking font)))
+         (attributed (cf:ccall "CFAttributedStringCreate" :ulong
+                               (:ulong 0) (:ulong cf) (:ulong attributes))))
+    (cf:cf-release cf)
+    (cf:cf-release attributes)
     attributed))
 
 (defun line-metrics (ct-line)
@@ -129,11 +117,11 @@
   (sb-alien:with-alien ((ascent sb-alien:double)
                         (descent sb-alien:double)
                         (leading sb-alien:double))
-    (let ((width (ccall "CTLineGetTypographicBounds" :double
-                        (:ulong ct-line)
-                        (:pointer (sb-sys:sap-int (sb-alien:alien-sap (sb-alien:addr ascent))))
-                        (:pointer (sb-sys:sap-int (sb-alien:alien-sap (sb-alien:addr descent))))
-                        (:pointer (sb-sys:sap-int (sb-alien:alien-sap (sb-alien:addr leading)))))))
+    (let ((width (cf:ccall "CTLineGetTypographicBounds" :double
+                           (:ulong ct-line)
+                           (:pointer (sb-sys:sap-int (sb-alien:alien-sap (sb-alien:addr ascent))))
+                           (:pointer (sb-sys:sap-int (sb-alien:alien-sap (sb-alien:addr descent))))
+                           (:pointer (sb-sys:sap-int (sb-alien:alien-sap (sb-alien:addr leading)))))))
       (values width ascent descent))))
 
 (declaim (type (simple-array double-float (*)) *run-points*))
@@ -145,15 +133,15 @@ lines is not.")
 (defun fill-glyphs (ct-line glyphs glyph-fonts xs ys)
   "Copy the glyphs of CT-LINE, each run's font and the position of each glyph into
 the arrays, which must be long enough."
-  (let ((runs (ccall "CTLineGetGlyphRuns" :ulong (:ulong ct-line)))
-        (font-key (cf-constant "kCTFontAttributeName"))
+  (let ((runs (cf:ccall "CTLineGetGlyphRuns" :ulong (:ulong ct-line)))
+        (font-key (cf:cf-constant "kCTFontAttributeName"))
         (position 0))
-    (dotimes (r (cf-array-count runs))
-      (let* ((run (cf-array-ref runs r))
-             (count (ccall "CTRunGetGlyphCount" :long (:ulong run)))
-             (attributes (ccall "CTRunGetAttributes" :ulong (:ulong run)))
-             (run-font (ccall "CFDictionaryGetValue" :ulong
-                              (:ulong attributes) (:ulong font-key)))
+    (dotimes (r (cf:cf-array-count runs))
+      (let* ((run (cf:cf-array-ref runs r))
+             (count (cf:ccall "CTRunGetGlyphCount" :long (:ulong run)))
+             (attributes (cf:ccall "CTRunGetAttributes" :ulong (:ulong run)))
+             (run-font (cf:ccall "CFDictionaryGetValue" :ulong
+                                 (:ulong attributes) (:ulong font-key)))
              (points (progn
                        (when (< (length *run-points*) (* 2 count))
                          (setf *run-points* (make-array (* 4 count) :element-type 'double-float)))
@@ -161,12 +149,12 @@ the arrays, which must be long enough."
         ;; A CFRange of zero length means the whole run. The glyphs are written
         ;; straight into our array, at this run's place in it.
         (sb-sys:with-pinned-objects (glyphs points)
-          (ccall "CTRunGetGlyphs" :void
-                 (:ulong run) (:long 0) (:long 0)
-                 (:pointer (+ (sb-sys:sap-int (sb-sys:vector-sap glyphs)) (* 2 position))))
-          (ccall "CTRunGetPositions" :void
-                 (:ulong run) (:long 0) (:long 0)
-                 (:pointer (sb-sys:sap-int (sb-sys:vector-sap points)))))
+          (cf:ccall "CTRunGetGlyphs" :void
+                    (:ulong run) (:long 0) (:long 0)
+                    (:pointer (+ (sb-sys:sap-int (sb-sys:vector-sap glyphs)) (* 2 position))))
+          (cf:ccall "CTRunGetPositions" :void
+                    (:ulong run) (:long 0) (:long 0)
+                    (:pointer (sb-sys:sap-int (sb-sys:vector-sap points)))))
         (dotimes (i count)
           (setf (aref glyph-fonts (+ position i)) run-font
                 (aref xs (+ position i)) (float (aref points (* 2 i)) 1f0)
@@ -178,10 +166,10 @@ the arrays, which must be long enough."
 shape a string once."
   (let* ((string (copy-seq string))
          (attributed (attributed-string font string))
-         (ct-line (ccall "CTLineCreateWithAttributedString" :ulong (:ulong attributed))))
-    (cf-release attributed)
+         (ct-line (cf:ccall "CTLineCreateWithAttributedString" :ulong (:ulong attributed))))
+    (cf:cf-release attributed)
     (multiple-value-bind (width ascent descent) (line-metrics ct-line)
-      (let* ((count (ccall "CTLineGetGlyphCount" :long (:ulong ct-line)))
+      (let* ((count (cf:ccall "CTLineGetGlyphCount" :long (:ulong ct-line)))
              (glyphs (make-array count :element-type '(unsigned-byte 16)))
              (glyph-fonts (make-array count :element-type '(unsigned-byte 64)))
              (xs (make-array count :element-type 'single-float))
@@ -207,16 +195,16 @@ shape a string once."
   "Release the Core Text lines of TABLE and empty it."
   (maphash (lambda (string line)
              (declare (ignore string))
-             (cf-release (text-line-ct-line line)))
+             (cf:cf-release (text-line-ct-line line)))
            table)
   (clrhash table))
 
 (defun get-line (font string)
   "The TEXT-LINE for STRING in FONT, shaped the first time and kept for a while (see the note
 above on generations). Allocates nothing when the line is already in the first generation."
-  (let ((lines (font-lines font)))
+  (let ((lines (font:font-lines font)))
     (or (gethash string lines)
-        (let* ((older (font-older-lines font))
+        (let* ((older (font:font-older-lines font))
                (line (gethash string older)))
           (cond (line
                  ;; Used again: it moves to the generation of the lines used lately.
@@ -226,15 +214,15 @@ above on generations). Allocates nothing when the line is already in the first g
                  (when (>= (hash-table-count lines) *lines-per-generation*)
                    ;; The generation before is let go, and this one becomes it.
                    (release-lines older)
-                   (rotatef (font-lines font) (font-older-lines font))
-                   (setf lines (font-lines font)))
+                   (rotatef (font:font-lines font) (font:font-older-lines font))
+                   (setf lines (font:font-lines font)))
                  (let ((new (shape-line font string)))
                    (setf (gethash (text-line-string new) lines) new))))))))
 
 (defun clear-line-cache (font)
   "Forget every line shaped in FONT and release its Core Text lines."
-  (release-lines (font-lines font))
-  (release-lines (font-older-lines font)))
+  (release-lines (font:font-lines font))
+  (release-lines (font:font-older-lines font)))
 
 (defun measure-text (font string)
   "The width, ascent and descent of STRING in FONT, in points, as three values."
@@ -250,18 +238,18 @@ above on generations). Allocates nothing when the line is already in the first g
     (error "Index ~d is outside a string of ~d characters."
            index (length (text-line-string line))))
   (sb-alien:with-alien ((secondary sb-alien:double))
-    (float (ccall "CTLineGetOffsetForStringIndex" :double
-                  (:ulong (text-line-ct-line line))
-                  (:long (line-utf16 line index))
-                  (:pointer (sb-sys:sap-int (sb-alien:alien-sap (sb-alien:addr secondary)))))
+    (float (cf:ccall "CTLineGetOffsetForStringIndex" :double
+                     (:ulong (text-line-ct-line line))
+                     (:long (line-utf16 line index))
+                     (:pointer (sb-sys:sap-int (sb-alien:alien-sap (sb-alien:addr secondary)))))
            1f0)))
 
 (defun index-at-x (line x)
   "The index of the character that the point X, measured from the start of
 LINE, is closest to: where a click there would put the caret."
-  (let ((offset (ccall "CTLineGetStringIndexForPosition" :long
-                       (:ulong (text-line-ct-line line))
-                       (:double (float x 1d0)) (:double 0d0))))
+  (let ((offset (cf:ccall "CTLineGetStringIndexForPosition" :long
+                          (:ulong (text-line-ct-line line))
+                          (:double (float x 1d0)) (:double 0d0))))
     (min (length (text-line-string line))
          (max 0 (line-lisp line offset)))))
 
@@ -280,18 +268,18 @@ ends a line."
   (let* ((string (copy-seq string))
          (astral (astral-string-p string))
          (attributed (attributed-string font string))
-         (typesetter (ccall "CTTypesetterCreateWithAttributedString" :ulong (:ulong attributed)))
-         (length (ccall "CFAttributedStringGetLength" :long (:ulong attributed)))
+         (typesetter (cf:ccall "CTTypesetterCreateWithAttributedString" :ulong (:ulong attributed)))
+         (length (cf:ccall "CFAttributedStringGetLength" :long (:ulong attributed)))
          (start 0)
          (lines '()))
     (flet ((to-lisp (offset) (if astral (lisp-index string offset) offset)))
       (loop :while (< start length)
-            :do (let* ((count (max 1 (ccall "CTTypesetterSuggestLineBreak" :long
-                                            (:ulong typesetter) (:long start)
-                                            (:double (float width 1d0)))))
+            :do (let* ((count (max 1 (cf:ccall "CTTypesetterSuggestLineBreak" :long
+                                               (:ulong typesetter) (:long start)
+                                               (:double (float width 1d0)))))
                        (end (min length (+ start count))))
                   (push (list (to-lisp start) (to-lisp end)) lines)
                   (setf start end))))
-    (cf-release typesetter)
-    (cf-release attributed)
+    (cf:cf-release typesetter)
+    (cf:cf-release attributed)
     (nreverse lines)))

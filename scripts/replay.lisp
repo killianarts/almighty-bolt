@@ -3,17 +3,11 @@
 (defpackage #:almighty-bolt-scripts/replay
   (:use #:cl)
   (:local-nicknames (#:core #:almighty-bolt/internals)
-                    (#:registry #:almighty-bolt-7guis/common/registry))
-  (:import-from #:almighty-bolt/platform/macos/objc
-                #:with-masked-float-traps
-                #:with-autorelease-pool)
-  (:import-from #:almighty-bolt/platform/macos/host
-                #:make-host
-                #:host-context)
-  (:import-from #:almighty-bolt/render/metal/device
-                #:default-device)
-  (:import-from #:almighty-bolt/render/metal/target
-                #:+pixel-format-bgra8-unorm+))
+                    (#:registry #:almighty-bolt-7guis/common/registry)
+                    (#:objc #:almighty-bolt/platform/macos/objc)
+                    (#:host #:almighty-bolt/platform/macos/host)
+                    (#:device #:almighty-bolt/render/metal/device)
+                    (#:target #:almighty-bolt/render/metal/target)))
 
 (in-package #:almighty-bolt-scripts/replay)
 
@@ -27,11 +21,11 @@
 (defun run-once (script task)
   "Play SCRIPT into a new app of TASK. Returns the result."
   (let ((object (registry:make-app-object (registry:find-app task))))
-    (with-masked-float-traps
-      (with-autorelease-pool
-        (let* ((host (make-host (make-instance 'core:app-instance) (default-device)
-                                +pixel-format-bgra8-unorm+ :capacity 1024 :scale 2))
-               (context (host-context host)))
+    (objc:with-masked-float-traps
+      (objc:with-autorelease-pool
+        (let* ((host (host:make-host (make-instance 'core:app-instance) (device:default-device)
+                                     target:+pixel-format-bgra8-unorm+ :capacity 1024 :scale 2))
+               (context (host:host-context host)))
           (core:replay script object context))))))
 
 (defun report (result task)

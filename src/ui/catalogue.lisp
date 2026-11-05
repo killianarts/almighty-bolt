@@ -1,34 +1,8 @@
 (defpackage #:almighty-bolt/ui/catalogue
   (:use #:cl)
-  (:import-from #:almighty-bolt/ui/widgets
-                #:label
-                #:paragraph
-                #:button
-                #:text-field
-                #:text-area
-                #:combo-box
-                #:slider
-                #:choice
-                #:tabs
-                #:checkbox
-                #:switch
-                #:dropdown
-                #:list-box
-                #:progress
-                #:spinner
-                #:column
-                #:row
-                #:grid
-                #:stack
-                #:padding
-                #:panel
-                #:center
-                #:scroll
-                #:pressable)
-  (:import-from #:almighty-bolt/ui/split
-                #:split)
-  (:import-from #:almighty-bolt/ui/tree
-                #:tree)
+  (:local-nicknames (#:widgets #:almighty-bolt/ui/widgets)
+                    (#:split #:almighty-bolt/ui/split)
+                    (#:tree #:almighty-bolt/ui/tree))
   (:export #:entry
            #:catalogue
            #:define-widget-entry
@@ -171,41 +145,41 @@ wired there or NIL, and SET-VALUE the function that sets the place wired as :val
                              :options ((:text :string "Label") (:size :number 15)
                                        (:weight (:choice :regular :bold) :regular)
                                        (:turn (:choice :none :up :down) :none)))
-  (label text :id id :size size :weight weight :turn (and (not (eq turn :none)) turn)))
+  (widgets:label text :id id :size size :weight weight :turn (and (not (eq turn :none)) turn)))
 
 (define-widget-entry :paragraph (:title "Paragraph"
                                  :options ((:text :string "Some words, broken into lines to fit.")
                                            (:size :number 15)))
-  (paragraph text :id id :size size))
+  (widgets:paragraph text :id id :size size))
 
 (define-widget-entry :button (:title "Button"
                               :options ((:text :string "Button") (:enabled :boolean t))
                               :wires (:on-press))
-  (when (and (button text :id id :enabled enabled) on-press)
+  (when (and (widgets:button text :id id :enabled enabled) on-press)
     (funcall on-press)))
 
 (define-widget-entry :text-field (:title "Text field"
                                   :options ((:text :string "") (:width :number 180)
                                             (:invalid :boolean nil) (:enabled :boolean t))
                                   :value :text)
-  (multiple-value-bind (now changed) (text-field text :id id :width width :invalid invalid
-                                                      :enabled enabled)
+  (multiple-value-bind (now changed) (widgets:text-field text :id id :width width :invalid invalid
+                                                              :enabled enabled)
     (when (and changed set-value) (funcall set-value now))))
 
 (define-widget-entry :text-area (:title "Text area"
                                  :options ((:text :string "") (:width :number 320)
                                            (:rows :number 6) (:enabled :boolean t))
                                  :value :text)
-  (multiple-value-bind (now changed) (text-area text :id id :width width :rows (max 1 (round rows))
-                                                     :enabled enabled)
+  (multiple-value-bind (now changed) (widgets:text-area text :id id :width width :rows (max 1 (round rows))
+                                                             :enabled enabled)
     (when (and changed set-value) (funcall set-value now))))
 
 (define-widget-entry :combo-box (:title "Combo box"
                                  :options ((:text :string "") (:suggestions :list ("One" "Two"))
                                            (:width :number 180) (:enabled :boolean t))
                                  :value :text)
-  (multiple-value-bind (now changed) (combo-box text suggestions :id id :width width
-                                                                 :enabled enabled)
+  (multiple-value-bind (now changed) (widgets:combo-box text suggestions :id id :width width
+                                                                         :enabled enabled)
     (when (and changed set-value) (funcall set-value now))))
 
 (define-widget-entry :slider (:title "Slider"
@@ -213,8 +187,8 @@ wired there or NIL, and SET-VALUE the function that sets the place wired as :val
                                         (:maximum :number 100) (:width :number 200)
                                         (:enabled :boolean t))
                               :value :value)
-  (multiple-value-bind (now moved) (slider value minimum (max maximum minimum) :id id :width width
-                                                                               :enabled enabled)
+  (multiple-value-bind (now moved) (widgets:slider value minimum (max maximum minimum) :id id :width width
+                                                                                       :enabled enabled)
     (when (and moved set-value) (funcall set-value now))))
 
 (define-widget-entry :choice (:title "Choice"
@@ -225,8 +199,8 @@ wired there or NIL, and SET-VALUE the function that sets the place wired as :val
                                         (:enabled :boolean t))
                               :value :selected)
   (multiple-value-bind (now moved)
-      (choice (or options '("")) (index-in selected (or options '(""))) :id id
-              :direction direction :style style :enabled enabled)
+      (widgets:choice (or options '("")) (index-in selected (or options '(""))) :id id
+                      :direction direction :style style :enabled enabled)
     (when (and moved set-value) (funcall set-value now))))
 
 (define-widget-entry :tabs (:title "Tabs"
@@ -235,21 +209,21 @@ wired there or NIL, and SET-VALUE the function that sets the place wired as :val
                                       (:enabled :boolean t))
                             :value :selected)
   (multiple-value-bind (now moved)
-      (tabs (or titles '("")) (index-in selected (or titles '(""))) :id id :enabled enabled)
+      (widgets:tabs (or titles '("")) (index-in selected (or titles '(""))) :id id :enabled enabled)
     (when (and moved set-value) (funcall set-value now))))
 
 (define-widget-entry :checkbox (:title "Check box"
                                 :options ((:label :string "Check box") (:checked :boolean nil)
                                           (:enabled :boolean t))
                                 :value :checked)
-  (multiple-value-bind (now changed) (checkbox label checked :id id :enabled enabled)
+  (multiple-value-bind (now changed) (widgets:checkbox label checked :id id :enabled enabled)
     (when (and changed set-value) (funcall set-value now))))
 
 (define-widget-entry :switch (:title "Switch"
                               :options ((:label :string "Switch") (:on :boolean nil)
                                         (:enabled :boolean t))
                               :value :on)
-  (multiple-value-bind (now changed) (switch label on :id id :enabled enabled)
+  (multiple-value-bind (now changed) (widgets:switch label on :id id :enabled enabled)
     (when (and changed set-value) (funcall set-value now))))
 
 (define-widget-entry :dropdown (:title "Dropdown"
@@ -258,8 +232,8 @@ wired there or NIL, and SET-VALUE the function that sets the place wired as :val
                                           (:enabled :boolean t))
                                 :value :selected)
   (multiple-value-bind (now moved)
-      (dropdown (or options '("")) (index-in selected (or options '(""))) :id id
-                :width width :enabled enabled)
+      (widgets:dropdown (or options '("")) (index-in selected (or options '(""))) :id id
+                        :width width :enabled enabled)
     (when (and moved set-value) (funcall set-value now))))
 
 (define-widget-entry :list-box (:title "List box"
@@ -268,16 +242,16 @@ wired there or NIL, and SET-VALUE the function that sets the place wired as :val
                                           (:width :number 200) (:enabled :boolean t))
                                 :value :selected)
   (multiple-value-bind (now moved)
-      (list-box items (and items (index-in selected items)) :id id
-                :rows (max 1 (round rows)) :width width :enabled enabled)
+      (widgets:list-box items (and items (index-in selected items)) :id id
+                        :rows (max 1 (round rows)) :width width :enabled enabled)
     (when (and moved set-value) (funcall set-value now))))
 
 (define-widget-entry :progress (:title "Progress"
                                 :options ((:fraction :number 0.5) (:width :number 200)))
-  (progress (max 0 (min 1 fraction)) :id id :width width))
+  (widgets:progress (max 0 (min 1 fraction)) :id id :width width))
 
 (define-widget-entry :spinner (:title "Spinner" :options ((:size :number 18)))
-  (spinner :id id :size size))
+  (widgets:spinner :id id :size size))
 
 ;;; Not the spacer: it takes the free room of its row or column, and a column whose height is not
 ;;; bounded (a view's, which is as tall as what is in it) has none, which layout says is an error.
@@ -288,42 +262,42 @@ wired there or NIL, and SET-VALUE the function that sets the place wired as :val
                               :options ((:gap :number 0) (:main-align (:choice :start :center :end :space-between :space-around :space-evenly) :start)
                                         (:cross-align (:choice :start :center :end :stretch) :start))
                               :container t)
-  (column (:id id :gap gap :main-align main-align :cross-align cross-align)
+  (widgets:column (:id id :gap gap :main-align main-align :cross-align cross-align)
     (contents)))
 
 (define-widget-entry :row (:title "Row"
                            :options ((:gap :number 0) (:main-align (:choice :start :center :end :space-between :space-around :space-evenly) :start)
                                      (:cross-align (:choice :start :center :end :stretch) :start))
                            :container t)
-  (row (:id id :gap gap :main-align main-align :cross-align cross-align)
+  (widgets:row (:id id :gap gap :main-align main-align :cross-align cross-align)
     (contents)))
 
 (define-widget-entry :grid (:title "Grid"
                             :options ((:columns :number 2) (:gap :number 8))
                             :container t)
-  (grid (:id id :columns (max 1 (round columns)) :gap gap)
+  (widgets:grid (:id id :columns (max 1 (round columns)) :gap gap)
     (contents)))
 
 (define-widget-entry :stack (:title "Stack" :container t)
-  (stack (:id id)
+  (widgets:stack (:id id)
     (contents)))
 
 (define-widget-entry :padding (:title "Padding" :options ((:all :number 12)) :container t)
-  (padding (:id id :all all)
+  (widgets:padding (:id id :all all)
     (contents)))
 
 (define-widget-entry :panel (:title "Panel"
                              :options ((:all :number 12) (:radius :number 8))
                              :container t)
-  (panel (:id id :all all :radius radius)
+  (widgets:panel (:id id :all all :radius radius)
     (contents)))
 
 (define-widget-entry :center (:title "Center" :container t)
-  (center (:id id)
+  (widgets:center (:id id)
     (contents)))
 
 (define-widget-entry :scroll (:title "Scroll" :options ((:height :number 200)) :container t)
-  (scroll (:id id :height height)
+  (widgets:scroll (:id id :height height)
     (contents)))
 
 (defun indented-tree (lines)
@@ -348,7 +322,7 @@ of (index words . children), INDEX its line's place in LINES."
                                            (:selected :number 0))
                                  :value :selected)
   (multiple-value-bind (now changed)
-      (tree (indented-tree items) :id id :children #'cddr :label #'second :key #'first
+      (tree:tree (indented-tree items) :id id :children #'cddr :label #'second :key #'first
                                        :selected (round selected))
     (when (and changed set-value) (funcall set-value now))))
 
@@ -359,7 +333,7 @@ of (index words . children), INDEX its line's place in LINES."
                                        (:size :number 160) (:least :number 60)
                                        (:width :number 480) (:height :number 240))
                              :container t)
-  (split (:id id :direction direction :size size :min least :width width :height height)
+  (split:split (:id id :direction direction :size size :min least :width width :height height)
     (contents :first)
     (contents :rest)))
 
@@ -368,7 +342,7 @@ of (index words . children), INDEX its line's place in LINES."
                                            (:enabled :boolean t))
                                  :wires (:on-press)
                                  :container t)
-  (when (and (pressable (:id id :look look :enabled enabled) (contents)) on-press)
+  (when (and (widgets:pressable (:id id :look look :enabled enabled) (contents)) on-press)
     (funcall on-press)))
 
 (defun find-entry (kind)

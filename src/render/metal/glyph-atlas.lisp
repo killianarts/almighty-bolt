@@ -1,17 +1,8 @@
 (defpackage #:almighty-bolt/render/metal/glyph-atlas
   (:use #:cl)
-  (:import-from #:almighty-bolt/platform/macos/objc
-                #:msg-send
-                #:objc-class)
-  (:import-from #:almighty-bolt/app-instance
-                #:glyphs-full)
-  (:import-from #:almighty-bolt/text/glyph-raster
-                #:rasterize-glyph
-                #:glyph-bitmap-pixels
-                #:glyph-bitmap-width
-                #:glyph-bitmap-height
-                #:glyph-bitmap-bearing-x
-                #:glyph-bitmap-bearing-y)
+  (:local-nicknames (#:objc #:almighty-bolt/platform/macos/objc)
+                    (#:app-instance #:almighty-bolt/app-instance)
+                    (#:raster #:almighty-bolt/text/glyph-raster))
   (:export #:glyph-atlas
            #:make-glyph-atlas
            #:glyph-atlas-texture
@@ -44,7 +35,7 @@
 (defconstant +usage-shader-read+ 1)
 (defconstant +storage-shared+ 0)
 
-(define-condition glyph-atlas-full (glyphs-full)
+(define-condition glyph-atlas-full (app-instance:glyphs-full)
   ((what :initarg :what :reader glyph-atlas-full-what))
   (:report (lambda (condition stream)
              (format stream "The glyph atlas is full (~a)." (glyph-atlas-full-what condition)))))
@@ -70,20 +61,20 @@
 (defun make-glyph-atlas (device &key (width 1024) (height 1024) (capacity 4096) (scale 2))
   "An empty atlas on DEVICE: a WIDTH by HEIGHT texture and room for CAPACITY glyphs,
 rasterized at SCALE pixels a point."
-  (let* ((descriptor (msg-send :id (objc-class "MTLTextureDescriptor")
-                               "texture2DDescriptorWithPixelFormat:width:height:mipmapped:"
-                               (:ulong +pixel-format-r8-unorm+) (:ulong width) (:ulong height)
-                               (:bool nil)))
+  (let* ((descriptor (objc:msg-send :id (objc:objc-class "MTLTextureDescriptor")
+                                    "texture2DDescriptorWithPixelFormat:width:height:mipmapped:"
+                                    (:ulong +pixel-format-r8-unorm+) (:ulong width) (:ulong height)
+                                    (:bool nil)))
          (texture (progn
-                    (msg-send :void descriptor "setUsage:" (:ulong +usage-shader-read+))
-                    (msg-send :void descriptor "setStorageMode:" (:ulong +storage-shared+))
-                    (msg-send :id device "newTextureWithDescriptor:" (:id descriptor))))
-         (uv-buffer (msg-send :id device "newBufferWithLength:options:"
-                              (:ulong (* capacity 16)) (:ulong 0)))
+                    (objc:msg-send :void descriptor "setUsage:" (:ulong +usage-shader-read+))
+                    (objc:msg-send :void descriptor "setStorageMode:" (:ulong +storage-shared+))
+                    (objc:msg-send :id device "newTextureWithDescriptor:" (:id descriptor))))
+         (uv-buffer (objc:msg-send :id device "newBufferWithLength:options:"
+                                   (:ulong (* capacity 16)) (:ulong 0)))
          (atlas (%make-glyph-atlas
                  :texture texture
                  :uv-buffer uv-buffer
-                 :uv-contents (msg-send :id uv-buffer "contents")
+                 :uv-contents (objc:msg-send :id uv-buffer "contents")
                  :width width
                  :height height
                  :scale (float scale 1f0)
@@ -119,11 +110,11 @@ must not be drawing from it."
           :for i :from 0
           :do (setf (sb-alien:deref region i) value))
     (sb-sys:with-pinned-objects (pixels)
-      (msg-send :void (glyph-atlas-texture atlas) "replaceRegion:mipmapLevel:withBytes:bytesPerRow:"
-                (:pointer (sb-sys:sap-int (sb-alien:alien-sap region)))
-                (:ulong 0)
-                (:pointer (sb-sys:sap-int (sb-sys:vector-sap pixels)))
-                (:ulong width)))))
+      (objc:msg-send :void (glyph-atlas-texture atlas) "replaceRegion:mipmapLevel:withBytes:bytesPerRow:"
+                     (:pointer (sb-sys:sap-int (sb-alien:alien-sap region)))
+                     (:ulong 0)
+                     (:pointer (sb-sys:sap-int (sb-sys:vector-sap pixels)))
+                     (:ulong width)))))
 
 (defun allocate-space (atlas width height)
   "Find room for a WIDTH by HEIGHT bitmap on the current shelf or a new one, and
@@ -145,17 +136,17 @@ return its x and y."
 (defun add-glyph (atlas font-address glyph)
   "Rasterize GLYPH of the font at FONT-ADDRESS into the atlas. Returns its index, or
 -1 if the glyph has no ink."
-  (let ((bitmap (rasterize-glyph font-address glyph (glyph-atlas-scale atlas))))
+  (let ((bitmap (raster:rasterize-glyph font-address glyph (glyph-atlas-scale atlas))))
     (if (null bitmap)
         -1
         (let ((index (glyph-atlas-count atlas))
-              (width (glyph-bitmap-width bitmap))
-              (height (glyph-bitmap-height bitmap))
+              (width (raster:glyph-bitmap-width bitmap))
+              (height (raster:glyph-bitmap-height bitmap))
               (scale (glyph-atlas-scale atlas)))
           (when (>= index (glyph-atlas-capacity atlas))
             (error 'glyph-atlas-full :what "no room for another glyph"))
           (multiple-value-bind (x y) (allocate-space atlas width height)
-            (upload atlas x y width height (glyph-bitmap-pixels bitmap))
+            (upload atlas x y width height (raster:glyph-bitmap-pixels bitmap))
             (let ((sap (sb-sys:int-sap (glyph-atlas-uv-contents atlas)))
                   (offset (* index 16))
                   (atlas-width (float (glyph-atlas-width atlas) 1f0))
@@ -165,8 +156,8 @@ return its x and y."
                     (sb-sys:sap-ref-single sap (+ offset 4)) (/ y atlas-height)
                     (sb-sys:sap-ref-single sap (+ offset 8)) (/ (+ x width) atlas-width)
                     (sb-sys:sap-ref-single sap (+ offset 12)) (/ (+ y height) atlas-height)))
-            (setf (aref (glyph-atlas-bearing-xs atlas) index) (glyph-bitmap-bearing-x bitmap)
-                  (aref (glyph-atlas-bearing-ys atlas) index) (glyph-bitmap-bearing-y bitmap)
+            (setf (aref (glyph-atlas-bearing-xs atlas) index) (raster:glyph-bitmap-bearing-x bitmap)
+                  (aref (glyph-atlas-bearing-ys atlas) index) (raster:glyph-bitmap-bearing-y bitmap)
                   (aref (glyph-atlas-widths atlas) index) (/ width scale)
                   (aref (glyph-atlas-heights atlas) index) (/ height scale)))
           (setf (glyph-atlas-count atlas) (1+ index))

@@ -1,18 +1,7 @@
 (defpackage #:almighty-bolt/text/font
   (:use #:cl)
-  (:import-from #:almighty-bolt/text/core-foundation
-                #:ccall
-                #:cf-constant
-                #:cf-string
-                #:cf-release
-                #:cf-array-count
-                #:cf-array-ref
-                #:cf-dictionary
-                #:cf-number-double)
-  (:import-from #:almighty-bolt/platform/macos/objc
-                #:lisp-string
-                #:msg-send
-                #:objc-class)
+  (:local-nicknames (#:cf #:almighty-bolt/text/core-foundation)
+                    (#:objc #:almighty-bolt/platform/macos/objc))
   (:export #:font
            #:make-font
            #:system-font
@@ -62,9 +51,9 @@
               :weight weight
               :tracking (float tracking 1f0)
               :ct-font ct-font
-              :ascent (float (ccall "CTFontGetAscent" :double (:ulong ct-font)) 1f0)
-              :descent (float (ccall "CTFontGetDescent" :double (:ulong ct-font)) 1f0)
-              :leading (float (ccall "CTFontGetLeading" :double (:ulong ct-font)) 1f0)))
+              :ascent (float (cf:ccall "CTFontGetAscent" :double (:ulong ct-font)) 1f0)
+              :descent (float (cf:ccall "CTFontGetDescent" :double (:ulong ct-font)) 1f0)
+              :leading (float (cf:ccall "CTFontGetLeading" :double (:ulong ct-font)) 1f0)))
 
 (defparameter +weights+
   '((:thin 100) (:extra-light 200) (:light 300) (:regular 400) (:medium 500) (:semibold 600)
@@ -100,45 +89,45 @@ regular)."
 (defun descriptor-trait (descriptor key)
   "The trait KEY (a Core Text constant, as CF-CONSTANT gives it) of the font DESCRIPTOR, as a
 double, or NIL."
-  (let ((traits (ccall "CTFontDescriptorCopyAttribute" :ulong
-                       (:ulong descriptor) (:ulong (cf-constant "kCTFontTraitsAttribute")))))
+  (let ((traits (cf:ccall "CTFontDescriptorCopyAttribute" :ulong
+                          (:ulong descriptor) (:ulong (cf:cf-constant "kCTFontTraitsAttribute")))))
     (unless (zerop traits)
-      (prog1 (cf-number-double (ccall "CFDictionaryGetValue" :ulong
-                                      (:ulong traits) (:ulong key)))
-        (cf-release traits)))))
+      (prog1 (cf:cf-number-double (cf:ccall "CFDictionaryGetValue" :ulong
+                                            (:ulong traits) (:ulong key)))
+        (cf:cf-release traits)))))
 
 (defun font-of-weight (ct-font size weight)
   "A new font of CT-FONT's family, at SIZE, whose weight is nearest WEIGHT (1 to 1000) among the
 family's upright faces as wide as CT-FONT (Helvetica Neue's bold, not its condensed bold), or the
 nearest in width if none is; or NIL if the family has none (it is a font of its own)."
-  (let* ((family (ccall "CTFontCopyFamilyName" :ulong (:ulong ct-font)))
-         (attributes (cf-dictionary (cf-constant "kCTFontFamilyNameAttribute") family))
-         (wanted (ccall "CTFontDescriptorCreateWithAttributes" :ulong (:ulong attributes)))
-         (faces (ccall "CTFontDescriptorCreateMatchingFontDescriptors" :ulong
-                       (:ulong wanted) (:ulong 0)))
+  (let* ((family (cf:ccall "CTFontCopyFamilyName" :ulong (:ulong ct-font)))
+         (attributes (cf:cf-dictionary (cf:cf-constant "kCTFontFamilyNameAttribute") family))
+         (wanted (cf:ccall "CTFontDescriptorCreateWithAttributes" :ulong (:ulong attributes)))
+         (faces (cf:ccall "CTFontDescriptorCreateMatchingFontDescriptors" :ulong
+                          (:ulong wanted) (:ulong 0)))
          (target (core-text-weight weight))
-         (width (let ((own (ccall "CTFontCopyFontDescriptor" :ulong (:ulong ct-font))))
-                  (prog1 (or (descriptor-trait own (cf-constant "kCTFontWidthTrait")) 0d0)
-                    (cf-release own))))
+         (width (let ((own (cf:ccall "CTFontCopyFontDescriptor" :ulong (:ulong ct-font))))
+                  (prog1 (or (descriptor-trait own (cf:cf-constant "kCTFontWidthTrait")) 0d0)
+                    (cf:cf-release own))))
          (best nil)
          (distance 0d0))
-    (cf-release attributes)
-    (cf-release wanted)
-    (cf-release family)
+    (cf:cf-release attributes)
+    (cf:cf-release wanted)
+    (cf:cf-release family)
     (unless (zerop faces)
-      (dotimes (i (cf-array-count faces))
-        (let* ((face (cf-array-ref faces i))
-               (face-weight (or (descriptor-trait face (cf-constant "kCTFontWeightTrait")) 0d0))
-               (face-width (or (descriptor-trait face (cf-constant "kCTFontWidthTrait")) 0d0))
-               (symbolic (or (descriptor-trait face (cf-constant "kCTFontSymbolicTrait")) 0d0)))
+      (dotimes (i (cf:cf-array-count faces))
+        (let* ((face (cf:cf-array-ref faces i))
+               (face-weight (or (descriptor-trait face (cf:cf-constant "kCTFontWeightTrait")) 0d0))
+               (face-width (or (descriptor-trait face (cf:cf-constant "kCTFontWidthTrait")) 0d0))
+               (symbolic (or (descriptor-trait face (cf:cf-constant "kCTFontSymbolicTrait")) 0d0)))
           (unless (logtest (round symbolic) +italic-trait+)
             ;; The width first (a step in width outweighs any in weight), then the weight.
             (let ((d (+ (* 10 (abs (- face-width width))) (abs (- face-weight target)))))
               (when (or (null best) (< d distance))
                 (setf best face distance d))))))
-      (prog1 (and best (ccall "CTFontCreateWithFontDescriptor" :ulong
-                              (:ulong best) (:double (float size 1d0)) (:ulong 0)))
-        (cf-release faces)))))
+      (prog1 (and best (cf:ccall "CTFontCreateWithFontDescriptor" :ulong
+                                 (:ulong best) (:double (float size 1d0)) (:ulong 0)))
+        (cf:cf-release faces)))))
 
 (defun system-ui-font (name size weight)
   "The system's own font at SIZE and WEIGHT (1 to 1000) if NAME is \"System\" (San Francisco, as
@@ -148,13 +137,13 @@ neither has a name Core Text can be asked for."
   (let* ((size (float size 1d0))
          (weight (float (core-text-weight weight) 1d0))
          (font (cond ((string-equal name "System")
-                      (msg-send :id (objc-class "NSFont") "systemFontOfSize:weight:"
-                                (:double size) (:double weight)))
+                      (objc:msg-send :id (objc:objc-class "NSFont") "systemFontOfSize:weight:"
+                                     (:double size) (:double weight)))
                      ((string-equal name "System Mono")
-                      (msg-send :id (objc-class "NSFont") "monospacedSystemFontOfSize:weight:"
-                                (:double size) (:double weight))))))
+                      (objc:msg-send :id (objc:objc-class "NSFont") "monospacedSystemFontOfSize:weight:"
+                                     (:double size) (:double weight))))))
     ;; Kept, as a font Core Text made would be, for its owner to release.
-    (and font (ccall "CFRetain" :ulong (:ulong font)))))
+    (and font (cf:ccall "CFRetain" :ulong (:ulong font)))))
 
 (defun make-font (name size &optional weight (tracking 0))
   "The font called NAME (such as \"Helvetica\" or \"Menlo\") at SIZE points, of WEIGHT (a number from
@@ -165,29 +154,29 @@ Mono\" are the system's own fonts (see SYSTEM-UI-FONT), which have no name to as
   (let* ((weight (weight-number weight))
          (system (system-ui-font name size weight))
          (ct-font (or system
-                      (let ((cf-name (cf-string name)))
-                        (prog1 (ccall "CTFontCreateWithName" :ulong
-                                      (:ulong cf-name) (:double (float size 1d0)) (:ulong 0))
-                          (cf-release cf-name))))))
+                      (let ((cf-name (cf:cf-string name)))
+                        (prog1 (cf:ccall "CTFontCreateWithName" :ulong
+                                         (:ulong cf-name) (:double (float size 1d0)) (:ulong 0))
+                          (cf:cf-release cf-name))))))
     (unless (or system (= weight 400))
       (let ((weighted (font-of-weight ct-font size weight)))
         (when weighted
-          (cf-release ct-font)
+          (cf:cf-release ct-font)
           (setf ct-font weighted))))
     (font-metrics-from name size ct-font weight tracking)))
 
 (defun font-face-name (font)
   "The PostScript name of the face FONT is drawn in, such as \"HelveticaNeue-Medium\"."
-  (let ((name (ccall "CTFontCopyPostScriptName" :ulong (:ulong (font-ct-font font)))))
-    (prog1 (lisp-string name)
-      (cf-release name))))
+  (let ((name (cf:ccall "CTFontCopyPostScriptName" :ulong (:ulong (font-ct-font font)))))
+    (prog1 (objc:lisp-string name)
+      (cf:cf-release name))))
 
 (defun system-font (size)
   "The system user interface font at SIZE points."
-  (let ((ct-font (ccall "CTFontCreateUIFontForLanguage" :ulong
-                        (:int 2)        ; kCTFontUIFontSystem
-                        (:double (float size 1d0))
-                        (:ulong 0))))
+  (let ((ct-font (cf:ccall "CTFontCreateUIFontForLanguage" :ulong
+                           (:int 2)        ; kCTFontUIFontSystem
+                           (:double (float size 1d0))
+                           (:ulong 0))))
     (font-metrics-from "system" size ct-font)))
 
 (defun font-line-height (font)
@@ -208,34 +197,34 @@ and one it asked for by a name it did not have then is the system font."
   (let ((file (probe-file path)))
     (unless file
       (error "There is no font file ~a." path))
-    (let* ((cf-path (cf-string (namestring file)))
-           (url (ccall "CFURLCreateWithFileSystemPath" :ulong
-                       (:ulong 0) (:ulong cf-path) (:long 0) (:bool nil))))
-      (cf-release cf-path)
+    (let* ((cf-path (cf:cf-string (namestring file)))
+           (url (cf:ccall "CFURLCreateWithFileSystemPath" :ulong
+                          (:ulong 0) (:ulong cf-path) (:long 0) (:bool nil))))
+      (cf:cf-release cf-path)
       (unwind-protect
            (progn
              (sb-alien:with-alien ((failure sb-alien:unsigned-long 0))
-               (unless (ccall "CTFontManagerRegisterFontsForURL" :bool
-                              (:ulong url) (:uint +process-scope+)
-                              (:pointer (sb-sys:sap-int (sb-alien:alien-sap
-                                                         (sb-alien:addr failure)))))
+               (unless (cf:ccall "CTFontManagerRegisterFontsForURL" :bool
+                                 (:ulong url) (:uint +process-scope+)
+                                 (:pointer (sb-sys:sap-int (sb-alien:alien-sap
+                                                            (sb-alien:addr failure)))))
                  (let ((code (if (zerop failure)
                                  0
-                                 (ccall "CFErrorGetCode" :long (:ulong failure)))))
-                   (unless (zerop failure) (cf-release failure))
+                                 (cf:ccall "CFErrorGetCode" :long (:ulong failure)))))
+                   (unless (zerop failure) (cf:cf-release failure))
                    (unless (= code +already-registered+)
                      (error "The fonts in ~a could not be loaded (Core Text's error ~d)."
                             (namestring file) code)))))
-             (let ((faces (ccall "CTFontManagerCreateFontDescriptorsFromURL" :ulong (:ulong url)))
+             (let ((faces (cf:ccall "CTFontManagerCreateFontDescriptorsFromURL" :ulong (:ulong url)))
                    (families '()))
                (unless (zerop faces)
-                 (dotimes (i (cf-array-count faces))
-                   (let ((family (ccall "CTFontDescriptorCopyAttribute" :ulong
-                                        (:ulong (cf-array-ref faces i))
-                                        (:ulong (cf-constant "kCTFontFamilyNameAttribute")))))
+                 (dotimes (i (cf:cf-array-count faces))
+                   (let ((family (cf:ccall "CTFontDescriptorCopyAttribute" :ulong
+                                           (:ulong (cf:cf-array-ref faces i))
+                                           (:ulong (cf:cf-constant "kCTFontFamilyNameAttribute")))))
                      (unless (zerop family)
-                       (pushnew (lisp-string family) families :test #'string=)
-                       (cf-release family))))
-                 (cf-release faces))
+                       (pushnew (objc:lisp-string family) families :test #'string=)
+                       (cf:cf-release family))))
+                 (cf:cf-release faces))
                (nreverse families)))
-        (cf-release url)))))
+        (cf:cf-release url)))))

@@ -1,7 +1,5 @@
 (defpackage #:almighty-bolt/t/render/metal/draw-text
   (:use #:cl #:lisp-unit2)
-  (:import-from #:almighty-bolt/text/core-foundation
-                #:ccall)
   (:local-nicknames (#:objc #:almighty-bolt/platform/macos/objc)
                     (#:device #:almighty-bolt/render/metal/device)
                     (#:target #:almighty-bolt/render/metal/target)
@@ -10,7 +8,8 @@
                     (#:draw #:almighty-bolt/render/metal/draw-text)
                     (#:font #:almighty-bolt/text/font)
                     (#:line #:almighty-bolt/text/line)
-                    (#:dl #:almighty-bolt/display-list)))
+                    (#:dl #:almighty-bolt/display-list)
+                    (#:cf #:almighty-bolt/text/core-foundation)))
 
 (in-package #:almighty-bolt/t/render/metal/draw-text)
 
@@ -96,23 +95,23 @@ coverage for each pixel, row by row from the top. The atlas is held to this."
             (sb-alien:deref origin 0) (float x 1d0)
             (sb-alien:deref origin 1) (float (- height baseline) 1d0))
       (sb-sys:with-pinned-objects (pixels)
-        (let ((context (ccall "CGBitmapContextCreate" :ulong
-                              (:pointer (sb-sys:sap-int (sb-sys:vector-sap pixels)))
-                              (:ulong pixel-width) (:ulong pixel-height)
-                              (:ulong 8) (:ulong pixel-width)
-                              (:ulong 0) (:uint 7))))       ; alpha only
-          (ccall "CGContextScaleCTM" :void (:ulong context) (:double (float +scale+ 1d0))
-                 (:double (float +scale+ 1d0)))
-          (ccall "CGContextSetShouldAntialias" :void (:ulong context) (:bool t))
-          (ccall "CGContextSetAllowsFontSmoothing" :void (:ulong context) (:bool nil))
-          (ccall "CGContextSetShouldSmoothFonts" :void (:ulong context) (:bool nil))
-          (ccall "CTFontDrawGlyphs" :void
-                 (:ulong font-address)
-                 (:pointer (sb-sys:sap-int (sb-alien:alien-sap (sb-alien:addr glyph-id))))
-                 (:pointer (sb-sys:sap-int (sb-alien:alien-sap origin)))
-                 (:ulong 1)
-                 (:ulong context))
-          (ccall "CGContextRelease" :void (:ulong context)))))
+        (let ((context (cf:ccall "CGBitmapContextCreate" :ulong
+                                 (:pointer (sb-sys:sap-int (sb-sys:vector-sap pixels)))
+                                 (:ulong pixel-width) (:ulong pixel-height)
+                                 (:ulong 8) (:ulong pixel-width)
+                                 (:ulong 0) (:uint 7))))       ; alpha only
+          (cf:ccall "CGContextScaleCTM" :void (:ulong context) (:double (float +scale+ 1d0))
+                    (:double (float +scale+ 1d0)))
+          (cf:ccall "CGContextSetShouldAntialias" :void (:ulong context) (:bool t))
+          (cf:ccall "CGContextSetAllowsFontSmoothing" :void (:ulong context) (:bool nil))
+          (cf:ccall "CGContextSetShouldSmoothFonts" :void (:ulong context) (:bool nil))
+          (cf:ccall "CTFontDrawGlyphs" :void
+                    (:ulong font-address)
+                    (:pointer (sb-sys:sap-int (sb-alien:alien-sap (sb-alien:addr glyph-id))))
+                    (:pointer (sb-sys:sap-int (sb-alien:alien-sap origin)))
+                    (:ulong 1)
+                    (:ulong context))
+          (cf:ccall "CGContextRelease" :void (:ulong context)))))
     pixels))
 
 (define-test every-glyph-is-drawn-where-core-graphics-draws-it ()

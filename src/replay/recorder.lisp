@@ -1,13 +1,8 @@
 (defpackage #:almighty-bolt/replay/recorder
   (:use #:cl)
-  (:import-from #:almighty-bolt/event
-                #:event-timestamp)
-  (:import-from #:almighty-bolt/app-instance
-                #:hit-target
-                #:lookup-target)
-  (:import-from #:almighty-bolt/replay/script
-                #:make-script
-                #:event-form)
+  (:local-nicknames (#:event #:almighty-bolt/event)
+                    (#:app-instance #:almighty-bolt/app-instance)
+                    (#:script #:almighty-bolt/replay/script))
   (:export #:recorder
            #:make-recorder
            #:record-event
@@ -42,10 +37,10 @@
       (let* ((options (rest form))
              (x (getf options :x))
              (y (getf options :y))
-             (id (hit-target instance (float x 1f0) (float y 1f0))))
+             (id (app-instance:hit-target instance (float x 1f0) (float y 1f0))))
         (if (null id)
             form
-            (multiple-value-bind (left top width height) (lookup-target instance id)
+            (multiple-value-bind (left top width height) (app-instance:lookup-target instance id)
               (if (and left (plusp width) (plusp height))
                   (list* (first form)
                          :target id :fx (/ (- x left) width) :fy (/ (- y top) height)
@@ -54,16 +49,16 @@
 
 (defun record-event (recorder instance event)
   "Note EVENT, about to be given to INSTANCE. Returns the form that was written."
-  (let* ((timestamp (event-timestamp event))
+  (let* ((timestamp (event:event-timestamp event))
          (start (or (recorder-start recorder)
                     (setf (recorder-start recorder) timestamp)))
          (time (max (recorder-last recorder) (- timestamp start)))
-         (form (retarget (event-form event) instance)))
+         (form (retarget (script:event-form event) instance)))
     (setf (recorder-last recorder) time)
     (push (list time form) (recorder-entries recorder))
     form))
 
 (defun recorder-script (recorder)
   "The script of what has been recorded so far."
-  (make-script :header (recorder-header recorder)
-               :entries (reverse (recorder-entries recorder))))
+  (script:make-script :header (recorder-header recorder)
+                      :entries (reverse (recorder-entries recorder))))

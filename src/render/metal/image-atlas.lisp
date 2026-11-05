@@ -1,16 +1,8 @@
 (defpackage #:almighty-bolt/render/metal/image-atlas
   (:use #:cl)
-  (:import-from #:almighty-bolt/platform/macos/objc
-                #:msg-send
-                #:objc-class)
-  (:import-from #:almighty-bolt/app-instance
-                #:glyphs-full)
-  (:import-from #:almighty-bolt/image
-                #:image
-                #:image-id
-                #:image-pixel-width
-                #:image-pixel-height
-                #:image-pixels)
+  (:local-nicknames (#:objc #:almighty-bolt/platform/macos/objc)
+                    (#:app-instance #:almighty-bolt/app-instance)
+                    (#:image #:almighty-bolt/image))
   (:export #:image-atlas
            #:make-image-atlas
            #:image-atlas-texture
@@ -38,7 +30,7 @@
 (defconstant +usage-shader-read+ 1)
 (defconstant +storage-shared+ 0)
 
-(define-condition image-atlas-full (glyphs-full)
+(define-condition image-atlas-full (app-instance:glyphs-full)
   ((what :initarg :what :reader image-atlas-full-what))
   (:report (lambda (condition stream)
              (format stream "The image atlas is full (~a)." (image-atlas-full-what condition)))))
@@ -67,20 +59,20 @@
 
 (defun make-image-atlas (device &key (size 2048) (capacity 1024))
   "An empty image atlas on DEVICE: a SIZE by SIZE colour texture and room for CAPACITY images."
-  (let* ((descriptor (msg-send :id (objc-class "MTLTextureDescriptor")
-                               "texture2DDescriptorWithPixelFormat:width:height:mipmapped:"
-                               (:ulong +pixel-format-rgba8-unorm+) (:ulong size) (:ulong size)
-                               (:bool nil)))
+  (let* ((descriptor (objc:msg-send :id (objc:objc-class "MTLTextureDescriptor")
+                                    "texture2DDescriptorWithPixelFormat:width:height:mipmapped:"
+                                    (:ulong +pixel-format-rgba8-unorm+) (:ulong size) (:ulong size)
+                                    (:bool nil)))
          (texture (progn
-                    (msg-send :void descriptor "setUsage:" (:ulong +usage-shader-read+))
-                    (msg-send :void descriptor "setStorageMode:" (:ulong +storage-shared+))
-                    (msg-send :id device "newTextureWithDescriptor:" (:id descriptor))))
-         (uv-buffer (msg-send :id device "newBufferWithLength:options:"
-                              (:ulong (* capacity 16)) (:ulong 0))))
+                    (objc:msg-send :void descriptor "setUsage:" (:ulong +usage-shader-read+))
+                    (objc:msg-send :void descriptor "setStorageMode:" (:ulong +storage-shared+))
+                    (objc:msg-send :id device "newTextureWithDescriptor:" (:id descriptor))))
+         (uv-buffer (objc:msg-send :id device "newBufferWithLength:options:"
+                                   (:ulong (* capacity 16)) (:ulong 0))))
     ;; The texture is not cleared: only the boxes images were copied into are ever sampled.
     (%make-image-atlas :texture texture
                        :uv-buffer uv-buffer
-                       :uv-contents (msg-send :id uv-buffer "contents")
+                       :uv-contents (objc:msg-send :id uv-buffer "contents")
                        :size size
                        :capacity capacity)))
 
@@ -102,11 +94,11 @@ X, Y."
           :for i :from 0
           :do (setf (sb-alien:deref region i) value))
     (sb-sys:with-pinned-objects (pixels)
-      (msg-send :void (image-atlas-texture atlas) "replaceRegion:mipmapLevel:withBytes:bytesPerRow:"
-                (:pointer (sb-sys:sap-int (sb-alien:alien-sap region)))
-                (:ulong 0)
-                (:pointer (sb-sys:sap-int (sb-sys:vector-sap pixels)))
-                (:ulong (* 4 width))))))
+      (objc:msg-send :void (image-atlas-texture atlas) "replaceRegion:mipmapLevel:withBytes:bytesPerRow:"
+                     (:pointer (sb-sys:sap-int (sb-alien:alien-sap region)))
+                     (:ulong 0)
+                     (:pointer (sb-sys:sap-int (sb-sys:vector-sap pixels)))
+                     (:ulong (* 4 width))))))
 
 (defun allocate-space (atlas width height)
   "Find room for a WIDTH by HEIGHT image on the current shelf or a new one, and return its x and y."
@@ -129,15 +121,15 @@ X, Y."
 (defun add-image (atlas image)
   "Copy IMAGE into the atlas and return its index."
   (let ((index (image-atlas-count atlas))
-        (width (image-pixel-width image))
-        (height (image-pixel-height image))
+        (width (image:image-pixel-width image))
+        (height (image:image-pixel-height image))
         (size (image-atlas-size atlas)))
     (when (or (> width size) (> height size))
       (error 'image-too-large :width width :height height :size size))
     (when (>= index (image-atlas-capacity atlas))
       (error 'image-atlas-full :what "no room for another image's place"))
     (multiple-value-bind (x y) (allocate-space atlas width height)
-      (upload atlas x y width height (image-pixels image))
+      (upload atlas x y width height (image:image-pixels image))
       (let ((sap (sb-sys:int-sap (image-atlas-uv-contents atlas)))
             (offset (* index 16))
             (size (float size 1f0)))
@@ -152,8 +144,8 @@ X, Y."
 (defun atlas-image-index (atlas image)
   "The index of IMAGE in ATLAS, copying it in first if it is not there yet. Allocates nothing for
 an image already there."
-  (declare (type image-atlas atlas) (type image image))
+  (declare (type image-atlas atlas) (type image:image image))
   (let ((table (image-atlas-table atlas))
-        (id (image-id image)))
+        (id (image:image-id image)))
     (or (gethash id table)
         (setf (gethash id table) (add-image atlas image)))))

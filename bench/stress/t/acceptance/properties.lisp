@@ -4,17 +4,11 @@
                     (#:m #:almighty-bolt/machine)
                     (#:sem #:almighty-bolt/ui/semantics)
                     (#:registry #:almighty-bolt-7guis/common/registry)
-                    (#:d #:almighty-bolt-7guis/t/acceptance/driver))
-  (:import-from #:almighty-bolt/platform/macos/objc
-                #:with-masked-float-traps
-                #:with-autorelease-pool)
-  (:import-from #:almighty-bolt/platform/macos/host
-                #:make-host
-                #:host-context)
-  (:import-from #:almighty-bolt/render/metal/device
-                #:default-device)
-  (:import-from #:almighty-bolt/render/metal/target
-                #:+pixel-format-bgra8-unorm+))
+                    (#:d #:almighty-bolt-7guis/t/acceptance/driver)
+                    (#:objc #:almighty-bolt/platform/macos/objc)
+                    (#:host #:almighty-bolt/platform/macos/host)
+                    (#:device #:almighty-bolt/render/metal/device)
+                    (#:target #:almighty-bolt/render/metal/target)))
 
 (in-package #:almighty-bolt-stress/t/acceptance/properties)
 
@@ -59,11 +53,11 @@ replay result. The first two plays of a script are warm-ups, and the third is re
 builds its tables in the first frame of its first play."
   (let* ((script (core:load-script path))
          (task (getf (core:script-header script) :app)))
-    (with-masked-float-traps
-      (with-autorelease-pool
-        (let* ((host (make-host (make-instance 'core:app-instance) (default-device)
-                                +pixel-format-bgra8-unorm+ :capacity 1024 :scale 2))
-               (context (host-context host)))
+    (objc:with-masked-float-traps
+      (objc:with-autorelease-pool
+        (let* ((host (host:make-host (make-instance 'core:app-instance) (device:default-device)
+                                     target:+pixel-format-bgra8-unorm+ :capacity 1024 :scale 2))
+               (context (host:host-context host)))
           (flet ((once (measure)
                    (core:replay script
                                 (registry:make-app-object (registry:find-app task))

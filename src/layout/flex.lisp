@@ -1,9 +1,6 @@
 (defpackage #:almighty-bolt/layout/flex
   (:use #:cl)
-  (:import-from #:almighty-bolt/layout/constraints
-                #:+unbounded+
-                #:unbounded-p
-                #:constrain-size)
+  (:local-nicknames (#:constraints #:almighty-bolt/layout/constraints))
   (:export #:layout-flex
            #:with-layout-scratch
            #:unbounded-flex
@@ -89,10 +86,10 @@ its children, and no flex allocates after that (see WITH-LAYOUT-SCRATCH)."
   (let* ((horizontal (eq axis :horizontal))
          (max-main (if horizontal max-w max-h))
          (max-cross (if horizontal max-h max-w))
-         (bounded-main (not (unbounded-p max-main)))
+         (bounded-main (not (constraints:unbounded-p max-main)))
          (fill (ecase main-size (:max t) (:min nil)))
          (child-min-cross (if (and (eq cross-align :stretch)
-                                   (not (unbounded-p max-cross)))
+                                   (not (constraints:unbounded-p max-cross)))
                               max-cross
                               0f0)))
     (declare (type single-float max-main max-cross child-min-cross))
@@ -126,7 +123,7 @@ its children, and no flex allocates after that (see WITH-LAYOUT-SCRATCH)."
                            (unless bounded-main
                              (error 'unbounded-flex :axis axis))
                            (incf total-flex factor))
-                         (incf allocated (measure-child i 0f0 +unbounded+)))))
+                         (incf allocated (measure-child i 0f0 constraints:+unbounded+)))))
                  ;; Those that flex share what is left.
                  (when (> total-flex 0f0)
                    (let ((per-flex (/ (max 0f0 (- max-main allocated)) total-flex)))
@@ -144,8 +141,8 @@ its children, and no flex allocates after that (see WITH-LAYOUT-SCRATCH)."
                  (multiple-value-bind (width height)
                      (let ((main (if (and fill bounded-main) max-main allocated)))
                        (if horizontal
-                           (constrain-size main cross-extent min-w max-w min-h max-h)
-                           (constrain-size cross-extent main min-w max-w min-h max-h)))
+                           (constraints:constrain-size main cross-extent min-w max-w min-h max-h)
+                           (constraints:constrain-size cross-extent main min-w max-w min-h max-h)))
                    (declare (type single-float width height))
                    (let* ((main-extent (if horizontal width height))
                           (cross-size (if horizontal height width))

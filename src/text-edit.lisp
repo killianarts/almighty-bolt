@@ -1,20 +1,6 @@
 (defpackage #:almighty-bolt/text-edit
   (:use #:cl)
-  (:import-from #:almighty-bolt/event
-                #:key-event
-                #:key-event-kind
-                #:key-event-logical-key
-                #:key-event-modifiers
-                #:modifier-down-p
-                #:+modifier-shift+
-                #:+modifier-control+
-                #:+modifier-alt+
-                #:+modifier-super+
-                #:+key-left+
-                #:+key-right+
-                #:+key-home+
-                #:+key-end+
-                #:+key-delete-forward+)
+  (:local-nicknames (#:event #:almighty-bolt/event))
   (:export #:text-state
            #:make-text-state
            #:text-state-string
@@ -219,25 +205,25 @@ true if the key was one that edits (so that nothing else should act on it). Typi
 character, Backspace, forward delete, the arrows (with Shift to select and Option to
 move by a word), Home, End, and Command-A are handled; Tab, Return and Escape are not,
 since what they mean is up to the field. Only keys going down count."
-  (check-type event key-event)
-  (if (not (eq (key-event-kind event) :down))
+  (check-type event event:key-event)
+  (if (not (eq (event:key-event-kind event) :down))
       (values state nil)
-      (let* ((key (key-event-logical-key event))
-             (modifiers (key-event-modifiers event))
-             (shift (modifier-down-p modifiers +modifier-shift+))
-             (word (modifier-down-p modifiers +modifier-alt+))
-             (command (modifier-down-p modifiers +modifier-super+))
-             (control (modifier-down-p modifiers +modifier-control+)))
+      (let* ((key (event:key-event-logical-key event))
+             (modifiers (event:key-event-modifiers event))
+             (shift (event:modifier-down-p modifiers event:+modifier-shift+))
+             (word (event:modifier-down-p modifiers event:+modifier-alt+))
+             (command (event:modifier-down-p modifiers event:+modifier-super+))
+             (control (event:modifier-down-p modifiers event:+modifier-control+)))
         (cond
           ((null key) (values state nil))
           ((eql key #\Backspace) (values (text-delete-backward state) t))
-          ((eql key +key-delete-forward+) (values (text-delete-forward state) t))
-          ((eql key +key-left+)
+          ((eql key event:+key-delete-forward+) (values (text-delete-forward state) t))
+          ((eql key event:+key-left+)
            (values (text-move state (if command :start :left) :extend shift :word word) t))
-          ((eql key +key-right+)
+          ((eql key event:+key-right+)
            (values (text-move state (if command :end :right) :extend shift :word word) t))
-          ((eql key +key-home+) (values (text-move state :start :extend shift) t))
-          ((eql key +key-end+) (values (text-move state :end :extend shift) t))
+          ((eql key event:+key-home+) (values (text-move state :start :extend shift) t))
+          ((eql key event:+key-end+) (values (text-move state :end :extend shift) t))
           ((and command (char-equal key #\a)) (values (text-select-all state) t))
           ((or command control) (values state nil))
           ((printable-p key) (values (text-insert state (string key)) t))

@@ -1,21 +1,8 @@
 (defpackage #:almighty-bolt/settle
   (:use #:cl)
-  (:import-from #:almighty-bolt/display-list
-                #:clear-display-list)
-  (:import-from #:almighty-bolt/clock
-                #:real-time-source)
-  (:import-from #:almighty-bolt/app-instance
-                #:frame
-                #:forget-painting
-                #:glyphs-full
-                #:context-forget-glyphs
-                #:place-text-input-caret
-                #:context-frame-number
-                #:context-build-number
-                #:context-phases-p
-                #:context-phase-ns
-                #:+phase-first-build+
-                #:+phase-all-builds+)
+  (:local-nicknames (#:dl #:almighty-bolt/display-list)
+                    (#:clock #:almighty-bolt/clock)
+                    (#:app-instance #:almighty-bolt/app-instance))
   (:export #:+max-builds+
            #:settle-frame
            #:settle-cap-reached
@@ -54,33 +41,33 @@ glyph (GLYPHS-FULL), it forgets them all, the app forgets what it painted, and t
 built again."
   (flet ((settle ()
            (let ((builds 0)
-                 (timed (context-phases-p context)))
+                 (timed (app-instance:context-phases-p context)))
              (declare (type fixnum builds))
              (loop
                (incf builds)
-               (setf (context-build-number context) builds)
-               (clear-display-list display-list)
+               (setf (app-instance:context-build-number context) builds)
+               (dl:clear-display-list display-list)
                (unless (if timed
-                           (let* ((start (real-time-source))
-                                  (again (frame instance context display-list))
-                                  (took (- (real-time-source) start))
-                                  (slots (context-phase-ns context)))
+                           (let* ((start (clock:real-time-source))
+                                  (again (app-instance:frame instance context display-list))
+                                  (took (- (clock:real-time-source) start))
+                                  (slots (app-instance:context-phase-ns context)))
                              (when (= builds 1)
-                               (incf (aref slots +phase-first-build+) took))
-                             (incf (aref slots +phase-all-builds+) took)
+                               (incf (aref slots app-instance:+phase-first-build+) took))
+                             (incf (aref slots app-instance:+phase-all-builds+) took)
                              again)
-                           (frame instance context display-list))
+                           (app-instance:frame instance context display-list))
                  (return (values builds nil)))
                (when (>= builds +max-builds+)
-                 (warn 'settle-cap-reached :frame-number (context-frame-number context))
+                 (warn 'settle-cap-reached :frame-number (app-instance:context-frame-number context))
                  (return (values builds t)))))))
     (multiple-value-prog1
         ;; With no room for another glyph, the glyphs are forgotten, and so is every command kept
         ;; from frames before (they name the glyphs by where they were), and the frame is built
         ;; again. A frame that does not fit in an empty atlas is an error.
         (handler-case (settle)
-          (glyphs-full ()
-            (context-forget-glyphs context)
-            (forget-painting instance)
+          (app-instance:glyphs-full ()
+            (app-instance:context-forget-glyphs context)
+            (app-instance:forget-painting instance)
             (settle)))
-      (place-text-input-caret instance context))))
+      (app-instance:place-text-input-caret instance context))))

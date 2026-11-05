@@ -1,8 +1,7 @@
 (defpackage #:almighty-bolt-studio/repl
   (:use #:cl)
-  (:local-nicknames (#:bolt #:almighty-bolt))
-  (:import-from #:almighty-bolt-studio/chrome
-                #:section-header)
+  (:local-nicknames (#:bolt #:almighty-bolt)
+                    (#:chrome #:almighty-bolt-studio/chrome))
   (:export #:make-repl
            #:evaluate))
 
@@ -63,7 +62,7 @@ by that name) that draws it, keeping what was typed and what it gave."
                           (find-package "CL-USER")))
              (prompt (format nil "~a>" (short-name package))))
         (bolt:column (:id :repl :flex 1 :fill t :cross-align :stretch :gap 6)
-          (section-header :repl-heading "REPL")
+          (chrome:section-header :repl-heading "REPL")
           (bolt:scroll (:id :repl-scroll :flex 1 :follow t)
             (bolt:column (:id :repl-lines :gap 2 :cross-align :stretch)
               (loop :for (where typed printed returned error) :in (reverse entries)

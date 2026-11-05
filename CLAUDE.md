@@ -13,7 +13,8 @@ A GUI library for Common Lisp, on macOS first (AppKit and Metal, called straight
 - One package per file, named after the project and the file (tests under `t/`). `.asd` files and `vendored/` are the exceptions.
 - Classic ASDF: `defsystem` with `:serial t` and an explicit `:components` list in dependency order. Never `package-inferred-system`.
 - Write `loop` clause words as keywords (`:for`, `:in`, `:do`).
-- Each file imports exactly what it uses (`:import-from` lists) and exports its own API.
+- Each file reaches other packages through `:local-nicknames`, and writes what it uses from them with the nickname (`box:box-key`, `objc:msg-send`), never `:import-from`: an imported symbol is a name two packages share, and a package defined again with a symbol of that name of its own (on a reload) is a conflict. A package has the same nickname in every file: the last part of its name (`almighty-bolt/ui/box` is `box`), or the one already in use (`bolt`, `core`, `m`, `s`, `objc`, `dl`), with the part before it where two would meet (`layout-box`, `studio-theme`). The one exception: a package that exports another's symbol (the public `almighty-bolt` and `almighty-bolt/internals`) imports it, since only a symbol a package has can it export. A symbol another package uses is exported from its own; never written with `::`.
+- Each file exports its own API.
 
 ## Working here
 - ASDF looks only in this tree (see the `REGISTRY` in the `Makefile`), never in `~/common-lisp/`.

@@ -1,19 +1,6 @@
 (defpackage #:almighty-bolt-bench-null/null
   (:use #:cl)
-  (:import-from #:almighty-bolt/internals
-                #:app-instance
-                #:frame
-                #:handle-event
-                #:request-frame
-                #:context-width
-                #:context-height
-                #:context-font
-                #:context-break-lines
-                #:context-push-text
-                #:make-display-list
-                #:replace-display-list
-                #:push-rounded-rect
-                #:pack-color)
+  (:local-nicknames (#:core #:almighty-bolt/internals))
   (:export #:null-app
            #:make-null-app
            #:null-app-scene
@@ -35,7 +22,7 @@
 (defparameter +paragraph+
   "Text is shaped by Core Text, drawn by Core Graphics into a texture atlas, and put on screen by the Metal renderer. A paragraph breaks into lines that fit its width, and every line is shaped once and kept.")
 
-(defclass null-app (app-instance)
+(defclass null-app (core:app-instance)
   ((scene :initform nil :accessor null-app-scene)
    (events-seen :initform 0 :type fixnum :accessor null-app-events-seen)
    ;; How many more frames to ask for, one after each frame, to test that a request
@@ -50,41 +37,41 @@
 (defun build-scene (context)
   "The fixed list: a panel, a heading, a row of rounded rectangles, a paragraph
 broken to the width of the drawing area, and a line of code."
-  (let* ((width (context-width context))
-         (height (context-height context))
-         (list (make-display-list :capacity 4096))
-         (heading-font (context-font context "Helvetica" 28))
-         (body-font (context-font context "Helvetica" 15))
-         (code-font (context-font context "Menlo" 13))
-         (white (pack-color 255 255 255))
-         (grey (pack-color 190 195 210))
-         (green (pack-color 120 220 160)))
-    (push-rounded-rect list 8 8 (- width 16) (- height 16) 10 (pack-color 36 40 56))
-    (context-push-text context list heading-font "Baseline" 24 46 white)
+  (let* ((width (core:context-width context))
+         (height (core:context-height context))
+         (list (core:make-display-list :capacity 4096))
+         (heading-font (core:context-font context "Helvetica" 28))
+         (body-font (core:context-font context "Helvetica" 15))
+         (code-font (core:context-font context "Menlo" 13))
+         (white (core:pack-color 255 255 255))
+         (grey (core:pack-color 190 195 210))
+         (green (core:pack-color 120 220 160)))
+    (core:push-rounded-rect list 8 8 (- width 16) (- height 16) 10 (core:pack-color 36 40 56))
+    (core:context-push-text context list heading-font "Baseline" 24 46 white)
     (dotimes (i 8)
-      (push-rounded-rect list (+ 24 (* i 60)) 60 48 24 6 (pack-color (* i 30) 120 200)))
+      (core:push-rounded-rect list (+ 24 (* i 60)) 60 48 24 6 (core:pack-color (* i 30) 120 200)))
     (let ((y 112))
-      (dolist (range (context-break-lines context body-font +paragraph+ (- width 48)))
+      (dolist (range (core:context-break-lines context body-font +paragraph+ (- width 48)))
         (destructuring-bind (start end) range
-          (context-push-text context list body-font
-                             (string-right-trim " " (subseq +paragraph+ start end))
-                             24 y grey)
+          (core:context-push-text context list body-font
+                                  (string-right-trim " " (subseq +paragraph+ start end))
+                                  24 y grey)
           (incf y 20)))
-      (context-push-text context list code-font
-                         "(defun fact (n) (if (< n 2) 1 (* n (fact (1- n)))))"
-                         24 (+ y 12) green))
+      (core:context-push-text context list code-font
+                              "(defun fact (n) (if (< n 2) 1 (* n (fact (1- n)))))"
+                              24 (+ y 12) green))
     list))
 
-(defmethod frame ((instance null-app) context list)
+(defmethod core:frame ((instance null-app) context list)
   (unless (null-app-scene instance)
     (setf (null-app-scene instance) (build-scene context)))
-  (replace-display-list list (null-app-scene instance))
+  (core:replace-display-list list (null-app-scene instance))
   (when (plusp (null-app-animate-frames instance))
     (decf (null-app-animate-frames instance))
-    (request-frame context))
+    (core:request-frame context))
   nil)
 
-(defmethod handle-event ((instance null-app) event)
+(defmethod core:handle-event ((instance null-app) event)
   (declare (ignore event))
   (incf (null-app-events-seen instance))
   nil)

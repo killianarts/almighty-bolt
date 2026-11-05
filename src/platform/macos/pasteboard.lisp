@@ -1,13 +1,6 @@
 (defpackage #:almighty-bolt/platform/macos/pasteboard
   (:use #:cl)
-  (:import-from #:almighty-bolt/platform/macos/objc
-                #:msg-send
-                #:objc-class
-                #:foreign-constant
-                #:ns-string
-                #:lisp-string
-                #:release
-                #:with-autorelease-pool)
+  (:local-nicknames (#:objc #:almighty-bolt/platform/macos/objc))
   (:export #:general-pasteboard
            #:make-private-pasteboard
            #:discard-pasteboard
@@ -23,30 +16,30 @@
 
 (defun general-pasteboard ()
   "The pasteboard that Copy and Paste use in every app."
-  (msg-send :id (objc-class "NSPasteboard") "generalPasteboard"))
+  (objc:msg-send :id (objc:objc-class "NSPasteboard") "generalPasteboard"))
 
 (defun make-private-pasteboard ()
   "A new pasteboard with a name of its own. Give it back with DISCARD-PASTEBOARD."
-  (msg-send :id (objc-class "NSPasteboard") "pasteboardWithUniqueName"))
+  (objc:msg-send :id (objc:objc-class "NSPasteboard") "pasteboardWithUniqueName"))
 
 (defun discard-pasteboard (pasteboard)
   "Tell the pasteboard server that PASTEBOARD, made by MAKE-PRIVATE-PASTEBOARD, is not wanted."
-  (msg-send :void pasteboard "releaseGlobally"))
+  (objc:msg-send :void pasteboard "releaseGlobally"))
 
 (defun pasteboard-string (pasteboard)
   "The plain text on PASTEBOARD, or NIL if it holds none."
-  (with-autorelease-pool
-    (let ((string (msg-send :id pasteboard "stringForType:"
-                            (:id (foreign-constant "NSPasteboardTypeString")))))
-      (if (zerop string) nil (lisp-string string)))))
+  (objc:with-autorelease-pool
+    (let ((string (objc:msg-send :id pasteboard "stringForType:"
+                                 (:id (objc:foreign-constant "NSPasteboardTypeString")))))
+      (if (zerop string) nil (objc:lisp-string string)))))
 
 (defun set-pasteboard-string (pasteboard string)
   "Put STRING on PASTEBOARD as plain text, in place of what it held. Returns STRING."
-  (with-autorelease-pool
-    (let ((text (ns-string string)))
+  (objc:with-autorelease-pool
+    (let ((text (objc:ns-string string)))
       (unwind-protect
-           (progn (msg-send :long pasteboard "clearContents")
-                  (msg-send :bool pasteboard "setString:forType:"
-                            (:id text) (:id (foreign-constant "NSPasteboardTypeString"))))
-        (release text))))
+           (progn (objc:msg-send :long pasteboard "clearContents")
+                  (objc:msg-send :bool pasteboard "setString:forType:"
+                                 (:id text) (:id (objc:foreign-constant "NSPasteboardTypeString"))))
+        (objc:release text))))
   string)

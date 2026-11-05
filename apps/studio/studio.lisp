@@ -3,18 +3,11 @@
   (:local-nicknames (#:bolt #:almighty-bolt)
                     (#:gui-designer #:almighty-bolt-gui-designer)
                     (#:theme-designer #:almighty-bolt-theme-designer)
-                    (#:emacs #:almighty-bolt/emacs))
-  (:import-from #:almighty-bolt-studio/theme
-                #:studio-theme
-                #:tool-color)
-  (:import-from #:almighty-bolt-studio/title-bar
-                #:title-bar)
-  (:import-from #:almighty-bolt-studio/repl
-                #:make-repl)
-  (:import-from #:almighty-bolt-studio/chrome
-                #:section-header
-                #:rail
-                #:status-bar)
+                    (#:emacs #:almighty-bolt/emacs)
+                    (#:studio-theme #:almighty-bolt-studio/theme)
+                    (#:title-bar #:almighty-bolt-studio/title-bar)
+                    (#:repl #:almighty-bolt-studio/repl)
+                    (#:chrome #:almighty-bolt-studio/chrome))
   (:export #:make-studio
            #:open-studio
            #:*running*
@@ -79,7 +72,7 @@ inspector, and Theme the theme's preview and settings and the app.")
   (multiple-value-bind (toolbar widgets canvas options view-keys open-view about save)
       (gui-designer:designer-parts)
     (multiple-value-bind (settings preview theme-keys) (theme-designer:designer-parts)
-     (let ((repl (make-repl)))
+     (let ((repl (repl:make-repl)))
       (bolt:state-let ((mode :design)
                        ;; Each mode's arrangement of its panes, kept while another mode is shown.
                        (layouts (copy-list +mode-layouts+))
@@ -106,7 +99,7 @@ inspector, and Theme the theme's preview and settings and the app.")
           (let ((constructor (named-constructor app-name))
                 (facts (funcall about))
                 ;; The designer's headings as the studio's sections.
-                (gui-designer:*heading* 'section-header))
+                (gui-designer:*heading* 'chrome:section-header))
             (labels ((widgets-pane ()
                        ;; The catalogue and the outline, which scroll when the pane is short.
                        (bolt:scroll (:id :widgets-scroll :flex 1)
@@ -130,14 +123,14 @@ inspector, and Theme the theme's preview and settings and the app.")
                      (run-pane ()
                        (bolt:column (:id :run-part :flex 1 :fill t :cross-align :stretch :gap 8)
                          (bolt:row (:id :run-bar :gap 8 :cross-align :center)
-                           (bolt:label "App" :id :run-label)
-                           (multiple-value-bind (text edited)
+                                (bolt:label "App" :id :run-label)
+                                (multiple-value-bind (text edited)
                                (bolt:text-field app-name :id :app-name :width 280
                                                          :labelled-by :run-label
                                                          :invalid (and (plusp (length app-name))
                                                                        (null constructor)))
                              (when edited (setf app-name text)))
-                           (multiple-value-bind (index changed)
+                                (multiple-value-bind (index changed)
                                (bolt:choice (mapcar #'first +zooms+)
                                             (or (position zoom +zooms+ :key #'second) 1)
                                             :id :zoom :style :segmented)
@@ -224,8 +217,8 @@ inspector, and Theme the theme's preview and settings and the app.")
                                  (:problems-pane (format nil "Problems · ~d" (length problems))
                                   (bolt:padding (:id :problems-part :all 12)
                                     (bolt:column (:gap 8 :fill t :cross-align :stretch)
-                                      (section-header :problems-heading "Problems"
-                                                      (length problems))
+                                      (chrome:section-header :problems-heading "Problems"
+                                                             (length problems))
                                       (if problems
                                           (loop :for problem :in problems
                                                 :for i :from 0
@@ -236,13 +229,13 @@ inspector, and Theme the theme's preview and settings and the app.")
                                  (:events-pane "Events"
                                   (bolt:padding (:id :events-part :all 12)
                                     (bolt:column (:gap 8 :fill t :cross-align :stretch)
-                                      (section-header :events-heading "Events")
+                                      (chrome:section-header :events-heading "Events")
                                       (bolt:paragraph "The events are not recorded here yet: they come with the timeline, in Debug."
                                                       :id :events-note :color :dim-text))))
                                  (:agent-log-pane "Agent"
                                   (bolt:padding (:id :agent-log-part :all 12)
                                     (bolt:column (:gap 8 :fill t :cross-align :stretch)
-                                      (section-header :agent-heading "Agent")
+                                      (chrome:section-header :agent-heading "Agent")
                                       (bolt:paragraph "The agent is not built yet."
                                                       :id :agent-log-note :color :dim-text))))))))
                      ;; In the package of the app being run, or else the view's.
@@ -265,10 +258,10 @@ inspector, and Theme the theme's preview and settings and the app.")
 
               ;; The studio in its own theme, light or dark as the system is; what it designs, in
               ;; the window's own (see the canvas).
-              (bolt:with-theme ((studio-theme))
+              (bolt:with-theme ((studio-theme:studio-theme))
                 (bolt:column (:id :studio :fill t :cross-align :stretch)
                   (multiple-value-bind (now save-pressed run-pressed)
-                      (title-bar mode facts app-name (and constructor t))
+                      (title-bar:title-bar mode facts app-name (and constructor t))
                     (setf mode now)
                     (when save-pressed
                       (funcall save))
@@ -286,15 +279,15 @@ inspector, and Theme the theme's preview and settings and the app.")
                   ;; text field with the keyboard undoes its own typing first.
                   ;; The rail, the mode's panes over the bottom panel, and the status bar.
                   (bolt:row (:id :studio-body :flex 1 :fill t :cross-align :stretch)
-                    (rail mode facts)
-                    (bolt:panel (:id :rail-line :color (tool-color :line) :radius 0 :width 1))
+                    (chrome:rail mode facts)
+                    (bolt:panel (:id :rail-line :color (studio-theme:tool-color :line) :radius 0 :width 1))
                     (setf bottom-size
                           (bolt:split (:id :bottom-split :direction :vertical :size bottom-size
                                        :keep :second :min 120 :flex 1)
                             (mode-panes)
                             (bottom-panel facts))))
-                  (bolt:panel (:id :status-line :color (tool-color :line) :radius 0 :height 1))
-                  (status-bar (status-parts facts))
+                  (bolt:panel (:id :status-line :color (studio-theme:tool-color :line) :radius 0 :height 1))
+                  (chrome:status-bar (status-parts facts))
                   ;; The view to edit in front, in Design, and the app it is in beside it, where
                   ;; its changes show: behind the canvas's tab, it would not be drawn.
                   (when to-canvas

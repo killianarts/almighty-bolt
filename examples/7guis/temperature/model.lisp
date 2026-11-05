@@ -1,8 +1,6 @@
 (defpackage #:almighty-bolt-7guis/temperature/model
   (:use #:cl)
-  (:import-from #:almighty-bolt-7guis/common/numbers
-                #:parse-number
-                #:format-number)
+  (:local-nicknames (#:numbers #:almighty-bolt-7guis/common/numbers))
   (:export #:celsius->fahrenheit
            #:fahrenheit->celsius
            #:celsius-text->fahrenheit-text
@@ -23,10 +21,10 @@
 (defun celsius-text->fahrenheit-text (text)
   "What the Fahrenheit field shows when the Celsius field holds TEXT, or NIL if TEXT is
 not a number and the other field is left as it is."
-  (let ((number (parse-number text)))
-    (and number (format-number (celsius->fahrenheit number)))))
+  (let ((number (numbers:parse-number text)))
+    (and number (numbers:format-number (celsius->fahrenheit number)))))
 
 (defun fahrenheit-text->celsius-text (text)
   "What the Celsius field shows when the Fahrenheit field holds TEXT, or NIL."
-  (let ((number (parse-number text)))
-    (and number (format-number (fahrenheit->celsius number)))))
+  (let ((number (numbers:parse-number text)))
+    (and number (numbers:format-number (fahrenheit->celsius number)))))

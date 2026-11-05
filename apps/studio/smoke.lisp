@@ -16,17 +16,11 @@
 (defpackage #:almighty-bolt-studio/smoke
   (:use #:cl #:almighty-bolt-examples/ax-client)
   (:local-nicknames (#:m #:almighty-bolt/machine)
-                    (#:s #:almighty-bolt/ui/semantics))
-  (:import-from #:almighty-bolt
-                #:run-app)
-  (:import-from #:almighty-bolt/machine/host-session
-                #:open-session)
-  (:import-from #:almighty-bolt/internals
-                #:frame-ring-total)
-  (:import-from #:almighty-bolt/platform/macos/host
-                #:host-ring
-                #:wait-for-idle
-                #:close-host-window))
+                    (#:s #:almighty-bolt/ui/semantics)
+                    (#:bolt #:almighty-bolt)
+                    (#:host-session #:almighty-bolt/machine/host-session)
+                    (#:core #:almighty-bolt/internals)
+                    (#:host #:almighty-bolt/platform/macos/host)))
 
 (in-package #:almighty-bolt-studio/smoke)
 
@@ -73,9 +67,9 @@
 
 (defun checks (host)
   (let ((application (application))
-        (session (open-session)))
+        (session (host-session:open-session)))
     (flet ((find-it (identifier) (anywhere application identifier))
-           (settle () (wait-for-idle host)))
+           (settle () (host:wait-for-idle host)))
       ;; The counter, named in the App pane.
       (m:click session :id :run-pane)
       (m:set-value session "almighty-bolt-examples/counter:make-counter" :id :app-name)
@@ -161,7 +155,7 @@
 (defvar *skipped* nil "Why the checks could not be made, or NIL.")
 
 (defun readable-p (host)
-  (wait-for (lambda () (plusp (frame-ring-total (host-ring host)))) 20)
+  (wait-for (lambda () (plusp (core:frame-ring-total (host:host-ring host)))) 20)
   (sleep 1.0)
   (cond ((not (trusted-p))
          (setf *skipped* "this process may not use the system's accessibility API. Allow the terminal in System Settings, Privacy & Security, Accessibility.")
@@ -186,7 +180,7 @@
           (format t "~&The studio check passed.~%")
           (format t "~&FAIL: ~d check~:p did not hold.~%" *failures*)))
     (finish-output)
-    (close-host-window host)))
+    (host:close-host-window host)))
 
-(run-app 'almighty-bolt-studio:make-studio :title "almighty-bolt studio" :width 1240 :height 820
+(bolt:run-app 'almighty-bolt-studio:make-studio :title "almighty-bolt studio" :width 1240 :height 820
                                             :hot t :driver #'drive)

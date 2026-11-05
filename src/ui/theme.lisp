@@ -1,11 +1,7 @@
 (defpackage #:almighty-bolt/ui/theme
   (:use #:cl)
-  (:import-from #:almighty-bolt/internals
-                #:pack-color)
-  (:import-from #:almighty-bolt/ui/hash
-                #:mix
-                #:hash-of
-                #:+seed+)
+  (:local-nicknames (#:core #:almighty-bolt/internals)
+                    (#:hash #:almighty-bolt/ui/hash))
   (:export #:theme
            #:theme-p
            #:make-theme
@@ -127,7 +123,7 @@
   (multiple-value-bind (r1 g1 b1 a1) (channels a)
     (multiple-value-bind (r2 g2 b2 a2) (channels b)
       (flet ((between (x y) (round (+ x (* fraction (- y x))))))
-        (pack-color (between r1 r2) (between g1 g2) (between b1 b2) (between a1 a2))))))
+        (core:pack-color (between r1 r2) (between g1 g2) (between b1 b2) (between a1 a2))))))
 
 (defun with-alpha (color alpha)
   (dpb alpha (byte 8 0) color))
@@ -146,9 +142,9 @@ is easy to read at 4.5 and above, and large text at 3."
   (let ((la (luminance a)) (lb (luminance b)))
     (/ (+ (max la lb) 0.05d0) (+ (min la lb) 0.05d0))))
 
-(defparameter +white+ (pack-color 255 255 255))
-(defparameter +black+ (pack-color 0 0 0))
-(defparameter +red+ (pack-color 210 60 70))
+(defparameter +white+ (core:pack-color 255 255 255))
+(defparameter +black+ (core:pack-color 0 0 0))
+(defparameter +red+ (core:pack-color 210 60 70))
 
 ;;; --- the theme ---
 
@@ -357,17 +353,17 @@ the nearest whole point (a half up)."
 (defun hash-tree (value)
   "A hash of VALUE and of everything in it, if it is a list (a font designator), however long."
   (if (consp value)
-      (let ((hash (hash-of :list)))
+      (let ((hash (hash:hash-of :list)))
         (loop :for rest = value :then (cdr rest)
               :while (consp rest)
-              :do (setf hash (mix hash (hash-tree (car rest)))))
+              :do (setf hash (hash:mix hash (hash-tree (car rest)))))
         hash)
-      (hash-of value)))
+      (hash:hash-of value)))
 
 (defun theme-hash (values name)
-  (let ((hash (mix +seed+ (hash-of name))))
+  (let ((hash (hash:mix hash:+seed+ (hash:hash-of name))))
     (dolist (value values hash)
-      (setf hash (mix hash (hash-tree value))))))
+      (setf hash (hash:mix hash (hash-tree value))))))
 
 (defvar *themes* (make-hash-table :test 'eq #+sbcl :synchronized #+sbcl t)
   "The themes that have names, by name. The window's thread reads it every frame while a REPL may
@@ -666,39 +662,39 @@ arguments, made once."
 
 ;;; The dark theme is every colour given, as it was before themes could be made.
 (define-theme :dark (:base nil)
-  :background (pack-color 36 40 56)
-  :text (pack-color 232 234 242)
-  :accent (pack-color 72 104 200)
-  :panel (pack-color 48 53 74)
-  :dim-text (pack-color 130 136 156)
-  :button-text (pack-color 255 255 255)
-  :ring (pack-color 150 200 255)
-  :field-border (pack-color 86 92 118)
-  :field-fill (pack-color 24 27 40)
-  :field-invalid (pack-color 96 34 40)
-  :field-disabled (pack-color 40 43 58)
-  :selection (pack-color 72 104 200 160)
-  :caret (pack-color 240 242 250)
-  :track (pack-color 24 27 40)
-  :thumb (pack-color 110 150 235)
-  :row-selected (pack-color 72 104 200)
-  :row-hover (pack-color 58 64 90)
-  :scrim (pack-color 0 0 0 130)
-  :tooltip (pack-color 232 234 240)
-  :tooltip-text (pack-color 30 33 46)
-  :button (pack-color 72 104 200)
-  :button-hover (pack-color 92 126 224)
-  :button-pressed (pack-color 52 80 164)
-  :button-disabled (pack-color 62 66 86)
+  :background (core:pack-color 36 40 56)
+  :text (core:pack-color 232 234 242)
+  :accent (core:pack-color 72 104 200)
+  :panel (core:pack-color 48 53 74)
+  :dim-text (core:pack-color 130 136 156)
+  :button-text (core:pack-color 255 255 255)
+  :ring (core:pack-color 150 200 255)
+  :field-border (core:pack-color 86 92 118)
+  :field-fill (core:pack-color 24 27 40)
+  :field-invalid (core:pack-color 96 34 40)
+  :field-disabled (core:pack-color 40 43 58)
+  :selection (core:pack-color 72 104 200 160)
+  :caret (core:pack-color 240 242 250)
+  :track (core:pack-color 24 27 40)
+  :thumb (core:pack-color 110 150 235)
+  :row-selected (core:pack-color 72 104 200)
+  :row-hover (core:pack-color 58 64 90)
+  :scrim (core:pack-color 0 0 0 130)
+  :tooltip (core:pack-color 232 234 240)
+  :tooltip-text (core:pack-color 30 33 46)
+  :button (core:pack-color 72 104 200)
+  :button-hover (core:pack-color 92 126 224)
+  :button-pressed (core:pack-color 52 80 164)
+  :button-disabled (core:pack-color 62 66 86)
   :font-name "Helvetica"
   :font-size 15
   :radius 6)
 
 ;;; The light theme is its seeds, and the rest worked out.
 (define-theme :light (:base :dark)
-  :background (pack-color 240 241 245)
-  :text (pack-color 28 30 38)
-  :accent (pack-color 40 96 210))
+  :background (core:pack-color 240 241 245)
+  :text (core:pack-color 28 30 38)
+  :accent (core:pack-color 40 96 210))
 
 (defvar *theme* (find-theme :dark)
   "The theme that what is described, laid out or drawn now is in: bound around a frame's

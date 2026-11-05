@@ -1,34 +1,7 @@
 (defpackage #:almighty-bolt/machine
   (:use #:cl)
-  (:import-from #:almighty-bolt/internals
-                #:accessibility-tree
-                #:now-ns
-                #:make-pointer-event
-                #:make-key-event
-                #:make-wheel-event
-                #:+modifier-shift+
-                #:+modifier-control+
-                #:+modifier-alt+
-                #:+modifier-super+
-                #:+key-up+
-                #:+key-down+
-                #:+key-left+
-                #:+key-right+
-                #:+key-delete-forward+
-                #:+key-home+
-                #:+key-end+
-                #:+key-page-up+
-                #:+key-page-down+)
-  (:import-from #:almighty-bolt/ui/semantics
-                #:node-id
-                #:node-role
-                #:node-name
-                #:node-value
-                #:node-state
-                #:node-bounds
-                #:node-children
-                #:node-property
-                #:find-nodes)
+  (:local-nicknames (#:core #:almighty-bolt/internals)
+                    (#:s #:almighty-bolt/ui/semantics))
   (:export #:session
            #:make-session
            #:session-app
@@ -95,10 +68,10 @@ a PNG in a vector of bytes, or NIL if it cannot."
 (defun see (session)
   "The semantic tree of the screen as it is now (see ALMIGHTY-BOLT/UI/SEMANTICS)."
   (funcall (session-on-main session)
-           (lambda () (accessibility-tree (funcall (session-app session))))))
+           (lambda () (core:accessibility-tree (funcall (session-app session))))))
 
 (defun describe-node (node)
-  (format nil "~(~a~)~@[ ~s~]~@[ with the id ~s~]" (node-role node) (node-name node) (node-id node)))
+  (format nil "~(~a~)~@[ ~s~]~@[ with the id ~s~]" (s:node-role node) (s:node-name node) (s:node-id node)))
 
 (defun find-node (session &key id role name within)
   "The one node of the screen with the given ID, ROLE and NAME (each only if given), inside the node
@@ -108,7 +81,7 @@ same id in two panels: (find-node session :id :show :within :gregorian-search)."
   (unless (or id role name)
     (refuse 'no-such-node "Say which thing: an id, or a role and a name."))
   (let* ((tree (if within (find-node session :id within) (see session)))
-         (found (find-nodes tree :id id :role role :name name)))
+         (found (s:find-nodes tree :id id :role role :name name)))
     (case (length found)
       (1 (first found))
       (0 (refuse 'no-such-node "There is nothing on the screen~@[ with the id ~s~]~@[ with the role ~(~a~)~]~@[ called ~s~]~@[ inside ~s~]."
@@ -125,9 +98,9 @@ same id in two panels: (find-node session :id :show :within :gregorian-search)."
   (funcall (session-settle session)))
 
 (defun pointer (session kind x y &key button (buttons 0) (count 0))
-  (deliver session (make-pointer-event :timestamp (now-ns) :kind kind
-                                       :x (float x 1d0) :y (float y 1d0)
-                                       :button button :buttons buttons :click-count count)))
+  (deliver session (core:make-pointer-event :timestamp (core:now-ns) :kind kind
+                                            :x (float x 1d0) :y (float y 1d0)
+                                            :button button :buttons buttons :click-count count)))
 
 (defun bounds-point (bounds &optional (fx 0.5) (fy 0.5))
   "The point at the fraction FX, FY across and down BOUNDS, a list of x, y, width and height."
@@ -135,7 +108,7 @@ same id in two panels: (find-node session :id :show :within :gregorian-search)."
     (values (+ x (* fx width)) (+ y (* fy height)))))
 
 (defun middle (node)
-  (bounds-point (node-bounds node)))
+  (bounds-point (s:node-bounds node)))
 
 (defun press-at (session x y &key (count 1))
   "A press and release of the primary button at X, Y, the pointer having moved there first."
@@ -148,10 +121,10 @@ same id in two panels: (find-node session :id :show :within :gregorian-search)."
     (dolist (modifier modifiers bits)
       (setf bits (logior bits
                          (ecase (intern (string-upcase (string modifier)) :keyword)
-                           (:shift +modifier-shift+)
-                           (:control +modifier-control+)
-                           ((:alt :option) +modifier-alt+)
-                           ((:super :command :cmd :meta) +modifier-super+)))))))
+                           (:shift core:+modifier-shift+)
+                           (:control core:+modifier-control+)
+                           ((:alt :option) core:+modifier-alt+)
+                           ((:super :command :cmd :meta) core:+modifier-super+)))))))
 
 (defun key-character (key)
   "The character that KEY is: a character, a string of one, or the name of a key, such as
@@ -167,23 +140,23 @@ same id in two panels: (find-node session :id :show :within :gregorian-search)."
                         ((member name '("escape" "esc") :test #'string=) #\Escape)
                         ((string= name "backspace") #\Backspace)
                         ((member name '("delete" "forwarddelete") :test #'string=)
-                         +key-delete-forward+)
+                         core:+key-delete-forward+)
                         ((string= name "space") #\Space)
-                        ((string= name "up") +key-up+)
-                        ((string= name "down") +key-down+)
-                        ((string= name "left") +key-left+)
-                        ((string= name "right") +key-right+)
-                        ((string= name "home") +key-home+)
-                        ((string= name "end") +key-end+)
-                        ((string= name "pageup") +key-page-up+)
-                        ((string= name "pagedown") +key-page-down+)
+                        ((string= name "up") core:+key-up+)
+                        ((string= name "down") core:+key-down+)
+                        ((string= name "left") core:+key-left+)
+                        ((string= name "right") core:+key-right+)
+                        ((string= name "home") core:+key-home+)
+                        ((string= name "end") core:+key-end+)
+                        ((string= name "pageup") core:+key-page-up+)
+                        ((string= name "pagedown") core:+key-page-down+)
                         (t (refuse 'cannot "There is no key called ~s." key))))))))))
 
 (defun press-key (session key &key modifiers)
   "Press KEY (see KEY-CHARACTER) with MODIFIERS (a list of :shift, :control, :alt, :super) down."
-  (deliver session (make-key-event :timestamp (now-ns) :kind :down
-                                   :logical-key (key-character key)
-                                   :modifiers (modifier-bits modifiers)))
+  (deliver session (core:make-key-event :timestamp (core:now-ns) :kind :down
+                                        :logical-key (key-character key)
+                                        :modifiers (modifier-bits modifiers)))
   (settle session)
   nil)
 
@@ -198,15 +171,15 @@ keyboard."
   (when (or id role name)
     (focus session :id id :role role :name name :within within))
   (loop :for character :across text
-        :do (deliver session (make-key-event :timestamp (now-ns) :kind :down
-                                             :logical-key (typed-key character) :modifiers 0)))
+        :do (deliver session (core:make-key-event :timestamp (core:now-ns) :kind :down
+                                                  :logical-key (typed-key character) :modifiers 0)))
   (settle session)
   nil)
 
 ;;; --- acting on things ---
 
 (defun refuse-hidden (node)
-  (when (node-property node :hidden)
+  (when (s:node-property node :hidden)
     (refuse 'cannot "The ~a is scrolled out of sight. Scroll the container it is in until it shows."
             (describe-node node))))
 
@@ -214,7 +187,7 @@ keyboard."
   "Press and release the primary button in the middle of the thing."
   (let ((node (find-node session :id id :role role :name name :within within)))
     (refuse-hidden node)
-    (when (node-property node :disabled)
+    (when (s:node-property node :disabled)
       (refuse 'cannot "The ~a is disabled." (describe-node node)))
     (multiple-value-bind (x y) (middle node)
       (press-at session x y))
@@ -249,47 +222,47 @@ keyboard."
   "Turn the wheel over the thing: DX and DY in lines, a negative DY showing what is further down."
   (let ((node (find-node session :id id :role role :name name :within within)))
     (multiple-value-bind (x y) (middle node)
-      (deliver session (make-wheel-event :timestamp (now-ns) :x (float x 1d0) :y (float y 1d0)
-                                         :dx (float dx 1d0) :dy (float dy 1d0)
-                                         :precise-p nil :modifiers 0)))
+      (deliver session (core:make-wheel-event :timestamp (core:now-ns) :x (float x 1d0) :y (float y 1d0)
+                                              :dx (float dx 1d0) :dy (float dy 1d0)
+                                              :precise-p nil :modifiers 0)))
     (settle session)
     nil))
 
 (defun select-item (session index &key id role name within)
   "Pick the item INDEX of a list, scrolling it into view first if it is not showing."
   (let ((target (find-node session :id id :role (or role :list) :name name :within within)))
-    (unless (eq (node-role target) :list)
+    (unless (eq (s:node-role target) :list)
       (refuse 'cannot "The ~a is not a list." (describe-node target)))
-    (let ((count (length (node-property target :items))))
+    (let ((count (length (s:node-property target :items))))
       (unless (and (integerp index) (< -1 index count))
         (refuse 'cannot "The list has ~d item~:p, from 0; there is no item ~s." count index)))
     (loop :repeat 200
-          :do (let* ((now (find-node session :id (node-id target) :role :list
-                                             :name (node-name target)))
-                     (first (node-property now :first-visible))
-                     (showing (length (node-property now :item-bounds)))
+          :do (let* ((now (find-node session :id (s:node-id target) :role :list
+                                             :name (s:node-name target)))
+                     (first (s:node-property now :first-visible))
+                     (showing (length (s:node-property now :item-bounds)))
                      (last (+ first showing -1)))
                 (cond ((< index first)
-                       (scroll session :id (node-id target) :role :list
+                       (scroll session :id (s:node-id target) :role :list
                                        :dy (min 5 (- first index))))
                       ((> index last)
-                       (scroll session :id (node-id target) :role :list
+                       (scroll session :id (s:node-id target) :role :list
                                        :dy (- (min 5 (- index last)))))
                       (t (multiple-value-bind (x y)
-                             (bounds-point (nth (- index first) (node-property now :item-bounds)))
+                             (bounds-point (nth (- index first) (s:node-property now :item-bounds)))
                            (press-at session x y)
                            (settle session)
                            (return-from select-item nil))))))
     (refuse 'cannot "Could not scroll to item ~d." index)))
 
 (defun choose-option (session node value)
-  (let* ((options (node-property node :options))
+  (let* ((options (s:node-property node :options))
          (index (cond ((integerp value) value)
                       (t (position value options :test #'equal)))))
     (unless (and index (< -1 index (length options)))
       (refuse 'cannot "The ~a has the options ~{~s~^, ~}; there is none like ~s."
               (describe-node node) options value))
-    (multiple-value-bind (x y) (bounds-point (nth index (node-property node :option-bounds)))
+    (multiple-value-bind (x y) (bounds-point (nth index (s:node-property node :option-bounds)))
       (press-at session x y))))
 
 (defun perform (session action)
@@ -314,23 +287,23 @@ selecting what was there), press a check box if it is not as wanted, press a sli
 value is, press the option of a choice, pick the item of a list."
   (let ((node (find-node session :id id :role role :name name :within within)))
     (refuse-hidden node)
-    (when (node-property node :disabled)
+    (when (s:node-property node :disabled)
       (refuse 'cannot "The ~a is disabled." (describe-node node)))
-    (ecase (node-role node)
+    (ecase (s:node-role node)
       ((:text-field :combo-box :text-area)
        (unless (stringp value)
          (refuse 'cannot "A text field takes a string, not ~s." value))
        (multiple-value-bind (x y) (middle node)
          (press-at session x y))
-       (deliver session (make-key-event :timestamp (now-ns) :kind :down :logical-key #\a
-                                        :modifiers +modifier-super+))
+       (deliver session (core:make-key-event :timestamp (core:now-ns) :kind :down :logical-key #\a
+                                             :modifiers core:+modifier-super+))
        (if (zerop (length value))
-           (deliver session (make-key-event :timestamp (now-ns) :kind :down
-                                            :logical-key #\Backspace :modifiers 0))
+           (deliver session (core:make-key-event :timestamp (core:now-ns) :kind :down
+                                                 :logical-key #\Backspace :modifiers 0))
            (loop :for character :across value
-                 :do (deliver session (make-key-event :timestamp (now-ns) :kind :down
-                                                      :logical-key (typed-key character)
-                                                      :modifiers 0)))))
+                 :do (deliver session (core:make-key-event :timestamp (core:now-ns) :kind :down
+                                                           :logical-key (typed-key character)
+                                                           :modifiers 0)))))
       (:pop-up-button
        ;; Open its menu, and press the row that says VALUE.
        (multiple-value-bind (x y) (middle node)
@@ -338,41 +311,41 @@ value is, press the option of a choice, pick the item of a list."
        (settle session)
        ;; A long menu shows the rows that fit. As a person would, type the start of the one wanted,
        ;; which brings it into view, and failing that go down and then up to it.
-       (flet ((row () (first (find-nodes (see session) :role :menu-item :name value))))
+       (flet ((row () (first (s:find-nodes (see session) :role :menu-item :name value))))
          ;; Up to a space, which in a menu chooses the row it is on.
          (when (and (null (row)) (stringp value))
            (loop :for character :across (subseq value 0 (position #\Space value))
                  :do (press-key session character)))
-         (let ((count (length (node-property node :options))))
+         (let ((count (length (s:node-property node :options))))
            (loop :repeat count :until (row) :do (press-key session :down))
            (loop :repeat count :until (row) :do (press-key session :up))))
        (let ((row (find-node session :role :menu-item :name value)))
          (multiple-value-bind (x y) (middle row)
            (press-at session x y))))
       ((:checkbox :switch)
-       (unless (eq (and value t) (and (node-value node) t))
+       (unless (eq (and value t) (and (s:node-value node) t))
          (multiple-value-bind (x y) (middle node)
            (press-at session x y))))
       (:slider
-       (let ((minimum (node-property node :minimum))
-             (maximum (node-property node :maximum)))
+       (let ((minimum (s:node-property node :minimum))
+             (maximum (s:node-property node :maximum)))
          (unless (and (realp value) (<= minimum value maximum))
            (refuse 'cannot "The ~a goes from ~a to ~a; ~s is outside that." (describe-node node)
                    minimum maximum value))
-         (destructuring-bind (x y width height) (node-bounds node)
+         (destructuring-bind (x y width height) (s:node-bounds node)
            ;; The thumb is 16 points wide (or as the slider says, in a pane at a zoom) and its
            ;; middle goes from half of that in to half of it from the end.
-           (let* ((thumb (or (node-property node :thumb-width) 16))
+           (let* ((thumb (or (s:node-property node :thumb-width) 16))
                   (travel (max 1 (- width thumb)))
                   (fraction (if (= maximum minimum) 0 (/ (- value minimum) (- maximum minimum)))))
              (press-at session (+ x (/ thumb 2) (* fraction travel)) (+ y (/ height 2)))))))
       (:radio-group (choose-option session node value))
       (:list (if (integerp value)
-                 (select-item session value :id (node-id node) :role :list :name (node-name node))
+                 (select-item session value :id (s:node-id node) :role :list :name (s:node-name node))
                  (select-item session
-                              (or (position value (node-property node :items) :test #'equal)
+                              (or (position value (s:node-property node :items) :test #'equal)
                                   (refuse 'cannot "The list has no item like ~s." value))
-                              :id (node-id node) :role :list :name (node-name node))))
+                              :id (s:node-id node) :role :list :name (s:node-name node))))
       ((:button :static-text :paragraph :image :progress-bar :canvas :overlay :group)
        (refuse 'cannot "The ~a has no value to set." (describe-node node))))
     (settle session)

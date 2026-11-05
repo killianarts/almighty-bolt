@@ -1,25 +1,11 @@
 (defpackage #:almighty-bolt/ui/views
   (:use #:cl)
-  (:import-from #:almighty-bolt/ui/box
-                #:box-id
-                #:box-parent
-                #:box-view)
-  (:import-from #:almighty-bolt/ui/ui
-                #:*drawing-view*)
-  (:import-from #:almighty-bolt/ui/widgets
-                #:label)
-  (:import-from #:almighty-bolt/ui/catalogue
-                #:define-widget-entry
-                #:find-entry
-                #:entry-kind
-                #:entry-options
-                #:entry-wires
-                #:option-name
-                #:catalogue
-                #:entry-value
-                #:check-view-form
-                #:draw-form)
+  (:local-nicknames (#:box #:almighty-bolt/ui/box)
+                    (#:ui #:almighty-bolt/ui/ui)
+                    (#:widgets #:almighty-bolt/ui/widgets)
+                    (#:catalogue #:almighty-bolt/ui/catalogue))
   (:export #:define-view
+           #:make-weak-table
            #:view
            #:set-view
            #:find-view
@@ -160,7 +146,7 @@ given, is the file it is defined in (VIEW-FILE); one defined again without a fil
 had. Returns what does not fit between it and the code that wires it (WIRING-PROBLEMS), and signals
 a style warning (VIEW-WIRING-MISMATCH) of each."
   (check-type name (and symbol (not null)))
-  (check-view-form form)
+  (catalogue:check-view-form form)
   (setf (gethash name *views*) form)
   (when file
     (setf (gethash name *view-files*) (pathname file)))
@@ -178,7 +164,7 @@ a style warning (VIEW-WIRING-MISMATCH) of each."
 a designer writes it. An error when compiled if FORM cannot be drawn (CHECK-VIEW-FORM). It is
 defined when compiled too, so that the code that wires it, compiled after, is checked against it."
   (check-type name (and symbol (not null)))
-  (check-view-form form)
+  (catalogue:check-view-form form)
   `(eval-when (:compile-toplevel :load-toplevel :execute)
      (set-view ',name ',form :file ,(let ((file (or *compile-file-truename* *load-truename*)))
                                       (and file (namestring file))))))
@@ -216,27 +202,27 @@ that form is loaded."
           (error "The view ~s and the code that wires it do not fit: ~{~a~^ ~}" name problems)))
       (setf (gethash spec *checked*) form))
     (let ((*views-drawn* (cons name *views-drawn*))
-          (*drawing-view* name))
-      (draw-form form :wires wires :id id))))
+          (ui:*drawing-view* name))
+      (catalogue:draw-form form :wires wires :id id))))
 
 ;; A view inside another: the view of that name, drawn with the node's id for its outermost.
-(define-widget-entry :view (:title "View" :options ((:name :view nil)))
+(catalogue:define-widget-entry :view (:title "View" :options ((:name :view nil)))
   (let ((form (and name (find-view name))))
-    (cond ((null name) (label "A view: choose which" :id id))
-          ((null form) (label (format nil "No view is called ~(~s~)" name) :id id))
-          ((member name *views-drawn*) (label (format nil "~(~s~) is inside itself" name) :id id))
+    (cond ((null name) (widgets:label "A view: choose which" :id id))
+          ((null form) (widgets:label (format nil "No view is called ~(~s~)" name) :id id))
+          ((member name *views-drawn*) (widgets:label (format nil "~(~s~) is inside itself" name) :id id))
           (t (let ((*views-drawn* (cons name *views-drawn*))
-                   (*drawing-view* name))
-               (draw-form form :id id))))))
+                   (ui:*drawing-view* name))
+               (catalogue:draw-form form :id id))))))
 
 (defun clause-entry (clause)
   "The catalogue's entry for the kind CLAUSE names: (button :sign-in ...) is a :button."
   (unless (and (consp clause) (symbolp (first clause)) (keywordp (second clause)))
     (error "~s is not wiring: (kind id key value ...), as (button :sign-in :on-press (go))." clause))
   (let ((kind (intern (symbol-name (first clause)) :keyword)))
-    (or (find kind (catalogue) :key #'entry-kind)
+    (or (find kind (catalogue:catalogue) :key #'catalogue:entry-kind)
         (error "~s: there is no widget of the kind ~(~a~); there are ~{~(~a~)~^, ~}." clause kind
-               (mapcar #'entry-kind (catalogue))))))
+               (mapcar #'catalogue:entry-kind (catalogue:catalogue))))))
 
 (defmacro view (name-and-id &body clauses)
   "Draw the view NAME, wired to the code by CLAUSES. NAME-AND-ID is the view's name (a symbol), or
@@ -256,7 +242,7 @@ defined then is a style warning, and the wiring is checked when the view is draw
     (let ((spec '()) (wires '()) (functions '()))
       (dolist (clause clauses)
         (let* ((entry (clause-entry clause))
-               (kind (entry-kind entry))
+               (kind (catalogue:entry-kind entry))
                (wire-id (second clause))
                (options '())
                (wired '()))
@@ -265,24 +251,24 @@ defined then is a style warning, and the wiring is checked when the view is draw
           (loop :for (key value) :on (cddr clause) :by #'cddr
                 ;; :value is the place a widget that holds a value shows and sets, even where it
                 ;; also names one of its options (a slider's).
-                :do (cond ((and (find key (entry-options entry) :key #'option-name)
-                                (not (and (eq key :value) (entry-value entry))))
+                :do (cond ((and (find key (catalogue:entry-options entry) :key #'catalogue:option-name)
+                                (not (and (eq key :value) (catalogue:entry-value entry))))
                            (setf options (list* value key options)))
-                          ((not (member key (entry-wires entry)))
+                          ((not (member key (catalogue:entry-wires entry)))
                            (error "~s: a ~(~a~) takes ~{~(~s~)~^, ~}, and not ~s." clause kind
-                                  (append (mapcar #'option-name (entry-options entry))
-                                          (entry-wires entry))
+                                  (append (mapcar #'catalogue:option-name (catalogue:entry-options entry))
+                                          (catalogue:entry-wires entry))
                                   key))
                           ((eq key :value)
                            ;; What the field shows, and a function that sets the place.
                            (let ((function (gensym "SET")) (new (gensym "NEW")))
-                             (setf options (list* value (entry-value entry) options))
+                             (setf options (list* value (catalogue:entry-value entry) options))
                              (push `(,function (,new) (setf ,value ,new)) functions)
                              (setf wired (list* `(function ,function) key wired))))
                           (t
                            (let ((function (gensym (symbol-name key))))
                              ;; What it draws (:contents) is the app's, not the view's.
-                             (push `(,function () (let ((*drawing-view* nil)) ,value)) functions)
+                             (push `(,function () (let ((ui:*drawing-view* nil)) ,value)) functions)
                              (setf wired (list* `(function ,function) key wired))))))
           (push (list* wire-id kind (loop :for (key) :on (cddr clause) :by #'cddr :collect key))
                 spec)
@@ -319,16 +305,16 @@ defined then is a style warning, and the wiring is checked when the view is draw
   "If a view drew BOX (a box of the last frame), the view's name and the id, in the view, of the
 widget it is or is part of: two values, or NIL. A widget drawn as the view's outermost with an id of
 the code's (VIEW's :id) is the view's outermost."
-  (let ((name (box-view box)))
+  (let ((name (box:box-view box)))
     (when name
       (let ((ids (let ((form (find-view name))) (and form (form-ids form)))))
-        (loop :for at = box :then (box-parent at)
-              :while (and at (eq (box-view at) name))
-              :do (when (member (box-id at) ids)
-                    (return-from view-widget (values name (box-id at))))
+        (loop :for at = box :then (box:box-parent at)
+              :while (and at (eq (box:box-view at) name))
+              :do (when (member (box:box-id at) ids)
+                    (return-from view-widget (values name (box:box-id at))))
                   ;; The view's outermost box, called by the code's id.
-                  (let ((parent (box-parent at)))
-                    (when (and ids (or (null parent) (not (eq (box-view parent) name))))
+                  (let ((parent (box:box-parent at)))
+                    (when (and ids (or (null parent) (not (eq (box:box-view parent) name))))
                       (return-from view-widget (values name (first ids))))))
         nil))))
 

@@ -1,16 +1,8 @@
 (defpackage #:almighty-bolt-7guis/temperature/app
   (:use #:cl)
-  (:import-from #:almighty-bolt-7guis/common/registry
-                #:register-app)
-  (:import-from #:almighty-bolt-7guis/temperature/model
-                #:celsius-text->fahrenheit-text
-                #:fahrenheit-text->celsius-text)
-  (:import-from #:almighty-bolt
-                #:label
-                #:text-field
-                #:padding
-                #:row
-                #:state-let)
+  (:local-nicknames (#:registry #:almighty-bolt-7guis/common/registry)
+                    (#:model #:almighty-bolt-7guis/temperature/model)
+                    (#:bolt #:almighty-bolt))
   (:export #:make-temperature))
 
 (in-package #:almighty-bolt-7guis/temperature/app)
@@ -20,26 +12,26 @@
 ;;; both.
 
 (defun make-temperature ()
-  (state-let ((celsius "")
-              (fahrenheit ""))
+  (bolt:state-let ((celsius "")
+                   (fahrenheit ""))
     (lambda ()
-      (padding (:all 20)
-        (row (:gap 10 :cross-align :center)
+      (bolt:padding (:all 20)
+        (bolt:row (:gap 10 :cross-align :center)
           (multiple-value-bind (text changed)
-              (text-field celsius :id :celsius :labelled-by :celsius-label :width 100)
+                   (bolt:text-field celsius :id :celsius :labelled-by :celsius-label :width 100)
             (when changed
-              (setf celsius text)
-              (let ((other (celsius-text->fahrenheit-text text)))
-                (when other
+                   (setf celsius text)
+                   (let ((other (model:celsius-text->fahrenheit-text text)))
+                     (when other
                   (setf fahrenheit other)))))
-          (label "Celsius =" :id :celsius-label)
+          (bolt:label "Celsius =" :id :celsius-label)
           (multiple-value-bind (text changed)
-              (text-field fahrenheit :id :fahrenheit :labelled-by :fahrenheit-label :width 100)
+                   (bolt:text-field fahrenheit :id :fahrenheit :labelled-by :fahrenheit-label :width 100)
             (when changed
-              (setf fahrenheit text)
-              (let ((other (fahrenheit-text->celsius-text text)))
-                (when other
+                   (setf fahrenheit text)
+                   (let ((other (model:fahrenheit-text->celsius-text text)))
+                     (when other
                   (setf celsius other)))))
-          (label "Fahrenheit" :id :fahrenheit-label))))))
+          (bolt:label "Fahrenheit" :id :fahrenheit-label))))))
 
-(register-app :temperature 'make-temperature :width 520 :height 90)
+(registry:register-app :temperature 'make-temperature :width 520 :height 90)

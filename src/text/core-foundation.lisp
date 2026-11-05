@@ -1,9 +1,6 @@
 (defpackage #:almighty-bolt/text/core-foundation
   (:use #:cl)
-  (:import-from #:almighty-bolt/platform/macos/objc
-                #:ns-string
-                #:foreign-constant
-                #:foreign-address)
+  (:local-nicknames (#:objc #:almighty-bolt/platform/macos/objc))
   (:export #:ccall
            #:cf-constant
            #:cf-retain
@@ -61,7 +58,7 @@ doubles, such as a CGPoint, as its doubles."
 (defmacro cf-constant (name)
   "The value of the Core Foundation constant NAME, a literal string (a global such as
 kCTFontAttributeName that holds a reference), as an integer. It is looked up once."
-  `(foreign-constant ,name))
+  `(objc:foreign-constant ,name))
 
 (declaim (inline cf-retain cf-release))
 (defun cf-retain (object)
@@ -73,7 +70,7 @@ kCTFontAttributeName that holds a reference), as an integer. It is looked up onc
 (defun cf-string (string)
   "A new CFString with the contents of STRING (an NSString, which is the same
 object). The caller owns it and must CF-RELEASE it."
-  (ns-string string))
+  (objc:ns-string string))
 
 (declaim (inline cf-array-count cf-array-ref))
 (defun cf-array-count (array)
@@ -98,8 +95,8 @@ first. The caller owns it."
              (:pointer (sb-sys:sap-int (sb-alien:alien-sap keys)))
              (:pointer (sb-sys:sap-int (sb-alien:alien-sap values)))
              (:long count)
-             (:pointer (foreign-address "kCFTypeDictionaryKeyCallBacks"))
-             (:pointer (foreign-address "kCFTypeDictionaryValueCallBacks"))))))
+             (:pointer (objc:foreign-address "kCFTypeDictionaryKeyCallBacks"))
+             (:pointer (objc:foreign-address "kCFTypeDictionaryValueCallBacks"))))))
 
 (defconstant +cf-number-double+ 13 "kCFNumberDoubleType.")
 

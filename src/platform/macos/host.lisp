@@ -1,131 +1,28 @@
 (defpackage #:almighty-bolt/platform/macos/host
   (:use #:cl)
-  (:import-from #:almighty-bolt/clock
-                #:real-time-source
-                #:now-ns)
-  (:import-from #:almighty-bolt/event
-                #:make-pointer-event)
-  (:import-from #:almighty-bolt/ring
-                #:make-frame-ring
-                #:record-frame
-                #:record-frame-details)
-  (:import-from #:almighty-bolt/display-list
-                #:make-display-list
-                #:pack-color
-                #:push-image)
-  (:import-from #:almighty-bolt/kept
-                #:make-kept-state
-                #:with-kept-state)
-  (:import-from #:almighty-bolt/app-instance
-                #:inherit-state
-                #:retire-app
-                #:context
-                #:context-width
-                #:context-height
-                #:context-scale
-                #:context-frame-number
-                #:context-requester
-                #:context-window
-                #:context-frame-requested
-                #:context-text-input-p
-                #:context-text-input-rect
-                #:context-phases-p
-                #:context-phase-ns
-                #:reset-phases
-                #:+phase-update+
-                #:+phase-layout+
-                #:+phase-paint+
-                #:+phase-first-build+
-                #:+phase-all-builds+
-                #:take-frame-request
-                #:accessibility-tree
-                #:*show-frame-errors*
-                #:app-menus
-                #:deliver-event
-                #:take-events
-                #:context-font
-                #:context-measure
-                #:context-break-lines
-                #:context-caret-x
-                #:context-index-at-x
-                #:context-caret-rect
-                #:context-push-text
-                #:context-push-image
-                #:context-clipboard-text
-                #:context-appearance
-                #:context-set-clipboard-text
-                #:context-choose-file
-                #:context-forget-glyphs
-                #:context-cursor)
-  (:import-from #:almighty-bolt/settle
-                #:settle-frame)
-  (:import-from #:almighty-bolt/platform/macos/objc
-                #:msg-send
-                #:objc-class)
-  (:import-from #:almighty-bolt/platform/macos/main-queue
-                #:on-main-thread-p
-                #:run-on-main
-                #:run-on-main-later
-                #:run-on-main-in-a-turn
-                #:call-on-main)
-  (:import-from #:almighty-bolt/redefinition
-                #:watch-redefinitions
-                #:stop-watching-redefinitions)
-  (:import-from #:almighty-bolt/platform/macos/app
-                #:set-app-menus
-                #:run-application
-                #:*may-stop-p*)
-  (:import-from #:almighty-bolt/platform/macos/window
-                #:make-window
-                #:set-content-view
-                #:show-window
-                #:close-window
-                #:window-object
-                #:window-scale-factor)
-  (:import-from #:almighty-bolt/platform/macos/accessibility
-                #:frame-presented
-                #:release-bridge)
-  (:import-from #:almighty-bolt/platform/macos/view
-                #:make-metal-view
-                #:view-appearance
-                #:metal-view-object
-                #:metal-view-bridge
-                #:request-draw
-                #:set-view-cursor
-                #:end-composition)
-  (:import-from #:almighty-bolt/platform/macos/file-panel
-                #:make-file-panel
-                #:run-file-panel)
-  (:import-from #:almighty-bolt/platform/macos/pasteboard
-                #:general-pasteboard
-                #:pasteboard-string
-                #:set-pasteboard-string)
-  (:import-from #:almighty-bolt/text/font
-                #:make-font)
-  (:import-from #:almighty-bolt/text/line
-                #:get-line
-                #:measure-text
-                #:break-lines
-                #:caret-x
-                #:index-at-x
-                #:caret-rect)
-  (:import-from #:almighty-bolt/render/metal/device
-                #:default-device)
-  (:import-from #:almighty-bolt/render/metal/renderer
-                #:make-renderer
-                #:renderer-atlas
-                #:renderer-images
-                #:render-display-list
-                #:wait-for-last-frame
-                #:last-frame-gpu-ns)
-  (:import-from #:almighty-bolt/render/metal/draw-text
-                #:push-line)
-  (:import-from #:almighty-bolt/render/metal/glyph-atlas
-                #:clear-glyph-atlas
-                #:glyph-atlas-scale)
-  (:import-from #:almighty-bolt/render/metal/image-atlas
-                #:atlas-image-index
-                #:clear-image-atlas)
+  (:local-nicknames (#:clock #:almighty-bolt/clock)
+                    (#:event #:almighty-bolt/event)
+                    (#:ring #:almighty-bolt/ring)
+                    (#:dl #:almighty-bolt/display-list)
+                    (#:kept #:almighty-bolt/kept)
+                    (#:app-instance #:almighty-bolt/app-instance)
+                    (#:settle #:almighty-bolt/settle)
+                    (#:objc #:almighty-bolt/platform/macos/objc)
+                    (#:main-queue #:almighty-bolt/platform/macos/main-queue)
+                    (#:redefinition #:almighty-bolt/redefinition)
+                    (#:macos-app #:almighty-bolt/platform/macos/app)
+                    (#:window #:almighty-bolt/platform/macos/window)
+                    (#:a11y #:almighty-bolt/platform/macos/accessibility)
+                    (#:view #:almighty-bolt/platform/macos/view)
+                    (#:panel #:almighty-bolt/platform/macos/file-panel)
+                    (#:pb #:almighty-bolt/platform/macos/pasteboard)
+                    (#:font #:almighty-bolt/text/font)
+                    (#:line #:almighty-bolt/text/line)
+                    (#:device #:almighty-bolt/render/metal/device)
+                    (#:renderer #:almighty-bolt/render/metal/renderer)
+                    (#:draw #:almighty-bolt/render/metal/draw-text)
+                    (#:atlas #:almighty-bolt/render/metal/glyph-atlas)
+                    (#:image-atlas #:almighty-bolt/render/metal/image-atlas))
   (:export #:host
            #:make-host
            #:host-app
@@ -167,7 +64,7 @@
 
 ;;; --- the context, with text from Core Text and the glyph atlas ---
 
-(defstruct (mac-context (:include context)
+(defstruct (mac-context (:include app-instance:context)
                         (:constructor make-mac-context
                             (&key width height scale requester renderer)))
   "A context whose text operations are answered by Core Text and the renderer's
@@ -180,28 +77,28 @@ copied is kept in the context and the person's clipboard is never touched."
   ;; True for the context of a host with a window, which shows the system's file panels.
   (windowed nil))
 
-(defmethod context-clipboard-text ((context mac-context))
+(defmethod app-instance:context-clipboard-text ((context mac-context))
   (let ((pasteboard (mac-context-pasteboard context)))
     (if pasteboard
-        (pasteboard-string pasteboard)
+        (pb:pasteboard-string pasteboard)
         (call-next-method))))
 
-(defmethod context-choose-file ((context mac-context) kind types name callback)
+(defmethod app-instance:context-choose-file ((context mac-context) kind types name callback)
   ;; The system's panel, for a context with a window; after the frame, since the panel runs a loop
   ;; of its own.
   (if (mac-context-windowed context)
-      (run-on-main-in-a-turn (lambda ()
-                           (funcall callback (run-file-panel (make-file-panel kind :types types
-                                                                                   :name name)))))
+      (main-queue:run-on-main-in-a-turn (lambda ()
+                           (funcall callback (panel:run-file-panel (panel:make-file-panel kind :types types
+                                                                                               :name name)))))
       (call-next-method)))
 
-(defmethod context-set-clipboard-text ((context mac-context) string)
+(defmethod app-instance:context-set-clipboard-text ((context mac-context) string)
   (let ((pasteboard (mac-context-pasteboard context)))
     (if pasteboard
-        (set-pasteboard-string pasteboard string)
+        (pb:set-pasteboard-string pasteboard string)
         (call-next-method))))
 
-(defmethod context-font ((context mac-context) name size &optional weight tracking)
+(defmethod app-instance:context-font ((context mac-context) name size &optional weight tracking)
   (let ((fonts (mac-context-fonts context))
         (weight (or weight :regular))
         (tracking (or tracking 0)))
@@ -211,49 +108,49 @@ copied is kept in the context and the person's clipboard is never touched."
       (or (loop :for (key . font) :in entries
                 :when (and (= (first key) size) (eql (second key) weight) (= (third key) tracking))
                   :return font)
-          (let ((font (make-font name size weight tracking)))
+          (let ((font (font:make-font name size weight tracking)))
             ;; The caller's string may change later, so keep a copy as the key.
             (setf (gethash (if present name (copy-seq name)) fonts)
                   (acons (list size weight tracking) font entries))
             font)))))
 
-(defmethod context-measure ((context mac-context) font string)
-  (measure-text font string))
+(defmethod app-instance:context-measure ((context mac-context) font string)
+  (line:measure-text font string))
 
-(defmethod context-break-lines ((context mac-context) font string width)
-  (break-lines font string width))
+(defmethod app-instance:context-break-lines ((context mac-context) font string width)
+  (line:break-lines font string width))
 
-(defmethod context-caret-x ((context mac-context) font string index)
-  (caret-x (get-line font string) index))
+(defmethod app-instance:context-caret-x ((context mac-context) font string index)
+  (line:caret-x (line:get-line font string) index))
 
-(defmethod context-index-at-x ((context mac-context) font string x)
-  (index-at-x (get-line font string) x))
+(defmethod app-instance:context-index-at-x ((context mac-context) font string x)
+  (line:index-at-x (line:get-line font string) x))
 
-(defmethod context-caret-rect ((context mac-context) font string index)
-  (caret-rect (get-line font string) index))
+(defmethod app-instance:context-caret-rect ((context mac-context) font string index)
+  (line:caret-rect (line:get-line font string) index))
 
-(defmethod context-forget-glyphs ((context mac-context))
+(defmethod app-instance:context-forget-glyphs ((context mac-context))
   ;; The frame before may still be drawing from the atlas.
   (let ((renderer (mac-context-renderer context)))
-    (wait-for-last-frame renderer)
-    (clear-glyph-atlas (renderer-atlas renderer))
-    (clear-image-atlas (renderer-images renderer))))
+    (renderer:wait-for-last-frame renderer)
+    (atlas:clear-glyph-atlas (renderer:renderer-atlas renderer))
+    (image-atlas:clear-image-atlas (renderer:renderer-images renderer))))
 
-(defmethod context-push-text ((context mac-context) display-list font string x baseline color
-                              &optional turn)
-  (push-line display-list (renderer-atlas (mac-context-renderer context))
-             (get-line font string) (float x 1f0) (float baseline 1f0) color turn))
+(defmethod app-instance:context-push-text ((context mac-context) display-list font string x baseline color
+                                           &optional turn)
+  (draw:push-line display-list (renderer:renderer-atlas (mac-context-renderer context))
+                  (line:get-line font string) (float x 1f0) (float baseline 1f0) color turn))
 
-(defmethod context-push-image ((context mac-context) display-list image x y width height
-                               &key tint (opacity 1))
+(defmethod app-instance:context-push-image ((context mac-context) display-list image x y width height
+                                            &key tint (opacity 1))
   ;; The image's top left is put on a whole pixel, as a glyph's is, so that one drawn at its own
   ;; size is its pixels one for one and not filtered soft.
   (let* ((renderer (mac-context-renderer context))
-         (scale (glyph-atlas-scale (renderer-atlas renderer))))
-    (push-image display-list (/ (fround (* x scale)) scale) (/ (fround (* y scale)) scale)
-                width height (atlas-image-index (renderer-images renderer) image)
-                (or tint (pack-color 255 255 255 (round (* 255 (max 0 (min 1 opacity))))))
-                (and tint t))))
+         (scale (atlas:glyph-atlas-scale (renderer:renderer-atlas renderer))))
+    (dl:push-image display-list (/ (fround (* x scale)) scale) (/ (fround (* y scale)) scale)
+                   width height (image-atlas:atlas-image-index (renderer:renderer-images renderer) image)
+                   (or tint (dl:pack-color 255 255 255 (round (* 255 (max 0 (min 1 opacity))))))
+                   (and tint t))))
 
 ;;; --- the host ---
 
@@ -266,7 +163,7 @@ copied is kept in the context and the person's clipboard is never touched."
   (previous nil)
   ;; What the app keeps between the times it is made (STATE-LET), which is bound while the app is
   ;; made again and so outlives the app.
-  (kept-state (make-kept-state) :read-only t)
+  (kept-state (kept:make-kept-state) :read-only t)
   (context nil :read-only t)
   (display-list nil :read-only t)
   (renderer nil :read-only t)
@@ -317,15 +214,15 @@ flag set."
     (let ((wake (host-wake host))
           (view (host-view host)))
       (cond ((or (host-drawing-p host) (null wake))
-             (setf (context-frame-requested (host-context host)) t))
-            ((on-main-thread-p) (setf (host-draw-pending host) t) (funcall wake))
-            (view (setf (host-draw-pending host) t) (request-draw view))
-            (t (setf (context-frame-requested (host-context host)) t))))))
+             (setf (app-instance:context-frame-requested (host-context host)) t))
+            ((main-queue:on-main-thread-p) (setf (host-draw-pending host) t) (funcall wake))
+            (view (setf (host-draw-pending host) t) (view:request-draw view))
+            (t (setf (app-instance:context-frame-requested (host-context host)) t))))))
 
 (defun make-host (instance device pixel-format
                   &key (capacity 65536) (ring-capacity 4096) (scale 2) (atlas-size 1024)
                     (image-atlas-size 2048) phases
-                    (kept-state (make-kept-state)))
+                    (kept-state (kept:make-kept-state)))
   "A host for INSTANCE drawing with DEVICE into targets of PIXEL-FORMAT, with no
 window yet. CAPACITY is the most commands a frame may hold. SCALE is the pixels a
 point that the glyph atlas is rasterized at, which is the scale text must be drawn
@@ -334,41 +231,41 @@ atlas is. With PHASES, the instrumentation is on: the app's update, layout and p
 times, the first build, garbage collection and the GPU's time go into the ring as well
 (see WITH-PHASE). KEPT-STATE is what the app keeps when it is made again (STATE-LET); the one that
 made INSTANCE had it bound. RUN-HOST makes one with a window; tests make one and call RUN-FRAME."
-  (let* ((renderer (make-renderer device pixel-format :capacity capacity :scale scale
+  (let* ((renderer (renderer:make-renderer device pixel-format :capacity capacity :scale scale
                                              :atlas-size atlas-size
                                              :image-atlas-size image-atlas-size))
          (context (let ((context (make-mac-context :width 0f0 :height 0f0 :scale 1f0
                                                     :renderer renderer)))
-                    (setf (context-phases-p context) (and phases t))
+                    (setf (app-instance:context-phases-p context) (and phases t))
                     context))
          (host (%make-host :app instance
                            :kept-state kept-state
                            :context context
                            :renderer renderer
-                           :display-list (make-display-list :capacity capacity)
-                           :ring (make-frame-ring :capacity ring-capacity))))
-    (setf (context-requester context)
+                           :display-list (dl:make-display-list :capacity capacity)
+                           :ring (ring:make-frame-ring :capacity ring-capacity))))
+    (setf (app-instance:context-requester context)
           (lambda (context)
             (declare (ignore context))
             (request-host-frame host))
-          (context-window context) host)
+          (app-instance:context-window context) host)
     host))
 
 (defun host-deliver-event (host event)
   "Offer EVENT to the host's app, requesting a frame if it wants one. Called on
 the main thread, once for each event, in order."
   (when host
-    (deliver-event (host-app host) (host-context host) event)))
+    (app-instance:deliver-event (host-app host) (host-context host) event)))
 
 (defun click-at (host x y)
   "Press and release the primary button at X, Y (points from the top left of the window), the
 pointer having moved there first: the events that a person's hand makes. Called on the main thread;
 the window answers on the frames that follow."
   (flet ((pointer (kind button buttons count)
-           (host-deliver-event host (make-pointer-event :timestamp (now-ns) :kind kind
-                                                        :x (float x 1d0) :y (float y 1d0)
-                                                        :button button :buttons buttons
-                                                        :click-count count))))
+           (host-deliver-event host (event:make-pointer-event :timestamp (clock:now-ns) :kind kind
+                                                              :x (float x 1d0) :y (float y 1d0)
+                                                              :button button :buttons buttons
+                                                              :click-count count))))
     (pointer :move nil 0 0)
     (pointer :down 0 1 1)
     (pointer :up 0 0 1)))
@@ -377,10 +274,10 @@ the window answers on the frames that follow."
   "Press and release the secondary button at X, Y, as CLICK-AT does the primary: what opens a context
 menu there."
   (flet ((pointer (kind button buttons count)
-           (host-deliver-event host (make-pointer-event :timestamp (now-ns) :kind kind
-                                                        :x (float x 1d0) :y (float y 1d0)
-                                                        :button button :buttons buttons
-                                                        :click-count count))))
+           (host-deliver-event host (event:make-pointer-event :timestamp (clock:now-ns) :kind kind
+                                                              :x (float x 1d0) :y (float y 1d0)
+                                                              :button button :buttons buttons
+                                                              :click-count count))))
     (pointer :move nil 0 0)
     (pointer :down 1 2 1)
     (pointer :up 1 0 1)))
@@ -397,7 +294,7 @@ a way to ask for another."
     (setf (host-drawing-p host) nil
           (host-drawn host) t)
     (let ((again (and (host-wake host)
-                      (take-frame-request (host-context host)))))
+                      (app-instance:take-frame-request (host-context host)))))
       (when again
         ;; The caller wakes the view next, outside the lock.
         (setf (host-draw-pending host) t))
@@ -410,7 +307,7 @@ a way to ask for another."
 (defun idle-p (host)
   (and (not (host-drawing-p host))
        (not (host-draw-pending host))
-       (not (context-frame-requested (host-context host)))))
+       (not (app-instance:context-frame-requested (host-context host)))))
 
 (defun host-idle-p (host)
   "True if no frame is being made and none is wanted: what the app was asked is answered on the
@@ -461,7 +358,7 @@ breaks the lines of an error's text at a narrow margin."
 (defun retire (instance)
   "RETIRE-APP, for an app that is no longer used. A failure to let go of it is reported and
 does not stop what is going on."
-  (handler-case (retire-app instance)
+  (handler-case (app-instance:retire-app instance)
     (error (condition)
       (report-hot-reload "an app that is no longer used could not be let go of" condition))))
 
@@ -474,7 +371,7 @@ the old one is put back and the error is reported (SETTLE-HOST), so that code th
 yet does not take the window with it. Call it on the thread that draws, the main thread, and ask
 for a frame after (RELOAD-HOST does both)."
   (let ((old (or (host-previous host) (host-app host))))
-    (handler-case (inherit-state instance old)
+    (handler-case (app-instance:inherit-state instance old)
       (error (condition)
         (retire instance)
         (error condition)))
@@ -495,13 +392,13 @@ after that is retired."
     (cond ((null previous)
            ;; A frame of the app that fails shows the last one that did not, with the error over it:
            ;; the window answers still, and a press on what was there can put the app right.
-           (let ((*show-frame-errors* t))
-             (settle-frame (host-app host) context display-list)))
+           (let ((app-instance:*show-frame-errors* t))
+             (settle:settle-frame (host-app host) context display-list)))
           (t
            (setf (host-previous host) nil)
            (let ((builds nil) (capped nil) (failure nil))
              (handler-case (multiple-value-setq (builds capped)
-                             (settle-frame (host-app host) context display-list))
+                             (settle:settle-frame (host-app host) context display-list))
                (error (condition)
                  (setf failure condition)))
              (cond ((null failure)
@@ -513,7 +410,7 @@ after that is retired."
                     (let ((failed (host-app host)))
                       (setf (host-app host) previous)
                       (retire failed))
-                    (settle-frame previous context display-list))))))))
+                    (settle:settle-frame previous context display-list))))))))
 
 (defun run-frame (host width height scale)
   "Make and draw one frame: the size and scale go into the context, the app
@@ -529,55 +426,55 @@ frame: more than once if what it was given (a press, a key) changed what the app
   (let ((context (host-context host))
         (ring (host-ring host))
         (again nil)
-        (start (real-time-source))
+        (start (clock:real-time-source))
         (consed-before (the (unsigned-byte 64) (sb-ext:get-bytes-consed)))
         (gc-before sb-ext:*gc-run-time*)
         (previous-gpu-ns 0)
         (made 0))
     (declare (type (unsigned-byte 64) start consed-before previous-gpu-ns)
              (type fixnum gc-before))
-    (when (context-phases-p context)
-      (reset-phases context))
+    (when (app-instance:context-phases-p context)
+      (app-instance:reset-phases context))
     (start-drawing host)
     (unwind-protect
          (progn
-           (setf (context-width context) width
-                 (context-height context) height
-                 (context-scale context) scale)
-           (incf (context-frame-number context))
+           (setf (app-instance:context-width context) width
+                 (app-instance:context-height context) height
+                 (app-instance:context-scale context) scale)
+           (incf (app-instance:context-frame-number context))
            (multiple-value-bind (builds capped)
                (settle-host host context)
              (setf made builds)
              ;; Nothing takes text now: a composition that was going on is over.
-             (when (and (host-view host) (not (context-text-input-p context)))
-               (end-composition (host-view host)))
-             (let ((built (real-time-source)))
-               (wait-for-last-frame (host-renderer host))
+             (when (and (host-view host) (not (app-instance:context-text-input-p context)))
+               (view:end-composition (host-view host)))
+             (let ((built (clock:real-time-source)))
+               (renderer:wait-for-last-frame (host-renderer host))
                ;; The frame before has finished, and its command buffer says how long it took.
-               (when (context-phases-p context)
-                 (setf previous-gpu-ns (last-frame-gpu-ns (host-renderer host))))
+               (when (app-instance:context-phases-p context)
+                 (setf previous-gpu-ns (renderer:last-frame-gpu-ns (host-renderer host))))
                (multiple-value-bind (pass drawable) (funcall (host-acquire host))
-                 (let ((acquired (real-time-source)))
+                 (let ((acquired (clock:real-time-source)))
                    (unless (zerop pass)
-                     (render-display-list (host-renderer host) (host-display-list host)
-                                          pass drawable width height scale))
-                   (let ((done (real-time-source)))
-                     (record-frame ring start done consed-before
-                                   (the (unsigned-byte 64) (sb-ext:get-bytes-consed))
-                                   (- built start) (- acquired built) (- done acquired)
-                                   builds capped)
-                     (when (context-phases-p context)
-                       (let ((slots (context-phase-ns context)))
-                         (multiple-value-bind (events-ns events) (take-events context)
-                           (record-frame-details
+                     (renderer:render-display-list (host-renderer host) (host-display-list host)
+                                                   pass drawable width height scale))
+                   (let ((done (clock:real-time-source)))
+                     (ring:record-frame ring start done consed-before
+                                        (the (unsigned-byte 64) (sb-ext:get-bytes-consed))
+                                        (- built start) (- acquired built) (- done acquired)
+                                        builds capped)
+                     (when (app-instance:context-phases-p context)
+                       (let ((slots (app-instance:context-phase-ns context)))
+                         (multiple-value-bind (events-ns events) (app-instance:take-events context)
+                           (ring:record-frame-details
                             ring
                             :gc-ns (* (max 0 (- sb-ext:*gc-run-time* gc-before))
                                       #.(floor 1000000000 internal-time-units-per-second))
-                            :first-build-ns (aref slots +phase-first-build+)
-                            :update-ns (aref slots +phase-update+)
-                            :layout-ns (aref slots +phase-layout+)
-                            :paint-ns (aref slots +phase-paint+)
-                            :all-builds-ns (aref slots +phase-all-builds+)
+                            :first-build-ns (aref slots app-instance:+phase-first-build+)
+                            :update-ns (aref slots app-instance:+phase-update+)
+                            :layout-ns (aref slots app-instance:+phase-layout+)
+                            :paint-ns (aref slots app-instance:+phase-paint+)
+                            :all-builds-ns (aref slots app-instance:+phase-all-builds+)
                             :gpu-ns previous-gpu-ns
                             :events-ns events-ns
                             :events events))))))))))
@@ -591,8 +488,8 @@ frame: more than once if what it was given (a press, a key) changed what the app
 (defun view-acquirer (object)
   "A function that asks the MTKView OBJECT for its render pass and drawable."
   (lambda ()
-    (let ((pass (msg-send :id object "currentRenderPassDescriptor"))
-          (drawable (msg-send :id object "currentDrawable")))
+    (let ((pass (objc:msg-send :id object "currentRenderPassDescriptor"))
+          (drawable (objc:msg-send :id object "currentDrawable")))
       (if (or (zerop pass) (zerop drawable))
           (values 0 0)
           (values pass drawable)))))
@@ -647,28 +544,28 @@ window is on its way. If it may, it is marked as stopping, so that no other thre
           (t (setf *loop* :stopping)
              t))))
 
-(setf *may-stop-p* #'may-stop-p)
+(setf macos-app:*may-stop-p* #'may-stop-p)
 
 (defun draw-view (host view)
   "The view's draw callback: read its size and scale, and make a frame. A frame that took input asks
 the other windows for one (see above)."
   (when host
-    (let ((object (metal-view-object view)))
-      (multiple-value-bind (x y width height) (msg-send :rect object "bounds")
+    (let ((object (view:metal-view-object view)))
+      (multiple-value-bind (x y width height) (objc:msg-send :rect object "bounds")
         (declare (ignore x y))
-        (let* ((pixel-width (msg-send :size object "drawableSize"))
+        (let* ((pixel-width (objc:msg-send :size object "drawableSize"))
                (builds (run-frame host
                                   (float width 1f0) (float height 1f0)
                                   (if (plusp width) (float (/ pixel-width width) 1f0) 1f0))))
           ;; The pointer takes the shape the frame said, for what is under it.
-          (set-view-cursor view (context-cursor (host-context host)))
+          (view:set-view-cursor view (app-instance:context-cursor (host-context host)))
           ;; The menu bar has the menus of the window that has the keyboard.
-          (when (msg-send :bool (window-object (host-window host)) "isKeyWindow")
-            (set-app-menus (app-menus (host-app host))))
+          (when (objc:msg-send :bool (window:window-object (host-window host)) "isKeyWindow")
+            (macos-app:set-app-menus (app-instance:app-menus (host-app host))))
           ;; What a screen reader reads is out of date now, and is made when it is asked for.
-          (let ((bridge (metal-view-bridge view)))
+          (let ((bridge (view:metal-view-bridge view)))
             (when bridge
-              (frame-presented bridge)))
+              (a11y:frame-presented bridge)))
           (when (> builds 1)
             (dolist (other (open-hosts))
               (unless (eq other host)
@@ -676,21 +573,21 @@ the other windows for one (see above)."
 
 (defun close-host-window (host)
   "Close the host's window as the user would. Safe from any thread."
-  (close-window (host-window host)))
+  (window:close-window (host-window host)))
 
 (defun host-keyboard-state (host)
   "Where a key would go, as three values that are true or false: whether the host's view is the
 first responder of its window, whether the window is the key window, and whether the application
 is the active one. A person can type into the app only when all three are true. Safe from any
 thread."
-  (call-on-main
+  (main-queue:call-on-main
    (lambda ()
-     (let ((window (window-object (host-window host)))
-           (view (metal-view-object (host-view host)))
-           (app (msg-send :id (objc-class "NSApplication") "sharedApplication")))
-       (values (eql (msg-send :id window "firstResponder") view)
-               (and (msg-send :bool window "isKeyWindow") t)
-               (and (msg-send :bool app "isActive") t))))))
+     (let ((window (window:window-object (host-window host)))
+           (view (view:metal-view-object (host-view host)))
+           (app (objc:msg-send :id (objc:objc-class "NSApplication") "sharedApplication")))
+       (values (eql (objc:msg-send :id window "firstResponder") view)
+               (and (objc:msg-send :bool window "isKeyWindow") t)
+               (and (objc:msg-send :bool app "isActive") t))))))
 
 (defvar *running-host* nil
   "The host of the app's window that RUN-HOST or OPEN-HOST opened, while it is open.")
@@ -706,10 +603,10 @@ the app again with (RELOAD-HOST), while the window is open."
 place of the app HOST runs (SWAP-APP), and ask for a frame. It is done on the main
 thread, so this is safe from any thread, and from any other thread it returns at once. If
 REBUILD signals an error the error is reported and the old app stays."
-  (run-on-main
+  (main-queue:run-on-main
    (lambda ()
      (handler-case
-         (progn (swap-app host (with-kept-state ((host-kept-state host))
+         (progn (swap-app host (kept:with-kept-state ((host-kept-state host))
                                      (funcall rebuild)))
                 (request-host-frame host)
                 (format t "~&Hot reload: made the app again.~%")
@@ -724,12 +621,12 @@ reader go, and take it from the windows that are open."
   (let ((watcher (host-watcher host)))
     (when watcher
       (setf (host-watcher host) nil)
-      (stop-watching-redefinitions watcher)))
+      (redefinition:stop-watching-redefinitions watcher)))
   (let* ((view (host-view host))
-         (bridge (and view (metal-view-bridge view))))
+         (bridge (and view (view:metal-view-bridge view))))
     (when bridge
-      (setf (metal-view-bridge view) nil)
-      (release-bridge bridge)))
+      (setf (view:metal-view-bridge view) nil)
+      (a11y:release-bridge bridge)))
   (sb-thread:with-mutex (*hosts-lock*)
     (setf *hosts* (remove host *hosts*))
     (when (eq *running-host* host)
@@ -739,7 +636,7 @@ reader go, and take it from the windows that are open."
   "HOST's window is closing: the windows that belong to it close first, and then it is forgotten."
   (dolist (other (open-hosts))
     (when (eq (host-owner other) host)
-      (msg-send :void (window-object (host-window other)) "close")))
+      (objc:msg-send :void (window:window-object (host-window other)) "close")))
   (forget-host host)
   (let ((on-close (host-on-close host)))
     (when on-close
@@ -759,49 +656,49 @@ given as :BESIDE stands for its window); with none, it opens below and to the ri
 window opened, or in the middle of the screen if it is the first. The other arguments are
 RUN-HOST's."
   (let* ((host nil)
-         (device (default-device))
-         (window (make-window :title title :width width :height height
-                              :event-handler (lambda (event)
+         (device (device:default-device))
+         (window (window:make-window :title title :width width :height height
+                                     :event-handler (lambda (event)
                                                (host-deliver-event host event))
-                              :on-close (lambda () (window-closing host))))
-         (view (make-metal-view :device device :width width :height height
-                                ;; Read when asked, from the app the host has then: the app
-                                ;; may have been made again.
-                                :accessibility-tree (lambda ()
-                                                      (accessibility-tree (host-app host)))
-                                :accessibility-press (lambda (x y) (click-at host x y))
-                                :accessibility-secondary-press
-                                (lambda (x y) (secondary-click-at host x y))
-                                :on-draw (lambda (view) (draw-view host view))
-                                ;; The system went dark or light: the window's theme follows.
-                                :on-appearance (lambda (view)
-                                                 (setf (context-appearance (host-context host))
-                                                       (view-appearance (metal-view-object view)))
-                                                 (request-host-frame host))
-                                :event-handler (lambda (event)
-                                                 (host-deliver-event host event))
-                                :text-input (lambda ()
-                                              (let* ((context (host-context host))
-                                                     (rect (context-text-input-rect context)))
-                                                (values (context-text-input-p context)
-                                                        (float (aref rect 0) 1d0)
-                                                        (float (aref rect 1) 1d0)
-                                                        (float (aref rect 2) 1d0)
-                                                        (float (aref rect 3) 1d0))))))
-         (object (metal-view-object view)))
-    (setf host (make-host instance device (msg-send :ulong object "colorPixelFormat")
+                                     :on-close (lambda () (window-closing host))))
+         (view (view:make-metal-view :device device :width width :height height
+                                     ;; Read when asked, from the app the host has then: the app
+                                     ;; may have been made again.
+                                     :accessibility-tree (lambda ()
+                                                           (app-instance:accessibility-tree (host-app host)))
+                                     :accessibility-press (lambda (x y) (click-at host x y))
+                                     :accessibility-secondary-press
+                                     (lambda (x y) (secondary-click-at host x y))
+                                     :on-draw (lambda (view) (draw-view host view))
+                                     ;; The system went dark or light: the window's theme follows.
+                                     :on-appearance (lambda (view)
+                                                      (setf (app-instance:context-appearance (host-context host))
+                                                            (view:view-appearance (view:metal-view-object view)))
+                                                      (request-host-frame host))
+                                     :event-handler (lambda (event)
+                                                      (host-deliver-event host event))
+                                     :text-input (lambda ()
+                                                   (let* ((context (host-context host))
+                                                          (rect (app-instance:context-text-input-rect context)))
+                                                     (values (app-instance:context-text-input-p context)
+                                                             (float (aref rect 0) 1d0)
+                                                             (float (aref rect 1) 1d0)
+                                                             (float (aref rect 2) 1d0)
+                                                             (float (aref rect 3) 1d0))))))
+         (object (view:metal-view-object view)))
+    (setf host (make-host instance device (objc:msg-send :ulong object "colorPixelFormat")
                           :capacity capacity
-                          :scale (window-scale-factor window)
-                          :kept-state (or kept-state (make-kept-state))))
-    (setf (mac-context-pasteboard (host-context host)) (general-pasteboard)
+                          :scale (window:window-scale-factor window)
+                          :kept-state (or kept-state (kept:make-kept-state))))
+    (setf (mac-context-pasteboard (host-context host)) (pb:general-pasteboard)
           (mac-context-windowed (host-context host)) t
-          (context-appearance (host-context host)) (view-appearance object))
+          (app-instance:context-appearance (host-context host)) (view:view-appearance object))
     (setf (host-window host) window
           (host-view host) view
           (host-owner host) owner
           (host-acquire host) (view-acquirer object)
           (host-wake host) (lambda ()
-                             (msg-send :void object "setNeedsDisplay:" (:bool t))))
+                             (objc:msg-send :void object "setNeedsDisplay:" (:bool t))))
     (let ((beside (getf placement :beside))
           (last (car (last (open-hosts)))))
       (setf placement
@@ -812,17 +709,17 @@ RUN-HOST's."
       (setf *hosts* (append *hosts* (list host)))
       (when main
         (setf *running-host* host)))
-    (set-content-view window object)
+    (window:set-content-view window object)
     (flet ((show ()
              (when (host-open-p host)
-               (show-window window placement)
-               (request-draw view))))
+               (window:show-window window placement)
+               (view:request-draw view))))
       ;; A window asked for in a frame is shown after it: it takes the keyboard from the window
       ;; whose frame it is, which must not be told of that while it is building.
-      (if show (show) (run-on-main-later #'show)))
+      (if show (show) (main-queue:run-on-main-later #'show)))
     (when rebuild
       (setf (host-watcher host)
-            (watch-redefinitions (lambda () (reload-host host rebuild)))))
+            (redefinition:watch-redefinitions (lambda () (reload-host host rebuild)))))
     (when driver
       (sb-thread:make-thread
        (lambda ()
@@ -861,7 +758,7 @@ app starts from nothing; if its first frame fails the old one is put back."
       (error "The application is running already; open another window with OPEN-HOST."))
     (setf *loop* :starting))
   (unwind-protect
-       (run-application
+       (macos-app:run-application
         (lambda ()
           (sb-thread:with-mutex (*hosts-lock*)
             (setf *loop* :running))
@@ -916,16 +813,16 @@ seconds."
                                            :placement placement)
                    (sb-thread:with-mutex (*hosts-lock*)
                      (decf *pending-opens*)))))
-          (if (on-main-thread-p)
+          (if (main-queue:on-main-thread-p)
               (make nil)
-              (call-on-main (lambda () (make t)))))
+              (main-queue:call-on-main (lambda () (make t)))))
         (start-loop instance title width height capacity rebuild kept-state timeout main
                     placement))))
 
 (defun start-loop (instance title width height capacity rebuild kept-state timeout main placement)
   "Start the application's event loop on the main thread, with a window for INSTANCE, and return its
 host (see OPEN-HOST, which has said that the loop is :STARTING)."
-  (when (on-main-thread-p)
+  (when (main-queue:on-main-thread-p)
     (sb-thread:with-mutex (*hosts-lock*)
       (setf *loop* nil))
     (error "OPEN-HOST is called from the main thread, which it needs for the window's event ~
@@ -951,7 +848,7 @@ host (see OPEN-HOST, which has said that the loop is :STARTING)."
              (let ((*standard-output* out)
                    (*error-output* err))
                (handler-case
-                   (run-application
+                   (macos-app:run-application
                     (lambda ()
                       (sb-thread:with-mutex (*hosts-lock*)
                         (setf *loop* :running))

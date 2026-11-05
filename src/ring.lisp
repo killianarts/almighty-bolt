@@ -1,7 +1,6 @@
 (defpackage #:almighty-bolt/ring
   (:use #:cl)
-  (:import-from #:almighty-bolt/clock
-                #:now-ns)
+  (:local-nicknames (#:clock #:almighty-bolt/clock))
   (:export #:frame-ring
            #:make-frame-ring
            #:frame-ring-capacity
@@ -160,10 +159,10 @@ ran in RING. Returns the values of BODY."
         (start (gensym "START"))
         (consed (gensym "CONSED")))
     `(let* ((,r ,ring)
-            (,start (now-ns))
+            (,start (clock:now-ns))
             (,consed (the u64 (sb-ext:get-bytes-consed))))
        (multiple-value-prog1 (progn ,@body)
-         (record-frame ,r ,start (now-ns) ,consed
+         (record-frame ,r ,start (clock:now-ns) ,consed
                        (the u64 (sb-ext:get-bytes-consed)))))))
 
 (defun record-word (ring index offset)

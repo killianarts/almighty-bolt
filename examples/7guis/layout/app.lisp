@@ -1,20 +1,8 @@
 (defpackage #:almighty-bolt-7guis/layout/app
   (:use #:cl)
-  (:import-from #:almighty-bolt-7guis/common/registry
-                #:register-app)
-  (:import-from #:almighty-bolt-7guis/layout/text
-                #:+sidebar-text+
-                #:+top-text+
-                #:+small-text+
-                #:+margin+
-                #:+gap+)
-  (:import-from #:almighty-bolt
-                #:label
-                #:paragraph
-                #:padding
-                #:panel
-                #:column
-                #:row)
+  (:local-nicknames (#:registry #:almighty-bolt-7guis/common/registry)
+                    (#:text #:almighty-bolt-7guis/layout/text)
+                    (#:bolt #:almighty-bolt))
   (:export #:make-layout))
 
 (in-package #:almighty-bolt-7guis/layout/app)
@@ -26,21 +14,21 @@
 
 (defun make-layout ()
   (lambda ()
-    (padding (:all +margin+)
-      (row (:gap +gap+ :cross-align :stretch :fill t)
-        (panel (:all +gap+ :flex 1 :id :sidebar)
-          (column (:gap +gap+)
-            (label "Sidebar" :id :sidebar-title)
-            (paragraph +sidebar-text+ :id :sidebar-text)))
-        (column (:gap +gap+ :flex 2 :cross-align :stretch)
-          (panel (:all +gap+ :flex 1 :id :top)
-            (column (:gap +gap+)
-              (label "Top" :id :top-title)
-              (paragraph +top-text+ :id :top-text)))
-          (row (:gap +gap+ :flex 1 :cross-align :stretch)
-            (panel (:all +gap+ :flex 1 :id :bottom-left)
-              (paragraph +small-text+ :id :left-text))
-            (panel (:all +gap+ :flex 1 :id :bottom-right)
-              (paragraph +small-text+ :id :right-text))))))))
+    (bolt:padding (:all text:+margin+)
+      (bolt:row (:gap text:+gap+ :cross-align :stretch :fill t)
+        (bolt:panel (:all text:+gap+ :flex 1 :id :sidebar)
+          (bolt:column (:gap text:+gap+)
+                 (bolt:label "Sidebar" :id :sidebar-title)
+                 (bolt:paragraph text:+sidebar-text+ :id :sidebar-text)))
+        (bolt:column (:gap text:+gap+ :flex 2 :cross-align :stretch)
+          (bolt:panel (:all text:+gap+ :flex 1 :id :top)
+                 (bolt:column (:gap text:+gap+)
+                   (bolt:label "Top" :id :top-title)
+                   (bolt:paragraph text:+top-text+ :id :top-text)))
+          (bolt:row (:gap text:+gap+ :flex 1 :cross-align :stretch)
+                 (bolt:panel (:all text:+gap+ :flex 1 :id :bottom-left)
+                   (bolt:paragraph text:+small-text+ :id :left-text))
+                 (bolt:panel (:all text:+gap+ :flex 1 :id :bottom-right)
+                   (bolt:paragraph text:+small-text+ :id :right-text))))))))
 
-(register-app :layout 'make-layout :width 640 :height 420)
+(registry:register-app :layout 'make-layout :width 640 :height 420)

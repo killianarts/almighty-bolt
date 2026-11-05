@@ -1,52 +1,10 @@
 (defpackage #:almighty-bolt/ui/ui
   (:use #:cl)
-  (:import-from #:almighty-bolt/ui/hash
-                #:mix
-                #:hash-of
-                #:+seed+)
-  (:import-from #:almighty-bolt/ui/box
-                #:make-box
-                #:reset-box
-                #:box-key
-                #:box-id
-                #:box-kind
-                #:box-labelled-by
-                #:box-tooltip
-                #:box-view
-                #:box-data
-                #:box-interactive
-                #:box-inert
-                #:box-parent
-                #:box-children)
-  (:import-from #:almighty-bolt/internals
-                #:pointer-event
-                #:pointer-event-kind
-                #:pointer-event-x
-                #:pointer-event-y
-                #:pointer-event-button
-                #:pointer-event-click-count
-                #:pointer-event-modifiers
-                #:+modifier-control+
-                #:wheel-event
-                #:wheel-event-x
-                #:wheel-event-y
-                #:make-axis-lock
-                #:lock-wheel
-                #:key-event
-                #:key-event-kind
-                #:key-event-logical-key
-                #:key-event-modifiers
-                #:text-input-event
-                #:menu-event
-                #:menu-event-menu
-                #:menu-event-item
-                #:composition-event
-                #:context-text-input-p
-                #:modifier-down-p
-                #:+modifier-shift+
-                #:make-display-list
-                #:now-ns)
+  (:local-nicknames (#:hash #:almighty-bolt/ui/hash)
+                    (#:box #:almighty-bolt/ui/box)
+                    (#:core #:almighty-bolt/internals))
   (:export #:*drawing-view*
+           #:ui-click-focused
            #:ui
            #:make-ui
            #:*ui*
@@ -234,7 +192,7 @@ pointer has gone far enough from there; DROPPING in the frame it is let go of, w
   (wheel-dx 0f0 :type single-float)
   (wheel-dy 0f0 :type single-float)
   ;; Which way the trackpad gesture in progress is going, so that a swipe goes one way.
-  (wheel-lock (make-axis-lock))
+  (wheel-lock (core:make-axis-lock))
   ;; Events that have arrived and not been looked at yet, oldest first.
   (queue '() :type list)
   ;; The widget the pointer is over, the one a press began on, the one with the keyboard.
@@ -309,7 +267,7 @@ pointer has gone far enough from there; DROPPING in the frame it is let go of, w
   (last-height -1f0 :type single-float)
   (last-scale -1f0 :type single-float)
   (last-paint-hash -1 :type fixnum)
-  (last-list (make-display-list :capacity 1024))
+  (last-list (core:make-display-list :capacity 1024))
   ;; The places of the boxes of the last presented frame, in order: x, y, w, h each.
   (saved-geometry (make-array 0 :element-type 'single-float)
    :type (simple-array single-float (*))))
@@ -326,7 +284,7 @@ pointer has gone far enough from there; DROPPING in the frame it is let go of, w
               boxes bigger)))
     (incf (ui-count ui))
     (or (svref boxes count)
-        (setf (svref boxes count) (make-box)))))
+        (setf (svref boxes count) (box:make-box)))))
 
 (define-condition duplicate-id (error)
   ((id :initarg :id :reader duplicate-id-id)
@@ -384,20 +342,20 @@ but the last, which is being opened)."
           (ui-seen-stamps ui) (make-array size :element-type 'fixnum :initial-element -1))
     (let ((boxes (ui-boxes ui)))
       (dotimes (index (1- count))
-        (claim-key ui (box-key (svref boxes index)))))))
+        (claim-key ui (box:box-key (svref boxes index)))))))
 
 (defun refuse-duplicate (ui kind id parent key)
   "Signal that the box being opened, of KIND with ID inside PARENT, has the key of an earlier box."
   (let* ((boxes (ui-boxes ui))
          (earlier (loop :for index :below (1- (ui-count ui))
                         :for box = (svref boxes index)
-                        :when (= (box-key box) key) :return box)))
+                        :when (= (box:box-key box) key) :return box)))
     (error 'duplicate-id
-           :id (or id (and earlier (box-id earlier)))
-           :by-place (or (null id) (null earlier) (null (box-id earlier)))
-           :kinds (list (if earlier (box-kind earlier) :box) kind)
+           :id (or id (and earlier (box:box-id earlier)))
+           :by-place (or (null id) (null earlier) (null (box:box-id earlier)))
+           :kinds (list (if earlier (box:box-kind earlier) :box) kind)
            :container (and parent
-                           (format nil "the ~(~a~)~@[ ~s~]" (box-kind parent) (box-id parent))))))
+                           (format nil "the ~(~a~)~@[ ~s~]" (box:box-kind parent) (box:box-id parent))))))
 
 (defvar *drawing-view* nil
   "The name of the view being drawn (DEFINE-VIEW), which each box opened notes, or NIL.")
@@ -409,34 +367,34 @@ frame to the next as long as it is described in the same place. With ROOTED-AT, 
 from that key in place of its parent's: the box, and what is in it, keep their keys (and so their
 state) wherever in that key's box they are described, as a pane of a dock moved to another group. Two boxes of one build with
 the same key are an error (DUPLICATE-ID): the ui could not tell them apart."
-  (let* ((box (reset-box (next-box ui) kind))
+  (let* ((box (box:reset-box (next-box ui) kind))
          (parent (ui-parent ui)))
-    (setf (box-id box) id
-          (box-labelled-by box) labelled-by
-          (box-tooltip box) tooltip
-          (box-view box) *drawing-view*
-          (box-parent box) parent)
-    (let ((key (mix (cond (rooted-at (mix rooted-at (hash-of :rooted)))
-                          (parent (box-key parent))
-                          (t +seed+))
-                    (if id (hash-of id) (if parent (fill-pointer (box-children parent)) 0)))))
-      (setf (box-key box) (if (zerop key) 1 key)))
+    (setf (box:box-id box) id
+          (box:box-labelled-by box) labelled-by
+          (box:box-tooltip box) tooltip
+          (box:box-view box) *drawing-view*
+          (box:box-parent box) parent)
+    (let ((key (hash:mix (cond (rooted-at (hash:mix rooted-at (hash:hash-of :rooted)))
+                               (parent (box:box-key parent))
+                               (t hash:+seed+))
+                         (if id (hash:hash-of id) (if parent (fill-pointer (box:box-children parent)) 0)))))
+      (setf (box:box-key box) (if (zerop key) 1 key)))
     (when (> (* 2 (ui-count ui)) (length (ui-seen-keys ui)))
       (grow-seen-keys ui))
-    (when (claim-key ui (box-key box))
-      (refuse-duplicate ui kind id parent (box-key box)))
-    (cond (parent (vector-push-extend box (box-children parent)))
+    (when (claim-key ui (box:box-key box))
+      (refuse-duplicate ui kind id parent (box:box-key box)))
+    (cond (parent (vector-push-extend box (box:box-children parent)))
           ;; A second thing at the top would take the first one's place, and the first would not
           ;; be seen, whatever their ids.
           ((ui-root ui)
-           (error 'duplicate-id :id id :kinds (list (box-kind (ui-root ui)) kind) :container nil
+           (error 'duplicate-id :id id :kinds (list (box:box-kind (ui-root ui)) kind) :container nil
                                 :by-place nil))
           (t (setf (ui-root ui) box)))
     (setf (ui-parent ui) box)
     box))
 
 (defun close-box (ui)
-  (setf (ui-parent ui) (box-parent (ui-parent ui))))
+  (setf (ui-parent ui) (box:box-parent (ui-parent ui))))
 
 ;;; --- boxes that float above the screen ---
 ;;;
@@ -467,17 +425,17 @@ inspector's outlines), not the app's: it is not in the semantic tree."
   "Start a float of KIND belonging to the box with the key OWNER, called ID among that box's floats
 and placed as SPEC says. What is described until CLOSE-FLOAT is inside it. Returns the box and the
 box that was open, which CLOSE-FLOAT is given back."
-  (let ((box (reset-box (next-box ui) kind))
+  (let ((box (box:reset-box (next-box ui) kind))
         (open (ui-parent ui)))
-    (setf (box-id box) id
-          (box-data box) spec
-          (box-inert box) (plusp (ui-inert ui))
-          (box-key box) (let ((key (mix (mix owner (hash-of :float)) (hash-of id))))
-                          (if (zerop key) 1 key)))
+    (setf (box:box-id box) id
+          (box:box-data box) spec
+          (box:box-inert box) (plusp (ui-inert ui))
+          (box:box-key box) (let ((key (hash:mix (hash:mix owner (hash:hash-of :float)) (hash:hash-of id))))
+                              (if (zerop key) 1 key)))
     (when (> (* 2 (ui-count ui)) (length (ui-seen-keys ui)))
       (grow-seen-keys ui))
-    (when (claim-key ui (box-key box))
-      (refuse-duplicate ui kind id nil (box-key box)))
+    (when (claim-key ui (box:box-key box))
+      (refuse-duplicate ui kind id nil (box:box-key box)))
     (vector-push-extend box (ui-floats ui))
     (setf (ui-parent ui) box)
     (values box open)))
@@ -490,7 +448,7 @@ box that was open, which CLOSE-FLOAT is given back."
   "Get UI ready for the interface to be described: no boxes yet. Nothing takes text input until
 something described says so (an editable text with the keyboard, a canvas that paints a caret)."
   (when context
-    (setf (context-text-input-p context) nil))
+    (setf (core:context-text-input-p context) nil))
   (setf (ui-context ui) context
         (ui-count ui) 0
         (ui-build-stamp ui) (1+ (ui-build-stamp ui))
@@ -502,8 +460,8 @@ something described says so (an editable text with the keyboard, a canvas that p
         (ui-inert ui) 0
         (fill-pointer (ui-menus ui)) 0
         (ui-cursor ui) :arrow
-        (ui-frame-layout-hash ui) +seed+
-        (ui-frame-paint-hash ui) +seed+))
+        (ui-frame-layout-hash ui) hash:+seed+
+        (ui-frame-paint-hash ui) hash:+seed+))
 
 ;;; --- what the inspector asks of the window ---
 ;;;
@@ -535,10 +493,10 @@ and every move of the pointer wants a frame."
   "Note that EVENT arrived. Returns true if a frame is wanted for it: the pointer moving
 over nothing in particular is not, and everything that a widget could use is."
   (typecase event
-    (pointer-event
-     (let ((x (float (pointer-event-x event) 1f0))
-           (y (float (pointer-event-y event) 1f0)))
-       (ecase (pointer-event-kind event)
+    (core:pointer-event
+     (let ((x (float (core:pointer-event-x event) 1f0))
+           (y (float (core:pointer-event-y event) 1f0)))
+       (ecase (core:pointer-event-kind event)
          ((:move :enter)
           (let ((hot-before (compute-hot-at ui x y)))
             ;; The position is a level and not an event, so it is kept as it is, but a move
@@ -556,16 +514,16 @@ over nothing in particular is not, and everything that a widget could use is."
          ((:down :up)
           (enqueue ui event)
           t))))
-    (wheel-event
+    (core:wheel-event
      (enqueue ui event)
-     (/= (compute-hot-at ui (float (wheel-event-x event) 1f0)
-                         (float (wheel-event-y event) 1f0))
+     (/= (compute-hot-at ui (float (core:wheel-event-x event) 1f0)
+                         (float (core:wheel-event-y event) 1f0))
          0))
-    (key-event
-     (when (eq (key-event-kind event) :down)
+    (core:key-event
+     (when (eq (core:key-event-kind event) :down)
        (enqueue ui event)
        t))
-    ((or text-input-event composition-event menu-event)
+    ((or core:text-input-event core:composition-event core:menu-event)
      (enqueue ui event)
      t)
     (t nil)))
@@ -614,10 +572,10 @@ were left."
       (when (null queue) (return))
       (let ((event (first queue)))
         (typecase event
-          (pointer-event
-           (let ((x (float (pointer-event-x event) 1f0))
-                 (y (float (pointer-event-y event) 1f0)))
-             (ecase (pointer-event-kind event)
+          (core:pointer-event
+           (let ((x (float (core:pointer-event-x event) 1f0))
+                 (y (float (core:pointer-event-y event) 1f0)))
+             (ecase (core:pointer-event-kind event)
                ((:move :enter)
                 (setf (ui-pointer-x ui) x (ui-pointer-y ui) y (ui-moved ui) t))
                (:leave
@@ -625,47 +583,47 @@ were left."
                (:down
                 ;; A press of the primary button with Control down is a secondary press, as a Mac
                 ;; takes it. (Its release, with no press of the primary before it, does nothing.)
-                (cond ((or (not (eql (pointer-event-button event) 0))
-                           (modifier-down-p (pointer-event-modifiers event) +modifier-control+))
+                (cond ((or (not (eql (core:pointer-event-button event) 0))
+                           (core:modifier-down-p (core:pointer-event-modifiers event) core:+modifier-control+))
                        (setf (ui-pointer-x ui) x (ui-pointer-y ui) y
                              (ui-secondary-pressed ui) t))
                       (changed-button (return))
                       (t (setf (ui-pointer-x ui) x (ui-pointer-y ui) y
                                (ui-down ui) t (ui-pressed ui) t changed-button t
-                               (ui-click-count ui) (max 1 (pointer-event-click-count event))))))
+                               (ui-click-count ui) (max 1 (core:pointer-event-click-count event))))))
                (:up
-                (cond ((not (eql (pointer-event-button event) 0)))
+                (cond ((not (eql (core:pointer-event-button event) 0)))
                       (changed-button (return))
                       (t (setf (ui-pointer-x ui) x (ui-pointer-y ui) y
                                (ui-down ui) nil (ui-released ui) t changed-button t)))))))
-          (wheel-event
+          (core:wheel-event
            ;; A wheel acts where the pointer is, which it says.
-           (setf (ui-pointer-x ui) (float (wheel-event-x event) 1f0)
-                 (ui-pointer-y ui) (float (wheel-event-y event) 1f0))
-           (multiple-value-bind (dx dy) (lock-wheel (ui-wheel-lock ui) event)
+           (setf (ui-pointer-x ui) (float (core:wheel-event-x event) 1f0)
+                 (ui-pointer-y ui) (float (core:wheel-event-y event) 1f0))
+           (multiple-value-bind (dx dy) (core:lock-wheel (ui-wheel-lock ui) event)
              (incf (ui-wheel-dx ui) (float dx 1f0))
              (incf (ui-wheel-dy ui) (float dy 1f0))))
-          (key-event
-           (when (and (eql (key-event-logical-key event) #\Tab)
+          (core:key-event
+           (when (and (eql (core:key-event-logical-key event) #\Tab)
                       (ui-keys ui))
              (return))
-           (if (eql (key-event-logical-key event) #\Tab)
-               (setf (ui-tab-pending ui) (if (modifier-down-p (key-event-modifiers event)
-                                                              +modifier-shift+)
+           (if (eql (core:key-event-logical-key event) #\Tab)
+               (setf (ui-tab-pending ui) (if (core:modifier-down-p (core:key-event-modifiers event)
+                                                                   core:+modifier-shift+)
                                              :backward
                                              :forward))
                (setf (ui-keys ui) (nconc (ui-keys ui) (list event))
                      (ui-inputs ui) (nconc (ui-inputs ui) (list event)))))
-          ((or text-input-event composition-event)
+          ((or core:text-input-event core:composition-event)
            (setf (ui-inputs ui) (nconc (ui-inputs ui) (list event))))
-          (menu-event
-           (setf (ui-menu-chosen ui) (cons (menu-event-menu event) (menu-event-item event))))))
+          (core:menu-event
+           (setf (ui-menu-chosen ui) (cons (core:menu-event-menu event) (core:menu-event-item event))))))
       (pop queue))
     (setf (ui-queue ui) queue)
     (let ((before (ui-hot ui)))
       (compute-hot ui)
       (unless (= before (ui-hot ui))
-        (setf (ui-hot-since ui) (now-ns)
+        (setf (ui-hot-since ui) (core:now-ns)
               (ui-tooltip-dismissed ui) nil)))
     (when (or (ui-pressed ui) (ui-secondary-pressed ui) (ui-keys ui))
       (setf (ui-tooltip-dismissed ui) t))

@@ -1,20 +1,8 @@
 (defpackage #:almighty-bolt/render/metal/draw-text
   (:use #:cl)
-  (:import-from #:almighty-bolt/text/line
-                #:text-line-glyph-count
-                #:text-line-glyphs
-                #:text-line-glyph-fonts
-                #:text-line-xs
-                #:text-line-ys)
-  (:import-from #:almighty-bolt/render/metal/glyph-atlas
-                #:glyph-atlas-scale
-                #:atlas-glyph-index
-                #:atlas-bearing-x
-                #:atlas-bearing-y
-                #:atlas-width
-                #:atlas-height)
-  (:import-from #:almighty-bolt/display-list
-                #:push-glyph)
+  (:local-nicknames (#:line #:almighty-bolt/text/line)
+                    (#:atlas #:almighty-bolt/render/metal/glyph-atlas)
+                    (#:dl #:almighty-bolt/display-list))
   (:export #:push-line))
 
 (in-package #:almighty-bolt/render/metal/draw-text)
@@ -34,28 +22,28 @@ it reads upwards from there, the tops of its letters to the left; :DOWN turns it
 right, reading downwards with their tops to the right. Each glyph is the same bitmap as upright, so a
 turned line is the upright one's pixels turned."
   (declare (type single-float x baseline))
-  (let* ((scale (glyph-atlas-scale atlas))
+  (let* ((scale (atlas:glyph-atlas-scale atlas))
          (inverse (/ 1f0 scale))
-         (glyphs (text-line-glyphs line))
-         (fonts (text-line-glyph-fonts line))
-         (xs (text-line-xs line))
-         (ys (text-line-ys line))
+         (glyphs (line:text-line-glyphs line))
+         (fonts (line:text-line-glyph-fonts line))
+         (xs (line:text-line-xs line))
+         (ys (line:text-line-ys line))
          (start-x (round (* scale x)))
          (start-y (round (* scale baseline)))
          (added 0))
     (declare (type fixnum added))
-    (dotimes (i (text-line-glyph-count line))
-      (let ((index (atlas-glyph-index atlas (aref fonts i) (aref glyphs i))))
+    (dotimes (i (line:text-line-glyph-count line))
+      (let ((index (atlas:atlas-glyph-index atlas (aref fonts i) (aref glyphs i))))
         (when (>= index 0)
-          (let ((width (atlas-width atlas index))
-                (height (atlas-height atlas index))
-                (bearing-x (round (* scale (atlas-bearing-x atlas index))))
-                (bearing-y (round (* scale (atlas-bearing-y atlas index)))))
+          (let ((width (atlas:atlas-width atlas index))
+                (height (atlas:atlas-height atlas index))
+                (bearing-x (round (* scale (atlas:atlas-bearing-x atlas index))))
+                (bearing-y (round (* scale (atlas:atlas-bearing-y atlas index)))))
             (if (null turn)
                 (let* ((pen (round (* scale (+ x (aref xs i)))))
                        (base (round (* scale (- baseline (aref ys i))))))
-                  (push-glyph display-list (* inverse (+ pen bearing-x)) (* inverse (- base bearing-y))
-                              width height index color))
+                  (dl:push-glyph display-list (* inverse (+ pen bearing-x)) (* inverse (- base bearing-y))
+                                 width height index color))
                 ;; Along the line from its start, and across it from the baseline to the bitmap's
                 ;; top edge (up the letters is less), in pixels.
                 (let ((along (+ (round (* scale (aref xs i))) bearing-x))
@@ -63,11 +51,11 @@ turned line is the upright one's pixels turned."
                       (long (round (* scale width)))
                       (short (round (* scale height))))
                   (ecase turn
-                    (:up (push-glyph display-list (* inverse (+ start-x across))
-                                     (* inverse (- start-y along long))
-                                     height width index color :up))
-                    (:down (push-glyph display-list (* inverse (- start-x across short))
-                                       (* inverse (+ start-y along))
-                                       height width index color :down)))))
+                    (:up (dl:push-glyph display-list (* inverse (+ start-x across))
+                                        (* inverse (- start-y along long))
+                                        height width index color :up))
+                    (:down (dl:push-glyph display-list (* inverse (- start-x across short))
+                                          (* inverse (+ start-y along))
+                                          height width index color :down)))))
             (incf added)))))
     added))

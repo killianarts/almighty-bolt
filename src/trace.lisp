@@ -1,22 +1,6 @@
 (defpackage #:almighty-bolt/trace
   (:use #:cl)
-  (:import-from #:almighty-bolt/ring
-                #:frame-ring-count
-                #:frame-start-ns
-                #:frame-duration-ns
-                #:frame-bytes-consed
-                #:frame-build-ns
-                #:frame-drawable-wait-ns
-                #:frame-encode-ns
-                #:frame-builds
-                #:frame-capped-p
-                #:frame-gc-ns
-                #:frame-first-build-ns
-                #:frame-all-builds-ns
-                #:frame-update-ns
-                #:frame-layout-ns
-                #:frame-paint-ns
-                #:frame-gpu-ns)
+  (:local-nicknames (#:ring #:almighty-bolt/ring))
   (:export #:write-trace))
 
 (in-package #:almighty-bolt/trace)
@@ -53,19 +37,19 @@ as one, and anything else as a string."
   (write-string "{\"traceEvents\":[" stream)
   (format stream "~&{\"name\":\"process_name\",\"ph\":\"M\",\"pid\":1,\"args\":{\"name\":~s}}"
           name)
-  (dotimes (i (frame-ring-count ring))
-    (let* ((start (frame-start-ns ring i))
-           (build (frame-build-ns ring i))
-           (wait (frame-drawable-wait-ns ring i))
-           (encode (frame-encode-ns ring i))
-           (first-build (frame-first-build-ns ring i))
-           (all-builds (frame-all-builds-ns ring i)))
-      (write-slice stream nil "frame" start (frame-duration-ns ring i)
-                   (list (list "builds" (frame-builds ring i))
-                         (list "capped" (if (frame-capped-p ring i) "yes" "no"))
-                         (list "bytes_consed" (frame-bytes-consed ring i))
-                         (list "gc_us" (microseconds (frame-gc-ns ring i)))
-                         (list "gpu_us_of_frame_before" (microseconds (frame-gpu-ns ring i)))))
+  (dotimes (i (ring:frame-ring-count ring))
+    (let* ((start (ring:frame-start-ns ring i))
+           (build (ring:frame-build-ns ring i))
+           (wait (ring:frame-drawable-wait-ns ring i))
+           (encode (ring:frame-encode-ns ring i))
+           (first-build (ring:frame-first-build-ns ring i))
+           (all-builds (ring:frame-all-builds-ns ring i)))
+      (write-slice stream nil "frame" start (ring:frame-duration-ns ring i)
+                   (list (list "builds" (ring:frame-builds ring i))
+                         (list "capped" (if (ring:frame-capped-p ring i) "yes" "no"))
+                         (list "bytes_consed" (ring:frame-bytes-consed ring i))
+                         (list "gc_us" (microseconds (ring:frame-gc-ns ring i)))
+                         (list "gpu_us_of_frame_before" (microseconds (ring:frame-gpu-ns ring i)))))
       (when (plusp build)
         (write-slice stream nil "build" start build
                      (list (list "first_build_us" (microseconds first-build))
@@ -74,9 +58,9 @@ as one, and anything else as a string."
                                                    (max 0 (- all-builds first-build))
                                                    0)))))
         (let ((at start))
-          (loop :for (part duration) :in (list (list "update" (frame-update-ns ring i))
-                                               (list "layout" (frame-layout-ns ring i))
-                                               (list "paint" (frame-paint-ns ring i)))
+          (loop :for (part duration) :in (list (list "update" (ring:frame-update-ns ring i))
+                                               (list "layout" (ring:frame-layout-ns ring i))
+                                               (list "paint" (ring:frame-paint-ns ring i)))
                 :when (plusp duration)
                   :do (write-slice stream nil part at duration)
                       (incf at duration))))
@@ -85,4 +69,4 @@ as one, and anything else as a string."
       (when (plusp encode)
         (write-slice stream nil "encode and present" (+ start build wait) encode))))
   (format stream "~&]}~%")
-  (frame-ring-count ring))
+  (ring:frame-ring-count ring))
