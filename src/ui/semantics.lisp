@@ -212,6 +212,12 @@ The whole frame is searched last, for a label in a float (a dialog's title) or e
       (unless (box-enabled box) (note :disabled t))
       (when (and (plusp (ui-focus ui)) (= (box-key box) (ui-focus ui))) (note :focused t))
       (when (and (plusp (ui-hot ui)) (= (box-key box) (ui-hot ui))) (note :hovered t))
+      ;; A thing that a secondary press on opens a menu: it is in a context menu's area.
+      (when (and (box-interactive box)
+                 (loop :for parent = (box-parent box) :then (box-parent parent)
+                       :while parent
+                         :thereis (eq (box-kind parent) :context-area)))
+        (note :menu t))
       ;; A cell of a grid says where it is in it, from 0.
       (let ((parent (box-parent box)))
         (when (and parent (eq (box-kind parent) :grid))

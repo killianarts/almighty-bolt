@@ -120,7 +120,9 @@ A `context-menu` (`:id :items`) is a container: what is in it is laid out as a
 column, and a press of the secondary button anywhere on it (or of the primary
 button with Control down, as a Mac takes it) opens a menu of `:items` where the
 pointer is. It returns the item chosen, on the frame it is chosen. A context
-menu inside another's area takes the press first.
+menu inside another's area takes the press first. What can be pressed in its
+area says `:menu t` in the semantic tree, and VoiceOver offers to show the
+menu there (VO-Shift-M), which it then reads.
 
 ```lisp
 (let ((command (bolt:context-menu (:id :row-menu :items '("Rename" "Delete"))
@@ -395,8 +397,13 @@ given the frame before is taken up. With none, every pane is a tab of one
 group; a pane the layout does not have goes in its first group, and one the
 dock is not given is left out. The active pane is the one last pressed in, whose
 tab was last chosen, or that has the keyboard (the first, until one is): only
-its shortcuts are heard. The tabs are buttons in the semantic tree. A
-pane is moved only by the pointer for now.
+its shortcuts are heard. The tabs are buttons in the semantic tree. A pane is
+moved without the pointer too. Its tab's context menu has Move to Next Group
+and Move to Previous Group (when there is another group), and Split Left,
+Split Right, Split Up and Split Down (when its group has another pane), which
+put it beside its group. Control-Shift-Right and Control-Shift-Left move the
+active pane to the next and the previous group, unless what is in the pane
+takes those keys.
 
 `app-pane` (`constructor &key id zoom width height flex` and the size limits)
 is another app, working, in an area of this one: a designer showing the app

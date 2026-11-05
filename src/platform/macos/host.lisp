@@ -345,6 +345,18 @@ the window answers on the frames that follow."
     (pointer :down 0 1 1)
     (pointer :up 0 0 1)))
 
+(defun secondary-click-at (host x y)
+  "Press and release the secondary button at X, Y, as CLICK-AT does the primary: what opens a context
+menu there."
+  (flet ((pointer (kind button buttons count)
+           (host-deliver-event host (make-pointer-event :timestamp (now-ns) :kind kind
+                                                        :x (float x 1d0) :y (float y 1d0)
+                                                        :button button :buttons buttons
+                                                        :click-count count))))
+    (pointer :move nil 0 0)
+    (pointer :down 1 2 1)
+    (pointer :up 1 0 1)))
+
 (defun start-drawing (host)
   (sb-thread:with-mutex ((host-lock host))
     (setf (host-drawing-p host) t
@@ -730,6 +742,8 @@ RUN-HOST's."
                                 :accessibility-tree (lambda ()
                                                       (accessibility-tree (host-app host)))
                                 :accessibility-press (lambda (x y) (click-at host x y))
+                                :accessibility-secondary-press
+                                (lambda (x y) (secondary-click-at host x y))
                                 :on-draw (lambda (view) (draw-view host view))
                                 ;; The system went dark or light: the window's theme follows.
                                 :on-appearance (lambda (view)

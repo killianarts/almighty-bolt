@@ -22,11 +22,12 @@ are not listed.
 - `define-view` and `view`: a view made in the GUI designer, drawn by an app with its own code wired to it by the designer's ids, checked when the code is compiled ([0.3](docs/releases/dev.md#views-a-design-wired-to-code)).
 - `drag-source`, `drop-target` and `dragging`: dragging within an app; widgets dragged into the GUI designer's view and within it ([0.3](docs/releases/dev.md#dragging)).
 - `app-pane`: another app, working, in an area of this one, at a zoom, made again when its code is compiled, which VoiceOver and the machine interface see into; and `inspector-pane`, the inspector of it in the same window ([0.3](docs/releases/dev.md#an-app-in-a-pane)).
-- `dock`: panes in groups of tabs, moved by dragging their tabs, each keeping what it holds ([0.3](docs/releases/dev.md#docked-panes)).
+- `dock`: panes in groups of tabs, moved by dragging their tabs, by a tab's menu or with Control-Shift-Right and -Left, each keeping what it holds ([0.3](docs/releases/dev.md#docked-panes)).
 - A `shortcut` in a dock's pane is heard only in the active pane ([0.3](docs/releases/dev.md#docked-panes)).
 - A `split` given a new `:size` takes it up ([0.3](docs/releases/dev.md#docked-panes)).
 - The studio, `apps/studio`: the parts of the GUI designer and of the theme designer as panes of one window ([0.3](docs/releases/dev.md#the-studio-begun)).
 - `tree`: a tree of items that open and close; the GUI designer's outline is one ([0.3](docs/releases/dev.md#a-tree-view)).
+- VoiceOver opens a `context-menu` with Show Menu (VO-Shift-M), and the semantic tree marks what has one `:menu t` ([0.3](docs/releases/dev.md#input)).
 - `tabs`, and `choice` with `:style :tabs`: a tab bar ([0.3](docs/releases/dev.md#input)).
 - `split`: two panes with a divider that is dragged, and in a view ([0.3](docs/releases/dev.md#two-panes-and-a-divider)).
 - `app-menu`: an app's own menus in the menu bar, with shortcuts ([0.3](docs/releases/dev.md#the-apps-own-menus)).

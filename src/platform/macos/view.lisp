@@ -511,7 +511,8 @@ out when it is asked, so that a window that was moved is where it is."
   "Options for the tracking area that delivers mouse moves.")
 
 (defun make-metal-view (&key device (width 480) (height 320) on-draw on-resize event-handler
-                          text-input accessibility-tree accessibility-press on-appearance)
+                          text-input accessibility-tree accessibility-press
+                          accessibility-secondary-press on-appearance)
   "A Metal view WIDTH by HEIGHT points that draws only when REQUEST-DRAW is called.
 DEVICE is the Metal device to draw with (the system default if not given). ON-DRAW
 is called with the view when it is to draw, ON-RESIZE with the view and its new
@@ -520,7 +521,8 @@ text and composition events of the input method. TEXT-INPUT is a function that s
 the app takes text and where its caret is: it returns true or false and then the x, y, width and
 height of the caret in the view. ACCESSIBILITY-TREE returns the semantic tree of the window (a node,
 or NIL if there is none) and ACCESSIBILITY-PRESS is called with a point in the view to press it: with
-them a screen reader can read the view and press what is in it. ON-APPEARANCE is called with the
+them a screen reader can read the view and press what is in it. ACCESSIBILITY-SECONDARY-PRESS, if
+given, presses there with the secondary button, which opens a context menu. ON-APPEARANCE is called with the
 view when the system goes dark or light (VIEW-APPEARANCE says which). Call on the main thread."
   (let* ((device (or device
                      (sb-alien:alien-funcall
@@ -539,6 +541,7 @@ view when the system goes dark or light (VIEW-APPEARANCE says which). Call on th
       (setf (metal-view-bridge view)
             (make-bridge :view object :tree accessibility-tree
                          :press (or accessibility-press (lambda (x y) (declare (ignore x y)) nil))
+                         :secondary-press accessibility-secondary-press
                          :convert (lambda (x y width height)
                                     (view-screen-rect object x y width height)))))
     (setf (metal-view-index view) (register-object view)

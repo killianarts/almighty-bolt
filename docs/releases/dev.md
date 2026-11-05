@@ -60,7 +60,7 @@ A view is named by a symbol of the app's package, as a function is, so that view
 
 ### Docked panes
 
-`(bolt:dock (:id :studio :layout layout) (:outline "Outline" ...) (:canvas "Canvas" ...))` is panes in groups of tabs, side by side or one over the other, that the person arranges: a tab dragged to another group's tabs puts its pane there, and to a group's edge splits the group. What is in a pane keeps its state when it moves, and a `shortcut` in a pane is heard only while it is the pane last pressed in or that has the keyboard. The layout is a list, returned each frame, for the app to keep and give back. A `split` given a new `:size` now takes it up, so an app can keep a split's width too.
+`(bolt:dock (:id :studio :layout layout) (:outline "Outline" ...) (:canvas "Canvas" ...))` is panes in groups of tabs, side by side or one over the other, that the person arranges: a tab dragged to another group's tabs puts its pane there, and to a group's edge splits the group. A tab's context menu moves its pane to the next or the previous group, or splits its group with it, and Control-Shift-Right and -Left move the active pane, so a pane is moved with the keyboard, by an agent and by VoiceOver too. What is in a pane keeps its state when it moves, and a `shortcut` in a pane is heard only while it is the pane last pressed in or that has the keyboard. The layout is a list, returned each frame, for the app to keep and give back. A `split` given a new `:size` now takes it up, so an app can keep a split's width too.
 
 ### The studio, begun
 
@@ -177,6 +177,7 @@ A theme that gives the spacing works out every size again, except those it gives
 - A `list-box` whose selected row is out of its window shows it: on its first frame, and when the app selects a row other than the one it selected before (say, from a search field beside it). While the selection stays the same, the list stays where the wheel put it. Before, a list opened at its top whatever was selected.
 
 - `(shortcut #\s :command)` is true in the frame its keys are pressed, for the app's own keyboard shortcuts: `(when (bolt:shortcut #\s :command) (save))`. It takes the key, and the modifiers held must be the ones given.
+- VoiceOver shows a `context-menu`: on what can be pressed in its area it offers Show Menu (VO-Shift-M), which opens the menu there as a secondary press does, and then reads its items. The semantic tree marks those things `:menu t`. Before, a context menu could be opened only with the pointer.
 - `canvas` takes `:cursor`, the shape the pointer has over it: a crosshair to draw with, a pointing hand over something that can be pressed, a hand to drag with, arrows to resize. The app can give another each frame.
 
 #### Machine interface

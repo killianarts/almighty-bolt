@@ -1434,7 +1434,17 @@ notes what it is asked to post. After each frame the reader's bridge is told, as
                                                  :timestamp 0 :kind kind :x (float x 1d0)
                                                  :y (float y 1d0) :button button :buttons buttons
                                                  :click-count clicks))))
-                                           (dotimes (i 4) (draw screen)))))
+                                           (dotimes (i 4) (draw screen)))
+                    :accessibility-secondary-press
+                    (lambda (x y)
+                      (dolist (spec '((:move nil 0 0) (:down 1 2 1) (:up 1 0 1)))
+                        (destructuring-bind (kind button buttons clicks) spec
+                          (core:handle-event
+                           (screen-app screen)
+                           (core:make-pointer-event
+                            :timestamp 0 :kind kind :x (float x 1d0) :y (float y 1d0)
+                            :button button :buttons buttons :click-count clicks))))
+                      (dotimes (i 4) (draw screen)))))
              (window (window:make-window :title "reader" :width 360 :height 320))
              (reader (make-reader (view:metal-view-object view) (window:window-object window) nil screen)))
         (setf bridge (view:metal-view-bridge view)
@@ -4088,6 +4098,86 @@ left, left to right."
       (drag :gamma 180 300)
       (assert-equal "(:split :vertical 153.0 (:tabs :beta :alpha :beta) (:tabs :gamma :gamma))"
                     (layout)))))
+
+(define-test a-pane-is-moved-by-its-tab-s-menu-and-by-the-keyboard ()
+  (let* ((screen (show 'make-docked))
+         (session (screen-session screen)))
+    (flet ((layout () (s:node-name (node-of screen :layout)))
+           (items ()
+             (mapcar #'s:node-name
+                     (s:find-nodes (core:accessibility-tree (screen-app screen))
+                                   :role :menu-item))))
+      ;; Beta shares its group, and there is another: its tab's menu has all six.
+      (assert-true (s:node-property (node-of screen :beta) :menu))
+      (assert-false (s:node-property (node-of screen :gamma-words) :menu))
+      (m:secondary-click session :id :beta)
+      (assert-equal '("Move to Next Group" "Move to Previous Group" "Split Left" "Split Right"
+                      "Split Up" "Split Down")
+                    (items))
+      (m:click session :role :menu-item :name "Move to Next Group")
+      (assert-true (search "(:tabs :alpha :alpha) (:tabs :beta :gamma :beta)" (layout)) (layout))
+      ;; Alpha, alone in its group, cannot split it.
+      (m:secondary-click session :id :alpha)
+      (assert-equal '("Move to Next Group" "Move to Previous Group") (items))
+      (m:press-key session :escape)
+      ;; Gamma split off under Beta.
+      (m:secondary-click session :id :gamma)
+      (m:click session :role :menu-item :name "Split Down")
+      (assert-true (search "(:split :vertical" (layout)) (layout))
+      (assert-true (search "(:tabs :beta :beta) (:tabs :gamma :gamma))" (layout)) (layout))
+      ;; Three groups now: Beta by its menu to the one before its own, Alpha's.
+      (m:secondary-click session :id :beta)
+      (m:click session :role :menu-item :name "Move to Previous Group")
+      (assert-true (search "(:tabs :beta :alpha :beta)" (layout)) (layout))
+      ;; The active pane, Alpha, moved with the keyboard: on to Gamma's group, then on round from
+      ;; the last to the first, Beta's.
+      (m:click session :id :alpha)
+      (m:press-key session :right :modifiers '(:control :shift))
+      (assert-true (search "(:tabs :alpha :gamma :alpha)" (layout)) (layout))
+      (m:press-key session :right :modifiers '(:control :shift))
+      (assert-true (search "(:tabs :alpha :beta :alpha)" (layout)) (layout))
+      (assert-false (search ":alpha :gamma" (layout)) (layout))
+      ;; And back, with Left.
+      (m:press-key session :left :modifiers '(:control :shift))
+      (assert-true (search "(:tabs :alpha :gamma :alpha)" (layout)) (layout)))))
+
+(defun every-element (reader)
+  "Every element of the reader's view, at any depth."
+  (let ((all '()))
+    (labels ((walk (element)
+               (push element all)
+               (mapc #'walk (parts-of element))))
+      (mapc #'walk (elements reader)))
+    (nreverse all)))
+
+(defun element-anywhere (reader id)
+  (let ((name (string-downcase (princ-to-string id))))
+    (find name (every-element reader)
+          :key (lambda (element) (ns-value (objc:msg-send :id element "accessibilityIdentifier")))
+          :test #'equal)))
+
+(defun show-menu (element)
+  "Ask ELEMENT to show its menu, if it is of the class that has one. (NSAccessibilityElement's own
+answer, for one that has none, is not to be called in a window that is not shown: it ends the
+process.)"
+  (and (equal "AlmightyBoltAccessibilityMenuPressable"
+              (ns-value (objc:msg-send :id element "className")))
+       (objc:msg-send :bool element "accessibilityPerformShowMenu")))
+
+(define-test a-screen-reader-shows-a-tab-s-menu-and-moves-the-pane-with-it ()
+  (let ((screen (show 'make-docked)))
+    (with-reader (reader screen)
+      (let ((beta (element-anywhere reader :beta)))
+        (assert-false (s:find-nodes (core:accessibility-tree (screen-app screen)) :role :menu-item))
+        ;; A tab shows its menu, whose items are pressed as a hand presses them.
+        (assert-true (show-menu beta))
+        (dotimes (i 2) (draw screen))
+        (let ((next (find "Move to Next Group" (every-element reader)
+                          :key (lambda (element) (says element :label)) :test #'equal)))
+          (assert-true next)
+          (assert-true (press next))
+          (assert-true (search "(:tabs :beta :gamma :beta)" (s:node-name (node-of screen :layout)))
+                       (s:node-name (node-of screen :layout))))))))
 
 ;;; --- shortcuts in panes ---
 

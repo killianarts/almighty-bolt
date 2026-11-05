@@ -1,5 +1,8 @@
 (defpackage #:almighty-bolt/ui/dock
   (:use #:cl)
+  (:import-from #:almighty-bolt/internals
+                #:+key-left+
+                #:+key-right+)
   (:import-from #:almighty-bolt/ui/box
                 #:box-key
                 #:box-cross-align
@@ -40,6 +43,8 @@
                 #:stack
                 #:panel
                 #:label
+                #:context-menu
+                #:shortcut
                 #:*shortcuts-heard*)
   (:import-from #:almighty-bolt/ui/drag
                 #:drag-source
@@ -58,7 +63,9 @@
 ;;; over the other with dividers between them. A pane is moved by dragging its tab: let go of on
 ;;; another group's tabs, it goes in that group; on a group's edge, it splits the group there, in a
 ;;; group of its own; on the middle of a group, it goes in it. A group left empty goes, and the
-;;; divider with it.
+;;; divider with it. A pane is moved without the pointer too: its tab's menu (a secondary press, or
+;;; Show Menu in VoiceOver) moves it to the next or the previous group, or splits its group with it,
+;;; and Control-Shift-Right and -Left move the active pane to the next and the previous group.
 ;;;
 ;;; The layout is data, which the dock returns, so that an app can keep it (in STATE-LET, or a file):
 ;;;   (:tabs SELECTED KEY ...)                     a group of the panes KEY ..., SELECTED shown
@@ -112,6 +119,33 @@ tall. KEY is taken from where it was first. LAYOUT as it was if ANCHOR is KEY, o
                    (:split (destructuring-bind (direction size first second) (rest layout)
                              (list :split direction size (put first) (put second)))))))
         (put (remove-pane layout key)))))
+
+(defun groups (layout)
+  "The keys of each group of LAYOUT, in order."
+  (ecase (first layout)
+    (:tabs (list (cddr layout)))
+    (:split (append (groups (fourth layout)) (groups (fifth layout))))))
+
+(defun group-move (layout key step)
+  "Where the pane KEY goes to be in the group STEP after its own (1 the next, -1 the one before,
+round from the last to the first), as a drop: (key anchor :into 0). NIL if there is one group."
+  (let* ((groups (groups layout))
+         (count (length groups))
+         (index (position-if (lambda (keys) (member key keys :test #'equal)) groups)))
+    (when (and index (> count 1))
+      (list key (first (nth (mod (+ index step) count) groups)) :into 0))))
+
+(defparameter *split-items*
+  '(("Split Left" . :left) ("Split Right" . :right) ("Split Up" . :top) ("Split Down" . :bottom))
+  "The items of a tab's menu that split its group with its pane, and the side the pane goes to.")
+
+(defun tab-items (layout keys)
+  "The items of the menu of a tab in the group of KEYS: to another group if there is one, and to a
+side of its own if it is not alone in it."
+  (append (and (> (length (groups layout)) 1)
+               (list "Move to Next Group" "Move to Previous Group"))
+          (and (> (length keys) 1)
+               (mapcar #'car *split-items*))))
 
 (defun with-panes (layout keys)
   "LAYOUT with only the panes in KEYS, and any of KEYS it did not have in its first group."
@@ -228,7 +262,7 @@ made the active one if the keyboard is in it."
         (setf (dock-state-active state) key)))
     (close-box ui)))
 
-(defun draw-group (dock-key node path panes)
+(defun draw-group (dock-key layout node path panes)
   "Draw the group NODE at PATH: its tabs and the pane it shows. Returns the layout it makes of NODE
 (another pane chosen), and what was let go of on it, if anything: (values node (key anchor zone
 size))."
@@ -245,14 +279,28 @@ size))."
       (let ((bar (open-box ui :row :id :bar)))
         (setf bar-key (box-key bar))
         (dolist (key keys)
-          (let ((title (second (assoc key panes :test #'equal))))
-            (when (drag-source (:id key :payload (list :dock-pane key) :label title)
-                    (panel (:id :tab :left 10 :right 10 :top 4 :bottom 4 :radius 4
-                            :color (if (equal key selected) :row-selected :panel))
-                      (label title :id :title)))
-              ;; Chosen, its pane is shown, and its shortcuts heard.
-              (setf new (list* :tabs key keys)
-                    (dock-state-active *dock-state*) key))))
+          (let* ((title (second (assoc key panes :test #'equal)))
+                 (item (context-menu (:id (list :tab-menu key) :items (tab-items layout keys))
+                         (when (drag-source (:id key :payload (list :dock-pane key) :label title)
+                                 (panel (:id :tab :left 10 :right 10 :top 4 :bottom 4 :radius 4
+                                         :color (if (equal key selected) :row-selected :panel))
+                                   (label title :id :title)))
+                           ;; Chosen, its pane is shown, and its shortcuts heard.
+                           (setf new (list* :tabs key keys)
+                                 (dock-state-active *dock-state*) key)))))
+            ;; Moved by its menu: as if it were let go of there.
+            (when item
+              (let ((side (cdr (assoc item *split-items* :test #'string=)))
+                    (rect (rect-of ui group-key)))
+                (setf drop
+                      (if side
+                          (list key (find key keys :test-not #'equal) side
+                                (if rect
+                                    (/ (if (member side '(:left :right)) (rect-w rect) (rect-h rect))
+                                       2)
+                                    240))
+                          (group-move layout key
+                                      (if (string= item "Move to Next Group") 1 -1))))))))
         (close-box ui))
       (stack (:id :body :flex 1)
         (let ((pane (assoc (second new) panes :test #'equal)))
@@ -277,18 +325,20 @@ size))."
                   (show-zone group-key rect zone))))))
       (values new drop))))
 
-(defun draw-node (dock-key node path panes)
-  "Draw NODE of the layout, at PATH. Returns the layout it makes of it, and a drop on it."
+(defun draw-node (dock-key layout node path panes)
+  "Draw NODE of LAYOUT, at PATH. Returns the layout it makes of it, and a drop on it."
   (ecase (first node)
-    (:tabs (draw-group dock-key node path panes))
+    (:tabs (draw-group dock-key layout node path panes))
     (:split
      (destructuring-bind (direction size first second) (rest node)
        (let ((new-first first) (new-second second) (drop nil))
          (let ((now (split (:id (path-id "SPLIT" path) :direction direction :size size :min 80
                             :flex 1)
-                      (multiple-value-bind (node there) (draw-node dock-key first (append path '(0)) panes)
+                      (multiple-value-bind (node there) (draw-node dock-key layout first (append path '(0))
+                                                               panes)
                         (setf new-first node drop (or drop there)))
-                      (multiple-value-bind (node there) (draw-node dock-key second (append path '(1)) panes)
+                      (multiple-value-bind (node there) (draw-node dock-key layout second (append path '(1))
+                                                               panes)
                         (setf new-second node drop (or drop there))))))
            (values (list :split direction now new-first new-second) drop)))))))
 
@@ -320,7 +370,13 @@ size))."
       (unless (member (dock-state-active state) (dock-panes old) :test #'equal)
         (setf (dock-state-active state) (first (dock-panes old))))
       (clrhash (dock-state-pane-boxes state))
-      (multiple-value-bind (new drop) (draw-node key old '() panes)
+      (multiple-value-bind (new drop) (draw-node key old old '() panes)
+        ;; The active pane moved by the keyboard, if what is in the panes did not take the keys.
+        (unless drop
+          (let ((step (cond ((shortcut +key-right+ :control :shift) 1)
+                            ((shortcut +key-left+ :control :shift) -1))))
+            (when step
+              (setf drop (group-move old (dock-state-active state) step)))))
         (when drop
           (destructuring-bind (moved anchor zone size) drop
             (setf new (place-pane new moved anchor zone size))))

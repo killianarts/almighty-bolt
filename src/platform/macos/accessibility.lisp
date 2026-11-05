@@ -42,7 +42,7 @@
 ;;; Everything here runs on the main thread, as the frames do: AppKit asks there, and so do the
 ;;; frames that change what the items say.
 
-(defstruct (bridge (:constructor make-bridge (&key view tree press convert)))
+(defstruct (bridge (:constructor make-bridge (&key view tree press secondary-press convert)))
   ;; The NSView whose children the elements are, or 0.
   (view 0 :type (unsigned-byte 64))
   ;; Returns the node (a property list) of the whole window, or NIL if there is none. It is asked
@@ -51,6 +51,8 @@
   ;; Called with the x and y, in points from the top left of the view, of where a person's hand would
   ;; press, to press there. It does what a click does, through the events the window gets.
   (press (lambda (x y) (declare (ignore x y)) nil) :type function)
+  ;; The same with the secondary button, which opens a context menu there; NIL if it cannot.
+  (secondary-press nil :type (or null function))
   ;; Called with x, y, width and height in the view's own points, returns the same on the screen;
   ;; NIL leaves them as they are.
   (convert nil :type (or null function))
@@ -81,10 +83,12 @@
   "The width of a slider's thumb, whose middle goes from half of it in to half of it from the end
 (the machine interface presses a slider by the same measure).")
 
-(defstruct (item (:constructor make-item (bridge path role)))
+(defstruct (item (:constructor make-item (bridge path role menu)))
   bridge
   path
   (role :static-text)
+  ;; True if a secondary press on it opens a menu, which a screen reader offers to show.
+  (menu nil)
   (element 0 :type (unsigned-byte 64))
   (index 0 :type fixnum)
   ;; What the element says: a string or a number or NIL.
@@ -249,6 +253,23 @@ that was taken away, is not pressed."
 (define-item-callback element-press sb-alien:unsigned-char 0
   (if (press-item item) 1 0))
 
+(defun show-item-menu (item)
+  "Open the menu of ITEM, by a secondary press where it is, as a person's hand does. True if it was
+done: one that has no menu, is not enabled, or was taken away, is not pressed."
+  (let ((bridge (item-bridge item)))
+    (ensure-fresh bridge)
+    (when (and (eq item (gethash (item-path item) (bridge-items bridge)))
+               (item-menu item)
+               (item-enabled item)
+               (bridge-secondary-press bridge))
+      (funcall (bridge-secondary-press bridge)
+               (+ (item-x item) (/ (item-width item) 2))
+               (+ (item-y item) (/ (item-height item) 2)))
+      t)))
+
+(define-item-callback element-show-menu sb-alien:unsigned-char 0
+  (if (show-item-menu item) 1 0))
+
 (defun nudge-item (item direction)
   "Move the slider ITEM a twentieth of its range up (DIRECTION 1) or down (-1), the step of an arrow key,
 by pressing where the value then is, as a hand would. True if that is a change."
@@ -328,6 +349,11 @@ by pressing where the value then is, as a hand would. True if that is a change."
   "AlmightyBoltAccessibilityElement"
   :methods '(("accessibilityPerformPress" "B@:" element-press)))
 
+;;; A thing that is pressed and has a menu (a tab of a dock) offers to show the menu too.
+(define-runtime-class *menu-pressable-class* "AlmightyBoltAccessibilityMenuPressable"
+  "AlmightyBoltAccessibilityPressable"
+  :methods '(("accessibilityPerformShowMenu" "B@:" element-show-menu)))
+
 ;;; A slider is adjusted, up and down, and is not pressed.
 (define-runtime-class *adjustable-class* "AlmightyBoltAccessibilityAdjustable"
   "AlmightyBoltAccessibilityElement"
@@ -342,7 +368,7 @@ by pressing where the value then is, as a hand would. True if that is a change."
   (let* ((class (case (item-role item)
                   ((:button :checkbox :radio-button :row :pop-up-button :menu-button
                     :menu-item)
-                   *pressable-class*)
+                   (if (item-menu item) *menu-pressable-class* *pressable-class*))
                   (:slider *adjustable-class*)
                   (t *element-class*)))
          (element (msg-send :id (msg-send :id class "alloc") "init")))
@@ -512,16 +538,16 @@ that were already there and have moved and the ones that have a new size."
     (labels ((note-frame (item)
                (when (item-moved item) (push item moved))
                (when (item-resized item) (push item resized)))
-             (claim (path role parent)
-               ;; The item at PATH, the one there was if it has the same role and a new one if not.
-               ;; True as the second value for a new one.
+             (claim (path role parent &optional menu)
+               ;; The item at PATH, the one there was if it has the same role (and has a menu, or
+               ;; not, as it had) and a new one if not. True as the second value for a new one.
                (let ((item (gethash path old))
                      (fresh nil))
-                 (unless (and item (eq (item-role item) role))
+                 (unless (and item (eq (item-role item) role) (eq (item-menu item) menu))
                    (when item
                      (drop-item item)
                      (remhash path old))
-                   (setf item (make-item bridge path role)
+                   (setf item (make-item bridge path role menu)
                          fresh t
                          structure t)
                    (make-element item))
@@ -547,7 +573,8 @@ that were already there and have moved and the ones that have a new size."
                                                   place))))
                      (role (role-of node)))
                  (if role
-                     (multiple-value-bind (item fresh) (claim path role parent)
+                     (multiple-value-bind (item fresh)
+                         (claim path role parent (and (getf (getf node :state) :menu) t))
                        (let ((value-changed (fill-item item node)))
                          ;; A thing that is to be read out as it comes (a toast), and has come.
                          (when (and fresh (getf (getf node :state) :announce))
