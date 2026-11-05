@@ -91,7 +91,7 @@
 (defun entries (host)
   "How the app's entries are shown, read from the state the host keeps for it."
   (let ((state (kept-value (host-kept-state host)
-                           (symbol-in "ALMIGHTY-BOLT-7GUIS/CRUD/IMMEDIATE" "ENTRIES"))))
+                           (symbol-in "ALMIGHTY-BOLT-7GUIS/CRUD/APP" "ENTRIES"))))
     (mapcar (symbol-in "ALMIGHTY-BOLT-7GUIS/CRUD/MODEL" "ENTRY-DISPLAY")
             (funcall (symbol-in "ALMIGHTY-BOLT-7GUIS/CRUD/MODEL" "ENTRIES-LIST") state))))
 
@@ -183,7 +183,11 @@ and the text of its field, as a list, or (NIL) if no field has the keyboard."
   (let ((host (loop :for host = (running-host) :until host :do (sleep 0.05)
                     :finally (return host))))
     (unwind-protect
-         (progn
+         ;; An error in the check is a failure of it: without this, the Lisp quits on it (the
+         ;; debugger is off), and the cleanup below would find no failures and say it passed.
+         (handler-bind ((error (lambda (condition)
+                                 (check "the check runs to its end" nil
+                                        (princ-to-string condition)))))
            (wait-for (lambda () (plusp (frame-ring-total (host-ring host)))) 20)
            (sleep 1.5)
            (use-the-app host)
