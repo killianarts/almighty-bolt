@@ -10,6 +10,7 @@
                 #:font-attributes)
   (:import-from #:almighty-bolt/text/font
                 #:font
+                #:font-tracking
                 #:font-ct-font
                 #:font-lines
                 #:font-older-lines)
@@ -116,7 +117,7 @@
 (defun attributed-string (font string)
   "A new attributed string of STRING in FONT. The caller owns it."
   (let* ((cf (cf-string string))
-         (attributes (font-attributes (font-ct-font font)))
+         (attributes (font-attributes (font-ct-font font) (font-tracking font)))
          (attributed (ccall "CFAttributedStringCreate" :ulong
                             (:ulong 0) (:ulong cf) (:ulong attributes))))
     (cf-release cf)

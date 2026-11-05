@@ -557,7 +557,9 @@ A `canvas` is an area that you draw in and handle input for. `painter` is called
 with the display list, the context, and the width and height, and draws from the
 top left; what it draws is drawn once if it is the same as last frame. Draw with
 `push-rect`, `push-rounded-rect`, `push-clip` and `push-unclip`, colours made by
-`pack-color`, and text with `context-push-text` after `context-font` and
+`pack-color`, and text with `context-push-text` after `context-font` (`context
+name size &optional weight tracking`: a weight from 1 to 1000 or a name, `:thin`
+to `:black`, and the points of space after each character) and
 `context-measure`. The events the canvas returns are `(:press x y button
 click-count)`, `(:move x y)`, `(:drag x y)`, `(:release x y inside-p)`, `(:key
 event)` (see `key-event-logical-key` and the `+key-...+` and `+modifier-...+`

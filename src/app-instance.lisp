@@ -371,12 +371,14 @@ Drawing commands made before name glyphs that are gone, and must not be drawn.")
 (defun no-text (operation)
   (error 'no-text-support :operation operation))
 
-(defgeneric context-font (context name size &optional weight)
-  (:documentation "The font called NAME at SIZE points, of WEIGHT (:regular, the default, or :bold),
-the same object for the same arguments. If the system has no such font, a system font; if the font
-has no bold, the regular one.")
-  (:method ((context context) name size &optional weight)
-    (declare (ignore name size weight))
+(defgeneric context-font (context name size &optional weight tracking)
+  (:documentation "The font called NAME at SIZE points, of WEIGHT (a number from 1 to 1000, 400 the
+default and 700 bold, or a name: :thin, :extra-light, :light, :regular, :medium, :semibold, :bold,
+:extra-bold or :black), with TRACKING points of space after each character (0 if not given): the same
+object for the same arguments. The face is the upright one of the family nearest WEIGHT; if the
+system has no such font, a system font.")
+  (:method ((context context) name size &optional weight tracking)
+    (declare (ignore name size weight tracking))
     (no-text 'context-font)))
 
 (defgeneric context-measure (context font string)

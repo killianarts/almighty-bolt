@@ -4598,6 +4598,18 @@ app pane lays out its app in the frame after the one it first appears in, when i
         (m:click session :id :plus)
         (assert-equal "Count 2" (s:node-name (node-of screen :count)))))))
 
+;; An app in a pane draws its text in fonts ZOOM times the size: the space after each character too.
+(define-test an-app-in-a-pane-at-a-zoom-asks-for-its-fonts-tracking-zoomed-too ()
+  (let ((screen (show-with-pane 'make-outer)))
+    (click screen :zoom)
+    (let* ((state (gethash *inner* almighty-bolt/ui/app-pane::*pane-states*))
+           (inner (almighty-bolt/ui/app-pane::app-pane-state-context state))
+           (font (core:context-font inner "Helvetica" 10 :medium 2)))
+      ;; Measured as asked; drawn twice the size, with twice the space.
+      (assert-equal '("Helvetica" 10 :medium 2) (almighty-bolt/ui/app-pane::zoomed-font-base font))
+      (assert-equal '("Helvetica" 20f0 :medium 4f0)
+                    (almighty-bolt/ui/app-pane::zoomed-font-zoomed font)))))
+
 ;;; --- the inspector beside an app in a pane ---
 
 (defun make-inspected ()

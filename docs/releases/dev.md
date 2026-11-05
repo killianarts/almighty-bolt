@@ -162,6 +162,8 @@ A theme that gives the spacing works out every size again, except those it gives
 
 #### Text
 
+- `context-font` gives a font of any weight, from 1 to 1000 or by name (`:light`, `:medium`, `:semibold` and the rest): the upright face of the family nearest that weight and as wide as its regular face, so Helvetica Neue's `:black` is its bold and not its condensed black. And it takes a tracking, the points of space after each character, which measuring, carets, clicks in text and breaking into lines all count. In an app in a pane at a zoom, the tracking is drawn at the zoom too.
+
 - `label` and `paragraph` take `:weight` (`:regular` or `:bold`) and `:font`, a font family: a time or a heading can be bold at the size of what is round it, and a number can be in `"Menlo"`. Bold is the family's bold face, made by Core Text; a family that has none is drawn regular. A paragraph is broken into lines again when its weight or font changes.
 
 #### Layout
@@ -200,13 +202,13 @@ A theme that gives the spacing works out every size again, except those it gives
 
 ## Backwards incompatible changes in X.Y
 
-### `context-font` takes a weight
+### `context-font` takes a weight and a tracking
 
-`context-font` is now `(context-font context name size &optional weight)`, where the weight is `:regular` (or NIL) or `:bold`. A method of it for a context of your own (a test double, say) must take the optional argument, or SBCL says its lambda list does not agree with the generic function's:
+`context-font` is now `(context-font context name size &optional weight tracking)`. The weight is a number from 1 to 1000 as CSS has it (400 regular, 700 bold) or a name, `:thin`, `:extra-light`, `:light`, `:regular` (or NIL), `:medium`, `:semibold`, `:bold`, `:extra-bold` or `:black`; the tracking is the points of space after each character (0 or NIL for none). A method of it for a context of your own (a test double, say) must take both optional arguments, or SBCL says its lambda list does not agree with the generic function's:
 
 ```lisp
-(defmethod context-font ((context my-context) name size &optional weight)
-  (my-font name size (or weight :regular)))
+(defmethod context-font ((context my-context) name size &optional weight tracking)
+  (my-font name size (or weight :regular) (or tracking 0)))
 ```
 
 ### Area

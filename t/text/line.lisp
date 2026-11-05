@@ -2,7 +2,9 @@
   (:use #:cl #:lisp-unit2)
   (:local-nicknames (#:objc #:almighty-bolt/platform/macos/objc)
                     (#:font #:almighty-bolt/text/font)
-                    (#:line #:almighty-bolt/text/line)))
+                    (#:line #:almighty-bolt/text/line)
+                    (#:core #:almighty-bolt/internals)
+                    (#:host #:almighty-bolt/platform/macos/host)))
 
 (in-package #:almighty-bolt/t/text/line)
 
@@ -298,3 +300,61 @@
       (assert-false (eql (font:font-ct-font helvetica) (font:font-ct-font bold)))
       (assert-true (> (line:measure-text bold "Candle lighting 16:22")
                       (line:measure-text helvetica "Candle lighting 16:22"))))))
+
+(define-test a-font-of-any-weight-is-the-face-of-its-family-nearest-it ()
+  (objc:with-masked-float-traps
+    (flet ((face (weight) (font:font-face-name (font:make-font "Helvetica Neue" 16 weight))))
+      ;; By name and by number, each the face of that weight; not a condensed one, which is
+      ;; as heavy and narrower.
+      (assert-equal "HelveticaNeue" (face :regular))
+      (assert-equal "HelveticaNeue" (face 400))
+      (assert-equal "HelveticaNeue-Light" (face :light))
+      (assert-equal "HelveticaNeue-Light" (face 300))
+      (assert-equal "HelveticaNeue-Medium" (face :medium))
+      (assert-equal "HelveticaNeue-Medium" (face 500))
+      (assert-equal "HelveticaNeue-Bold" (face :bold))
+      (assert-equal "HelveticaNeue-Bold" (face 700))
+      ;; The heaviest that is as wide as the regular: Helvetica Neue's black face is condensed,
+      ;; and a face as narrow is not what was asked for.
+      (assert-equal "HelveticaNeue-Bold" (face :black))
+      ;; Between two, the nearer.
+      (assert-equal "HelveticaNeue-Medium" (face 520))
+      (assert-equal (face :bold) (face 680))
+      ;; A weight that is not one is said to be wrong.
+      (assert-error 'error (font:make-font "Helvetica Neue" 16 :heavyish))
+      (assert-error 'error (font:make-font "Helvetica Neue" 16 0)))))
+
+(define-test tracking-is-space-after-each-character-in-measuring-carets-and-breaking ()
+  (objc:with-masked-float-traps
+    (let ((plain (font:make-font "Helvetica" 16))
+          (tracked (font:make-font "Helvetica" 16 :regular 3)))
+      (assert-false (eql (font:font-ct-font plain) (font:font-ct-font tracked)))
+      ;; Three points after each of the six characters.
+      (assert-true (< (abs (- (line:measure-text tracked "tracks")
+                              (+ (line:measure-text plain "tracks") 18)))
+                      0.01)
+                   (list (line:measure-text tracked "tracks") (line:measure-text plain "tracks")))
+      ;; The caret after the second character is further on by the space after the first and
+      ;; by up to the space after the second (Core Text puts it in the middle of that space).
+      (let ((further (- (line:caret-x (line:get-line tracked "tracks") 2)
+                        (line:caret-x (line:get-line plain "tracks") 2))))
+        (assert-true (<= 4.4 further 6.01) further))
+      ;; Wider text breaks sooner: what fits in a width plainly does not when tracked.
+      (let* ((text "one two three four five six")
+             (width (line:measure-text plain text)))
+        (assert-eql 1 (length (line:break-lines plain text (+ width 1))))
+        (assert-true (> (length (line:break-lines tracked text (+ width 1))) 1))))))
+
+(define-test a-window-s-fonts-are-kept-by-name-size-weight-and-tracking ()
+  (objc:with-masked-float-traps
+    (let ((context (host::make-mac-context :width 100f0 :height 100f0 :scale 1f0)))
+      (flet ((font (&rest arguments) (apply #'core:context-font context "Helvetica Neue" 16
+                                            arguments)))
+        ;; The same object for the same arguments, so that asking again each frame makes nothing.
+        (assert-eq (font :medium 2) (font :medium 2))
+        (assert-eq (font) (font))
+        ;; Another weight or tracking is another font.
+        (assert-false (eq (font :medium) (font :bold)))
+        (assert-false (eq (font :medium 2) (font :medium 0)))
+        (assert-equal "HelveticaNeue-Medium" (font:font-face-name (font 500)))
+        (assert-eql 2f0 (font:font-tracking (font :medium 2)))))))

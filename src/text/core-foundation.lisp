@@ -11,6 +11,9 @@
            #:cf-string
            #:cf-array-count
            #:cf-array-ref
+           #:cf-dictionary
+           #:cf-double
+           #:cf-number-double
            #:font-attributes))
 
 (in-package #:almighty-bolt/text/core-foundation)
@@ -79,16 +82,48 @@ object). The caller owns it and must CF-RELEASE it."
 (defun cf-array-ref (array index)
   (ccall "CFArrayGetValueAtIndex" :ulong (:ulong array) (:long index)))
 
-(defun font-attributes (ct-font)
-  "A new dictionary that gives CT-FONT as the font attribute. The caller owns it."
-  (sb-alien:with-alien ((keys (array sb-alien:unsigned-long 1))
-                        (values (array sb-alien:unsigned-long 1)))
-    (setf (sb-alien:deref keys 0) (cf-constant "kCTFontAttributeName")
-          (sb-alien:deref values 0) ct-font)
-    (ccall "CFDictionaryCreate" :ulong
-           (:ulong 0)
-           (:pointer (sb-sys:sap-int (sb-alien:alien-sap keys)))
-           (:pointer (sb-sys:sap-int (sb-alien:alien-sap values)))
-           (:long 1)
-           (:pointer (foreign-address "kCFTypeDictionaryKeyCallBacks"))
-           (:pointer (foreign-address "kCFTypeDictionaryValueCallBacks")))))
+(defun cf-dictionary (&rest keys-and-values)
+  "A new CFDictionary of KEYS-AND-VALUES, each a Core Foundation object (an address), the key
+first. The caller owns it."
+  (let ((count (floor (length keys-and-values) 2)))
+    (sb-alien:with-alien ((keys (array sb-alien:unsigned-long 8))
+                          (values (array sb-alien:unsigned-long 8)))
+      (assert (<= count 8))
+      (loop :for (key value) :on keys-and-values :by #'cddr
+            :for i :from 0
+            :do (setf (sb-alien:deref keys i) key
+                      (sb-alien:deref values i) value))
+      (ccall "CFDictionaryCreate" :ulong
+             (:ulong 0)
+             (:pointer (sb-sys:sap-int (sb-alien:alien-sap keys)))
+             (:pointer (sb-sys:sap-int (sb-alien:alien-sap values)))
+             (:long count)
+             (:pointer (foreign-address "kCFTypeDictionaryKeyCallBacks"))
+             (:pointer (foreign-address "kCFTypeDictionaryValueCallBacks"))))))
+
+(defconstant +cf-number-double+ 13 "kCFNumberDoubleType.")
+
+(defun cf-double (number)
+  "A new CFNumber of NUMBER, a double. The caller owns it."
+  (sb-alien:with-alien ((value sb-alien:double (float number 1d0)))
+    (ccall "CFNumberCreate" :ulong (:ulong 0) (:long +cf-number-double+)
+           (:pointer (sb-sys:sap-int (sb-alien:alien-sap (sb-alien:addr value)))))))
+
+(defun cf-number-double (number)
+  "The value of the CFNumber NUMBER as a double, or NIL if NUMBER is 0 (none)."
+  (unless (zerop number)
+    (sb-alien:with-alien ((value sb-alien:double 0d0))
+      (ccall "CFNumberGetValue" :bool (:ulong number) (:long +cf-number-double+)
+             (:pointer (sb-sys:sap-int (sb-alien:alien-sap (sb-alien:addr value)))))
+      value)))
+
+(defun font-attributes (ct-font &optional (tracking 0f0))
+  "A new dictionary that gives CT-FONT as the font attribute, and TRACKING points of space after
+each character if it is not zero (Core Text's kerning). The caller owns it."
+  (if (zerop tracking)
+      (cf-dictionary (cf-constant "kCTFontAttributeName") ct-font)
+      (let* ((kern (cf-double tracking))
+             (dictionary (cf-dictionary (cf-constant "kCTFontAttributeName") ct-font
+                                        (cf-constant "kCTKernAttributeName") kern)))
+        (cf-release kern)
+        dictionary)))

@@ -134,11 +134,15 @@ at ZOOM."
 ZOOMED, the same at the pane's zoom, which draws."
   base zoomed)
 
-(defmethod context-font ((context pane-context) name size &optional (weight :regular))
+(defmethod context-font ((context pane-context) name size &optional weight tracking)
   (let* ((outer (pane-context-outer context))
          (zoom (pane-context-zoom context))
-         (base (context-font outer name size weight)))
-    (zoomed-font base (if (= zoom 1f0) base (context-font outer name (* size zoom) weight)))))
+         (tracking (or tracking 0))
+         (base (context-font outer name size weight tracking)))
+    ;; Drawn ZOOM times larger, the space after each character too.
+    (zoomed-font base (if (= zoom 1f0)
+                          base
+                          (context-font outer name (* size zoom) weight (* tracking zoom))))))
 
 (defmethod context-measure ((context pane-context) font string)
   (context-measure (pane-context-outer context) (zoomed-font-base font) string))

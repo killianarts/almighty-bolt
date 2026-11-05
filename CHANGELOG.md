@@ -63,7 +63,7 @@ are not listed.
 - The examples' make targets take `TASK=` alone, not `VARIANT=immediate` (`make 7guis TASK=counter`, `make image` writes `build/apps`), each task's app is in `app.lisp`, and their systems are `almighty-bolt-7guis/apps` and `almighty-bolt-stress/apps` ([0.3](docs/releases/dev.md#examples)).
 - The canvas examples (the cells, the circles and the stress apps) use only the public `almighty-bolt` package, not `almighty-bolt/internals` ([0.3](docs/releases/dev.md#examples)).
 - Quit (Command-Q) in a Lisp you work in closes every window, not only the one in front ([0.3](docs/releases/dev.md#more-than-one-window)).
-- `context-font` takes an optional weight, so a method of it for a context of your own needs `&optional weight` ([0.3](docs/releases/dev.md#backwards-incompatible-changes-in-xy)).
+- `context-font` takes an optional weight, any from 1 to 1000 or by name, and an optional tracking, so a method of it for a context of your own needs `&optional weight tracking` ([0.3](docs/releases/dev.md#backwards-incompatible-changes-in-xy)).
 - The pointer highlights a row of a menu only when it moves onto it, so a pointer at rest no longer takes the highlight from the arrow keys ([0.3](docs/releases/dev.md#input)).
 - A menu longer than the window shows the rows that fit and scrolls; `:max-rows` on `dropdown` and `menu-button`; letters typed in an open menu go to the row they begin ([0.3](docs/releases/dev.md#input)).
 - A `list-box` scrolls to show the selected row on its first frame and when the app selects another ([0.3](docs/releases/dev.md#input)).

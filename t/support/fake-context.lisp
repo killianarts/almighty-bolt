@@ -31,12 +31,21 @@
                          (:constructor make-fake-context
                              (&key (width 400f0) (height 300f0) (scale 1f0)))))
 
-(defmethod context-font ((context fake-context) name size &optional weight)
-  (list name size (or weight :regular)))
+(defmethod context-font ((context fake-context) name size &optional weight tracking)
+  (list name size (or weight :regular) (or tracking 0)))
+
+(defun heavy-p (weight)
+  "True for a weight of 600 or more, given as a number or a name."
+  (if (numberp weight)
+      (>= weight 600)
+      (member weight '(:semibold :bold :extra-bold :black))))
 
 (defun width-of (font)
-  "How wide a character of FONT is: 9 points in a bold font, and 8 in any other."
-  (if (and (consp font) (eq (third font) :bold)) 9f0 +char-width+))
+  "How wide a character of FONT is: 9 points in a font of weight 600 or more, and 8 in any other,
+and the font's tracking after each."
+  (if (consp font)
+      (+ (if (heavy-p (third font)) 9f0 +char-width+) (float (or (fourth font) 0) 1f0))
+      +char-width+))
 
 (defmethod context-measure ((context fake-context) font string)
   (values (* (width-of font) (length string)) +ascent+ +descent+))
