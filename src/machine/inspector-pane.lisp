@@ -40,7 +40,9 @@
   ;; each an action and the function that is told what went wrong.
   (target nil)
   (describe nil)
-  (asked '()))
+  (asked '())
+  ;; What Edit in the View calls, as the frame gives it.
+  (edit-view nil))
 
 (defun do-asked (state)
   "Do what the inspector asked, in order, to the app in the pane."
@@ -58,18 +60,21 @@
                     (when message
                       (funcall report message))))))))
 
-(defun inspector-pane (target &key (id (required-id 'inspector-pane)) (flex 1))
+(defun inspector-pane (target &key (id (required-id 'inspector-pane)) (flex 1) edit-view)
   "The inspector, here, of TARGET: an app in an app pane of this window, as APP-PANE returns it, or
 NIL (it then says there is nothing to inspect). Pick, then a press on the app in the pane, says what
 the widget there is, and the inspector changes its value and its theme as it does in a window of its
-own. The :id is required: what it picked is kept by it."
+own. For a widget a view drew it says which view and widget, and what the code gives it; EDIT-VIEW,
+if given, is called with the view's name and the widget's id when Edit in the View is pressed. The
+:id is required: what it picked is kept by it."
   (let* ((ui *ui*)
          (box (open-box ui :column :id id))
          (state (state-of ui (box-key box) #'make-inspector-pane-state)))
     (setf (box-cross-align box) :stretch
           (box-fill box) t
           (box-flex box) (float flex 1f0)
-          (inspector-pane-state-target state) target)
+          (inspector-pane-state-target state) target
+          (inspector-pane-state-edit-view state) edit-view)
     (unless (inspector-pane-state-describe state)
       (setf (inspector-pane-state-describe state)
             (make-inspector (lambda () (inspector-pane-state-target state))
@@ -77,7 +82,10 @@ own. The :id is required: what it picked is kept by it."
                               (setf (inspector-pane-state-asked state)
                                     (append (inspector-pane-state-asked state)
                                             (list (cons action report))))
-                              (request-frame (ui-context ui))))))
+                              (request-frame (ui-context ui)))
+                            :edit-view (lambda (name widget)
+                                         (let ((edit (inspector-pane-state-edit-view state)))
+                                           (when edit (funcall edit name widget)))))))
     (do-asked state)
     (if target
         (funcall (inspector-pane-state-describe state))

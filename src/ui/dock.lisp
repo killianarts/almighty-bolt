@@ -55,7 +55,9 @@
   (:export #:dock
            #:dock-panes
            #:remove-pane
-           #:place-pane))
+           #:place-pane
+           #:pane-group
+           #:show-pane))
 
 (in-package #:almighty-bolt/ui/dock)
 
@@ -146,6 +148,20 @@ side of its own if it is not alone in it."
                (list "Move to Next Group" "Move to Previous Group"))
           (and (> (length keys) 1)
                (mapcar #'car *split-items*))))
+
+(defun pane-group (layout key)
+  "The keys of the panes in the group of LAYOUT that has the pane KEY, or NIL."
+  (find-if (lambda (keys) (member key keys :test #'equal)) (groups layout)))
+
+(defun show-pane (layout key)
+  "LAYOUT with the group that has the pane KEY showing it: for an app that brings a pane to the
+front (the dock takes up a layout given that is not the one it was given before)."
+  (ecase (first layout)
+    (:tabs (if (member key (cddr layout) :test #'equal)
+               (list* :tabs key (cddr layout))
+               layout))
+    (:split (destructuring-bind (direction size first second) (rest layout)
+              (list :split direction size (show-pane first key) (show-pane second key))))))
 
 (defun with-panes (layout keys)
   "LAYOUT with only the panes in KEYS, and any of KEYS it did not have in its first group."

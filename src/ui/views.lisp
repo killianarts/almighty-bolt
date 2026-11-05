@@ -1,5 +1,11 @@
 (defpackage #:almighty-bolt/ui/views
   (:use #:cl)
+  (:import-from #:almighty-bolt/ui/box
+                #:box-id
+                #:box-parent
+                #:box-view)
+  (:import-from #:almighty-bolt/ui/ui
+                #:*drawing-view*)
   (:import-from #:almighty-bolt/ui/widgets
                 #:label)
   (:import-from #:almighty-bolt/ui/catalogue
@@ -17,6 +23,10 @@
            #:view
            #:set-view
            #:find-view
+           #:view-file
+           #:views-version
+           #:view-widget
+           #:wired-keys
            #:view-names
            #:wiring-problems
            #:*view-defined-hook*))
@@ -39,6 +49,20 @@
 
 (defvar *views* (make-hash-table)
   "The views defined, each a form, by name.")
+
+(defvar *view-files* (make-hash-table)
+  "The file each view was defined in (by DEFINE-VIEW, compiled or loaded from it), by name.")
+
+(defvar *views-version* 0
+  "How many times a view has been defined, so that what draws views (an app in a pane) knows to
+draw them again.")
+
+(defun views-version () *views-version*)
+
+(defun view-file (name)
+  "The file the view called NAME was defined in, or NIL (one defined at the REPL, or by a designer
+before it was saved)."
+  (values (gethash name *view-files*)))
 
 (defun make-weak-table ()
   "A table whose entries go when nothing else holds their key (where the Lisp can say so)."
@@ -121,13 +145,17 @@ compiled again since (and no longer held) is not counted."
 so that compiling a view's file does not fail for it: drawing the view checks the code that runs,
 and is an error if it does not fit."))
 
-(defun set-view (name form)
-  "Make FORM, checked (CHECK-VIEW-FORM), the view called NAME, and show it in every window. Returns
-what does not fit between it and the code that wires it (WIRING-PROBLEMS), and signals a style
-warning (VIEW-WIRING-MISMATCH) of each."
+(defun set-view (name form &key file)
+  "Make FORM, checked (CHECK-VIEW-FORM), the view called NAME, and show it in every window. FILE, if
+given, is the file it is defined in (VIEW-FILE); one defined again without a file keeps the one it
+had. Returns what does not fit between it and the code that wires it (WIRING-PROBLEMS), and signals
+a style warning (VIEW-WIRING-MISMATCH) of each."
   (check-type name (and symbol (not null)))
   (check-view-form form)
   (setf (gethash name *views*) form)
+  (when file
+    (setf (gethash name *view-files*) (pathname file)))
+  (incf *views-version*)
   (when *view-defined-hook* (funcall *view-defined-hook*))
   (let ((problems (wiring-problems name)))
     (dolist (problem problems)
@@ -141,7 +169,8 @@ defined when compiled too, so that the code that wires it, compiled after, is ch
   (check-type name (and symbol (not null)))
   (check-view-form form)
   `(eval-when (:compile-toplevel :load-toplevel :execute)
-     (set-view ',name ',form)))
+     (set-view ',name ',form :file ,(let ((file (or *compile-file-truename* *load-truename*)))
+                                      (and file (namestring file))))))
 
 (define-condition view-not-defined (style-warning)
   ((name :initarg :name :reader view-not-defined-name))
@@ -166,7 +195,8 @@ defined when compiled too, so that the code that wires it, compiled after, is ch
         (when problems
           (error "The view ~s and the code that wires it do not fit: ~{~a~^ ~}" name problems)))
       (setf (gethash spec *checked*) form))
-    (let ((*views-drawn* (cons name *views-drawn*)))
+    (let ((*views-drawn* (cons name *views-drawn*))
+          (*drawing-view* name))
       (draw-form form :wires wires :id id))))
 
 ;; A view inside another: the view of that name, drawn with the node's id for its outermost.
@@ -175,7 +205,8 @@ defined when compiled too, so that the code that wires it, compiled after, is ch
     (cond ((null name) (label "A view: choose which" :id id))
           ((null form) (label (format nil "No view is called ~(~s~)" name) :id id))
           ((member name *views-drawn*) (label (format nil "~(~s~) is inside itself" name) :id id))
-          (t (let ((*views-drawn* (cons name *views-drawn*)))
+          (t (let ((*views-drawn* (cons name *views-drawn*))
+                   (*drawing-view* name))
                (draw-form form :id id))))))
 
 (defun clause-entry (clause)
@@ -230,7 +261,8 @@ defined then is a style warning, and the wiring is checked when the view is draw
                              (setf wired (list* `(function ,function) key wired))))
                           (t
                            (let ((function (gensym (symbol-name key))))
-                             (push `(,function () ,value) functions)
+                             ;; What it draws (:contents) is the app's, not the view's.
+                             (push `(,function () (let ((*drawing-view* nil)) ,value)) functions)
                              (setf wired (list* `(function ,function) key wired))))))
           (push (list* wire-id kind (loop :for (key) :on (cddr clause) :by #'cddr :collect key))
                 spec)
@@ -250,3 +282,38 @@ defined then is a style warning, and the wiring is checked when the view is draw
              (declare (dynamic-extent ,list))
              (draw-view ',name ,id (load-time-value (note-wiring ',name ',spec)) ,list)
              nil))))))
+
+;;; --- from what is on the screen to the view it came from ---
+
+(defun form-ids (form)
+  (destructuring-bind (kind id &optional options &rest children) form
+    (declare (ignore kind options))
+    (cons id (mapcan #'form-ids children))))
+
+(defun view-widget (box)
+  "If a view drew BOX (a box of the last frame), the view's name and the id, in the view, of the
+widget it is or is part of: two values, or NIL. A widget drawn as the view's outermost with an id of
+the code's (VIEW's :id) is the view's outermost."
+  (let ((name (box-view box)))
+    (when name
+      (let ((ids (let ((form (find-view name))) (and form (form-ids form)))))
+        (loop :for at = box :then (box-parent at)
+              :while (and at (eq (box-view at) name))
+              :do (when (member (box-id at) ids)
+                    (return-from view-widget (values name (box-id at))))
+                  ;; The view's outermost box, called by the code's id.
+                  (let ((parent (box-parent at)))
+                    (when (and ids (or (null parent) (not (eq (box-view parent) name))))
+                      (return-from view-widget (values name (first ids))))))
+        nil))))
+
+(defun wired-keys (name id)
+  "The options and wires that the code, as loaded, gives the widget ID of the view NAME: what the
+view's own form does not decide for it."
+  (let ((keys '()))
+    (loop :for spec :being :the :hash-keys :of *wirings* :using (hash-value view)
+          :when (eq view name)
+            :do (dolist (clause spec)
+                  (when (eq (first clause) id)
+                    (setf keys (union keys (cddr clause))))))
+    (sort keys #'string< :key #'symbol-name)))

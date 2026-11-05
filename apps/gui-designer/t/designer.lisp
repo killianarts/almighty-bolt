@@ -621,3 +621,84 @@ collector sees, where a local one that is not used again may not be.")
     (assert-equal "t-nested" (shown-value session :option-name))
     ;; Its widgets, drawn inside, the outermost with the node's id.
     (assert-equal "Inside" (s:node-name (m:find-node session :id :inner :within :view-1)))))
+
+;;; --- a view of the image, opened live ---
+
+(defun view-file-with (name text &key code)
+  "A file in the temporary directory that defines the view NAME (in CL-USER) with a label saying TEXT,
+and, with CODE, a function too; loaded, as an app's system loads it. Its path."
+  (let ((path (merge-pathnames (format nil "~(~a~).lisp" name) (uiop:temporary-directory))))
+    (with-open-file (out path :direction :output :if-exists :supersede)
+      (format out "(in-package #:common-lisp-user)~%~%(almighty-bolt:define-view ~(~a~)~%  ~
+                   (:column :page (:gap 4) (:label :words (:text ~s))))~%"
+              name text)
+      (when code
+        (format out "~%(defun ~(~a~)-words () ~s)~%" name text)))
+    (load path)
+    path))
+
+(define-test a-view-of-the-image-is-opened-by-its-name-live-and-saved-to-its-own-file ()
+  (multiple-value-bind (screen session) (open-designer)
+    (let* ((name (intern (format nil "LIVE-~d" (random 1000000000)) :cl-user))
+           (path (view-file-with name "Before"))
+           (asked nil))
+      (setf (core:context-file-chooser (screen-context screen))
+            (lambda (kind types offered)
+              (declare (ignore kind types offered))
+              (setf asked t)
+              nil))
+      (unwind-protect
+           (progn
+             ;; The file it came from is known.
+             (assert-equal (truename path) (truename (views:view-file name)))
+             (m:click session :id :open-view)
+             (m:click session :role :menu-item
+                              :name (format nil "common-lisp-user::~(~a~)" name))
+             (assert-equal "Before" (s:node-name (in-view session :words)))
+             ;; An edit is made in the image as it is made: what draws the view shows it.
+             (m:click session :id :words :within :canvas)
+             (m:set-value session "After" :id :option-text)
+             (assert-equal "After" (catalogue:form-option (find-form (views:find-view name) :words)
+                                                          :text))
+             (assert-true (search "Live" (shown-name session :status)) (shown-name session :status))
+             ;; Undone, in the image too.
+             (m:click session :id :undo :within :toolbar)
+             (assert-equal "Before" (catalogue:form-option (find-form (views:find-view name) :words)
+                                                           :text))
+             (m:click session :id :redo :within :toolbar)
+             ;; Saved to the file it came from, without asking where.
+             (m:click session :id :save :within :toolbar)
+             (assert-false asked)
+             (assert-true (search "\"After\"" (uiop:read-file-string path))
+                          (uiop:read-file-string path)))
+        (remhash name views::*views*)
+        (when (probe-file path) (delete-file path))))))
+
+(define-test a-view-in-a-file-with-code-is-saved-elsewhere-and-the-file-is-left-as-it-is ()
+  (multiple-value-bind (screen session) (open-designer)
+    (let* ((name (intern (format nil "CODED-~d" (random 1000000000)) :cl-user))
+           (path (view-file-with name "Before" :code t))
+           (before (uiop:read-file-string path))
+           (asked nil))
+      (setf (core:context-file-chooser (screen-context screen))
+            (lambda (kind types offered)
+              (declare (ignore kind types offered))
+              (setf asked t)
+              nil))
+      (unwind-protect
+           (progn
+             (m:click session :id :open-view)
+             (m:click session :role :menu-item
+                              :name (format nil "common-lisp-user::~(~a~)" name))
+             (m:click session :id :words :within :canvas)
+             (m:set-value session "After" :id :option-text)
+             ;; Live in the image, but Save asks where: the file has code, which writing the view
+             ;; there would lose.
+             (assert-equal "After" (catalogue:form-option (find-form (views:find-view name) :words)
+                                                          :text))
+             (m:click session :id :save :within :toolbar)
+             (dotimes (i 2) (draw screen))
+             (assert-true asked)
+             (assert-equal before (uiop:read-file-string path)))
+        (remhash name views::*views*)
+        (when (probe-file path) (delete-file path))))))

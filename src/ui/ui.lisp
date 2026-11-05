@@ -12,6 +12,7 @@
                 #:box-kind
                 #:box-labelled-by
                 #:box-tooltip
+                #:box-view
                 #:box-data
                 #:box-interactive
                 #:box-inert
@@ -45,7 +46,8 @@
                 #:+modifier-shift+
                 #:make-display-list
                 #:now-ns)
-  (:export #:ui
+  (:export #:*drawing-view*
+           #:ui
            #:make-ui
            #:*ui*
            #:ui-context
@@ -397,6 +399,9 @@ but the last, which is being opened)."
            :container (and parent
                            (format nil "the ~(~a~)~@[ ~s~]" (box-kind parent) (box-id parent))))))
 
+(defvar *drawing-view* nil
+  "The name of the view being drawn (DEFINE-VIEW), which each box opened notes, or NIL.")
+
 (defun open-box (ui kind &key id labelled-by tooltip rooted-at)
   "Start a box of KIND inside the one that is open. Its key is made from its parent's and
 its ID (or, with none, its place among its parent's children), so it is the same from one
@@ -409,6 +414,7 @@ the same key are an error (DUPLICATE-ID): the ui could not tell them apart."
     (setf (box-id box) id
           (box-labelled-by box) labelled-by
           (box-tooltip box) tooltip
+          (box-view box) *drawing-view*
           (box-parent box) parent)
     (let ((key (mix (cond (rooted-at (mix rooted-at (hash-of :rooted)))
                           (parent (box-key parent))

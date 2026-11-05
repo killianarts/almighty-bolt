@@ -21,6 +21,9 @@ are not listed.
 - The start of a GUI designer, in `apps/gui-designer`: a view drawn with the real widgets and listed as an outline, to which widgets are added, whose ids and options are changed, and which is saved as a `define-view` file and opened again ([0.3](docs/releases/dev.md#the-gui-designer-begun)).
 - `define-view` and `view`: a view made in the GUI designer, drawn by an app with its own code wired to it by the designer's ids, checked when the code is compiled ([0.3](docs/releases/dev.md#views-a-design-wired-to-code)).
 - `drag-source`, `drop-target` and `dragging`: dragging within an app; widgets dragged into the GUI designer's view and within it ([0.3](docs/releases/dev.md#dragging)).
+- The running app edited in the studio: a widget picked in it opens the view that drew it in the designer, live, and an edit there changes the running app as it is made ([0.3](docs/releases/dev.md#an-app-in-a-pane)).
+- Open View in the GUI designer: a view the running Lisp has, opened by name and edited live, and saved to the file it came from ([0.3](docs/releases/dev.md#the-gui-designer-begun)).
+- `show-pane`, `place-pane` and `pane-group`: an app moves a dock's panes ([0.3](docs/releases/dev.md#docked-panes)).
 - `app-pane`: another app, working, in an area of this one, at a zoom, made again when its code is compiled, which VoiceOver and the machine interface see into; and `inspector-pane`, the inspector of it in the same window ([0.3](docs/releases/dev.md#an-app-in-a-pane)).
 - `dock`: panes in groups of tabs, moved by dragging their tabs, by a tab's menu or with Control-Shift-Right and -Left, each keeping what it holds ([0.3](docs/releases/dev.md#docked-panes)).
 - A `shortcut` in a dock's pane is heard only in the active pane ([0.3](docs/releases/dev.md#docked-panes)).

@@ -39,6 +39,7 @@
            #:box-data
            #:box-labelled-by
            #:box-tooltip
+           #:box-view
            #:box-theme
            #:box-aux
            #:box-aux-doubles
@@ -109,6 +110,9 @@
   (labelled-by nil)
   ;; What it says when the pointer rests on it, or NIL.
   (tooltip nil)
+  ;; The name of the view (DEFINE-VIEW) that drew it, or NIL: for a tool that goes from what is on the
+  ;; screen to the design it came from.
+  (view nil)
   ;; The theme it is drawn in: the one it was described in.
   (theme nil)
   ;; A small array of doubles, made once and refilled, for a widget's numbers that the other slots

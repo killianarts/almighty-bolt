@@ -403,7 +403,13 @@ and Move to Previous Group (when there is another group), and Split Left,
 Split Right, Split Up and Split Down (when its group has another pane), which
 put it beside its group. Control-Shift-Right and Control-Shift-Left move the
 active pane to the next and the previous group, unless what is in the pane
-takes those keys.
+takes those keys. An app moves panes by giving the dock a layout:
+`(bolt:show-pane layout key)` is the layout with the pane KEY shown in its
+group, `(bolt:place-pane layout key anchor zone &optional size)` the layout
+with KEY put in ANCHOR's group (`:into`) or beside it in a group of its own
+(`:left`, `:right`, `:top`, `:bottom`, the group put beside SIZE points wide
+or tall), and `(bolt:pane-group layout key)` the keys of the group that has
+KEY.
 
 `app-pane` (`constructor &key id zoom width height flex` and the size limits)
 is another app, working, in an area of this one: a designer showing the app
@@ -429,7 +435,10 @@ printed.
 TARGET, an app in an `app-pane` as it returns it (or `nil`): Pick, then a press
 on the app in the pane, says what the widget there is, and the inspector
 changes its value and theme as it does in a window of its own, at the start of
-the next frame.
+the next frame. `:edit-view`, a function of a view's name and the id of a
+widget in it, is called when Edit in the View is pressed for a widget that a
+view drew (see [The inspector](#the-inspector)): the studio opens the view in
+its designer with it.
 
 `design-surface` (`:id :selected :flex`) is for a designer, which draws the view being designed in
 it: what is in it is drawn as it looks, one under another, and none of it works. The pointer, a press
@@ -691,6 +700,14 @@ again is drawn in every open window at once, with the code as it is.
 
 A view drawn this way allocates nothing beyond what the same widgets written by hand do.
 
+A view remembers the file it was defined in (`view-file` in `almighty-bolt/ui/views`). What a
+view drew knows it: each widget of it on the screen knows the view's name and its own id in the
+view, and what the code put in it with `:contents` is the code's. The inspector says so, and the
+designer opens a view the image has by its name, live: every edit is made in the image as it is
+made, so a running app that draws it (in a window, or in the studio's App pane) changes with it, and
+Save writes it to the file it came from, if that file holds nothing but the view (one with code in
+it too is not overwritten: Save asks where).
+
 ## Dragging
 
 `(bolt:drag-source (:id :new-card :payload card :label "Card") ...)` is a container whose contents
@@ -732,7 +749,7 @@ and when an app's frame is made from the REPL, the error is the caller's, as bef
 
 ## The inspector
 
-While an app is developed (opened with `open-app`, or with `run-app` and `:hot` or `:watch-systems`), Command-Option-I in its window opens the inspector, in a window of its own beside it that closes with it; the keys again, in the app's window, close it. In an app that is delivered (`run-app` alone) the keys are the app's. Its Pick button makes the next press in the app's window pick the widget under the pointer instead of pressing it (Escape, in either window, stops), and an outline follows the pointer while it picks and stays round what it picked. It says what the picked widget is: its kind and role, its id, its name and value, where it is and how big, the theme it is drawn in, whether it is enabled, and what the tree says of its state (a check box's `:checked`, a list's items). It says it as of the app's last frame, and the pick is kept while the widget is described in the same place, through hot reloads.
+While an app is developed (opened with `open-app`, or with `run-app` and `:hot` or `:watch-systems`), Command-Option-I in its window opens the inspector, in a window of its own beside it that closes with it; the keys again, in the app's window, close it. In an app that is delivered (`run-app` alone) the keys are the app's. Its Pick button makes the next press in the app's window pick the widget under the pointer instead of pressing it (Escape, in either window, stops), and an outline follows the pointer while it picks and stays round what it picked. It says what the picked widget is: its kind and role, its id, its name and value, where it is and how big, the theme it is drawn in, whether it is enabled, and what the tree says of its state (a check box's `:checked`, a list's items). For a widget a view drew, it says which view and which of its widgets, and what of it the code gives (`:on-press`, `:text`); the rest is the view's. Where the inspector has a designer beside it (the studio), Edit in the View opens the view there, live, with the widget selected. It says it as of the app's last frame, and the pick is kept while the widget is described in the same place, through hot reloads.
 
 It changes the picked widget as a person would, with the machine interface's actions, so the app stays in charge of what it holds: Press for a button, a menu button, a check box, a switch or a dropdown; a field and Set for a text field, a combo box, a text area or a slider (a number); and a button for each option of a choice or a dropdown and each item of a list. What it asks for is done after its frame, on a thread of its own, through a session on the app's window, and if it cannot be (the widget is disabled) the inspector says why.
 

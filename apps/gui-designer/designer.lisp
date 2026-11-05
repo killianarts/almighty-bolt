@@ -33,6 +33,8 @@
                 #:draw-form)
   (:import-from #:almighty-bolt/ui/views
                 #:set-view
+                #:find-view
+                #:view-file
                 #:view-names)
   (:export #:make-designer
            #:designer-parts
@@ -49,7 +51,9 @@
 ;;; to change, with the start of the code that wires it below. A widget from the left goes into the
 ;;; selected container, or after the selected widget. The view is saved as a file of Lisp that
 ;;; defines it (DEFINE-VIEW), which an app loads before the code that draws it (VIEW), and is defined
-;;; in the image as it is saved, so that an open window shows it at once. It uses the public package,
+;;; in the image as it is saved, so that an open window shows it at once. A view the image has is
+;;; opened by its name (Open View), and is then live: every edit is made in the image as it is made,
+;;; so an app that draws it, running, changes with it, and Save writes it to the file it came from. It uses the public package,
 ;;; and the library's catalogue of widgets, which it draws the view with as an app does.
 ;;;
 ;;;   (almighty-bolt-gui-designer:open-designer)
@@ -117,6 +121,32 @@ Nothing in the file is evaluated: IN-PACKAGE is followed, as LOAD would."
                          (check-view-form view)
                          (return-from read-view (values name (form-node view)))))))
       (error "The file defines no view (DEFINE-VIEW)."))))
+
+(defun view-title (name)
+  "How the view NAME is listed: package::name, in lower case, whatever package is current."
+  (format nil "~(~a::~a~)" (package-name (symbol-package name)) (symbol-name name)))
+
+(defun view-only-file-p (path name)
+  "True if the file PATH holds nothing but the definition of the view NAME (and the package it is
+in): a file the designer wrote, which writing again loses nothing of. A file with code in it too is
+not, and is edited where the code is."
+  (handler-case
+      (with-open-file (in path)
+        (with-standard-io-syntax
+          (let ((*read-eval* nil)
+                (*package* (find-package :cl-user))
+                (views 0))
+            (loop :for form = (read in nil in)
+                  :until (eq form in)
+                  :do (cond ((and (consp form) (eq (first form) 'in-package))
+                             (setf *package* (or (find-package (second form))
+                                                 (return-from view-only-file-p nil))))
+                            ((and (consp form) (eq (first form) 'bolt:define-view)
+                                  (eq (second form) name))
+                             (incf views))
+                            (t (return-from view-only-file-p nil))))
+            (= views 1))))
+    (error () nil)))
 
 (defun wiring-text (name view)
   "The start of the code that draws the view called NAME (as written): a line for each widget, by
@@ -339,10 +369,12 @@ widget's id."
 
 (defun designer-parts ()
   "The GUI designer's parts, each a function that draws one, all of one design and its history:
-(values toolbar left canvas right keys). LEFT is the widgets to add and the outline, CANVAS the view
-drawn, RIGHT the selected widget's options and the wiring, KEYS the shortcuts (Command-Z and
-Command-Shift-Z), described after the part that has the keyboard so that a text field undoes its
-own typing first. MAKE-DESIGNER puts them in a window; the studio puts them in panes."
+(values toolbar left canvas right keys open-view). LEFT is the widgets to add and the outline,
+CANVAS the view drawn, RIGHT the selected widget's options and the wiring, KEYS the shortcuts
+(Command-Z and Command-Shift-Z), described after the part that has the keyboard so that a text field
+undoes its own typing first. OPEN-VIEW is not drawn: it is called with the name of a view the image
+has, and the id of a widget in it, to open that view live with the widget selected. MAKE-DESIGNER
+puts them in a window; the studio puts them in panes."
   (bolt:state-let ((view (form-node +sample+))
                    ;; What the view is called, which an app draws it by (the file's name, once
                    ;; saved), and the package that name is in (the app's), as written.
@@ -359,8 +391,22 @@ own typing first. MAKE-DESIGNER puts them in a window; the studio puts them in p
                    (redo '())
                    ;; What the last change was, if it was an option's: another change of the same
                    ;; option (typing a word) is one step with it.
-                   (last-edit nil))
-    (labels ((select (id)
+                   (last-edit nil)
+                   ;; The view's name (a symbol) while it is live: each edit is made in the image
+                   ;; as it is made. And the file it is saved to without asking, if there is one.
+                   (live nil)
+                   (file nil))
+    (labels ((make-live ()
+               "Make the view, as it is now, the live view in the image, and say what of the code
+that wires it no longer fits."
+               (when live
+                 (let ((problems (handler-bind ((warning #'muffle-warning))
+                                   (set-view live (node-form view)))))
+                   (setf status (if problems
+                                    (format nil "~{~a~^ ~}" problems)
+                                    (format nil "Live: ~(~a~) changes in the running app as it ~
+                                                 is edited." live))))))
+             (select (id)
                (unless (eq id selected)
                  (clrhash drafts)
                  (setf selected id
@@ -373,11 +419,13 @@ own typing first. MAKE-DESIGNER puts them in a window; the studio puts them in p
                    (push view undo))
                  (setf redo '()
                        view new
-                       last-edit edit)))
+                       last-edit edit)
+                 (make-live)))
              (go-to (new)
                "Show NEW, a view from the history, keeping the selection if it has the widget."
                (setf view new
                      last-edit nil)
+               (make-live)
                (clrhash drafts)
                (unless (and selected (find-by-id view selected))
                  (select nil)))
@@ -388,7 +436,31 @@ own typing first. MAKE-DESIGNER puts them in a window; the studio puts them in p
              (step-forward ()
                (when redo
                  (push view undo)
-                 (go-to (pop redo)))))
+                 (go-to (pop redo))))
+             (open-view (symbol &optional widget)
+               "Open the view the image has called SYMBOL, live, with WIDGET (an id in it)
+selected if given."
+               (let ((form (find-view symbol)))
+                 (when form
+                   (setf live nil)
+                   (change (form-node form))
+                   (setf live symbol
+                         file (view-file symbol)
+                         name (string-downcase (symbol-name symbol))
+                         package (string-downcase (package-name (symbol-package symbol)))
+                         status (format nil "Live: ~(~a~) changes in the running app as it is ~
+                                             edited." symbol))
+                   (select (and widget (find-by-id view widget) widget)))))
+             (save-to (path symbol)
+               "Write the view to PATH as the view SYMBOL, and make it the live view."
+               (with-open-file (out path :direction :output :if-exists :supersede)
+                 (write-view symbol view out))
+               (setf name (string-downcase (symbol-name symbol))
+                     live symbol
+                     file (pathname path))
+               (let ((problems (handler-bind ((warning #'muffle-warning))
+                                 (set-view symbol (node-form view) :file path))))
+                 (setf status (format nil "Saved to ~a~:[.~;; ~:*~{~a~^ ~}~]" path problems)))))
       (values
         (lambda ()
           (bolt:column (:id :toolbar-part :cross-align :stretch)
@@ -397,13 +469,26 @@ own typing first. MAKE-DESIGNER puts them in a window; the studio puts them in p
              (bolt:panel (:id :toolbar :all 10 :radius 0)
                (bolt:row (:gap 8 :cross-align :center)
                  (when (or (bolt:button "New" :id :new) (equal menu "New"))
+                   (setf live nil file nil)
                    (change (form-node +empty+))
                    (setf status "" name "view")
                    (select nil))
+                 ;; The views the image has, each opened live.
+                 (let* ((names (sort (view-names) #'string< :key #'view-title))
+                        (chosen (bolt:menu-button "Open View"
+                                                  (or (mapcar #'view-title names)
+                                                      '("No views yet"))
+                                                  :id :open-view)))
+                   (when chosen
+                     (let ((symbol (find chosen names :key #'view-title :test #'string=)))
+                       (when symbol (open-view symbol)))))
                  (when (or (bolt:button "Open…" :id :open) (equal menu "Open…"))
                    (setf opening t))
                  (when (or (bolt:button "Save…" :id :save) (equal menu "Save…"))
-                   (setf saving t))
+                   ;; To its own file without asking, if that file is only the view.
+                   (if (and live file (view-only-file-p file live))
+                       (save-to file live)
+                       (setf saving t)))
                  (when (bolt:button "Remove" :id :remove
                                              :enabled (and selected (not (eq selected (node-id view)))
                                                            t))
@@ -428,23 +513,21 @@ own typing first. MAKE-DESIGNER puts them in a window; the studio puts them in p
                 (let ((home (find-package (string-upcase package))))
                   (if (null home)
                       (setf status (format nil "Not saved: this Lisp has no package called ~a." package))
-                      (let ((symbol (intern (string-upcase (pathname-name path)) home)))
-                        (setf name (string-downcase (pathname-name path)))
-                        (with-open-file (out path :direction :output :if-exists :supersede)
-                          (write-view symbol view out))
-                        ;; Defined here too, so that a window that draws it shows it now; what the
-                        ;; code that wires it no longer fits is said.
-                        (let ((problems (handler-bind ((warning #'muffle-warning))
-                                          (set-view symbol (node-form view)))))
-                          (setf status (format nil "Saved to ~a~:[.~;; ~:*~{~a~^ ~}~]"
-                                               path problems))))))))
+                      ;; Defined here too, so that a window that draws it shows it now, and live
+                      ;; from then on; what the code that wires it no longer fits is said.
+                      (save-to path (intern (string-upcase (pathname-name path)) home))))))
             (let ((path (bolt:open-file-dialog :id :open-panel :show opening :types '("lisp"))))
               (setf opening nil)
               (when path
                 (handler-case
                     (with-open-file (in path)
                       (multiple-value-bind (opened new) (read-view in)
+                        (setf live nil)
                         (change new)
+                        ;; Live if the image has the view: the app that draws it changes with it.
+                        (setf live (and (find-view opened) opened)
+                              file (pathname path))
+                        (make-live)
                         (setf name (string-downcase (symbol-name opened))
                               package (string-downcase (package-name (symbol-package opened)))
                               status (format nil "Opened ~a." path)))
@@ -496,7 +579,10 @@ own typing first. MAKE-DESIGNER puts them in a window; the studio puts them in p
           (when (bolt:shortcut #\z :command)
             (step-back))
           (when (bolt:shortcut #\z :command :shift)
-            (step-forward)))))))
+            (step-forward)))
+        ;; For a tool beside it (the studio's inspector): open a view of the image, live.
+        (lambda (symbol &optional widget)
+          (open-view symbol widget))))))
 
 (defun make-designer ()
   "The GUI designer in a window of its own: its toolbar over its parts side by side."

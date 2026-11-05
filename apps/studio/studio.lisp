@@ -41,12 +41,16 @@ looks at it, and a test.")
     (and symbol (fboundp symbol) symbol)))
 
 (defun make-studio ()
-  (multiple-value-bind (toolbar widgets canvas options view-keys) (gui-designer:designer-parts)
+  (multiple-value-bind (toolbar widgets canvas options view-keys open-view)
+      (gui-designer:designer-parts)
     (multiple-value-bind (settings preview theme-keys) (theme-designer:designer-parts)
       (bolt:state-let ((layout +layout+)
                        ;; The app to run, by the name of the function that makes it, and its zoom.
                        (app-name "")
-                       (zoom 1))
+                       (zoom 1)
+                       ;; True for the frame after Edit in the View: the canvas and the options
+                       ;; are brought to the front.
+                       (to-canvas nil))
         (lambda ()
           (bolt:column (:id :studio :fill t :cross-align :stretch)
             (funcall toolbar)
@@ -98,7 +102,18 @@ looks at it, and a test.")
                                                :id :run-hint :color :dim-text))))))
                     ;; The inspector of the app running.
                     (:inspect-pane "Inspector"
-                     (bolt:inspector-pane *running* :id :inspecting))))))))))
+                     (bolt:inspector-pane *running* :id :inspecting
+                                          ;; A widget a view drew, opened in the designer, live.
+                                          :edit-view (lambda (name widget)
+                                                       (funcall open-view name widget)
+                                                       (setf to-canvas t))))))
+            ;; The view to edit in front, and the app it is in beside it, where its changes show:
+            ;; behind the canvas's tab, it would not be drawn.
+            (when to-canvas
+              (setf to-canvas nil
+                    layout (bolt:show-pane (bolt:show-pane layout :canvas-pane) :options-pane))
+              (when (member :run-pane (bolt:pane-group layout :canvas-pane))
+                (setf layout (bolt:place-pane layout :run-pane :canvas-pane :right 340))))))))))
 
 (defun open-studio ()
   "Open the studio in a window, from the REPL."

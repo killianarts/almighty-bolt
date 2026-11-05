@@ -101,14 +101,30 @@ planned.
     from: given, wired, a default or the theme), undo and redo, and saving as a
     `define-view` file are in 0.3.
 - **Wire and code.**
+  - The running app edited in the studio. A view is opened on the canvas by
+    its name, from the image; every edit on the canvas is made in the image at
+    once, so the app running in the App pane changes as it is made, and saving
+    writes the file. A widget picked in the running app opens the view that
+    drew it, with the widget selected, or the code that did. What the inspector
+    changes in a view is an edit to the view, not only to the frame. (In 0.3,
+    but for the code, which is the bridge's.)
+  - The bridge to Emacs, for the code. The studio runs in the image Sly is
+    connected to; a minor mode, `almighty-bolt.el`, keeps a buffer and the
+    studio in step through it. Edit Source on a widget picked in the running
+    app takes Emacs to its clause in the view, or to the code that wired it;
+    point on a clause selects its widget on the canvas; an edit on the canvas
+    rewrites the clause in the buffer, as an edit Emacs can undo; and a form
+    typed in the buffer is made in the image after a pause, so the app follows
+    without C-c C-c. The mode asks the studio for what to do; nothing is
+    evaluated in Emacs from Lisp. Without Emacs, the studio works without it.
   - Wiring written in the inspector, which goes into the source as a clause,
     compiled and checked against the view as it is typed.
   - The stub of the wiring for every id (0.3 shows it to copy), an id renamed in
     the view and in every wiring of it, and where an id is wired.
   - The window's `state-let` values, live and editable, kept across a reload.
     (0.3 has them at the REPL, with `state`.)
-  - The view's form edited as Lisp, with paredit and completion of ids, kinds
-    and options, or the same file open in Emacs, kept in step through the image.
+  - The view's form edited as Lisp in the studio itself, with paredit and
+    completion of ids, kinds and options, for those who do not use Emacs.
 - **Debug.**
   - A timeline of frames: the build, layout and paint of each, the builds it
     took and the bytes it allocated, from the frame ring.
@@ -139,6 +155,11 @@ planned.
 What stands between the library today and the studio, as found while building
 the GUI designer, and where on this roadmap each is closed.
 
+- **The running app's code cannot be edited in the studio.** Its views can
+  (0.3: a widget picked in the running app opens its view, live), but the
+  code that wires them and the app's own functions are edited elsewhere and
+  compiled. Closed by the bridge to Emacs, the second of stage 1.
+
 - **Views take no parameters.** A view inside another is drawn as it was
   designed; wiring where a view is drawn gives what differs, which may be
   enough.
@@ -154,9 +175,10 @@ the GUI designer, and where on this roadmap each is closed.
 
 ### Stages
 
-1. **Code and time.** A code editor, or the bridge to Emacs. The timeline,
-   replay and state panes over the frame ring. The semantic and accessibility
-   panes. Tests made from recordings.
+1. **Code and time.** First the running app edited in the studio, then the
+   bridge to Emacs (see Wire and code). Then the timeline, replay and state
+   panes over the frame ring, the semantic and accessibility panes, and tests
+   made from recordings.
 2. **Craft and agents.** Effects for the chrome: shadow, grain, scanlines. The
    agent pane over the MCP server. The theme and the Figma variables kept in
    step. Shipping an `.app`.

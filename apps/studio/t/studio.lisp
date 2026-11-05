@@ -143,3 +143,72 @@
       (m:click session :id :inspector-press)
       (dotimes (i 3) (draw screen))
       (assert-equal "Count 2" (count-shown)))))
+
+;;; --- the running app edited in the studio ---
+
+;; A view, and an app that draws it with its count wired in.
+(bolt:define-view tiny-view
+  (:column :tiny-page (:gap 8)
+   (:button :plus (:text "Add one"))
+   (:label :count (:text "Count"))))
+
+(defparameter *tiny-view* (almighty-bolt/ui/views:find-view 'tiny-view)
+  "The view as this file defines it, put back after a test edits it.")
+
+(defun make-viewed ()
+  (bolt:state-let ((count 0))
+    (lambda ()
+      (bolt:view tiny-view
+        (button :plus :on-press (incf count))
+        (label :count :text (format nil "Count ~d" count))))))
+
+(define-test a-widget-picked-in-the-running-app-is-edited-in-its-view-and-the-app-changes ()
+  (multiple-value-bind (screen session) (open-studio)
+    (labels ((inner (id)
+               (first (s:find-nodes (core:accessibility-tree studio:*running*) :id id)))
+             (press-plus ()
+               (multiple-value-bind (px py) (core:lookup-target (screen-app screen) :running)
+                 (multiple-value-bind (x y w h) (core:lookup-target studio:*running* :plus)
+                   (let ((x (+ px x (/ w 2))) (y (+ py y (/ h 2))))
+                     (pointer screen :move x y)
+                     (pointer screen :down x y)
+                     (pointer screen :up x y)
+                     (dotimes (i 3) (draw screen))))))
+             (facts ()
+               (loop :for i :from 0
+                     :for node = (ignore-errors (m:find-node session :id (list :inspector-fact i)))
+                     :while node :collect (s:node-name node))))
+      (unwind-protect
+           (progn
+             (m:click session :id :run-pane)
+             (m:set-value session "almighty-bolt-studio/t/studio:make-viewed" :id :app-name)
+             (press-plus)
+             (assert-equal "Count 1" (s:node-name (inner :count)))
+             ;; Picked in the running app: the inspector says which view drew it, and what of it the
+             ;; code gives.
+             (m:click session :id :inspect-pane)
+             (m:click session :id :inspector-pick)
+             (press-plus)
+             (assert-true (member "View: almighty-bolt-studio/t/studio::tiny-view, its :plus"
+                                  (facts) :test #'string=)
+                          (facts))
+             (assert-true (member "Given by the code: :on-press" (facts) :test #'string=) (facts))
+             ;; Edit in the View: the canvas and the options, the view open in them, live, with
+             ;; the button selected.
+             (m:click session :id :inspector-edit-view)
+             (dotimes (i 2) (draw screen))
+             (assert-true (shown-p session :plus :canvas))
+             ;; The running app beside it, where what is edited shows.
+             (assert-true (shown-p session :running))
+             (assert-equal "Button :plus"
+                           (s:node-name (m:find-node session :id :selected-what)))
+             ;; Its words changed there: the running app changes as they are typed, and keeps its
+             ;; count.
+             (m:set-value session "Add two" :id :option-text)
+             (dotimes (i 2) (draw screen))
+             (assert-equal "Add two" (s:node-name (inner :plus)))
+             (assert-equal "Count 1" (s:node-name (inner :count)))
+             ;; Undone in the designer: the running app is as it was.
+             (press-keys screen #\z :command)
+             (assert-equal "Add one" (s:node-name (inner :plus))))
+        (almighty-bolt/ui/views:set-view 'tiny-view *tiny-view*)))))

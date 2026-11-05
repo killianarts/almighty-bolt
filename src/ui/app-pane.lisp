@@ -99,7 +99,8 @@
                 #:make-immediate-app
                 #:immediate-app)
   (:import-from #:almighty-bolt/ui/views
-                #:make-weak-table)
+                #:make-weak-table
+                #:views-version)
   (:export #:app-pane
            #:settle-app-pane
            #:app-pane-inside))
@@ -184,6 +185,9 @@ ZOOMED, the same at the pane's zoom, which draws."
   (kept (make-kept-state))
   ;; How many times the window's app had been made again when the inner app was last made.
   (made-again 0 :type fixnum)
+  ;; How many times views had been defined when the inner app last drew: one defined since (in a
+  ;; designer, as it is edited) is drawn again.
+  (views-version 0 :type fixnum)
   (context nil)
   ;; What the inner app drew, in its points, and that made ZOOM times larger, which is shown.
   (list (make-display-list :capacity 4096))
@@ -302,6 +306,9 @@ inner app (for a tool that looks at it, as the inspector does). The :id is requi
                                :requester (lambda (context)
                                             (setf (context-frame-requested context) t)
                                             (request-frame (pane-context-outer context))))
+            moved t))
+    (when (/= (app-pane-state-views-version state) (views-version))
+      (setf (app-pane-state-views-version state) (views-version)
             moved t))
     (when (/= (app-pane-state-made-again state) (ui-made-again ui))
       (setf (app-pane-state-made-again state) (ui-made-again ui))

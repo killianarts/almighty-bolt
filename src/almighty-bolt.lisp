@@ -101,7 +101,10 @@
   (:import-from #:almighty-bolt/ui/tree
                 #:tree)
   (:import-from #:almighty-bolt/ui/dock
-                #:dock)
+                #:dock
+                #:show-pane
+                #:place-pane
+                #:pane-group)
   (:import-from #:almighty-bolt/ui/app-pane
                 #:app-pane)
   (:import-from #:almighty-bolt/machine/inspector-pane
@@ -143,7 +146,7 @@
            #:switch #:tabs #:spinner #:dropdown #:menu-button #:context-menu #:popover
            #:dialog #:toast #:shortcut #:spacer #:grid #:pressable #:open-file-dialog #:save-file-dialog #:list-box
            #:progress #:canvas #:scrim #:design-surface #:app-menu #:drag-source #:drop-target #:dragging
-           #:split #:tree #:dock #:app-pane #:inspector-pane
+           #:split #:tree #:dock #:show-pane #:place-pane #:pane-group #:app-pane #:inspector-pane
            #:define-view #:view #:define-widget-entry
            #:column #:row #:stack #:padding #:panel #:center #:scroll #:lazy-list
            #:theme #:make-theme #:define-theme #:find-theme #:with-theme #:theme-names #:theme-name

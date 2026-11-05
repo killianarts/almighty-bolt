@@ -4230,7 +4230,7 @@ process.)"
 
 (defvar *inner* nil "The app in the pane of the last frame of an app with one.")
 
-(defun show-pane (constructor)
+(defun show-with-pane (constructor)
   "Show the app of CONSTRUCTOR, and draw the frames it asks for after its first, as a host does: an
 app pane lays out its app in the frame after the one it first appears in, when its size is known."
   (let ((screen (show constructor)))
@@ -4258,7 +4258,7 @@ app pane lays out its app in the frame after the one it first appears in, when i
           (setf *inner* inner))))))
 
 (define-test an-app-in-a-pane-works-through-the-pane-at-its-zoom ()
-  (let ((screen (show-pane 'make-outer)))
+  (let ((screen (show-with-pane 'make-outer)))
     (labels ((inner-bounds (id) (multiple-value-list (core:lookup-target *inner* id)))
              (inner-name (id)
                (s:node-name (first (s:find-nodes (core:accessibility-tree *inner*) :id id))))
@@ -4352,7 +4352,7 @@ app pane lays out its app in the frame after the one it first appears in, when i
   (first (s:find-nodes (core:accessibility-tree *inner*) :id id)))
 
 (define-test an-agent-sees-and-works-what-is-in-an-app-in-a-pane-where-the-pane-shows-it ()
-  (let* ((screen (show-pane 'make-gauges-outer))
+  (let* ((screen (show-with-pane 'make-gauges-outer))
          (session (screen-session screen)))
     (destructuring-bind (px py pw ph) (bounds-of screen :running)
       (declare (ignore pw ph))
@@ -4396,7 +4396,7 @@ app pane lays out its app in the frame after the one it first appears in, when i
       nil)))
 
 (define-test a-screen-reader-reads-and-works-what-is-in-an-app-in-a-pane ()
-  (let ((screen (show-pane 'make-gauges-outer)))
+  (let ((screen (show-with-pane 'make-gauges-outer)))
     (with-reader (reader screen)
       (let* ((pane (element-named reader :running))
              (plus (element-inside pane :plus))
@@ -4447,7 +4447,7 @@ app pane lays out its app in the frame after the one it first appears in, when i
 
 (define-test an-app-in-a-pane-is-made-again-with-the-window-s-and-keeps-what-it-kept ()
   (let* ((*greeting* "Hello")
-         (screen (show-pane 'make-greeting-outer))
+         (screen (show-with-pane 'make-greeting-outer))
          (session (screen-session screen)))
     (m:click session :id :plus)
     (m:set-value session "ab" :id :words)
@@ -4489,7 +4489,7 @@ app pane lays out its app in the frame after the one it first appears in, when i
 
 
 (define-test the-input-method-reaches-a-field-of-an-app-in-a-pane-with-its-caret-where-the-pane-shows-it ()
-  (let ((screen (show-pane 'make-outer)))
+  (let ((screen (show-with-pane 'make-outer)))
     ;; Twice as large, and the inner app's field given the keyboard through the pane.
     (click screen :zoom)
     (destructuring-bind (px py pw ph) (bounds-of screen :running)
@@ -4525,7 +4525,7 @@ app pane lays out its app in the frame after the one it first appears in, when i
           (assert-equal "ab日" (inner-value)))))))
 
 (define-test the-inspector-in-a-pane-picks-and-presses-in-the-app-in-a-pane ()
-  (let ((screen (show-pane 'make-inspected)))
+  (let ((screen (show-with-pane 'make-inspected)))
     (flet ((inner-name (id)
              (s:node-name (first (s:find-nodes (core:accessibility-tree *inner*) :id id)))))
       (click screen :inspector-pick)
@@ -4787,6 +4787,50 @@ app pane lays out its app in the frame after the one it first appears in, when i
           (column :recent :contents (label (format nil "~d" presses) :id :count)))
         (when (button "Clear" :id :clear)
           (setf name ""))))))
+
+;; The same view twice, the second with an id of the code's for its outermost.
+(defun make-two-logins ()
+  (lambda ()
+    (row (:id :page :gap 8)
+      (view t-login)
+      (view (t-login :id :second)))))
+
+(defun widget-of (screen id &optional within)
+  "The view and the widget of it that drew the box ID (inside the box WITHIN), from the frame shown:
+two values, or NIL."
+  (multiple-value-bind (x y w h) (if within
+                                     (let ((node (m:find-node (screen-session screen) :id id
+                                                                                      :within within)))
+                                       (values-list (s:node-bounds node)))
+                                     (core:lookup-target (screen-app screen) id))
+    (let ((box (almighty-bolt/ui/inspection:box-at
+                (almighty-bolt/ui/immediate:immediate-app-ui (screen-app screen))
+                (+ x (/ w 2)) (+ y (/ h 2)))))
+      (almighty-bolt/ui/views:view-widget box))))
+
+(define-test what-is-on-the-screen-knows-the-view-and-the-widget-of-it-that-drew-it ()
+  (let ((screen (show 'make-wired-login)))
+    ;; A widget of the view, and a part of one (a button's words are the button).
+    (assert-equal '(t-login :heading) (multiple-value-list (widget-of screen :heading)))
+    (assert-equal '(t-login :go) (multiple-value-list (widget-of screen :go)))
+    ;; What the code put in it (:contents) is the code's, not the view's.
+    (assert-false (widget-of screen :count))
+    ;; And what is outside the view is no view's.
+    (assert-false (widget-of screen :clear)))
+  ;; Drawn with an id of the code's, the outermost is still the view's outermost.
+  (let ((screen (show 'make-two-logins)))
+    (assert-equal '(t-login :heading)
+                  (multiple-value-list (widget-of screen :heading :second)))
+    ;; Its own box, in the gap between the heading and the field under it.
+    (destructuring-bind (x y w h)
+        (s:node-bounds (m:find-node (screen-session screen) :id :heading :within :second))
+      (declare (ignore w))
+      (let ((box (almighty-bolt/ui/inspection:box-at
+                  (almighty-bolt/ui/immediate:immediate-app-ui (screen-app screen))
+                  (+ x 1) (+ y h 4))))
+        (assert-eql :second (almighty-bolt/ui/box:box-id box))
+        (assert-equal '(t-login :form)
+                      (multiple-value-list (almighty-bolt/ui/views:view-widget box)))))))
 
 (define-test a-view-is-drawn-as-designed-and-does-what-the-code-wired-to-it ()
   (let* ((screen (show 'make-wired-login))

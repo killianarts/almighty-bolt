@@ -43,6 +43,9 @@
                 #:current-context)
   (:import-from #:almighty-bolt/ui/semantics
                 #:box-facts)
+  (:import-from #:almighty-bolt/ui/views
+                #:view-widget
+                #:wired-keys)
   (:export #:make-inspector))
 
 (in-package #:almighty-bolt/ui/inspector)
@@ -65,11 +68,14 @@
 ;;; It is drawn in the theme its window had when it was opened, so that changing that theme in it
 ;;; changes the app and not the inspector under the pointer.
 
-(defstruct (inspector (:constructor make-inspector-state (app act)))
+(defstruct (inspector (:constructor make-inspector-state (app act edit-view)))
   ;; A function of no arguments that returns the app's instance, or NIL if its window has closed.
   (app nil :type function)
   ;; A function of an action (see MACHINE:PERFORM) and of REPORT, a function of what went wrong.
   (act nil :type function)
+  ;; A function of a view's name and the id of a widget in it, which opens the view to be edited
+  ;; with the widget selected (a designer beside the inspector); NIL if there is none.
+  (edit-view nil)
   ;; What it asked of the app's window (made at the first frame, in the theme of then).
   (inspection nil)
   (theme nil)
@@ -84,12 +90,13 @@
   (setting-draft "" :type string)
   (setting-value-draft "" :type string))
 
-(defun make-inspector (target act)
+(defun make-inspector (target act &key edit-view)
   "The function that describes the inspector's window, for the app whose instance TARGET (a function
 of no arguments) returns. ACT is called with an action that the inspector asks for (a property list
 that MACHINE:PERFORM takes) and a function to call with what went wrong, if anything; it should do
-the action after the frame, not in it."
-  (let ((inspector (make-inspector-state target act)))
+the action after the frame, not in it. EDIT-VIEW, if given, is called with a view's name and the id
+of a widget in it when Edit in the View is pressed for a widget a view drew."
+  (let ((inspector (make-inspector-state target act edit-view)))
     (lambda () (describe-inspector inspector))))
 
 ;;; --- what it knows of the picked widget ---
@@ -98,6 +105,10 @@ the action after the frame, not in it."
   "What the inspector says of BOX of UI, which is at X, Y in the window, as a property list."
   (append (list :kind (box-kind box) :id (box-id box) :enabled (box-enabled box)
                 :theme (theme-name (box-theme box)) :x x :y y :w (box-w box) :h (box-h box))
+          ;; The view that drew it, the widget of the view it is, and what of it the code gives.
+          (multiple-value-bind (view widget) (view-widget box)
+            (and view (list :view view :view-widget widget
+                            :wired (wired-keys view widget))))
           (box-facts ui box x y)))
 
 (defun shown (value)
@@ -108,9 +119,14 @@ the action after the frame, not in it."
 (defun fact-lines (facts)
   "The lines the inspector shows for FACTS."
   (destructuring-bind (&key kind id enabled theme x y w h role name (value nil value-p) state
-                       &allow-other-keys)
+                         view view-widget wired &allow-other-keys)
       facts
     (append (list (format nil "Kind: ~(~a~)" kind))
+            (and view (list (format nil "View: ~a, its ~a" (shown view) (shown view-widget))
+                            (if wired
+                                (format nil "Given by the code: ~{~a~^, ~}"
+                                        (mapcar #'shown wired))
+                                "Given by the code: nothing; the view decides it all")))
             (and role (list (format nil "Role: ~(~a~)" role)))
             (list (if id (format nil "Id: ~a" (shown id)) "Id: none"))
             (and name (list (format nil "Name: ~a" name)))
@@ -300,6 +316,11 @@ known of the picked widget from the app's last frame."
                         (loop :for line :in (fact-lines (inspector-facts inspector))
                               :for i :from 0
                               :do (paragraph line :id (list :inspector-fact i))))
+                      (let ((facts (inspector-facts inspector)))
+                        (when (and (getf facts :view) (inspector-edit-view inspector)
+                                   (button "Edit in the View" :id :inspector-edit-view))
+                          (funcall (inspector-edit-view inspector)
+                                   (getf facts :view) (getf facts :view-widget))))
                       (describe-changes inspector)
                       ;; What went wrong with the last change, if anything, under what changes.
                       (when (inspector-message inspector)
