@@ -160,7 +160,8 @@ rest is planned, in the order of the [studio's plan](studio-plan.md).
 - **Theme.**
   - The theme designer as a pane: the seeds, the colours worked out from them,
     the sizes, both modes side by side, readability, and the `define-theme`
-    form, kept in step with the design system's variables in Figma.
+    form. The prototype's design system is imported once, as the studio's own
+    theme; nothing is kept in step with Figma after.
 - **Test and agent.**
   - The semantic tree, spoken by VoiceOver on request, the keyboard order drawn
     over the canvas, and checks that every control has a name, that Tab goes in
@@ -202,5 +203,4 @@ the GUI designer, and where on this roadmap each is closed.
    modes as docks; Design with the canvas as the app's window; Wire; Debug,
    with the timeline, time travel and the state of each frame; Theme.
 2. **Craft and agents.** Grain and scanlines for the chrome. The agent mode
-   over the MCP server. The theme and the Figma variables kept in step.
-   Shipping an `.app`.
+   over the MCP server. Shipping an `.app`.

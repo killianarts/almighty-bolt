@@ -12,6 +12,9 @@ the reference and the release notes, and committed when `make test` passes.
 
 ## Decisions
 
+- **Figma is a starting point, not a source.** The prototype's design system is
+  imported once, in phase B; nothing is synchronised with Figma after, and the
+  prototype is not kept up to date.
 - **Fonts.** Every element that draws text can be given its font: the family,
   the weight (any of them, 100 to 900, not only regular and bold), the size,
   the letter spacing and the line height, and a theme gives each role (label,
@@ -65,9 +68,12 @@ user of.
 
 ## Phase B: the shell
 
-6. **The studio's theme,** a light one defined from the prototype's variables:
-   white, panels `#f2f2f2`, lines `#e4e4e4`, black for what is chosen, green
-   for what is well.
+6. **The studio's theme,** imported once from the prototype's design system:
+   its colours (white, panels `#f2f2f2`, lines `#e4e4e4`, black for what is
+   chosen, green for what is well), sizes, radii and spacing, and its text
+   styles as fonts by role, written as a `define-theme` form in the studio's
+   source. After that the theme is the studio's own: nothing is kept in step
+   with Figma.
 7. **The title bar:** the mark and name, the five modes (each a dock layout of
    its own, kept), the breadcrumb of what is open (view, app, file), whether
    the image is live and which Lisp, Save, and Run Window (the app in a real
@@ -144,8 +150,7 @@ user of.
 - **Agent:** a change asked for in words, made through the machine interface
   and proposed as a change to the view and the code. Not designed beyond a
   sentence yet.
-- The theme kept in step with the design system's variables in Figma; grain
-  and scanlines.
+- Grain and scanlines for the chrome.
 
 ## Checking it against the prototype
 
