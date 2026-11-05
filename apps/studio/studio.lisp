@@ -2,7 +2,8 @@
   (:use #:cl)
   (:local-nicknames (#:bolt #:almighty-bolt)
                     (#:gui-designer #:almighty-bolt-gui-designer)
-                    (#:theme-designer #:almighty-bolt-theme-designer))
+                    (#:theme-designer #:almighty-bolt-theme-designer)
+                    (#:emacs #:almighty-bolt/emacs))
   (:export #:make-studio
            #:open-studio
            #:*running*))
@@ -15,6 +16,10 @@
 ;;; part is hidden, when a pane is moved, and when the code is compiled again. Each designer takes
 ;;; Command-Z, in each of its panes; the dock gives a shortcut to the pane last pressed in or that
 ;;; has the keyboard, so it undoes in the designer last used.
+;;;
+;;; With Emacs connected (emacs/almighty-bolt.el, over Sly), the studio and a buffer are kept in step
+;;; through the image: Edit Source in the inspector takes Emacs to a picked widget's clause in its
+;;; view, or to the code that drew it, and point on a clause in Emacs selects its widget here.
 
 (defparameter +layout+
   '(:split :horizontal 300 (:tabs :widgets-pane :widgets-pane)
@@ -52,6 +57,11 @@ looks at it, and a test.")
                        ;; are brought to the front.
                        (to-canvas nil))
         (lambda ()
+          ;; Point in Emacs on a view's widget: that view, live, with it selected.
+          (multiple-value-bind (name id) (emacs:take-selection)
+            (when name
+              (funcall open-view name id)
+              (setf to-canvas t)))
           (bolt:column (:id :studio :fill t :cross-align :stretch)
             (funcall toolbar)
             ;; Each part in a container of its own, so that ids of the two designers do not meet;
@@ -106,7 +116,22 @@ looks at it, and a test.")
                                           ;; A widget a view drew, opened in the designer, live.
                                           :edit-view (lambda (name widget)
                                                        (funcall open-view name widget)
-                                                       (setf to-canvas t))))))
+                                                       (setf to-canvas t))
+                                          ;; In Emacs: the view's clause, the wiring, or the
+                                          ;; app's code (its constructor) for a widget no view
+                                          ;; drew.
+                                          :edit-source
+                                          (lambda (what facts)
+                                            (nth-value
+                                             1 (ecase what
+                                                 (:view (emacs:show-view (getf facts :view)
+                                                                         (getf facts :view-widget)))
+                                                 (:wiring (emacs:show-wiring
+                                                           (getf facts :view)
+                                                           (getf facts :view-widget)))
+                                                 (:code (emacs:show-code
+                                                         (named-constructor app-name)
+                                                         (getf facts :id))))))))))
             ;; The view to edit in front, and the app it is in beside it, where its changes show:
             ;; behind the canvas's tab, it would not be drawn.
             (when to-canvas

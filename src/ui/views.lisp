@@ -27,6 +27,8 @@
            #:views-version
            #:view-widget
            #:wired-keys
+           #:wiring-file
+           #:*view-changed-functions*
            #:view-names
            #:wiring-problems
            #:*view-defined-hook*))
@@ -86,6 +88,13 @@ has changed. Weak, as *WIRINGS* is.")
 (defvar *views-drawn* '()
   "The names of the views being drawn, the innermost first, so that a view inside itself is said
 and not drawn for ever.")
+
+(defvar *view-changed-functions* '()
+  "Functions called with a view's name and its form after it has been defined: a tool that keeps
+something in step with the views (an editor's buffer).")
+
+(defvar *wiring-files* (make-weak-table)
+  "The file each VIEW form's code was compiled from, by its spec, held as *WIRINGS* holds them.")
 
 (defvar *view-defined-hook* nil
   "A function called with no arguments after a view has been defined, or NIL: the host sets it so
@@ -157,6 +166,8 @@ a style warning (VIEW-WIRING-MISMATCH) of each."
     (setf (gethash name *view-files*) (pathname file)))
   (incf *views-version*)
   (when *view-defined-hook* (funcall *view-defined-hook*))
+  (dolist (function *view-changed-functions*)
+    (funcall function name form))
   (let ((problems (wiring-problems name)))
     (dolist (problem problems)
       (warn 'view-wiring-mismatch :name name :problem problem))
@@ -181,10 +192,19 @@ defined when compiled too, so that the code that wires it, compiled after, is ch
                      (view-not-defined-name condition))))
   (:documentation "A VIEW form compiled before the view it draws is defined."))
 
-(defun note-wiring (name spec)
-  "Note that a VIEW form wires SPEC to the view NAME; called when that form is loaded."
+(defun note-wiring (name spec &optional file)
+  "Note that a VIEW form wires SPEC to the view NAME, in code compiled from FILE (or NIL); called when
+that form is loaded."
   (setf (gethash spec *wirings*) name)
+  (when file
+    (setf (gethash spec *wiring-files*) (pathname file)))
   spec)
+
+(defun wiring-file (name)
+  "A file whose code, as loaded, wires the view NAME, or NIL."
+  (loop :for spec :being :the :hash-keys :of *wirings* :using (hash-value view)
+        :when (and (eq view name) (gethash spec *wiring-files*))
+          :return (gethash spec *wiring-files*)))
 
 (defun draw-view (name id spec wires)
   (let ((form (or (find-view name)
@@ -280,7 +300,12 @@ defined then is a style warning, and the wiring is checked when the view is draw
            (declare (dynamic-extent ,@(mapcar (lambda (f) `(function ,(first f))) functions)))
            (let ((,list (list ,@(reverse wires))))
              (declare (dynamic-extent ,list))
-             (draw-view ',name ,id (load-time-value (note-wiring ',name ',spec)) ,list)
+             (draw-view ',name ,id
+                        (load-time-value
+                         (note-wiring ',name ',spec
+                                      ,(let ((file (or *compile-file-truename* *load-truename*)))
+                                         (and file (namestring file)))))
+                        ,list)
              nil))))))
 
 ;;; --- from what is on the screen to the view it came from ---

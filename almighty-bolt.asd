@@ -128,6 +128,12 @@
   :pathname "src/machine"
   :components ((:file "mcp" :if-feature :darwin)))
 
+(defsystem "almighty-bolt/emacs"
+  :description "The image's side of the bridge to Emacs (emacs/almighty-bolt.el): the studio and a buffer kept in step through the running Lisp, over Sly. Opt-in; nothing happens until Emacs asks."
+  :depends-on ("almighty-bolt" "sb-introspect")
+  :pathname "src/emacs"
+  :components ((:file "bridge")))
+
 (defsystem "almighty-bolt/test-support"
   :description "What the tests of the apps share: a context with text that is easy to count"
   :depends-on ("almighty-bolt")
@@ -140,11 +146,12 @@
   ;; cl-unicode) generates its source files with it on first load, and vend
   ;; only finds it if some system names it.
   :depends-on ("almighty-bolt" "almighty-bolt/test-support" "almighty-bolt-examples"
-               "lisp-unit2" "flexi-streams" "sb-introspect")
+               "almighty-bolt/emacs" "lisp-unit2" "flexi-streams" "sb-introspect")
   :components ((:module "t"
                 :serial t
                 :components
                 ((:file "app" :if-feature :darwin)
+                 (:file "emacs")
                  (:module "ui"
                   :serial t
                   :components
@@ -183,6 +190,7 @@
                     (let* ((results
                              (loop :for package :in '(#+darwin :almighty-bolt/t/app
                                                       :almighty-bolt/t/ui/widgets
+                                                      :almighty-bolt/t/emacs
                                                       #+darwin :almighty-bolt/t/platform/macos/objc
                                                       #+darwin :almighty-bolt/t/platform/macos/image
                                                       #+darwin :almighty-bolt/t/platform/macos/text-input

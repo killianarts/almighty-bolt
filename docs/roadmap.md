@@ -106,8 +106,7 @@ planned.
     once, so the app running in the App pane changes as it is made, and saving
     writes the file. A widget picked in the running app opens the view that
     drew it, with the widget selected, or the code that did. What the inspector
-    changes in a view is an edit to the view, not only to the frame. (In 0.3,
-    but for the code, which is the bridge's.)
+    changes in a view is an edit to the view, not only to the frame. (In 0.3.)
   - The bridge to Emacs, for the code. The studio runs in the image Sly is
     connected to; a minor mode, `almighty-bolt.el`, keeps a buffer and the
     studio in step through it. Edit Source on a widget picked in the running
@@ -117,6 +116,8 @@ planned.
     typed in the buffer is made in the image after a pause, so the app follows
     without C-c C-c. The mode asks the studio for what to do; nothing is
     evaluated in Emacs from Lisp. Without Emacs, the studio works without it.
+    (In 0.3, for a view's form; code is still compiled with C-c C-c, since a
+    function made from what is half typed would run it.)
   - Wiring written in the inspector, which goes into the source as a clause,
     compiled and checked against the view as it is typed.
   - The stub of the wiring for every id (0.3 shows it to copy), an id renamed in
@@ -155,10 +156,6 @@ planned.
 What stands between the library today and the studio, as found while building
 the GUI designer, and where on this roadmap each is closed.
 
-- **The running app's code cannot be edited in the studio.** Its views can
-  (0.3: a widget picked in the running app opens its view, live), but the
-  code that wires them and the app's own functions are edited elsewhere and
-  compiled. Closed by the bridge to Emacs, the second of stage 1.
 
 - **Views take no parameters.** A view inside another is drawn as it was
   designed; wiring where a view is drawn gives what differs, which may be
@@ -175,8 +172,8 @@ the GUI designer, and where on this roadmap each is closed.
 
 ### Stages
 
-1. **Code and time.** First the running app edited in the studio, then the
-   bridge to Emacs (see Wire and code). Then the timeline, replay and state
+1. **Code and time.** The running app edited in the studio, and the bridge to
+   Emacs (both in 0.3; see Wire and code). Then the timeline, replay and state
    panes over the frame ring, the semantic and accessibility panes, and tests
    made from recordings.
 2. **Craft and agents.** Effects for the chrome: shadow, grain, scanlines. The

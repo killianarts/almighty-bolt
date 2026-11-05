@@ -438,7 +438,10 @@ changes its value and theme as it does in a window of its own, at the start of
 the next frame. `:edit-view`, a function of a view's name and the id of a
 widget in it, is called when Edit in the View is pressed for a widget that a
 view drew (see [The inspector](#the-inspector)): the studio opens the view in
-its designer with it.
+its designer with it. `:edit-source`, a function of what to show (`:view`,
+`:wiring` or `:code`) and the picked widget's facts, is called by Edit Source
+and Edit Wiring, and returns `nil` or what went wrong, which the inspector
+shows.
 
 `design-surface` (`:id :selected :flex`) is for a designer, which draws the view being designed in
 it: what is in it is drawn as it looks, one under another, and none of it works. The pointer, a press
@@ -749,11 +752,44 @@ and when an app's frame is made from the REPL, the error is the caller's, as bef
 
 ## The inspector
 
-While an app is developed (opened with `open-app`, or with `run-app` and `:hot` or `:watch-systems`), Command-Option-I in its window opens the inspector, in a window of its own beside it that closes with it; the keys again, in the app's window, close it. In an app that is delivered (`run-app` alone) the keys are the app's. Its Pick button makes the next press in the app's window pick the widget under the pointer instead of pressing it (Escape, in either window, stops), and an outline follows the pointer while it picks and stays round what it picked. It says what the picked widget is: its kind and role, its id, its name and value, where it is and how big, the theme it is drawn in, whether it is enabled, and what the tree says of its state (a check box's `:checked`, a list's items). For a widget a view drew, it says which view and which of its widgets, and what of it the code gives (`:on-press`, `:text`); the rest is the view's. Where the inspector has a designer beside it (the studio), Edit in the View opens the view there, live, with the widget selected. It says it as of the app's last frame, and the pick is kept while the widget is described in the same place, through hot reloads.
+While an app is developed (opened with `open-app`, or with `run-app` and `:hot` or `:watch-systems`), Command-Option-I in its window opens the inspector, in a window of its own beside it that closes with it; the keys again, in the app's window, close it. In an app that is delivered (`run-app` alone) the keys are the app's. Its Pick button makes the next press in the app's window pick the widget under the pointer instead of pressing it (Escape, in either window, stops), and an outline follows the pointer while it picks and stays round what it picked. It says what the picked widget is: its kind and role, its id, its name and value, where it is and how big, the theme it is drawn in, whether it is enabled, and what the tree says of its state (a check box's `:checked`, a list's items). For a widget a view drew, it says which view and which of its widgets, and what of it the code gives (`:on-press`, `:text`); the rest is the view's. Where the inspector has a designer beside it (the studio), Edit in the View opens the view there, live, with the widget selected, and with Emacs connected Edit Source and Edit Wiring show its source there (see [The studio and Emacs](#the-studio-and-emacs)). It says it as of the app's last frame, and the pick is kept while the widget is described in the same place, through hot reloads.
 
 It changes the picked widget as a person would, with the machine interface's actions, so the app stays in charge of what it holds: Press for a button, a menu button, a check box, a switch or a dropdown; a field and Set for a text field, a combo box, a text area or a slider (a number); and a button for each option of a choice or a dropdown and each item of a list. What it asks for is done after its frame, on a thread of its own, through a session on the app's window, and if it cannot be (the widget is disabled) the inspector says why.
 
 It changes the theme the picked widget is drawn in: type a setting (`accent`, `row-height`, `font-size`) and what to make it, and Change the theme defines that theme again as it was given, on its own base, with that setting (`(change-theme-setting name setting value)` in `almighty-bolt/ui/theme` does the same), so everything drawn in it changes. Under it is the theme's `define-theme` form, which can be selected and copied into the app's code. A theme with no name (one `make-theme` made in the app's function) cannot be defined again, and the inspector says so. The inspector is drawn in the theme its window had when it opened, so changing `:dark` or `:light` changes the app and not the inspector. Its outlines are not in the app's semantic tree: an agent, the machine interface and VoiceOver see the app alone. `(almighty-bolt/machine:perform-actions session actions)` does what it asks for, through any session.
+
+## The studio and Emacs
+
+The studio runs in the Lisp that Sly is connected to, and `emacs/almighty-bolt.el` keeps a buffer and
+the studio in step through it. In Emacs:
+
+```elisp
+(load "/path/to/almighty-bolt/emacs/almighty-bolt.el")
+(add-hook 'lisp-mode-hook #'almighty-bolt-mode)
+```
+
+and, once Sly is connected to the Lisp the studio is in, `M-x almighty-bolt-bridge-mode`. The studio
+loads the Lisp side, the system `almighty-bolt/emacs`, which needs nothing of Sly; it does nothing
+until Emacs asks.
+
+- Edit Source, in the inspector, on a widget picked in the running app: Emacs shows its clause in
+  the view's file, or, for a widget no view drew, the app's constructor at the widget's id. Edit
+  Wiring shows its clause in the `view` form that wires it.
+- Point on a widget's clause in a `define-view` form selects it in the studio: the view opens in the
+  designer, live, with the running app beside it.
+- An edit in the designer, on a view with a file, rewrites the view's form in the buffer of that
+  file, if Emacs has one: as an edit, which undo takes back, and which saving the buffer saves.
+- A `define-view` form typed in a buffer is defined in the image after a pause
+  (`almighty-bolt-idle-delay`, 0.6 seconds), so the running app and the designer follow without
+  C-c C-c. It is read with `*read-eval*` off and checked, never evaluated; a form that is not whole
+  is sent when it is, and what is wrong with one is said in the echo area. Other code is compiled
+  as before.
+
+Emacs asks the Lisp what to do, again and again, over Sly (`next-request`): the requests are data
+(show this clause, put this form in that buffer), and nothing is evaluated in Emacs from Lisp, so
+`slynk:*enable-evaluate-in-emacs*` can stay off. `make emacs-test` tests the Emacs side in a batch
+Emacs, and `make emacs-smoke` the two together over a real Sly (`SLY=` the directory of `sly.el` and
+`slynk/`, found where Doom or package.el put it if not given).
 
 ## The machine interface
 

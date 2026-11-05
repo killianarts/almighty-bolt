@@ -6,7 +6,9 @@
                     (#:m #:almighty-bolt/machine)
                     (#:s #:almighty-bolt/ui/semantics)
                     (#:fake #:almighty-bolt/test-support/fake-context)
-                    (#:studio #:almighty-bolt-studio)))
+                    (#:studio #:almighty-bolt-studio)
+                    (#:emacs #:almighty-bolt/emacs)
+                    (#:views #:almighty-bolt/ui/views)))
 
 (in-package #:almighty-bolt-studio/t/studio)
 
@@ -212,3 +214,109 @@
              (press-keys screen #\z :command)
              (assert-equal "Add one" (s:node-name (inner :plus))))
         (almighty-bolt/ui/views:set-view 'tiny-view *tiny-view*)))))
+
+;;; --- the bridge to Emacs, as the studio uses it ---
+
+(defun emacs-there ()
+  "Be Emacs, asking for requests: then it is there to be asked. What is queued is dropped."
+  (loop :while (emacs:next-request 0)))
+
+(defun emacs-gone ()
+  (setf emacs::*last-asked* nil
+        emacs::*requests* '()))
+
+(defun requests ()
+  "What the studio asked Emacs to do since this was last asked, oldest first."
+  (loop :for request = (emacs:next-request 0) :while request :collect request))
+
+(defun run-in-studio (session constructor)
+  (m:click session :id :run-pane)
+  (m:set-value session (format nil "almighty-bolt-studio/t/studio:~(~a~)" constructor)
+               :id :app-name))
+
+(defun pick-in-running (screen session id)
+  "Pick the widget ID of the running app with the inspector."
+  (m:click session :id :inspect-pane)
+  (m:click session :id :inspector-pick)
+  (multiple-value-bind (px py) (core:lookup-target (screen-app screen) :running)
+    (multiple-value-bind (x y w h) (core:lookup-target studio:*running* id)
+      (let ((x (+ px x (/ w 2))) (y (+ py y (/ h 2))))
+        (pointer screen :move x y)
+        (pointer screen :down x y)
+        (pointer screen :up x y)
+        (dotimes (i 3) (draw screen))))))
+
+(define-test edit-source-asks-emacs-for-the-view-s-clause-the-wiring-or-the-code ()
+  (multiple-value-bind (screen session) (open-studio)
+    (unwind-protect
+         (progn
+           (emacs-there)
+           ;; A widget a view drew: its clause in the view's file, and where the code wires it.
+           (run-in-studio session 'make-viewed)
+           (pick-in-running screen session :plus)
+           (m:click session :id :inspector-edit-source)
+           (let ((request (first (requests))))
+             (assert-eq :show-view (getf request :op))
+             (assert-true (search "studio.lisp" (getf request :file)) (getf request :file))
+             (assert-equal "tiny-view" (getf request :name))
+             (assert-equal "plus" (getf request :widget)))
+           (m:click session :id :inspector-edit-wiring)
+           (let ((request (first (requests))))
+             (assert-eq :show-wiring (getf request :op))
+             (assert-true (search "studio.lisp" (getf request :file)) (getf request :file)))
+           ;; A widget no view drew: the app's constructor, at its id.
+           (run-in-studio session 'make-tiny)
+           (pick-in-running screen session :plus)
+           (m:click session :id :inspector-edit-source)
+           (let ((request (first (requests))))
+             (assert-eq :show-code (getf request :op))
+             (assert-equal ":plus" (getf request :search))
+             ;; The definition is the first form at the offset (SBCL's offset is where the form
+             ;; before it ended).
+             (assert-equal '(defun make-tiny)
+                           (subseq (let ((*package* (find-package :almighty-bolt-studio/t/studio)))
+                                     (read-from-string (uiop:read-file-string (getf request :file))
+                                                       t nil :start (getf request :offset)))
+                                   0 2)))
+           ;; Without Emacs, the inspector says so.
+           (emacs-gone)
+           (m:click session :id :inspector-edit-source)
+           (assert-true (search "not connected"
+                                (s:node-name (m:find-node session :id :inspector-message)))))
+      (emacs-gone))))
+
+(define-test point-in-emacs-selects-the-widget-in-the-studio-and-a-view-typed-there-is-taken-up ()
+  (multiple-value-bind (screen session) (open-studio)
+    (flet ((inner (id)
+             (first (s:find-nodes (core:accessibility-tree studio:*running*) :id id))))
+      (unwind-protect
+           (progn
+             (run-in-studio session 'make-viewed)
+             ;; Point on the button's clause, in Emacs: the view in the designer, the button
+             ;; selected, the running app beside it.
+             (emacs:point-in-view "tiny-view" "almighty-bolt-studio/t/studio" "plus")
+             (dotimes (i 3) (draw screen))
+             (assert-equal "Button :plus" (s:node-name (m:find-node session :id :selected-what)))
+             (assert-true (shown-p session :running))
+             ;; The view typed in Emacs: the running app and the designer both take it up.
+             (emacs-there)
+             (assert-equal ""
+                           (emacs:view-typed "(bolt:define-view tiny-view
+                                                (:column :tiny-page (:gap 8)
+                                                 (:button :plus (:text \"Typed\"))
+                                                 (:label :count (:text \"Count\"))))"
+                                             "almighty-bolt-studio/t/studio"))
+             (dotimes (i 3) (draw screen))
+             (assert-equal "Typed" (s:node-name (inner :plus)))
+             (assert-equal "Typed" (s:node-name (m:find-node session :id :plus :within :canvas)))
+             ;; Not sent back to Emacs, which has it.
+             (assert-false (requests))
+             ;; Undone in the designer (its button: the keyboard is in the App field, whose
+             ;; Command-Z undoes its own typing): back in the running app, and in Emacs's buffer.
+             (m:click session :id :undo :within :toolbar)
+             (assert-equal "Add one" (s:node-name (inner :plus)))
+             (let ((request (first (requests))))
+               (assert-eq :replace-view (getf request :op))
+               (assert-true (search "\"Add one\"" (getf request :text)) (getf request :text))))
+        (emacs-gone)
+        (views:set-view 'tiny-view *tiny-view*)))))

@@ -24,6 +24,7 @@ test: compile-clean
 	$(SBCL) $(REGISTRY) --eval '(asdf:test-system "almighty-bolt-theme-designer")'
 	$(SBCL) $(REGISTRY) --eval '(asdf:test-system "almighty-bolt-gui-designer")'
 	$(SBCL) $(REGISTRY) --eval '(asdf:test-system "almighty-bolt-studio")'
+	$(MAKE) emacs-test
 
 # The project compiled from nothing, into a directory that is thrown away, without a warning of any
 # kind (scripts/compile-clean.lisp). make test starts with it.
@@ -40,6 +41,7 @@ smoke:
 	$(MAKE) windows-smoke
 	$(MAKE) accessibility-smoke
 	$(MAKE) studio-smoke
+	$(MAKE) emacs-smoke
 
 # The null app in a window: the library's own cost. Run it from a terminal of your
 # own and leave the window alone while it runs.
@@ -157,6 +159,23 @@ studio-smoke:
 	$(SBCL_APP) $(REGISTRY) --load apps/studio/smoke.lisp > $$out 2>&1; \
 	grep -v -e '^;' -e '^$$' $$out; \
 	grep -q -e "The studio check passed" -e "The studio check was skipped" $$out && ! grep -q "FAIL" $$out; status=$$?; rm -f $$out; exit $$status
+
+# The Emacs side of the bridge to the studio (emacs/almighty-bolt.el), in real buffers, with ERT in
+# a batch Emacs: what it does with what the image asks, and what it tells the image. Part of make
+# test; skipped, saying so, where there is no emacs.
+emacs-test:
+	@if command -v emacs >/dev/null 2>&1; then \
+	  emacs --batch -Q -L emacs -l emacs/almighty-bolt-tests.el -f ert-run-tests-batch-and-exit; \
+	else echo "The Emacs tests were skipped: there is no emacs on the PATH."; fi
+
+# The bridge to Emacs end to end, over a real Sly: a Lisp with a Slynk server and a batch Emacs
+# connected to it (emacs/smoke.lisp, emacs/smoke.el). SLY= is the directory of sly.el and slynk/,
+# found in Doom's or package.el's place if not given. Skipped, saying why, without Emacs or Sly.
+emacs-smoke:
+	@out=$$(mktemp); \
+	SLY="$(SLY)" $(SBCL_APP) $(REGISTRY) --load emacs/smoke.lisp > $$out 2>&1; \
+	grep -e '^ok' -e '^FAIL' -e 'Emacs bridge check' $$out; \
+	grep -q -e "The Emacs bridge check passed" -e "The Emacs bridge check was skipped" $$out && ! grep -q "^FAIL" $$out; status=$$?; rm -f $$out; exit $$status
 
 clean:
 	find . -name '*.fasl' -not -path './vendored/*' -delete

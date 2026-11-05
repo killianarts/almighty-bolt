@@ -68,7 +68,7 @@
 ;;; It is drawn in the theme its window had when it was opened, so that changing that theme in it
 ;;; changes the app and not the inspector under the pointer.
 
-(defstruct (inspector (:constructor make-inspector-state (app act edit-view)))
+(defstruct (inspector (:constructor make-inspector-state (app act edit-view edit-source)))
   ;; A function of no arguments that returns the app's instance, or NIL if its window has closed.
   (app nil :type function)
   ;; A function of an action (see MACHINE:PERFORM) and of REPORT, a function of what went wrong.
@@ -76,6 +76,9 @@
   ;; A function of a view's name and the id of a widget in it, which opens the view to be edited
   ;; with the widget selected (a designer beside the inspector); NIL if there is none.
   (edit-view nil)
+  ;; A function of what to show (:view, :wiring or :code) and the picked widget's facts, which shows
+  ;; its source in an editor and returns NIL, or what went wrong; NIL if there is none.
+  (edit-source nil)
   ;; What it asked of the app's window (made at the first frame, in the theme of then).
   (inspection nil)
   (theme nil)
@@ -90,13 +93,16 @@
   (setting-draft "" :type string)
   (setting-value-draft "" :type string))
 
-(defun make-inspector (target act &key edit-view)
+(defun make-inspector (target act &key edit-view edit-source)
   "The function that describes the inspector's window, for the app whose instance TARGET (a function
 of no arguments) returns. ACT is called with an action that the inspector asks for (a property list
 that MACHINE:PERFORM takes) and a function to call with what went wrong, if anything; it should do
 the action after the frame, not in it. EDIT-VIEW, if given, is called with a view's name and the id
-of a widget in it when Edit in the View is pressed for a widget a view drew."
-  (let ((inspector (make-inspector-state target act edit-view)))
+of a widget in it when Edit in the View is pressed for a widget a view drew. EDIT-SOURCE, if given,
+is called with what to show (:view, the widget's clause in its view; :wiring, where the code wires
+it; :code, the code that drew a widget no view did) and the widget's facts, when Edit Source or Edit
+Wiring is pressed; it returns NIL, or what went wrong, which the inspector shows."
+  (let ((inspector (make-inspector-state target act edit-view edit-source)))
     (lambda () (describe-inspector inspector))))
 
 ;;; --- what it knows of the picked widget ---
@@ -320,7 +326,19 @@ known of the picked widget from the app's last frame."
                         (when (and (getf facts :view) (inspector-edit-view inspector)
                                    (button "Edit in the View" :id :inspector-edit-view))
                           (funcall (inspector-edit-view inspector)
-                                   (getf facts :view) (getf facts :view-widget))))
+                                   (getf facts :view) (getf facts :view-widget)))
+                        ;; Its source, in an editor: the view's clause or the code that drew it, and
+                        ;; where the code wires it.
+                        (when (inspector-edit-source inspector)
+                          (flet ((show (what)
+                                   (setf (inspector-message inspector)
+                                         (funcall (inspector-edit-source inspector) what facts))))
+                            (row (:id :inspector-source-row :gap 8)
+                              (when (button "Edit Source" :id :inspector-edit-source)
+                                (show (if (getf facts :view) :view :code)))
+                              (when (and (getf facts :view) (getf facts :wired)
+                                         (button "Edit Wiring" :id :inspector-edit-wiring))
+                                (show :wiring))))))
                       (describe-changes inspector)
                       ;; What went wrong with the last change, if anything, under what changes.
                       (when (inspector-message inspector)

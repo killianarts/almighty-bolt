@@ -35,6 +35,7 @@
                 #:set-view
                 #:find-view
                 #:view-file
+                #:views-version
                 #:view-names)
   (:export #:make-designer
            #:designer-parts
@@ -395,17 +396,35 @@ puts them in a window; the studio puts them in panes."
                    ;; The view's name (a symbol) while it is live: each edit is made in the image
                    ;; as it is made. And the file it is saved to without asking, if there is one.
                    (live nil)
-                   (file nil))
+                   (file nil)
+                   ;; How many times views had been defined when the live view was last looked at:
+                   ;; one defined since, elsewhere (typed in Emacs), is taken up.
+                   (seen-version 0))
     (labels ((make-live ()
                "Make the view, as it is now, the live view in the image, and say what of the code
 that wires it no longer fits."
                (when live
                  (let ((problems (handler-bind ((warning #'muffle-warning))
                                    (set-view live (node-form view)))))
+                   (setf seen-version (views-version))
                    (setf status (if problems
                                     (format nil "~{~a~^ ~}" problems)
                                     (format nil "Live: ~(~a~) changes in the running app as it ~
                                                  is edited." live))))))
+             (take-up-outside ()
+               "If the live view was defined outside the designer since it last looked (typed in an
+editor), make that the view, as a step that Undo takes back, without defining it again."
+               (when (and live (/= seen-version (views-version)))
+                 (setf seen-version (views-version))
+                 (let ((form (find-view live)))
+                   (when (and form (not (equal form (node-form view))))
+                     (push view undo)
+                     (setf redo '()
+                           view (form-node form)
+                           last-edit nil)
+                     (clrhash drafts)
+                     (unless (and selected (find-by-id view selected))
+                       (setf selected nil))))))
              (select (id)
                (unless (eq id selected)
                  (clrhash drafts)
@@ -445,6 +464,7 @@ selected if given."
                    (setf live nil)
                    (change (form-node form))
                    (setf live symbol
+                         seen-version (views-version)
                          file (view-file symbol)
                          name (string-downcase (symbol-name symbol))
                          package (string-downcase (package-name (symbol-package symbol)))
@@ -463,6 +483,7 @@ selected if given."
                  (setf status (format nil "Saved to ~a~:[.~;; ~:*~{~a~^ ~}~]" path problems)))))
       (values
         (lambda ()
+          (take-up-outside)
           (bolt:column (:id :toolbar-part :cross-align :stretch)
             (let ((menu (bolt:app-menu "File" '(("New" :key #\n) ("Open…" :key #\o) :separator
                                                 ("Save…" :key #\s)))))
