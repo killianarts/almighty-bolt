@@ -4877,6 +4877,61 @@ rectangle that is its rectangle."
           (setf *blur* 10)
           (assert-eql ten (drawn)))))))
 
+(defvar *dash* 6 "The dash of MAKE-DASHED's card.")
+
+(defun make-dashed ()
+  (lambda ()
+    (padding (:id :page :all 20)
+      (column (:id :cards :gap 20)
+        (panel (:id :card :all 10 :border-color "#ff0000" :border-width 2 :border-dash (list *dash* 4))
+          (label "Dashed" :id :words))
+        (pressable (:id :press :all 6 :border-color "#0000ff" :border-dash 3)
+          (label "Even" :id :even))
+        (panel (:id :solid :all 10 :border-color "#00ff00")
+          (label "Solid" :id :solid-words))))))
+
+(defun strokes (screen)
+  "Each stroke drawn: its colour, width, and dash and gap (NIL for a solid one)."
+  (let ((list (screen-list screen)))
+    (loop :for index :below (core:display-list-count list)
+          :for width = (core:stroke-width-of (core:display-list-kind list index))
+          :when width
+            :collect (list* (core:display-list-color list index) width
+                            (multiple-value-list
+                             (core:stroke-dash-of (core:display-list-extra list index)))))))
+
+(define-test a-panels-and-a-pressables-edge-is-dashed-as-they-are-told ()
+  ;; (DASH GAP), or one number for both; and a frame where only the dash changes, from outside, is
+  ;; drawn again and hashes differently.
+  (let ((*dash* 6))
+    (let ((screen (show 'make-dashed)))
+      (flet ((drawn () (draw screen) (core:display-list-hash (screen-list screen))))
+        (assert-equal (list (list #xff0000ff 2f0 6f0 4f0)
+                            (list #x0000ffff 1f0 3f0 3f0)
+                            (list #x00ff00ff 1f0 nil))
+                      (strokes screen))
+        (let ((six (drawn)))
+          (setf *dash* 8)
+          (assert-false (eql six (drawn)))
+          (assert-equal (list #xff0000ff 2f0 8f0 4f0) (first (strokes screen)))
+          (setf *dash* 6)
+          (assert-eql six (drawn)))))))
+
+(defun make-inner-dashed ()
+  (lambda ()
+    (padding (:id :inner-page :all 20)
+      (panel (:id :card :all 10 :border-color "#ff0000" :border-dash '(5 2.5))
+        (label "Up" :id :words)))))
+
+(defun make-dashed-outer ()
+  (lambda ()
+    (column (:id :page :fill t :cross-align :stretch)
+      (setf *inner* (app-pane 'make-inner-dashed :id :running :zoom 2 :flex 1)))))
+
+(define-test an-app-in-a-pane-at-a-zoom-dashes-its-edges-at-the-zoom ()
+  (let ((screen (show-with-pane 'make-dashed-outer)))
+    (assert-equal (list (list #xff0000ff 2f0 10f0 5f0)) (strokes screen))))
+
 (defun make-bad-shadow ()
   (lambda ()
     (panel (:id :bad :shadow '(:blur 4 :offset 2))

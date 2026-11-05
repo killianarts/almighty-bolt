@@ -68,9 +68,9 @@ Every widget that draws text takes `:font`: a family, a role of the theme (`:bod
 
 A label turns a quarter, for the tabs on the side of a window: `(bolt:label "OUTLINE" :id :rail-outline :turn :up)` reads upwards from its bottom and `:turn :down` downwards from its top, and the label is as wide as a line is tall. Each glyph is drawn from the same bitmap as upright, turned as it is drawn, so turned text is as sharp as upright text, and it turns in a view and in an app in a pane at a zoom too. In a canvas, `context-push-text` takes the turn as an optional last argument.
 
-### Shadows
+### Shadows and dashed edges
 
-A panel or a pressable casts a soft shadow with `:shadow '(:y 8 :blur 24 :color ("#000000" :alpha 0.16))`, or several, stacked as a design tool stacks them: moved across and down, blurred, spread larger or smaller, in any colour. The blur is a design tool's (the Gaussian's standard deviation is half of it), so a shadow from a design is given the numbers the design has, and the shader draws it in one pass, its corners round with the panel's. It reaches past the panel's edges; a scroll container or a pane still cuts it at theirs. In a canvas, `push-shadow` draws one, and `push-rounded-stroke`, which the reference has described for canvases since 0.2, is now exported from `almighty-bolt` too.
+A panel or a pressable casts a soft shadow with `:shadow '(:y 8 :blur 24 :color ("#000000" :alpha 0.16))`, or several, stacked as a design tool stacks them: moved across and down, blurred, spread larger or smaller, in any colour. The blur is a design tool's (the Gaussian's standard deviation is half of it), so a shadow from a design is given the numbers the design has, and the shader draws it in one pass, its corners round with the panel's. It reaches past the panel's edges; a scroll container or a pane still cuts it at theirs. An edge can be dashed too: `:border-dash '(6 4)` on a panel or a pressable, or a number for dashes and gaps alike, for an outline or a place to drop something; the dashes go clockwise from the top left and round the corners. In a canvas, `push-shadow` draws a shadow and `push-rounded-stroke` takes a dash and a gap, and `push-rounded-stroke`, which the reference has described for canvases since 0.2, is now exported from `almighty-bolt` too.
 
 ### Docked panes
 

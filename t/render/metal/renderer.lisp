@@ -183,6 +183,51 @@ its pixels."
               (assert-equalp a b)
               (assert-true (every (lambda (x y) (<= (abs (- x y)) 2)) a b))))))))
 
+;;; --- dashed strokes ---
+
+(define-test a-dashed-stroke-is-on-for-its-dash-and-off-for-its-gap-clockwise-round-the-edge ()
+  ;; The square 40, 40 of 120, a stroke 2 wide dashed 10 on and 10 off from the left end of its top
+  ;; side, clockwise. Without corners each side is 120, so every side starts on a dash.
+  (with-metal (device renderer)
+    (let ((list (dl:make-display-list :capacity 4)))
+      (dl:push-rounded-stroke list 40 40 120 120 0 2 (dl:pack-color 255 0 0) 10 10)
+      (assert-equal '(10f0 10f0) (multiple-value-list
+                                  (dl:stroke-dash-of (dl:display-list-extra list 0))))
+      (let ((pixels (render-scene device renderer list 200 200 1)))
+        (flet ((on (x y) (equal +red+ (pixel pixels 200 x y)))
+               (off (x y) (equal +background+ (pixel pixels 200 x y))))
+          ;; Along the top, left to right; down the right; along the bottom, right to left; up the
+          ;; left. A dash ends sharply on its pixel's edge.
+          (assert-true (and (on 45 40) (on 49 41) (off 50 40) (off 55 40) (on 65 40)))
+          (assert-true (and (on 159 45) (off 159 55) (on 158 65)))
+          (assert-true (and (on 154 159) (off 144 159) (on 134 158)))
+          (assert-true (and (on 40 154) (off 40 144) (on 41 134)))
+          ;; Inside the stroke, nothing.
+          (assert-true (off 45 43))))))
+  ;; With corners of 20 each side is 80 and each corner a quarter circle, 31.4: the dashes carry on
+  ;; round them, so where a later side is on is where the arcs' lengths put it.
+  (with-metal (device renderer)
+    (let ((list (dl:make-display-list :capacity 4)))
+      (dl:push-rounded-stroke list 40 40 120 120 20 2 (dl:pack-color 255 0 0) 10 10)
+      (let ((pixels (render-scene device renderer list 200 200 1)))
+        (flet ((on (x y) (equal +red+ (pixel pixels 200 x y)))
+               (off (x y) (equal +background+ (pixel pixels 200 x y))))
+          (assert-true (and (on 159 74) (off 159 84)))
+          (assert-true (and (on 100 159) (on 95 159) (off 90 159) (off 85 159)))
+          (assert-true (and (off 40 100) (on 40 105) (off 40 96) (on 40 108)))))))
+  ;; A gap of its own, 10.75 after a dash of 10: the second dash starts at 20.75, a quarter of the
+  ;; way into the pixel whose middle is at 20.5, which is a quarter covered.
+  (with-metal (device renderer)
+    (let ((list (dl:make-display-list :capacity 4)))
+      (dl:push-rounded-stroke list 40 40 120 120 0 2 (dl:pack-color 255 0 0) 10 10.75)
+      (let ((pixels (render-scene device renderer list 200 200 1)))
+        (assert-equal +red+ (pixel pixels 200 45 40))
+        (assert-equal +background+ (pixel pixels 200 55 40))
+        (assert-equal +background+ (pixel pixels 200 59 40))
+        (assert-true (near (list (round (+ 26 (* 0.25 229))) 0 0) (butlast (pixel pixels 200 60 40)) 30)
+                     (pixel pixels 200 60 40))
+        (assert-equal +red+ (pixel pixels 200 66 40))))))
+
 ;;; --- blending and antialiasing ---
 
 (define-test an-edge-in-the-middle-of-a-pixel-is-half-covered ()

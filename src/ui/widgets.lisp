@@ -19,6 +19,7 @@
                 #:box-border-color
                 #:box-border-width
                 #:box-shadows
+                #:box-border-dash
                 #:box-flex
                 #:box-gap
                 #:box-main-align
@@ -464,6 +465,17 @@ given); or a list of shadows, the first drawn first, as a design tool stacks the
           ((keywordp (first designator)) (list (one designator)))
           (t (mapcar #'one designator)))))
 
+(defun border-dash (designator)
+  "The dash and gap, (dash . gap) in points, of an edge whose :BORDER-DASH is DESIGNATOR: NIL for a
+solid edge, a number for dashes that long with gaps as long, or (DASH GAP)."
+  (etypecase designator
+    (null nil)
+    ((real (0)) (cons (float designator 1f0) (float designator 1f0)))
+    (cons (destructuring-bind (dash gap) designator
+            (check-type dash (real (0)))
+            (check-type gap (real 0))
+            (cons (float dash 1f0) (float gap 1f0))))))
+
 (defun shadows-hash (shadows)
   "A fixnum for SHADOWS, every number of every one."
   (let ((hash 0))
@@ -471,8 +483,9 @@ given); or a list of shadows, the first drawn first, as a design tool stacks the
       (dolist (number shadow)
         (setf hash (mix hash (hash-of number)))))))
 
-(defmacro panel ((&key id all left top right bottom color (radius 8) (flex 0) border-color (border-width 1) shadow width height min-width min-height max-width max-height) &body body)
-  "Children on a rounded background. SHADOW is a soft shadow under it, or several (see SHADOWS): it
+(defmacro panel ((&key id all left top right bottom color (radius 8) (flex 0) border-color (border-width 1) border-dash shadow width height min-width min-height max-width max-height) &body body)
+  "Children on a rounded background, with an edge of BORDER-COLOR, BORDER-WIDTH points wide, if given:
+dashed if BORDER-DASH is a number (dashes and gaps that long) or (DASH GAP). SHADOW is a soft shadow under it, or several (see SHADOWS): it
 reaches past the panel's edges, and is cut only where something it is in cuts what is in it (a
 scroll container, a pane)."
   (let ((box (gensym "BOX")))
@@ -485,6 +498,7 @@ scroll container, a pane)."
              (box-color ,box) (theme-color ,color)
              (box-border-color ,box) (theme-color ,border-color)
              (box-border-width ,box) (float ,border-width 1f0)
+             (box-border-dash ,box) (border-dash ,border-dash)
              (box-shadows ,box) (shadows ,shadow)
              (box-n1 ,box) (float ,radius 1f0)
              (box-flex ,box) (float ,flex 1f0))
@@ -551,7 +565,7 @@ and true if it was clicked this frame."
     (values box clicked)))
 
 (defmacro pressable ((&key id tooltip (enabled t) (selected :none) name (look :plain) color
-                        border-color (border-width 1) shadow
+                        border-color (border-width 1) border-dash shadow
                         (radius 8) all left top right bottom (gap 0) (flex 0)
                         width height min-width min-height max-width max-height)
                      &body body)
@@ -561,7 +575,7 @@ or Return with the keyboard on it). LOOK :BUTTON draws it in the theme's button 
 it in the button's text colour; :PLAIN (the default) on COLOR, or the theme's panel colour, a little
 darker or lighter under the pointer. SELECTED, if given, makes it a toggle that is on or off. NAME is
 what a screen reader calls it; by default the words of what is in it. SHADOW is a soft shadow under it,
-or several, as a panel's."
+or several, and BORDER-DASH dashes its edge, as a panel's."
   (let ((box (gensym "BOX")) (clicked (gensym "CLICKED")) (looks (gensym "LOOK")))
     `(let ((,looks ,look))
        (multiple-value-bind (,box ,clicked)
@@ -572,6 +586,7 @@ or several, as a panel's."
          (setf (box-data ,box) ,name
                (box-border-color ,box) (theme-color ,border-color)
                (box-border-width ,box) (float ,border-width 1f0)
+               (box-border-dash ,box) (border-dash ,border-dash)
                (box-shadows ,box) (shadows ,shadow))
          (let ((*foreground* (cond ((not (eq ,looks :button)) *foreground*)
                                    ((box-enabled ,box) (theme-button-text *theme*))
@@ -2834,6 +2849,8 @@ counting its children."
          (paint (hash-numbers layout (if (box-color box) (1+ (box-color box)) 0) (box-look box)
                               (if (box-border-color box) (1+ (box-border-color box)) 0)
                               (hash-of (box-border-width box)) (shadows-hash (box-shadows box))
+                              (let ((dash (box-border-dash box)))
+                                (if dash (mix (hash-of (car dash)) (hash-of (cdr dash))) 0))
                               (hash-of (box-n1 box))
                               (hash-of (box-n2 box)) (box-n3 box)
                               (hash-of (box-enabled box)))))

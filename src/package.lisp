@@ -173,6 +173,7 @@
                 #:+command-shadow+
                 #:push-shadow
                 #:stroke-width-of
+                #:stroke-dash-of
                 #:push-clip
                 #:push-unclip
                 #:pack-color
@@ -486,6 +487,7 @@
            #:+command-shadow+
            #:push-shadow
            #:stroke-width-of
+           #:stroke-dash-of
            #:push-clip
            #:push-unclip
            #:pack-color

@@ -63,8 +63,8 @@ user of.
    `:turn :up` and `:down`, and `context-push-text`'s turn.)
 3. **Effects:** a soft drop shadow, drawn in the shader and reaching past its
    widget's edges (the roadmap's Effects); then a dashed stroke, for outlines
-   and hit boxes. (Shadows done: `:shadow` on panels and pressables,
-   `push-shadow`.)
+   and hit boxes. (Done: `:shadow` and `:border-dash` on panels and
+   pressables, `push-shadow`, and dashes on `push-rounded-stroke`.)
 4. **Images and icons,** drawn from a texture, for the catalogue's tiles and
    the tool bars (the roadmap's Images and icons).
 5. **A code view:** monospace text with line numbers, lines marked (an error,

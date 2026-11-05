@@ -38,7 +38,8 @@ struct Instance {
   uint color;       // red, green, blue, alpha: a byte each, red in the high byte
   uint kind;        // 0 rectangle, 1 rounded rectangle, 2 glyph, 5 and 6 a glyph turned up or
                     // down, 7 a shadow, 16 + quarter points a stroke
-  float extra;      // a shadow's blur in points; 0 for the rest
+  float extra;      // a shadow's blur in points; a dashed stroke's dash and gap in quarter
+                    // points, twelve bits each, the dash low; 0 for the rest
 };
 
 struct Frame {
@@ -53,7 +54,7 @@ struct VertexOut {
   float2 uv;                       // texture coordinates, for a glyph
   float2 half_size [[flat]];
   float radius [[flat]];
-  float blur [[flat]];
+  float extra [[flat]];
   float scale [[flat]];
   float4 color [[flat]];
   uint kind [[flat]];
@@ -93,7 +94,7 @@ vertex VertexOut rect_vertex(uint vertex_id [[vertex_id]],
   }
   out.half_size = half_size;
   out.radius = glyph ? 0.0 : min(inst.parameter, min(half_size.x, half_size.y));
-  out.blur = inst.kind == 7u ? inst.extra : 0.0;
+  out.extra = inst.extra;
   out.scale = frame.scale;
   out.color = float4(float((c >> 24) & 255u), float((c >> 16) & 255u),
                      float((c >> 8) & 255u), float(c & 255u)) / 255.0;
@@ -136,6 +137,37 @@ static float shadow_coverage(float2 p, float2 half_size, float sigma, float corn
   return value;
 }
 
+// How far round the edge of a rounded box, of HALF_SIZE and corners of RADIUS about the origin, the
+// place nearest P is: clockwise from the left end of the top side, along the sides and the arcs.
+static float edge_position(float2 p, float2 half_size, float radius) {
+  float cx = half_size.x - radius, cy = half_size.y - radius;
+  float arc = 1.5707963268 * radius;
+  float2 a = abs(p);
+  bool side;      // on a straight side rather than a corner
+  bool across;    // the top or the bottom side, rather than the left or the right
+  if (a.x <= cx && a.y <= cy) {
+    side = true;
+    across = (half_size.y - a.y) <= (half_size.x - a.x);
+  } else if (a.x <= cx) {
+    side = true; across = true;
+  } else if (a.y <= cy) {
+    side = true; across = false;
+  } else {
+    side = false; across = false;
+  }
+  if (side) {
+    if (across && p.y < 0.0) return p.x + cx;
+    if (!across && p.x > 0.0) return 2.0 * cx + arc + (p.y + cy);
+    if (across) return 2.0 * cx + 2.0 * arc + 2.0 * cy + (cx - p.x);
+    return 4.0 * cx + 3.0 * arc + 2.0 * cy + (cy - p.y);
+  }
+  float2 v = p - float2(p.x > 0.0 ? cx : -cx, p.y > 0.0 ? cy : -cy);
+  if (p.x > 0.0 && p.y < 0.0) return 2.0 * cx + radius * atan2(v.x, -v.y);
+  if (p.x > 0.0) return 2.0 * cx + arc + 2.0 * cy + radius * atan2(v.y, v.x);
+  if (p.y > 0.0) return 4.0 * cx + 2.0 * arc + 2.0 * cy + radius * atan2(-v.x, v.y);
+  return 4.0 * cx + 3.0 * arc + 4.0 * cy + radius * atan2(-v.y, -v.x);
+}
+
 fragment float4 rect_fragment(VertexOut in [[stage_in]],
                               texture2d<float> atlas [[texture(0)]]) {
   float coverage;
@@ -143,9 +175,9 @@ fragment float4 rect_fragment(VertexOut in [[stage_in]],
     // The atlas is at device resolution, so sample it texel for pixel.
     constexpr sampler nearest(coord::normalized, filter::nearest, address::clamp_to_edge);
     coverage = atlas.sample(nearest, in.uv, level(0.0)).r;
-  } else if (in.kind == 7u && in.blur * in.scale >= 1.0) {
+  } else if (in.kind == 7u && in.extra * in.scale >= 1.0) {
     // The standard deviation is half the blur, as design tools have it.
-    coverage = clamp(shadow_coverage(in.local, in.half_size, in.blur * 0.5, in.radius), 0.0, 1.0);
+    coverage = clamp(shadow_coverage(in.local, in.half_size, in.extra * 0.5, in.radius), 0.0, 1.0);
   } else {
     // Signed distance to a rounded box: negative inside, zero on the edge. A shadow
     // blurred by less than a pixel is drawn as its box.
@@ -157,6 +189,17 @@ fragment float4 rect_fragment(VertexOut in [[stage_in]],
       d = abs(d + w * 0.5) - w * 0.5;
     }
     coverage = clamp(0.5 - d * in.scale, 0.0, 1.0);
+    // A dashed stroke: on for the dash and off for the gap, by how far round the edge the point
+    // is, antialiased at each end of a dash.
+    if (in.kind > 16u && in.extra > 0.0) {
+      uint packed = uint(in.extra + 0.5);
+      float dash = float(packed & 4095u) * 0.25;
+      float gap = float(packed >> 12) * 0.25;
+      float period = dash + gap;
+      float m = fmod(edge_position(in.local, in.half_size, in.radius), period);
+      float inside = max(min(m, dash - m), m - period);
+      coverage *= clamp(0.5 + inside * in.scale, 0.0, 1.0);
+    }
   }
   float alpha = in.color.a * coverage;
   return float4(in.color.rgb * alpha, alpha);

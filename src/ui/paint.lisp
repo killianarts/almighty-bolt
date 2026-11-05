@@ -36,6 +36,7 @@
                 #:box-border-color
                 #:box-border-width
                 #:box-shadows
+                #:box-border-dash
                 #:box-pad-left
                 #:box-enabled
                 #:box-look
@@ -803,10 +804,12 @@ spread (and its corners with it), and blurred."
                          (max 0f0 (+ (box-n1 box) spread)) blur color)))
 
 (defun draw-border (box list x y)
-  "The edge of a panel or a pressable given a :border-color, inside it."
+  "The edge of a panel or a pressable given a :border-color, inside it, dashed if it is given a
+:border-dash."
   (when (and (box-border-color box) (plusp (box-border-width box)))
-    (push-rounded-stroke list x y (box-w box) (box-h box) (box-n1 box) (box-border-width box)
-                         (box-border-color box))))
+    (let ((dash (box-border-dash box)))
+      (push-rounded-stroke list x y (box-w box) (box-h box) (box-n1 box) (box-border-width box)
+                           (box-border-color box) (car dash) (cdr dash)))))
 
 (defun paint-contents (ui box context list x y)
   "Draw what is in the container BOX. One given a greatest size (:height, :max-width ...) cuts off

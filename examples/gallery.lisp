@@ -284,6 +284,9 @@
                                :shadow '((:y 1 :blur 2 :color ("#000000" :alpha 0.12))
                                          (:y 8 :blur 24 :color ("#000000" :alpha 0.16))))
                     (bolt:label "A panel with a shadow" :id :raised-words))
+                  (bolt:panel (:id :dashed :all 16 :color :background :border-color :dim-text
+                               :border-dash '(6 4))
+                    (bolt:label "A dashed edge" :id :dashed-words))
                   (call "(bolt:row (&key id (gap 0) (main-align :start) (cross-align :start) fill (flex 0) width height min-width min-height max-width max-height) &body body)"
                         :row-call)
                   (call "(bolt:column (&key id (gap 0) (main-align :start) (cross-align :start) fill (flex 0) width height min-width min-height max-width max-height) &body body)"
@@ -292,7 +295,7 @@
                         :stack-call)
                   (call "(bolt:padding (&key id all left top right bottom (flex 0) width height min-width min-height max-width max-height) &body body)"
                         :padding-call)
-                  (call "(bolt:panel (&key id all left top right bottom color (radius 8) (flex 0) border-color (border-width 1) shadow width height min-width min-height max-width max-height) &body body)"
+                  (call "(bolt:panel (&key id all left top right bottom color (radius 8) (flex 0) border-color (border-width 1) border-dash shadow width height min-width min-height max-width max-height) &body body)"
                         :panel-call)
                   (call "(bolt:center (&key id (flex 0) width height min-width min-height max-width max-height) &body body)"
                         :center-call))
@@ -349,7 +352,7 @@
                                       :id :star-about :size 12))
                     (setf starred (not starred)))
                   (note (format nil "~:[Not starred~;Starred~]." starred) :star-note)
-                  (call "(bolt:pressable (&key id tooltip (enabled t) selected name (look :plain) color border-color (border-width 1) shadow (radius 8) all left top right bottom (gap 0) (flex 0) width height min-width min-height max-width max-height) &body body)"
+                  (call "(bolt:pressable (&key id tooltip (enabled t) selected name (look :plain) color border-color (border-width 1) border-dash shadow (radius 8) all left top right bottom (gap 0) (flex 0) width height min-width min-height max-width max-height) &body body)"
                         :pressable-call)
                   (bolt:row (:id :spaced :fill t)
                     (bolt:label "Left" :id :left)

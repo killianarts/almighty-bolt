@@ -585,7 +585,11 @@ A panel or a pressable given `:border-color` has an edge of that colour,
 corners: `(bolt:panel (:id :today :border-color :accent :border-width 2) ...)`
 rings a day without hiding its own colour. In a canvas, `push-rounded-stroke`
 draws such an edge: `(push-rounded-stroke list x y width height radius
-stroke-width color)`, a stroke of up to about 60 points.
+stroke-width color &optional dash gap)`, a stroke of up to about 60 points.
+`:border-dash` dashes the edge: a number for dashes and gaps that long, or
+`(dash gap)`, `(bolt:panel (:id :drop :border-color :dim-text :border-dash '(6
+4)) ...)`. The dashes start at the left end of the top side and go clockwise,
+round the corners too, to the nearest quarter point, up to 1023.75 points each.
 
 A panel or a pressable given `:shadow` casts a soft shadow under it: `(:x :y
 :blur :spread :color)`, each optional, moved `x` across and `y` down, blurred by

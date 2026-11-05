@@ -24,6 +24,7 @@
            #:push-rounded-stroke
            #:push-shadow
            #:stroke-width-of
+           #:stroke-dash-of
            #:push-clip
            #:push-unclip
            #:pack-color
@@ -55,8 +56,8 @@
 ;;; Every command has a rectangle (x, y, width, height, in points from the top
 ;;; left), a colour, and one kind-specific number, the parameter: the corner
 ;;; radius of a rounded rectangle, or the index of a glyph in the glyph atlas. A
-;;; kind that needs a second number has the extra (a shadow's blur); for the others
-;;; it is 0.
+;;; kind that needs a second number has the extra (a shadow's blur, a dashed stroke's
+;;; dash and gap); for the others it is 0.
 
 (defconstant +command-rect+ 0 "A filled rectangle.")
 (defconstant +command-rounded-rect+ 1 "A filled rectangle with rounded corners.")
@@ -186,12 +187,32 @@ changing TARGET, if SOURCE holds more commands than TARGET has room for."
   "Append a filled rectangle with corners of RADIUS. Returns its index."
   (push-command display-list +command-rounded-rect+ x y width height radius color))
 
-(defun push-rounded-stroke (display-list x y width height radius stroke-width color)
+(defconstant +most-dash+ 4095
+  "The most quarter points a dash or a gap can be: each is twelve bits of the extra, which together
+are 24, as many as a float holds a whole number in exactly.")
+
+(defun dash-extra (dash gap)
+  "The extra of a stroke dashed DASH points on and GAP off: each to the nearest quarter point, the
+dash at least one, and both at most 1023.75 points."
+  (flet ((quarters (points least) (max least (min +most-dash+ (round (* 4 points))))))
+    (+ (quarters dash 1) (* (1+ +most-dash+) (quarters gap 0)))))
+
+(defun stroke-dash-of (extra)
+  "The dash and the gap, in points, of a stroke whose extra is EXTRA, as two values, or NIL if it is
+not dashed."
+  (let ((whole (round extra)))
+    (if (zerop whole)
+        nil
+        (values (/ (ldb (byte 12 0) whole) 4f0) (/ (ldb (byte 12 12) whole) 4f0)))))
+
+(defun push-rounded-stroke (display-list x y width height radius stroke-width color
+                            &optional dash (gap dash))
   "Append the edge of a rectangle with corners of RADIUS, STROKE-WIDTH points wide and inside it.
-Returns its index."
+Given DASH, it is dashed: DASH points drawn and GAP (DASH if not given) not, round the edge
+clockwise from the left end of its top side, to the nearest quarter point. Returns its index."
   (push-command display-list
                 (+ +command-rounded-stroke+ (max 1 (min 239 (round (* 4 stroke-width)))))
-                x y width height radius color))
+                x y width height radius color (if dash (dash-extra dash gap) 0)))
 
 (defun push-shadow (display-list x y width height radius blur color)
   "Append a soft shadow of the rounded rectangle X, Y, WIDTH by HEIGHT with corner RADIUS, blurred by
@@ -317,8 +338,8 @@ does not allocate (a full 64-bit result would be boxed as a bignum)."
         (mix (bits (aref heights i)))
         (mix (bits (aref parameters i)))
         (mix (aref colors i))
-        ;; Only a kind that has an extra mixes it, so that a frame of the others hashes as it did.
-        (when (= (aref kinds i) +command-shadow+)
+        ;; Only a command that has an extra mixes it, so that a frame of the others hashes as it did.
+        (unless (zerop (aref extras i))
           (mix (bits (aref extras i))))))
     ;; Fold the top bits in, then keep 62 so the result is an immediate fixnum.
     (ldb (byte 62 0) (logxor hash (ash hash -62)))))
@@ -334,7 +355,7 @@ does not allocate (a full 64-bit result would be boxed as a bignum)."
 (defun zoom-display-list (target source zoom)
   "Make TARGET hold SOURCE's commands ZOOM times larger, about the top left, and return TARGET: each
 rectangle and corner radius, and the width of each stroke (to the nearest quarter point, at least
-one), and a shadow's blur. A glyph keeps its atlas index. Signals DISPLAY-LIST-FULL, before changing TARGET, if TARGET
+one), a shadow's blur, and a dashed stroke's dash and gap. A glyph keeps its atlas index. Signals DISPLAY-LIST-FULL, before changing TARGET, if TARGET
 has not room for them."
   (declare (type display-list target source) (type single-float zoom))
   (replace-display-list target source)
@@ -347,15 +368,18 @@ has not room for them."
         (setf (aref xs i) (* (aref xs i) zoom)
               (aref ys i) (* (aref ys i) zoom)
               (aref ws i) (* (aref ws i) zoom)
-              (aref hs i) (* (aref hs i) zoom)
-              (aref es i) (* (aref es i) zoom))
+              (aref hs i) (* (aref hs i) zoom))
         (cond ((glyph-kind-p kind))
               ((> kind +command-rounded-stroke+)
+               (multiple-value-bind (dash gap) (stroke-dash-of (aref es i))
+                 (when dash
+                   (setf (aref es i) (float (dash-extra (* dash zoom) (* gap zoom)) 1f0))))
                (setf (aref ps i) (* (aref ps i) zoom)
                      (aref kinds i) (+ +command-rounded-stroke+
                                        (max 1 (min 239 (round (* (- kind +command-rounded-stroke+)
                                                                  zoom)))))))
-              (t (setf (aref ps i) (* (aref ps i) zoom))))))))
+              (t (setf (aref ps i) (* (aref ps i) zoom)
+                       (aref es i) (* (aref es i) zoom))))))))
 
 (defun unzoom-glyphs (list start x baseline zoom)
   "Put the glyphs of LIST from the command START on, drawn ZOOM times their size from the pen at X
