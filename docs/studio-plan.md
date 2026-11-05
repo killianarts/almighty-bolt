@@ -56,7 +56,8 @@ user of.
 
 1. **Fonts per element.** Font, weight, size, letter spacing and line height
    on every widget that draws text, and fonts by role in a theme. Fonts
-   registered from files (Core Text), so an app can ship its own.
+   registered from files (Core Text), so an app can ship its own. (Done:
+   `:font`, `typeface`, the theme's role fonts, `load-font-file`.)
 2. **Text turned 90 degrees,** for the rail's vertical labels.
 3. **Effects:** a soft drop shadow, drawn in the shader and reaching past its
    widget's edges (the roadmap's Effects); then a dashed stroke, for outlines

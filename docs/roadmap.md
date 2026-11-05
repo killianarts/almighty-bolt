@@ -13,10 +13,10 @@ the order inside a section is not a schedule. What has shipped is in the
 
 - **Images and icons.**
 - **Text and layout.**
-  - A font for every element that draws text: its family, any weight (not
-    only regular and bold, which labels and paragraphs have), its size, letter
-    spacing and line height; fonts by role (label, body, heading, code) in a
-    theme; fonts loaded from an app's own files. Italic, and rich text.
+  - A font for every element that draws text: its family, any weight, its
+    size, letter spacing and line height; fonts by role (label, body, heading,
+    code, button) in a theme; fonts loaded from an app's own files. (In 0.3.)
+  - Italic, and rich text.
   - Text turned 90 degrees.
   - Wrapping layouts.
   - A table, and date and colour pickers.
