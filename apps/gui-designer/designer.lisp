@@ -421,12 +421,16 @@ widget's id."
 
 (defun designer-parts ()
   "The GUI designer's parts, each a function that draws one, all of one design and its history:
-(values toolbar left canvas right keys open-view). LEFT is the widgets to add and the outline,
+(values toolbar left canvas right keys open-view about save). LEFT is the widgets to add and the outline,
 CANVAS the view drawn, RIGHT the selected widget's options and the wiring, KEYS the shortcuts
 (Command-Z and Command-Shift-Z), described after the part that has the keyboard so that a text field
 undoes its own typing first. OPEN-VIEW is not drawn: it is called with the name of a view the image
-has, and the id of a widget in it, to open that view live with the widget selected. MAKE-DESIGNER
-puts them in a window; the studio puts them in panes."
+has, and the id of a widget in it, to open that view live with the widget selected. ABOUT is not
+drawn: it says what is being designed, as a property list of :name (the view's name), :package
+(its package's, as written), :file (the file it is saved to, or NIL) and :live (the view of the
+image it is, while it is live, or NIL). SAVE is what Save... does, from elsewhere: to the view's own
+file, or with the dialog, which TOOLBAR draws. MAKE-DESIGNER puts them in a window; the studio puts
+them in panes."
   (bolt:state-let ((view (form-node +sample+))
                    ;; What the view is called, which an app draws it by (the file's name, once
                    ;; saved), and the package that name is in (the app's), as written.
@@ -536,7 +540,12 @@ selected if given."
                      file (pathname path))
                (let ((problems (handler-bind ((warning #'muffle-warning))
                                  (set-view symbol (node-form view) :file path))))
-                 (setf status (format nil "Saved to ~a~:[.~;; ~:*~{~a~^ ~}~]" path problems)))))
+                 (setf status (format nil "Saved to ~a~:[.~;; ~:*~{~a~^ ~}~]" path problems))))
+             (save ()
+               "To its own file without asking, if that file is only the view; else ask where."
+               (if (and live file (view-only-file-p file live))
+                   (save-to file live)
+                   (setf saving t))))
       (values
         (lambda ()
           (take-up-outside)
@@ -562,10 +571,7 @@ selected if given."
                  (when (or (bolt:button "Open…" :id :open) (equal menu "Open…"))
                    (setf opening t))
                  (when (or (bolt:button "Save…" :id :save) (equal menu "Save…"))
-                   ;; To its own file without asking, if that file is only the view.
-                   (if (and live file (view-only-file-p file live))
-                       (save-to file live)
-                       (setf saving t)))
+                   (save))
                  (when (bolt:button "Remove" :id :remove
                                              :enabled (and selected (not (eq selected (node-id view)))
                                                            t))
@@ -665,7 +671,12 @@ selected if given."
             (step-forward)))
         ;; For a tool beside it (the studio's inspector): open a view of the image, live.
         (lambda (symbol &optional widget)
-          (open-view symbol widget))))))
+          (open-view symbol widget))
+        ;; What is being designed, and Save, for a tool beside it (the studio's title bar).
+        (lambda ()
+          (list :name name :package package :file file :live live))
+        (lambda ()
+          (save))))))
 
 (defun make-designer ()
   "The GUI designer in a window of its own: its toolbar over its parts side by side."

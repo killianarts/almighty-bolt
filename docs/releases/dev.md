@@ -94,6 +94,10 @@ The studio is drawn in a theme of its own, light or dark as the system is: white
 
 Two things came with it that any app can use. `"System"` and `"System Mono"` are font families: the Mac's own San Francisco and its monospaced design, at any weight, which have no name the system could be asked for before. And `(bolt:appearance)` says whether the window is `:dark` or `:light`, so that an app with a light theme and a dark one of its own draws in the one that suits: `(bolt:with-theme ((if (eq (bolt:appearance) :dark) :my-dark :my-light)) ...)`.
 
+### The studio's title bar and modes
+
+Over the studio is its title bar, as the prototype draws it: its name; the modes, Design, Wire, Debug, Theme and Agent, each a dock of its own whose arrangement is kept while another is shown; where the person is, the view, the app and the view's file; the Lisp the studio runs in, with a green dot while a view is live in it; Save, which saves the view from any mode; and Run Window, which opens the app being run in a window of its own. Until their own panes are built, Wire has the canvas, the options and the app, Debug the app and its inspector, Theme the theme's preview and settings, and Agent says it is not built yet. Point on a view's clause in Emacs, or Edit in the inspector, goes to Design. An app in an `app-pane` is now drawn again when the system goes dark or light.
+
 ### A tree view
 
 `(bolt:tree roots :id :outline :children #'node-children :label #'node-title :key #'node-id :selected picked)` shows a tree of items, each indented a level further, with a mark that opens and closes those that have children, and returns the key selected. It takes the keyboard as one thing: the arrows move the selection, open and close. VoiceOver reads it as an outline of rows. The GUI designer's outline is one, so that a container's contents can be hidden while the rest is worked on.

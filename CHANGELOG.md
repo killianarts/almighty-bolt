@@ -14,6 +14,7 @@ are not listed.
 
 ### Added
 
+- The studio's title bar: its modes, each a dock of its own, kept; where the person is; the image; Save from any mode, and Run Window ([0.3](docs/releases/dev.md#the-studios-title-bar-and-modes)).
 - `appearance`: whether the window is dark or light, for an app that has a theme of each ([0.3](docs/releases/dev.md#the-studios-own-theme)).
 - The font families `"System"` and `"System Mono"`: the Mac's San Francisco and its monospaced design, at any weight ([0.3](docs/releases/dev.md#the-studios-own-theme)).
 - The studio is drawn in a light and a dark theme of its own, from the prototype's design system; its canvas in the window's ([0.3](docs/releases/dev.md#the-studios-own-theme)).
@@ -85,6 +86,7 @@ are not listed.
 
 ### Fixed
 
+- An app in an `app-pane` was not drawn again when the system went dark or light ([0.3](docs/releases/dev.md#the-studios-title-bar-and-modes)).
 - A float whose anchor is another box, and nothing else in the frame changed, is laid out again: the designer's outline follows the selection ([0.3](docs/releases/dev.md#bug-fixes)).
 - Text fields, combo boxes and text areas take what is typed through the system's input method: Japanese, Chinese and Korean, accents made with dead keys, and the Character Viewer ([0.3](docs/releases/dev.md#bug-fixes)).
 - Two things at the top of an app, with ids of their own, are an error instead of the last alone being shown ([0.3](docs/releases/dev.md#bug-fixes)).

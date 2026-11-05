@@ -87,7 +87,9 @@ user of.
 7. **The title bar:** the mark and name, the five modes (each a dock layout of
    its own, kept), the breadcrumb of what is open (view, app, file), whether
    the image is live and which Lisp, Save, and Run Window (the app in a real
-   window of its own, with `open-window`).
+   window of its own, with `open-window`). (Done, but for the mark, which needs
+   vector icons; until their panes are built, Wire, Debug and Theme show the
+   panes they have, and Agent says it is not built.)
 8. **The rail, the section headers, the status bar and the bottom panel:** a
    label, its kana and a count over a rule; what was last done, the wires, the
    problems and the undo; tabs for the REPL, the problems, the events and the

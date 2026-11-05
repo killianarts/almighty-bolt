@@ -327,6 +327,9 @@ inner app (for a tool that looks at it, as the inspector does). The :id is requi
       (when (make-inner-again state id)
         (setf moved t)))
     (let ((inner (app-pane-state-context state)))
+      ;; The system gone dark or light: the inner app is drawn again, in its new theme.
+      (unless (eq (context-appearance inner) (context-appearance outer))
+        (setf moved t))
       ;; The window's, which the inner app follows, and its size, the pane's in its points.
       (setf (pane-context-outer inner) outer
             (pane-context-zoom inner) zoom

@@ -72,19 +72,35 @@ inside every clip it is in."
 (define-test the-studio-is-in-its-own-theme-and-what-it-designs-in-the-windows ()
   (multiple-value-bind (screen session) (open-studio)
     (m:click session :id :add-button :within :left)
-    (flet ((check (appearance panel)
+    (flet ((check (appearance background panel)
              (setf (core:context-appearance (screen-context screen)) appearance)
              (draw screen)
-             ;; The tool bar at the top is the studio's panel: a step off white, or off black in
-             ;; the dark.
-             (assert-eql (bolt:parse-color panel) (color-at screen 1 1) appearance)
+             ;; The title bar is white, or black in the dark; the designer's tool bar under it is
+             ;; the studio's panel, a step off it.
+             (assert-eql (bolt:parse-color background) (color-at screen 1 1) appearance)
+             (destructuring-bind (x y w h) (s:node-bounds (m:find-node session :id :toolbar))
+               (declare (ignore w h))
+               (assert-eql (bolt:parse-color panel) (color-at screen (+ x 1) (+ y 1)) appearance))
              ;; The button on the canvas is as the app would draw it, in the window's theme, and
              ;; not in the studio's black or white.
              (assert-eql (bolt:theme-setting (bolt:find-theme appearance) :button)
                          (middle-color screen session :button-1 :canvas)
                          appearance)))
-      (check :light "#f2f2f2")
-      (check :dark "#1e1e1e"))))
+      (check :light "#ffffff" "#f2f2f2")
+      (check :dark "#000000" "#1e1e1e"))))
+
+(define-test the-app-in-the-app-pane-is-in-the-windows-theme-not-the-studios ()
+  (multiple-value-bind (screen session) (open-studio)
+    (m:click session :id :run-pane)
+    (m:set-value session "almighty-bolt-studio/t/studio:make-tiny" :id :app-name)
+    (dolist (appearance '(:light :dark))
+      (setf (core:context-appearance (screen-context screen)) appearance)
+      (dotimes (i 3) (draw screen))
+      (multiple-value-bind (px py) (core:lookup-target (screen-app screen) :running)
+        (multiple-value-bind (x y w h) (core:lookup-target studio:*running* :plus)
+          (assert-eql (bolt:theme-setting (bolt:find-theme appearance) :button)
+                      (color-at screen (+ px x (/ w 2)) (+ py y (/ h 2)))
+                      appearance))))))
 
 (define-test the-studios-theme-is-the-prototypes ()
   ;; What was imported from the prototype's design system: its greys, the line between parts, what
@@ -468,3 +484,136 @@ inside every clip it is in."
       (resize screen 900)
       (assert-eql 480f0 (app-width))
       (assert-equal "480" (size-set :run-stage)))))
+
+;;; --- the title bar and the modes ---
+
+(defun words-of (session id)
+  "What the row ID of the title bar says, its words joined by spaces."
+  (format nil "~{~a~^ ~}" (mapcar #'s:node-name (s:node-children (m:find-node session :id id)))))
+
+(defun to-mode (session title)
+  (m:set-value session title :id :modes))
+
+(define-test the-title-bar-says-the-studio-its-modes-where-the-person-is-and-the-image ()
+  (multiple-value-bind (screen session) (open-studio)
+    (assert-equal "ALMIGHTY-BOLT STUDIO" (s:node-name (m:find-node session :id :studio-name)))
+    (assert-equal '("DESIGN" "WIRE" "DEBUG" "THEME" "AGENT")
+                  (s:node-property (m:find-node session :id :modes) :options))
+    (assert-eql 0 (s:node-property (m:find-node session :id :modes) :selected))
+    ;; The view the designer starts with, in no file yet, and the Lisp the studio runs in.
+    (assert-equal "VIEW ■ SIGN-IN ■ CL-USER ■ NOT SAVED" (words-of session :where))
+    (assert-equal (format nil "IMAGE ■ ~:@(~a ~a~)" (lisp-implementation-type)
+                          (lisp-implementation-version))
+                  (words-of session :lisp))
+    (flet ((dot () (destructuring-bind (x y w h) (s:node-bounds (m:find-node session :id :live-dot))
+                     (color-at screen (+ x (/ w 2)) (+ y (/ h 2))))))
+      ;; Grey while no view is live (the window is dark).
+      (assert-eql (bolt:parse-color "#565656") (dot))
+      (unwind-protect
+           (progn
+             ;; From Theme, point in Emacs on a view's widget: Design, with that view, live.
+             (to-mode session "THEME")
+             (assert-false (shown-p session :canvas-part))
+             (emacs:point-in-view "tiny-view" "almighty-bolt-studio/t/studio" "plus")
+             (dotimes (i 3) (draw screen))
+             (assert-eql 0 (s:node-property (m:find-node session :id :modes) :selected))
+             (assert-true (shown-p session :canvas-part))
+             (assert-equal "Button :plus" (s:node-name (m:find-node session :id :selected-what)))
+             (assert-equal "VIEW ■ TINY-VIEW ■ STUDIO ■ STUDIO.LISP"
+                           (words-of session :where))
+             (assert-true (search "IMAGE LIVE" (words-of session :lisp)))
+             (assert-eql (bolt:parse-color "#3dd68c") (dot))
+             ;; The app run says whose it is.
+             (run-in-studio session 'make-viewed)
+             (assert-equal "VIEW ■ TINY-VIEW ■ STUDIO ■ STUDIO.LISP"
+                           (words-of session :where)))
+        (emacs-gone)
+        (views:set-view 'tiny-view *tiny-view*)))))
+
+(define-test each-mode-has-its-panes-and-keeps-how-they-are-arranged ()
+  (multiple-value-bind (screen session) (open-studio)
+    (declare (ignore screen))
+    ;; Design has every pane: the theme's settings behind the options' tab.
+    (m:click session :id :theme-pane)
+    (assert-true (shown-p session :theme-part))
+    (to-mode session "WIRE")
+    (assert-true (shown-p session :canvas-part))
+    (assert-true (shown-p session :options-part))
+    (assert-false (shown-p session :widgets-part))
+    (to-mode session "DEBUG")
+    (assert-true (shown-p session :run-part))
+    (assert-true (shown-p session :inspecting))
+    (assert-false (shown-p session :canvas-part))
+    (to-mode session "THEME")
+    (assert-true (shown-p session :preview-part))
+    (assert-true (shown-p session :theme-part))
+    (assert-false (shown-p session :options-part))
+    (to-mode session "AGENT")
+    (assert-true (shown-p session :agent-note))
+    (assert-false (shown-p session :theme-part))
+    ;; Back in Design, as it was left: the theme's settings in front, not the options.
+    (to-mode session "DESIGN")
+    (assert-true (shown-p session :theme-part))
+    (assert-false (shown-p session :options-part))
+    ;; And in Theme, its app brought to the front, which Design does not change.
+    (to-mode session "THEME")
+    (m:click session :id :run-pane)
+    (to-mode session "DESIGN")
+    (to-mode session "THEME")
+    (assert-true (shown-p session :run-part))
+    (assert-false (shown-p session :preview-part))))
+
+(define-test save-in-the-title-bar-saves-the-view-from-any-mode ()
+  (multiple-value-bind (screen session) (open-studio)
+    (let* ((name (format nil "studio-title-save-~d" (get-universal-time)))
+           (path (merge-pathnames (format nil "~a.lisp" name) (uiop:temporary-directory)))
+           (asked '()))
+      (unwind-protect
+           (progn
+             (setf (core:context-file-chooser (screen-context screen))
+                   (lambda (kind types offered)
+                     (declare (ignore types offered))
+                     (push kind asked)
+                     (namestring path)))
+             (to-mode session "THEME")
+             (m:click session :id :title-save)
+             (assert-equal '(:save) asked)
+             (assert-true (probe-file path))
+             (assert-equal (format nil "VIEW ■ ~:@(~a~) ■ CL-USER ■ ~:@(~a~).LISP" name name)
+                           (words-of session :where))
+             ;; Saved again, to its own file, without asking.
+             (m:click session :id :title-save)
+             (assert-equal '(:save) asked))
+        (when (probe-file path) (delete-file path))))))
+
+(define-test run-window-opens-the-app-being-run-in-a-window-of-its-own ()
+  (multiple-value-bind (screen session) (open-studio)
+    (declare (ignore screen))
+    (let* ((opened '())
+           (studio:*open-window* (lambda (constructor &rest options)
+                                   (push (cons constructor options) opened))))
+      (assert-true (s:node-property (m:find-node session :id :run-window) :disabled))
+      (run-in-studio session 'make-viewed)
+      (assert-false (s:node-property (m:find-node session :id :run-window) :disabled))
+      (m:click session :id :run-window)
+      (assert-equal '((make-viewed :title "almighty-bolt-studio/t/studio:make-viewed"
+                                   :width 480 :height 360))
+                    opened))))
+
+(define-test going-to-design-to-edit-keeps-how-the-person-arranged-it ()
+  (multiple-value-bind (screen session) (open-studio)
+    (unwind-protect
+         (progn
+           ;; The widgets moved in with the canvas, by the keyboard: they share its group.
+           (m:click session :id :widgets-pane)
+           (m:press-key session :right :modifiers '(:control :shift))
+           (assert-true (shown-p session :widgets-part))
+           (assert-false (shown-p session :canvas-part))
+           (to-mode session "DEBUG")
+           ;; Point in Emacs: the canvas in front of the widgets, which stay in its group.
+           (emacs:point-in-view "tiny-view" "almighty-bolt-studio/t/studio" "plus")
+           (dotimes (i 3) (draw screen))
+           (assert-true (shown-p session :canvas-part))
+           (assert-false (shown-p session :widgets-part)))
+      (emacs-gone)
+      (views:set-view 'tiny-view *tiny-view*))))

@@ -23,6 +23,10 @@ the order inside a section is not a schedule. What has shipped is in the
     size, letter spacing and line height; fonts by role (label, body, heading,
     code, button) in a theme; fonts loaded from an app's own files. (In 0.3.)
   - Italic, and rich text.
+  - Text in capitals by its font, as a design tool's text styles say it, so
+    that a theme's label and button fonts can be.
+  - Words that do not fit cut short with an ellipsis, so that a row of them
+    (the studio's title bar) narrows with its window.
   - Text turned 90 degrees. (In 0.3.)
   - A code view: code in the theme's code font, its lines numbered and marked.
     (In 0.3.)
