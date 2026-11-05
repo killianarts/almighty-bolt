@@ -8,6 +8,10 @@
                 #:context-caret-x
                 #:context-index-at-x
                 #:context-push-text
+                #:context-push-image
+                #:image-id
+                #:pack-color
+                #:push-image
                 #:push-glyph)
   (:export #:fake-context
            #:make-fake-context
@@ -88,3 +92,10 @@ and the font's tracking after each."
               (:down (push-glyph list (- x +descent+) (+ baseline (* i width)) tall width code
                                  color :down))))
   (length string))
+
+(defmethod context-push-image ((context fake-context) list image x y width height &key tint (opacity 1))
+  ;; There is no atlas: the command's parameter is the image's id, so that a test can see which
+  ;; image was drawn.
+  (push-image list x y width height (image-id image)
+              (or tint (pack-color 255 255 255 (round (* 255 (max 0 (min 1 opacity))))))
+              (and tint t)))

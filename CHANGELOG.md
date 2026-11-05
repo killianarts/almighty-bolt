@@ -14,6 +14,7 @@ are not listed.
 
 ### Added
 
+- `image`, `load-image` and `make-image`: an image from a file or from bytes, at its own size or another, or tinted as an icon; `context-push-image` in a canvas ([0.3](docs/releases/dev.md#images-and-icons)).
 - `:border-dash` on `panel` and `pressable`, and a dash and a gap on `push-rounded-stroke`: a dashed edge ([0.3](docs/releases/dev.md#shadows-and-dashed-edges)).
 - `:shadow` on `panel` and `pressable`, one soft shadow or several, with a design tool's offset, blur, spread and colour; `push-shadow` in a canvas, and `push-rounded-stroke` exported ([0.3](docs/releases/dev.md#shadows-and-dashed-edges)).
 - `:turn :up` and `:turn :down` on `label`: text turned a quarter, reading upwards or downwards, as sharp as upright; `context-push-text` takes the turn too ([0.3](docs/releases/dev.md#a-font-for-every-element)).

@@ -21,6 +21,11 @@
                 #:context-font
                 #:context-measure
                 #:context-push-text
+                #:context-push-image
+                ;; images
+                #:make-image
+                #:image-width
+                #:image-height
                 #:context-caret-x
                 #:context-index-at-x
                 ;; events in a canvas
@@ -83,6 +88,7 @@
                 #:save-file-dialog
                 #:list-box
                 #:progress
+                #:image
                 #:canvas
                 #:scrim
                 #:column
@@ -121,6 +127,10 @@
                 #:design-surface)
   (:import-from #:almighty-bolt/text/font
                 #:load-font-file)
+  (:import-from #:almighty-bolt/render/image-file
+                #:load-image)
+  (:import-from #:almighty-bolt/render/metal/image-atlas
+                #:image-too-large)
   (:import-from #:almighty-bolt/ui/theme
                 #:theme
                 #:make-theme
@@ -157,13 +167,14 @@
            #:define-view #:view #:define-widget-entry
            #:column #:row #:stack #:padding #:panel #:center #:stage #:scroll #:lazy-list
            #:typeface #:+font-roles+ #:load-font-file
+           #:image #:make-image #:load-image #:image-width #:image-height #:image-too-large
            #:theme #:make-theme #:define-theme #:find-theme #:with-theme #:theme-names #:theme-name
            #:theme-setting #:theme-color #:theme-form #:+theme-settings+ #:+theme-seeds+ #:+theme-colors+ #:+theme-sizes+
            #:parse-color #:color-hex #:mix-colors #:contrast-ratio
            #:now #:ask-for-frame #:current-context #:this-window
            #:pack-color #:push-rect #:push-rounded-rect #:push-rounded-stroke #:push-shadow
            #:push-clip #:push-unclip
-           #:context-font #:context-measure #:context-push-text #:context-caret-x
+           #:context-font #:context-measure #:context-push-text #:context-push-image #:context-caret-x
            #:context-index-at-x
            #:key-event-kind #:key-event-logical-key #:key-event-modifiers #:modifier-down-p
            #:+modifier-alt+ #:+modifier-control+ #:+modifier-shift+ #:+modifier-super+

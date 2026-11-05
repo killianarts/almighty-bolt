@@ -6,6 +6,7 @@
                 #:context-caret-x
                 #:context-index-at-x
                 #:context-push-text
+                #:context-push-image
                 #:context-scale
                 #:push-rect
                 #:push-rounded-rect
@@ -605,6 +606,8 @@ behind it fading."
     (:text-area (draw-text-area box context list x y))
     (:slider (draw-slider box list x y))
     (:progress (draw-progress box list x y))
+    (:image (context-push-image context list (box-data box) x y (box-w box) (box-h box)
+                                :tint (box-color box) :opacity (box-n1 box)))
     (:choice (draw-choice box context list x y))
     (:checkbox (draw-checkbox box context list x y))
     (:switch (draw-switch box context list x y))
@@ -693,7 +696,7 @@ kept, and otherwise afresh, which is then kept."
     (let ((x (+ x (box-x box)))
           (y (+ y (box-y box))))
       (ecase (box-kind box)
-        ((:label :paragraph :button :text-field :combo-box :text-area :slider :progress :choice :checkbox :switch :spinner
+        ((:label :paragraph :button :text-field :combo-box :text-area :slider :progress :image :choice :checkbox :switch :spinner
           :list-box :dropdown :menu-button :menu-item :tooltip
           :toast :splitter)
          (paint-cached ui box context list x y))

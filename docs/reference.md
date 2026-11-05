@@ -70,6 +70,27 @@ and as tall as its text is long, as a tab on the side of a window is:
 `(bolt:label "OUTLINE" :id :rail-outline :turn :up)`. Its glyphs are the upright ones, turned
 as they are drawn, so it is as sharp. A turned label cannot be `:selectable`.
 
+`(bolt:image source &key id label tooltip width height tint (opacity 1) (flex
+0))` draws an image. `source` is made once, at top level or in a `state-let`,
+not in the app's function: `(bolt:load-image path &key scale)` reads a file
+(PNG, JPEG, GIF, TIFF, HEIC and what else the system reads), and
+`(bolt:make-image width height pixels &key (scale 1))` makes one from a vector
+of bytes, red, green, blue and alpha for each pixel, row by row from the top,
+not multiplied by alpha. Each image made is a new one to copy to the GPU, so one
+made every frame is copied every frame. `scale` is the pixels a point: a file
+whose name ends in `@2x` is 2, and `@3x` 3, unless `:scale` says otherwise.
+The widget is the image's own size in points (`image-width`, `image-height`),
+or `:width` by `:height`; given one of them, the other keeps the image's shape.
+An image larger or smaller than its pixels is filtered; there are no smaller
+copies made ahead, so one drawn at much less than half its size shimmers. With
+`:tint`, a colour or a theme's name for one, it is an icon: its own colours are
+not used, and the tint covers it as much as its alpha does, so
+`(bolt:image +play+ :id :play :tint :text :label "Play")` follows the theme.
+Without, it is drawn as it is, `:opacity` opaque. A screen reader reads an image
+by its `:label`; one without is taken to be decoration and not read, and a
+`pressable` that holds only a labelled icon is called by the label. An image of
+more than 2048 pixels a side cannot be drawn yet (`image-too-large`).
+
 A `label` or `paragraph` given `:selectable t` can be selected with the pointer,
 as a text field can (a drag, a double-click for a word, a triple-click for all
 of a label or a paragraph's line), and copied with Command-C; Command-A selects
@@ -602,7 +623,9 @@ is drawn in order, the first under the rest, as a design tool stacks them:
 reaches past the panel's edges, but a scroll container, a pane or anything else
 that cuts what is in it at its edges cuts it there too. A translucent panel
 shows its shadow through it. In a canvas, `(push-shadow list x y width height
-radius blur color)` draws one, before what casts it.
+radius blur color)` draws one, before what casts it, and `(context-push-image
+context list image x y width height &key tint (opacity 1))` draws an image to
+fill the rectangle, tinted as the widget's `:tint` is.
 
 A `canvas` is an area that you draw in and handle input for. `painter` is called
 with the display list, the context, and the width and height, and draws from the
@@ -664,6 +687,7 @@ are:
 | `dropdown`           | `AXPopUpButton`       | its value is the option it shows; while its menu is open, an `AXMenuItem` for each row, which can be pressed                                |
 | `slider`             | `AXSlider`            | its value, and its least and greatest                                                                                                       |
 | `progress`           | `AXProgressIndicator` | its value, from 0 to 1                                                                                                                      |
+| `image`              | `AXImage`             | only with a `:label`, which is its name                                                                                                     |
 | `choice`             | `AXRadioGroup`        | an `AXRadioButton` for each option, valued 1 if it is the chosen one, with the identifier of the choice and the option's number after a dot |
 | `list-box`           | `AXList`              | an `AXRow` for each row that is showing, the picked one selected, with the identifier of the list and the row's number after a dot          |
 | `canvas`, `scrim`    | `AXGroup`             |                                                                                                                                             |

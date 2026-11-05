@@ -373,7 +373,7 @@ value is, press the option of a choice, pick the item of a list."
                               (or (position value (node-property node :items) :test #'equal)
                                   (refuse 'cannot "The list has no item like ~s." value))
                               :id (node-id node) :role :list :name (node-name node))))
-      ((:button :static-text :paragraph :progress-bar :canvas :overlay :group)
+      ((:button :static-text :paragraph :image :progress-bar :canvas :overlay :group)
        (refuse 'cannot "The ~a has no value to set." (describe-node node))))
     (settle session)
     nil))

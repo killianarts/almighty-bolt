@@ -104,6 +104,8 @@
     (:label :static-text)
     (:paragraph :paragraph)
     (:progress :progress-bar)
+    ;; An image without a label is decoration, and is not read.
+    (:image (if (plusp (length (box-text box))) :image :none))
     (:button :button)
     (:text-field :text-field)
     (:combo-box :combo-box)
@@ -166,11 +168,13 @@ The whole frame is searched last, for a label in a float (a dialog's title) or e
     (find-box ui id)))
 
 (defun words-inside (box)
-  "The words of the labels and paragraphs inside BOX, in order, joined by commas, or NIL."
+  "The words of the labels, paragraphs and labelled images inside BOX, in order, joined by commas,
+or NIL: what a pressable with no name of its own is called, so that one that is only an icon is
+called what the icon's label says."
   (let ((words '()))
     (labels ((walk (box)
                (loop :for child :across (box-children box)
-                     :do (when (and (member (box-kind child) '(:label :paragraph))
+                     :do (when (and (member (box-kind child) '(:label :paragraph :image))
                                     (plusp (length (box-text child))))
                            (push (box-text child) words))
                          (walk child))))
@@ -182,7 +186,7 @@ The whole frame is searched last, for a label in a float (a dialog's title) or e
   (case (box-kind box)
     (:pressable (or (box-data box) (words-inside box)))
     ((:drag-source :tree-row) (words-inside box))
-    ((:label :paragraph :button :checkbox :switch :menu-item :menu-button :tooltip :dialog
+    ((:label :paragraph :image :button :checkbox :switch :menu-item :menu-button :tooltip :dialog
       :toast)
      (box-text box))
     (t (let ((label (and (box-labelled-by box) (find-labelling-box ui box (box-labelled-by box)))))

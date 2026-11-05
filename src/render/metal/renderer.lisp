@@ -12,6 +12,10 @@
                 #:make-glyph-atlas
                 #:glyph-atlas-texture
                 #:glyph-atlas-uv-buffer)
+  (:import-from #:almighty-bolt/render/metal/image-atlas
+                #:make-image-atlas
+                #:image-atlas-texture
+                #:image-atlas-uv-buffer)
   (:import-from #:almighty-bolt/display-list
                 #:display-list
                 #:display-list-count
@@ -29,6 +33,7 @@
            #:make-renderer
            #:renderer-capacity
            #:renderer-atlas
+           #:renderer-images
            #:renderer-shader-compile-ns
            #:renderer-pipeline-ns
            #:render-display-list
@@ -61,6 +66,7 @@
   (contents 0 :type (unsigned-byte 64))
   (capacity 0 :type fixnum :read-only t)
   (atlas nil :read-only t)
+  (images nil :read-only t)
   (last-command-buffer 0 :type (unsigned-byte 64))
   (shader-compile-ns 0 :type fixnum :read-only t)
   (pipeline-ns 0 :type fixnum :read-only t)
@@ -80,11 +86,12 @@
   (clip-stack (make-array (* 4 +max-clip-depth+) :element-type 'fixnum :initial-element 0)
    :type (simple-array fixnum (*)) :read-only t))
 
-(defun make-renderer (device pixel-format &key (capacity 65536) (scale 2) (atlas-size 1024))
+(defun make-renderer (device pixel-format &key (capacity 65536) (scale 2) (atlas-size 1024)
+                                              (image-atlas-size 2048))
   "A renderer on DEVICE for targets of PIXEL-FORMAT that draws up to CAPACITY
 commands a frame. Compiles the shaders, which takes a few milliseconds. Its glyph
 atlas is ATLAS-SIZE pixels square, rasterized at SCALE pixels a point, which is the scale that
-text must be drawn at."
+text must be drawn at; its image atlas is IMAGE-ATLAS-SIZE pixels square."
   (multiple-value-bind (pipeline compile-ns pipeline-ns)
       (make-rect-pipeline device pixel-format)
     (let ((buffer (msg-send :id device "newBufferWithLength:options:"
@@ -96,6 +103,7 @@ text must be drawn at."
                       :contents (msg-send :id buffer "contents")
                       :capacity capacity
                       :atlas (make-glyph-atlas device :scale scale :width atlas-size :height atlas-size)
+                      :images (make-image-atlas device :size image-atlas-size)
                       :shader-compile-ns compile-ns
                       :pipeline-ns pipeline-ns))))
 
@@ -226,6 +234,11 @@ Returns the command buffer. Must run inside an autorelease pool."
               (:id (glyph-atlas-uv-buffer (renderer-atlas renderer))) (:ulong 0) (:ulong 2))
     (msg-send :void encoder "setFragmentTexture:atIndex:"
               (:id (glyph-atlas-texture (renderer-atlas renderer))) (:ulong 0))
+    ;; The image atlas, the same way.
+    (msg-send :void encoder "setVertexBuffer:offset:atIndex:"
+              (:id (image-atlas-uv-buffer (renderer-images renderer))) (:ulong 0) (:ulong 3))
+    (msg-send :void encoder "setFragmentTexture:atIndex:"
+              (:id (image-atlas-texture (renderer-images renderer))) (:ulong 1))
     ;; The frame constants: the size in points, the scale, and a pad word. Four
     ;; floats are 16 bytes, which Metal takes as bytes in the command.
     (sb-alien:with-alien ((constants (array sb-alien:single-float 4)))

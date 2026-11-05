@@ -23,6 +23,7 @@
                (:file "wheel-lock")
                (:file "text-edit")
                (:file "display-list")
+               (:file "image")
                (:file "app-instance")
                (:file "settle")
                (:file "redefinition")
@@ -68,12 +69,14 @@
                 :serial t
                 :if-feature :darwin
                 :components
-                ((:module "metal"
+                ((:file "image-file")
+                 (:module "metal"
                   :serial t
                   :components
                   ((:file "device")
                    (:file "target")
                    (:file "glyph-atlas")
+                   (:file "image-atlas")
                    (:file "rect-pipeline")
                    (:file "renderer")
                    (:file "draw-text")))))

@@ -17,6 +17,7 @@
                     (#:target #:almighty-bolt/render/metal/target)
                     (#:renderer #:almighty-bolt/render/metal/renderer)
                     (#:atlas #:almighty-bolt/render/metal/glyph-atlas)
+                    (#:image-atlas #:almighty-bolt/render/metal/image-atlas)
                     (#:objc #:almighty-bolt/platform/macos/objc)
                     (#:window #:almighty-bolt/platform/macos/window)
                     (#:view #:almighty-bolt/platform/macos/view)
@@ -812,7 +813,7 @@ at the start, and a button under where the popovers' catchers are that counts it
     (switch . :switch) (spinner . :busy-indicator) (dropdown . :pop-up-button)
     (menu-button . :menu-button) (popover . :popover) (dialog . :dialog) (toast . :toast)
     (combo-box . :combo-box) (grid . :grid) (pressable . :toggle-button)
-    (scroll . :scroll-area) (lazy-list . :scroll-area)))
+    (scroll . :scroll-area) (lazy-list . :scroll-area) (image . :image)))
 
 (defun roles-in (screen)
   (let ((roles '()))
@@ -857,7 +858,8 @@ at the start, and a button under where the popovers' catchers are that counts it
   ;; Each widget, container and function of the library whose call the gallery shows, under it.
   '(label paragraph button menu-button text-field combo-box text-area slider choice dropdown checkbox
     switch spinner list-box progress canvas scrim spacer row column stack padding panel center grid
-    pressable scroll lazy-list context-menu popover dialog toast open-file-dialog save-file-dialog))
+    pressable scroll lazy-list context-menu popover dialog toast open-file-dialog save-file-dialog
+    image))
 
 (defun call-of (operator)
   "How OPERATOR is called, as the gallery writes it: its lambda list, without the defaults that only
@@ -873,7 +875,9 @@ mean nothing was given (the id that is required, and a pressable that is not a t
            (list (if (consp (first list))
                      (cons (mapcar #'tidy (first list)) (rest list))
                      (mapcar #'tidy list)))
-           (*package* (symbol-package operator))
+           ;; Printed in the package the lambda list was read in, which is the operator's own but
+           ;; for IMAGE, whose symbol is the image type's too.
+           (*package* (symbol-package (if (eq operator 'image) 'label operator)))
            (*print-pretty* nil))
       (format nil "~(bolt:~a~{ ~s~}~)" operator list))))
 
@@ -4963,6 +4967,207 @@ rectangle that is its rectangle."
         (assert-equal (list (list (round (+ px (* 2 x))) (round (+ py (* 2 (+ y 3))))
                                   (round (* 2 w)) (round (* 2 h)) 12 16 #x00000040))
                       (mapcar #'butlast (shadow-commands screen)))))))
+
+;;; --- images ---
+
+(defun solid-pixels (width height red green blue &optional (alpha 255))
+  (let ((pixels (make-array (* 4 width height) :element-type '(unsigned-byte 8))))
+    (dotimes (i (* width height) pixels)
+      (replace pixels (list red green blue alpha) :start1 (* 4 i)))))
+
+(defvar *photo* (make-image 8 4 (solid-pixels 8 4 200 120 40) :scale 2)
+  "Eight by four pixels, at two pixels a point: four points by two.")
+(defvar *icon* (make-image 4 4 (solid-pixels 4 4 0 0 0)))
+(defvar *picture* *photo* "The image MAKE-PICTURED shows.")
+
+(defun image-commands (screen)
+  "Each image drawn: tinted or not, the id of the image, where (rounded) and the colour."
+  (let ((list (screen-list screen)))
+    (loop :for index :below (core:display-list-count list)
+          :for kind = (core:display-list-kind list index)
+          :when (core:image-kind-p kind)
+            :collect (list (= kind core:+command-image-tinted+)
+                           (round (core:display-list-parameter list index))
+                           (round (core:display-list-x list index))
+                           (round (core:display-list-y list index))
+                           (round (core:display-list-width list index))
+                           (round (core:display-list-height list index))
+                           (core:display-list-color list index)))))
+
+(defun make-imaged ()
+  (lambda ()
+    (row (:id :page :gap 0)
+      (image *photo* :id :natural)
+      (image *photo* :id :wide :width 20)
+      (image *photo* :id :tall :height 10)
+      (image *photo* :id :both :width 6 :height 6)
+      (image *icon* :id :icon :tint "#ff0000")
+      (image *photo* :id :faded :opacity 0.5))))
+
+(define-test an-image-is-its-own-size-in-points-or-the-size-it-is-given-keeping-its-shape ()
+  ;; Its own size is its pixels over its scale; given a width or a height, it keeps its shape; given
+  ;; both, it fills them. Tinted, as an icon, it is drawn in the tint; faded, at its opacity.
+  (let* ((screen (show 'make-imaged))
+         (photo (core:image-id *photo*))
+         (icon (core:image-id *icon*)))
+    (flet ((size (id)
+             (multiple-value-bind (x y w h) (core:lookup-target (screen-app screen) id)
+               (declare (ignore x y))
+               (list (round w) (round h)))))
+      (assert-equal '((4 2) (20 10) (20 10) (6 6) (4 4) (4 2))
+                    (mapcar #'size '(:natural :wide :tall :both :icon :faded))))
+    (assert-equal (list (list nil photo 0 0 4 2 #xffffffff)
+                        (list nil photo 4 0 20 10 #xffffffff)
+                        (list nil photo 24 0 20 10 #xffffffff)
+                        (list nil photo 44 0 6 6 #xffffffff)
+                        (list t icon 50 0 4 4 #xff0000ff)
+                        (list nil photo 54 0 4 2 #xffffff80))
+                  (image-commands screen))))
+
+(defun make-pictured ()
+  (lambda ()
+    (column (:id :page)
+      (image *picture* :id :picture))))
+
+(define-test a-frame-whose-image-is-another-draws-another-frame ()
+  ;; Only the image changes, from outside, between two frames with nothing else new: the frame is
+  ;; drawn again, with the other image, and its hash counts which image it is.
+  (let ((*picture* *photo*)
+        (other (make-image 8 4 (solid-pixels 8 4 0 0 255) :scale 2)))
+    (let ((screen (show 'make-pictured)))
+      (flet ((drawn () (draw screen) (core:display-list-hash (screen-list screen))))
+        (let ((photo (drawn)))
+          (setf *picture* other)
+          (assert-false (eql photo (drawn)))
+          (assert-equal (list (core:image-id other)) (mapcar #'second (image-commands screen)))
+          (setf *picture* *photo*)
+          (assert-eql photo (drawn)))))))
+
+(defun make-inner-imaged ()
+  (lambda ()
+    (padding (:id :inner-page :all 10)
+      (row (:id :pictures)
+        (image *photo* :id :photo)
+        (image *icon* :id :icon :tint "#00ff00")))))
+
+(defun make-imaged-outer ()
+  (lambda ()
+    (column (:id :page :fill t :cross-align :stretch)
+      (setf *inner* (app-pane 'make-inner-imaged :id :running :zoom 2 :flex 1)))))
+
+(define-test an-app-in-a-pane-at-a-zoom-draws-its-images-at-the-zoom ()
+  ;; Twice the size and twice as far in, and still the same image, and the icon still tinted.
+  (let ((screen (show-with-pane 'make-imaged-outer)))
+    (destructuring-bind (px py pw ph) (bounds-of screen :running)
+      (declare (ignore pw ph))
+      (assert-equal (list (list nil (core:image-id *photo*) (round (+ px 20)) (round (+ py 20)) 8 4
+                                #xffffffff)
+                          (list t (core:image-id *icon*) (round (+ px 28)) (round (+ py 20)) 8 8
+                                #x00ff00ff))
+                    (image-commands screen)))))
+
+(define-test an-image-drawn-in-a-window-starts-on-a-whole-pixel ()
+  ;; As a glyph does, so that at its own size it is its pixels one for one: at two pixels a point,
+  ;; a quarter point is rounded to a half, and its size is kept. An image drawn twice is copied to
+  ;; the GPU once.
+  (objc:with-masked-float-traps
+    (objc:with-autorelease-pool
+      (let* ((host (host:make-host (make-instance 'core:app-instance) (device:default-device)
+                                   target:+pixel-format-bgra8-unorm+ :capacity 16 :scale 2))
+             (list (core:make-display-list :capacity 4)))
+        (core:context-push-image (host:host-context host) list *photo* 10.3 7.2 4 2)
+        (assert-equal '(10.5 7.0 4.0 2.0)
+                      (list (core:display-list-x list 0) (core:display-list-y list 0)
+                            (core:display-list-width list 0) (core:display-list-height list 0)))
+        (core:context-push-image (host:host-context host) list *photo* 10.3 7.2 4 2)
+        (assert-equal 1 (image-atlas:image-atlas-count
+                         (renderer:renderer-images (host:host-renderer host))))
+        (assert-eql (core:display-list-parameter list 0) (core:display-list-parameter list 1))
+        ;; Untinted, its colour is white at its opacity; tinted, the tint.
+        (assert-eql #xffffffff (core:display-list-color list 0))
+        (core:context-push-image (host:host-context host) list *photo* 0 0 4 2 :opacity 0.5)
+        (core:context-push-image (host:host-context host) list *icon* 0 0 4 4 :tint #x00ff00ff)
+        (assert-equal (list core:+command-image+ #xffffff80 core:+command-image-tinted+ #x00ff00ff)
+                      (list (core:display-list-kind list 2) (core:display-list-color list 2)
+                            (core:display-list-kind list 3) (core:display-list-color list 3)))))))
+
+(defun make-read-images ()
+  (lambda ()
+    (row (:id :page :gap 4)
+      (image *photo* :id :chart :label "Sales by month")
+      (image *photo* :id :flourish)
+      (pressable (:id :run)
+        (image *icon* :id :run-icon :tint "#000000" :label "Run")))))
+
+(define-test a-labelled-image-is-read-by-its-label-and-one-without-is-not-read ()
+  ;; A screen reader reads an image by its label; one without is decoration; a pressable that is
+  ;; only an icon is called what the icon's label says, as one thing, not two.
+  (let* ((screen (show 'make-read-images))
+         (tree (core:accessibility-tree (screen-app screen))))
+    (assert-equal '((:chart "Sales by month"))
+                  (mapcar (lambda (node) (list (s:node-id node) (s:node-name node)))
+                          (s:find-nodes tree :role :image)))
+    (assert-eq :none (s:node-role (first (s:find-nodes tree :id :flourish))))
+    (assert-equal "Run" (s:node-name (first (s:find-nodes tree :id :run))))
+    (with-reader (reader screen)
+      (let ((chart (element-named reader :chart)))
+        (assert-equal "AXImage" (says chart :role))
+        (assert-equal "Sales by month" (says chart :label))
+        (assert-eq nil (says chart :value)))
+      (assert-eq nil (element-named reader :flourish))
+      (assert-equal "Run" (says (element-named reader :run) :label)))))
+
+(defun make-not-an-image ()
+  (lambda ()
+    (column (:id :page)
+      (image "icon.png" :id :wrong))))
+
+(define-test an-image-widget-given-what-is-not-an-image-says-what-it-takes ()
+  (let ((condition (handler-case (progn (show 'make-not-an-image) nil)
+                     (error (condition) condition))))
+    (assert-true condition)
+    (assert-true (search "LOAD-IMAGE" (princ-to-string condition)))))
+
+(defvar *images* (loop :for shade :from 0 :below 12
+                       :collect (make-image 16 16 (solid-pixels 16 16 (* 20 shade) 100 (- 255 (* 20 shade))))))
+(defvar *first-image* 0 "Which of *IMAGES* MAKE-MANY-IMAGES starts at.")
+
+(defun make-many-images ()
+  (lambda ()
+    (row (:id :page :gap 2)
+      (image (first *images*) :id :steady)
+      (loop :for i :from 0 :below 3
+            :do (image (nth (mod (+ *first-image* i) (length *images*)) *images*) :id i)))))
+
+(define-test an-image-atlas-that-fills-up-starts-again-and-draws-the-same ()
+  ;; An image atlas that holds nine of the images (three rows of three), and frames that show three new ones at a time: it fills up and is emptied, and the
+  ;; image painted in the first frame and kept is copied in again. The last frame is what a host
+  ;; with room for all of them draws.
+  (objc:with-masked-float-traps
+    (objc:with-autorelease-pool
+      (flet ((app ()
+               (core:with-kept-state ((core:make-kept-state))
+                 (app:make-app-instance 'make-many-images)))
+             (host (image-atlas-size)
+               (host:make-host (make-instance 'core:app-instance) (device:default-device)
+                               target:+pixel-format-bgra8-unorm+ :capacity 8192 :scale 2
+                                                                 :image-atlas-size image-atlas-size)))
+        (let* ((small (host 48))
+               (images (renderer:renderer-images (host:host-renderer small)))
+               (instance (app))
+               (emptied 0))
+          (loop :for first :from 0 :below 24 :by 3
+                :do (let ((before (image-atlas:image-atlas-count images))
+                          (*first-image* first))
+                      (draw-on-host small instance)
+                      (when (< (image-atlas:image-atlas-count images) before)
+                        (incf emptied))))
+          (assert-true (>= emptied 2) emptied)
+          (let ((*first-image* 6))
+            (let ((after (draw-on-host small instance))
+                  (fresh (draw-on-host (host 2048) (app))))
+              (assert-true (some #'plusp after))
+              (assert-true (equalp fresh after)))))))))
 
 (defun make-inner-turned ()
   (lambda ()

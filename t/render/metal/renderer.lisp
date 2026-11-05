@@ -4,7 +4,11 @@
                     (#:device #:almighty-bolt/render/metal/device)
                     (#:target #:almighty-bolt/render/metal/target)
                     (#:renderer #:almighty-bolt/render/metal/renderer)
-                    (#:dl #:almighty-bolt/display-list)))
+                    (#:dl #:almighty-bolt/display-list)
+                    (#:image #:almighty-bolt/image)
+                    (#:image-atlas #:almighty-bolt/render/metal/image-atlas)
+                    (#:image-file #:almighty-bolt/render/image-file)
+                    (#:png #:almighty-bolt/machine/png)))
 
 (in-package #:almighty-bolt/t/render/metal/renderer)
 
@@ -277,6 +281,137 @@ its pixels."
       (dl:push-rect list 0 0 4 4 (dl:pack-color 255 0 0))
       (render-scene device renderer list 16 16 1)
       (assert-true (plusp (renderer:last-frame-gpu-ns renderer))))))
+
+;;; --- images ---
+
+(defun test-texel (x y)
+  "The colour, unmultiplied, of the texel at X, Y of the four by four test image: no two alike, red
+and blue never equal, so that a picture turned, flipped or with its channels swapped differs; the
+texel at 1, 2 is half transparent."
+  (list (+ 10 (* 60 x)) (+ 20 (* 60 y)) (- 240 (* 50 x) (* 15 y)) (if (and (= x 1) (= y 2)) 128 255)))
+
+(defun test-image ()
+  (let ((pixels (make-array 64 :element-type '(unsigned-byte 8))))
+    (dotimes (y 4 (image:make-image 4 4 pixels :scale 2))
+      (dotimes (x 4)
+        (replace pixels (test-texel x y) :start1 (* 4 (+ x (* 4 y))))))))
+
+(defun over-background (color alpha)
+  "COLOR (three channels, unmultiplied) at ALPHA (0 to 255) over the background."
+  (mapcar (lambda (c b) (round (+ (* c alpha) (* b (- 255 alpha))) 255))
+          (append color (list 255)) +background+))
+
+(defun drawn-image (renderer list image x y w h &optional tint)
+  (dl:push-image list x y w h (image-atlas:atlas-image-index (renderer:renderer-images renderer) image)
+                 (or tint (dl:pack-color 255 255 255)) (and tint t)))
+
+(define-test an-image-at-its-own-size-is-its-pixels-one-for-one ()
+  ;; The four by four image at two pixels a point is two points square. Drawn at 1, 1 on a target of
+  ;; two pixels a point, each pixel is a texel's centre, so the filter gives each texel exactly:
+  ;; the picture the right way round, its channels in place, and the half transparent texel
+  ;; premultiplied once, not twice. Round it, the background is untouched.
+  (with-metal (device renderer)
+    (let ((list (dl:make-display-list :capacity 4))
+          (image (test-image)))
+      (drawn-image renderer list image 1 1 2 2)
+      (let ((pixels (render-scene device renderer list 4 4 2)))
+        (dotimes (y 4)
+          (dotimes (x 4)
+            (destructuring-bind (r g b a) (test-texel x y)
+              (assert-true (near (over-background (list r g b) a) (pixel pixels 8 (+ 2 x) (+ 2 y)) 1)
+                           x y (pixel pixels 8 (+ 2 x) (+ 2 y))))))
+        (dolist (place '((1 2) (6 2) (2 1) (2 6) (1 1) (6 6)))
+          (assert-equal +background+ (pixel pixels 8 (first place) (second place)) place))))))
+
+(define-test an-image-drawn-larger-is-filtered-without-the-image-beside-it ()
+  ;; A white image first, so that the test image lies beside it in the atlas, then the test image
+  ;; drawn at four times its own size, two pixels to a texel at one pixel a point. A pixel at the
+  ;; image's edge is a quarter texel from the texel's centre, towards the edge: kept inside the
+  ;; image's box, it is that texel. Inside, between two texels' centres, the filter mixes them.
+  (with-metal (device renderer)
+    (let ((list (dl:make-display-list :capacity 4))
+          (white (image:make-image 4 4 (make-array 64 :element-type '(unsigned-byte 8)
+                                                      :initial-element 255)))
+          (image (test-image)))
+      (drawn-image renderer list white 0 0 1 1)
+      (drawn-image renderer list image 0 0 8 8)
+      (let ((pixels (render-scene device renderer list 8 8 1)))
+        (assert-equal (append (butlast (test-texel 0 0)) '(255)) (pixel pixels 8 0 0))
+        (assert-equal (append (butlast (test-texel 3 0)) '(255)) (pixel pixels 8 7 0))
+        (assert-equal (append (butlast (test-texel 0 3)) '(255)) (pixel pixels 8 0 7))
+        (assert-equal (append (butlast (test-texel 3 3)) '(255)) (pixel pixels 8 7 7))
+        ;; Pixel 1 is three quarters of texel 0 and a quarter of texel 1, across.
+        (assert-true (near (list (round (+ (* 3/4 10) (* 1/4 70))) 20 (round (+ (* 3/4 240) (* 1/4 190))) 255)
+                           (pixel pixels 8 1 0) 1)
+                     (pixel pixels 8 1 0))))))
+
+(define-test a-tinted-image-is-its-alpha-in-the-tint ()
+  ;; Tinted, as an icon is, the image's own colours are gone: each texel is the tint, as opaque as
+  ;; the texel.
+  (with-metal (device renderer)
+    (let ((list (dl:make-display-list :capacity 4)))
+      (drawn-image renderer list (test-image) 1 1 2 2 (dl:pack-color 0 0 255))
+      (let ((pixels (render-scene device renderer list 4 4 2)))
+        (assert-equal +blue+ (pixel pixels 8 2 2))
+        (assert-equal +blue+ (pixel pixels 8 5 5))
+        (assert-true (near (over-background '(0 0 255) 128) (pixel pixels 8 3 4) 1)
+                     (pixel pixels 8 3 4))))))
+
+(define-test an-images-colour-is-the-same-as-a-rectangles ()
+  ;; An image's pixel and a rectangle given the same colour read back the same: the image is not
+  ;; put through a colour space the rest is not.
+  (with-metal (device renderer)
+    (let ((list (dl:make-display-list :capacity 4))
+          (image (image:make-image 1 1 (coerce '(200 120 40 255) '(vector (unsigned-byte 8))))))
+      (drawn-image renderer list image 0 0 2 2)
+      (dl:push-rect list 2 0 2 2 (dl:pack-color 200 120 40))
+      (let ((pixels (render-scene device renderer list 4 2 1)))
+        (assert-equal '(200 120 40 255) (pixel pixels 4 0 0))
+        (assert-equal (pixel pixels 4 3 1) (pixel pixels 4 0 0))))))
+
+(define-test an-image-file-reads-as-its-pixels-and-its-name-gives-its-scale ()
+  ;; The test image written as a PNG (blue, green, red and alpha, as the writer takes them) and
+  ;; read back is the same image: the same size and, premultiplied, the same pixels, within the
+  ;; rounding of the half transparent one. Named @2x, it is two pixels a point; named plainly, one,
+  ;; unless it is told otherwise.
+  (let ((bgra (make-array 64 :element-type '(unsigned-byte 8)))
+        (directory (uiop:ensure-directory-pathname
+                    (merge-pathnames (format nil "almighty-bolt-images-~d/" (get-universal-time))
+                                     (uiop:temporary-directory)))))
+    (dotimes (y 4)
+      (dotimes (x 4)
+        (destructuring-bind (r g b a) (test-texel x y)
+          (replace bgra (list b g r a) :start1 (* 4 (+ x (* 4 y)))))))
+    (unwind-protect
+         (let ((plain (merge-pathnames "probe.png" directory))
+               (double (merge-pathnames "probe@2x.png" directory))
+               (made (test-image)))
+           (ensure-directories-exist directory)
+           (png:write-png plain 4 4 bgra)
+           (png:write-png double 4 4 bgra)
+           (let ((read (image-file:load-image double)))
+             (assert-equal 4 (image:image-pixel-width read))
+             (assert-equal 4 (image:image-pixel-height read))
+             (assert-equal 2f0 (image:image-scale read))
+             (assert-true (every (lambda (a b) (<= (abs (- a b)) 1))
+                                 (image:image-pixels made) (image:image-pixels read))
+                          (image:image-pixels read)))
+           (assert-equal 1f0 (image:image-scale (image-file:load-image plain)))
+           (assert-equal 3f0 (image:image-scale (image-file:load-image plain :scale 3))))
+      (uiop:delete-directory-tree directory :validate t :if-does-not-exist :ignore))))
+
+(define-test a-file-that-is-not-an-image-says-so ()
+  (let ((source (asdf:system-relative-pathname "almighty-bolt" "almighty-bolt.asd")))
+    (assert-error 'error (image-file:load-image source))
+    (assert-error 'error (image-file:load-image (merge-pathnames "no-such-image.png" source)))
+    (handler-case (image-file:load-image source)
+      (error (e) (assert-true (search "is not an image" (princ-to-string e)))))))
+
+(define-test an-atlas-too-small-for-an-image-says-so ()
+  (with-metal (device renderer)
+    (declare (ignore renderer))
+    (let ((small (image-atlas:make-image-atlas device :size 3)))
+      (assert-error 'image-atlas:image-too-large (image-atlas:atlas-image-index small (test-image))))))
 
 ;;; --- a golden image ---
 ;;;

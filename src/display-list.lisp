@@ -21,6 +21,10 @@
            #:+command-unclip+
            #:+command-rounded-stroke+
            #:+command-shadow+
+           #:+command-image+
+           #:+command-image-tinted+
+           #:image-kind-p
+           #:push-image
            #:push-rounded-stroke
            #:push-shadow
            #:stroke-width-of
@@ -80,6 +84,19 @@ its bitmap goes once turned (its width is the bitmap's height), and the rest is 
   "A soft shadow: the rounded rectangle, its corner radius the parameter, blurred by the extra (in
 points, as a design tool's blur is: the Gaussian's standard deviation is half of it), so that it
 reaches that far and a half past the rectangle.")
+
+(defconstant +command-image+ 8
+  "An image: the rectangle is where it is drawn, the parameter is its index in the image atlas, and
+the colour's alpha is how opaque it is drawn (its red, green and blue are not used).")
+(defconstant +command-image-tinted+ 9
+  "An image tinted, as an icon is: its alpha is the coverage of the colour, and its own red, green
+and blue are not used.")
+
+(declaim (inline image-kind-p))
+(defun image-kind-p (kind)
+  "True if a command of KIND is an image, tinted or not: its parameter is an index in the image
+atlas."
+  (or (= kind +command-image+) (= kind +command-image-tinted+)))
 
 (defconstant +command-clip+ 3
   "Start clipping what follows to the rectangle, inside the clip that is already on.
@@ -235,6 +252,13 @@ fills turned (WIDTH is the bitmap's height). Returns its index."
                                (:down +command-glyph-down+))
                 x y width height atlas-index color))
 
+(defun push-image (display-list x y width height atlas-index color &optional tinted)
+  "Append the image at ATLAS-INDEX in the image atlas, drawn to fill X, Y, WIDTH by HEIGHT (in
+points). Untinted, COLOR's alpha is how opaque it is; TINTED, the image's alpha is the coverage of
+COLOR. Returns its index."
+  (push-command display-list (if tinted +command-image-tinted+ +command-image+)
+                x y width height atlas-index color))
+
 (defun append-display-list (target source &optional (dx 0f0) (dy 0f0))
   "Append the commands of SOURCE to TARGET, each moved DX across and DY down, and return
 TARGET. SOURCE is not changed. Copies the arrays and allocates nothing. Signals
@@ -355,7 +379,8 @@ does not allocate (a full 64-bit result would be boxed as a bignum)."
 (defun zoom-display-list (target source zoom)
   "Make TARGET hold SOURCE's commands ZOOM times larger, about the top left, and return TARGET: each
 rectangle and corner radius, and the width of each stroke (to the nearest quarter point, at least
-one), a shadow's blur, and a dashed stroke's dash and gap. A glyph keeps its atlas index. Signals DISPLAY-LIST-FULL, before changing TARGET, if TARGET
+one), a shadow's blur, and a dashed stroke's dash and gap. A glyph and an image keep their atlas
+index. Signals DISPLAY-LIST-FULL, before changing TARGET, if TARGET
 has not room for them."
   (declare (type display-list target source) (type single-float zoom))
   (replace-display-list target source)
@@ -369,7 +394,7 @@ has not room for them."
               (aref ys i) (* (aref ys i) zoom)
               (aref ws i) (* (aref ws i) zoom)
               (aref hs i) (* (aref hs i) zoom))
-        (cond ((glyph-kind-p kind))
+        (cond ((or (glyph-kind-p kind) (image-kind-p kind)))
               ((> kind +command-rounded-stroke+)
                (multiple-value-bind (dash gap) (stroke-dash-of (aref es i))
                  (when dash

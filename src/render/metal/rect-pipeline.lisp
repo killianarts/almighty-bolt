@@ -15,13 +15,14 @@
 
 (in-package #:almighty-bolt/render/metal/rect-pipeline)
 
-;;; The pipeline that draws rectangles, rounded rectangles and glyphs. Every
+;;; The pipeline that draws rectangles, rounded rectangles, glyphs and images. Every
 ;;; command is one instance of a four-vertex strip. For a shape the vertex shader
 ;;; places the quad one pixel larger than the shape all round and the fragment
 ;;; shader covers the shape by its signed distance, so that edges and corners are
 ;;; antialiased and a plain rectangle is a rounded one with radius zero. For a
 ;;; glyph the quad is its bitmap, and the fragment shader reads the coverage from
-;;; the glyph atlas. Colours are premultiplied by coverage and blended with
+;;; the glyph atlas; for an image the quad is where it is drawn, and the colour is
+;;; read from the image atlas. Colours are premultiplied by coverage and blended with
 ;;; "source over".
 
 (defconstant +instance-bytes+ 32
@@ -37,7 +38,7 @@ struct Instance {
   float parameter;  // the corner radius in points, or a glyph's index in the atlas
   uint color;       // red, green, blue, alpha: a byte each, red in the high byte
   uint kind;        // 0 rectangle, 1 rounded rectangle, 2 glyph, 5 and 6 a glyph turned up or
-                    // down, 7 a shadow, 16 + quarter points a stroke
+                    // down, 7 a shadow, 8 an image, 9 an image tinted, 16 + quarter points a stroke
   float extra;      // a shadow's blur in points; a dashed stroke's dash and gap in quarter
                     // points, twelve bits each, the dash low; 0 for the rest
 };
@@ -51,7 +52,8 @@ struct Frame {
 struct VertexOut {
   float4 position [[position]];
   float2 local;                    // offset from the shape's centre, in points
-  float2 uv;                       // texture coordinates, for a glyph
+  float2 uv;                       // texture coordinates, for a glyph or an image
+  float4 uv_box [[flat]];          // an image's own box in its atlas: left, top, right, bottom
   float2 half_size [[flat]];
   float radius [[flat]];
   float extra [[flat]];
@@ -64,15 +66,17 @@ vertex VertexOut rect_vertex(uint vertex_id [[vertex_id]],
                              uint instance_id [[instance_id]],
                              constant Instance *instances [[buffer(0)]],
                              constant Frame &frame [[buffer(1)]],
-                             constant float4 *glyph_uvs [[buffer(2)]]) {
+                             constant float4 *glyph_uvs [[buffer(2)]],
+                             constant float4 *image_uvs [[buffer(3)]]) {
   Instance inst = instances[instance_id];
   bool glyph = inst.kind == 2u || inst.kind == 5u || inst.kind == 6u;
+  bool image = inst.kind == 8u || inst.kind == 9u;
   float2 corner = float2(float(vertex_id & 1), float(vertex_id >> 1));
   float2 half_size = inst.rect.zw * 0.5;
   // A shape gets one more pixel all round for its antialiased edge; a glyph's
-  // bitmap already has its own margin; a shadow reaches three standard deviations,
-  // a blur and a half, past its rectangle.
-  float margin = glyph ? 0.0 : 1.0 / frame.scale;
+  // bitmap already has its own margin, and an image is its rectangle; a shadow reaches three
+  // standard deviations, a blur and a half, past its rectangle.
+  float margin = (glyph || image) ? 0.0 : 1.0 / frame.scale;
   if (inst.kind == 7u) margin += 1.5 * inst.extra;
   float2 local = (corner * 2.0 - 1.0) * (half_size + margin);
   float2 point = inst.rect.xy + half_size + local;
@@ -82,6 +86,7 @@ vertex VertexOut rect_vertex(uint vertex_id [[vertex_id]],
                         1.0 - point.y / frame.viewport.y * 2.0, 0.0, 1.0);
   out.local = local;
   out.uv = float2(0.0);
+  out.uv_box = float4(0.0);
   if (glyph) {
     float4 uvs = glyph_uvs[uint(inst.parameter)];   // left, top, right, bottom
     // A turned glyph's quad is its bitmap turned a quarter: up (to the left), the bitmap's top
@@ -92,8 +97,13 @@ vertex VertexOut rect_vertex(uint vertex_id [[vertex_id]],
                  : corner;
     out.uv = mix(uvs.xy, uvs.zw, along);
   }
+  if (image) {
+    float4 uvs = image_uvs[uint(inst.parameter)];   // left, top, right, bottom
+    out.uv = mix(uvs.xy, uvs.zw, corner);
+    out.uv_box = uvs;
+  }
   out.half_size = half_size;
-  out.radius = glyph ? 0.0 : min(inst.parameter, min(half_size.x, half_size.y));
+  out.radius = (glyph || image) ? 0.0 : min(inst.parameter, min(half_size.x, half_size.y));
   out.extra = inst.extra;
   out.scale = frame.scale;
   out.color = float4(float((c >> 24) & 255u), float((c >> 16) & 255u),
@@ -169,12 +179,22 @@ static float edge_position(float2 p, float2 half_size, float radius) {
 }
 
 fragment float4 rect_fragment(VertexOut in [[stage_in]],
-                              texture2d<float> atlas [[texture(0)]]) {
+                              texture2d<float> atlas [[texture(0)]],
+                              texture2d<float> images [[texture(1)]]) {
   float coverage;
   if (in.kind == 2u || in.kind == 5u || in.kind == 6u) {
     // The atlas is at device resolution, so sample it texel for pixel.
     constexpr sampler nearest(coord::normalized, filter::nearest, address::clamp_to_edge);
     coverage = atlas.sample(nearest, in.uv, level(0.0)).r;
+  } else if (in.kind == 8u || in.kind == 9u) {
+    // An image is filtered, drawn at any size, and kept half a texel inside its own box, so that
+    // the filter never reaches the image beside it. Its pixels are premultiplied already.
+    constexpr sampler smooth(coord::normalized, filter::linear, address::clamp_to_edge);
+    float2 half_texel = 0.5 / float2(images.get_width(), images.get_height());
+    float2 uv = clamp(in.uv, in.uv_box.xy + half_texel, in.uv_box.zw - half_texel);
+    float4 texel = images.sample(smooth, uv, level(0.0));
+    if (in.kind == 8u) return texel * in.color.a;
+    coverage = texel.a;
   } else if (in.kind == 7u && in.extra * in.scale >= 1.0) {
     // The standard deviation is half the blur, as design tools have it.
     coverage = clamp(shadow_coverage(in.local, in.half_size, in.extra * 0.5, in.radius), 0.0, 1.0);

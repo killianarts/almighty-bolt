@@ -40,15 +40,16 @@ What 0.3 has, against the prototype:
   designer (seeds, worked-out colours, sizes, readability, the `define-theme`
   form, undo); the semantic tree and VoiceOver; the frame ring, the recorder,
   replay scripts and a virtual clock; fonts for every element (any weight,
-  letter spacing, line height, by role in a theme, from files) and text turned
-  90 degrees.
+  letter spacing, line height, by role in a theme, from files); text turned
+  90 degrees; soft shadows and dashed edges; images, and icons tinted by the
+  theme.
 - **Part:** the canvas and the running app are two panes, not one; options do
   not say where their values come from; the frame ring, the recorder and the
   kept state have no face; the theme designer previews widgets, not the app's
   own view.
-- **Missing:** shadows and dashed strokes; images and icons; a code view; the
-  studio's shell (modes, rail, status bar, bottom panel, REPL); the timeline,
-  time travel and the call tree.
+- **Missing:** vector icons; a code view; the studio's shell (modes, rail,
+  status bar, bottom panel, REPL); the timeline, time travel and the call
+  tree.
 
 ## Phase A: the library can draw the prototype
 
@@ -66,7 +67,8 @@ user of.
    and hit boxes. (Done: `:shadow` and `:border-dash` on panels and
    pressables, `push-shadow`, and dashes on `push-rounded-stroke`.)
 4. **Images and icons,** drawn from a texture, for the catalogue's tiles and
-   the tool bars (the roadmap's Images and icons).
+   the tool bars (the roadmap's Images and icons). (Done: `image`,
+   `load-image`, `make-image`, `:tint` for icons, and `context-push-image`.)
 5. **A code view:** monospace text with line numbers, lines marked (an error,
    the line a press called), and light editing, built on the text area.
 

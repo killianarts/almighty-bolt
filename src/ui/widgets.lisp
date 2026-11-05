@@ -100,6 +100,11 @@
                 #:float-spec-min-width
                 #:float-spec-anchor)
   (:import-from #:almighty-bolt/internals
+                #:image
+                #:image-p
+                #:image-id
+                #:image-width
+                #:image-height
                 #:context-height
                 #:+cursors+
                 #:with-painting
@@ -222,6 +227,7 @@
            #:+spinner-steps+
            #:list-box
            #:progress
+           #:image
            #:canvas
            #:scrim
            #:column
@@ -1015,6 +1021,39 @@ its ascent and descent). LIVE, SELECTABLE, SIZE, WEIGHT and FONT are as for a la
           (box-pref-w box) (float width 1f0)
           (box-flex box) (float flex 1f0))
     (close-box *ui*)
+    nil))
+
+;;; --- an image ---
+
+(defun image (source &key (id (required-id 'image)) label tooltip width height tint (opacity 1)
+                          (flex 0))
+  "SOURCE, an image from MAKE-IMAGE or LOAD-IMAGE, at its own size in points, or WIDTH by HEIGHT;
+given only one of them, the other keeps its shape. With TINT (a colour, or a theme's name for one)
+it is drawn as an icon is: its own colours are not used, and the tint covers it as much as its
+alpha does, so that it can follow the theme. Without, it is drawn as it is, OPACITY (0 to 1)
+opaque. A screen reader reads it by its LABEL; one without a label is taken to be decoration, and
+is not read."
+  (unless (image-p source)
+    (error "An image widget draws an image from MAKE-IMAGE or LOAD-IMAGE, not ~s." source))
+  (check-type opacity (real 0 1))
+  (let* ((ui *ui*)
+         (box (open-box ui :image :id id :tooltip tooltip))
+         (natural-w (float (image-width source) 1f0))
+         (natural-h (float (image-height source) 1f0))
+         (w (cond (width (float width 1f0))
+                  (height (* (float height 1f0) (/ natural-w natural-h)))
+                  (t natural-w)))
+         (h (cond (height (float height 1f0))
+                  (width (* (float width 1f0) (/ natural-h natural-w)))
+                  (t natural-h))))
+    (setf (box-data box) source
+          (box-text box) (or label "")
+          (box-pref-w box) w
+          (box-pref-h box) h
+          (box-color box) (theme-color tint)
+          (box-n1 box) (float opacity 1f0)
+          (box-flex box) (float flex 1f0))
+    (close-box ui)
     nil))
 
 ;;; --- a button ---
@@ -2825,6 +2864,8 @@ counting its children."
                    ((:list-box :text-area) (mix layout (box-n3 box)))
                    ;; Turned, or not.
                    (:label (mix layout (hash-of (box-n1 box))))
+                   ;; Which image it is.
+                   (:image (mix layout (image-id (box-data box))))
                    (:scroll (mix layout (hash-of (box-n1 box))))
                    ;; Side by side or one over the other.
                    (:split (mix layout (box-n3 box)))

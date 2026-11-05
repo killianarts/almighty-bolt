@@ -57,6 +57,7 @@
            #:context-index-at-x
            #:context-caret-rect
            #:context-push-text
+           #:context-push-image
            #:context-clipboard-text
            #:context-set-clipboard-text
            #:context-choose-file
@@ -424,6 +425,15 @@ TURN :UP turns the text a quarter to the left about that point, to read upwards 
   (:method ((context context) display-list font string x baseline color &optional turn)
     (declare (ignore display-list font string x baseline color turn))
     (no-text 'context-push-text)))
+
+(defgeneric context-push-image (context display-list image x y width height &key tint opacity)
+  (:documentation "Append a command to DISPLAY-LIST that draws IMAGE (an image from MAKE-IMAGE or
+LOAD-IMAGE) to fill X, Y, WIDTH by HEIGHT (points, y down). With TINT (a packed colour) the image is
+drawn as an icon: its alpha is the coverage of the tint, and its own colours are not used. Without,
+it is drawn as it is, OPACITY (0 to 1) opaque. Returns the command's index.")
+  (:method ((context context) display-list image x y width height &key tint opacity)
+    (declare (ignore display-list image x y width height tint opacity))
+    (error "This context draws no images, which ~s needs." 'context-push-image)))
 
 ;;; --- the clipboard, which the host supplies ---
 ;;;

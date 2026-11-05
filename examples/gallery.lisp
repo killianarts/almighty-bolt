@@ -35,6 +35,38 @@
 (defparameter +block-color+ (bolt:pack-color 60 66 92))
 (defparameter +call-color+ (bolt:pack-color 175 205 150))
 
+(defun drawn-image (width height scale pixel)
+  "An image WIDTH by HEIGHT pixels at SCALE pixels a point, each pixel's red, green, blue and alpha
+given by PIXEL, a function of its x and y from 0 to 1."
+  (let ((pixels (make-array (* 4 width height) :element-type '(unsigned-byte 8))))
+    (dotimes (y height)
+      (dotimes (x width)
+        (replace pixels (funcall pixel (/ (+ x 0.5) width) (/ (+ y 0.5) height))
+                 :start1 (* 4 (+ x (* y width))))))
+    (bolt:make-image width height pixels :scale scale)))
+
+;;; Images are made once, here, not in the page's function: each one made is a new one to copy to
+;;; the GPU. An app's own would come from its files, with BOLT:LOAD-IMAGE.
+
+(defparameter +sunset+
+  (drawn-image 120 60 2 (lambda (x y)
+                          (list (round (+ 120 (* 135 (- 1 y)))) (round (+ 60 (* 100 (- 1 y)) (* 20 x)))
+                                (round (+ 90 (* 120 y))) 255)))
+  "A sky from orange to blue, sixty points by thirty.")
+
+(defparameter +play-icon+
+  ;; A triangle pointing right, its edge antialiased: alpha is how much of the pixel is inside.
+  (drawn-image 32 32 2 (lambda (x y)
+                         (let* ((across (- x 0.25)) (half (* 0.5 (- 1 (/ across 0.55))))
+                                (inside (and (<= 0 across 0.55) (<= (abs (- y 0.5)) half)))
+                                (edge (- half (abs (- y 0.5)))))
+                           (list 0 0 0 (if inside (round (* 255 (min 1 (* 32 edge)))) 0)))))
+  "An icon, sixteen points square: only its alpha counts, for it is drawn tinted.")
+
+(defparameter +stop-icon+
+  (drawn-image 32 32 2 (lambda (x y)
+                         (list 0 0 0 (if (and (<= 0.25 x 0.75) (<= 0.25 y 0.75)) 255 0)))))
+
 (defmacro section ((title id) &body body)
   "A panel with TITLE over what BODY describes, taking a share of the width of the row it is in."
   `(bolt:panel (:id ,id :all 16 :flex 1)
@@ -358,7 +390,25 @@
                     (bolt:label "Left" :id :left)
                     (bolt:spacer)
                     (bolt:label "Right, pushed by a spacer" :id :right))
-                  (call "(bolt:spacer &key (flex 1))" :spacer-call))))))
+                  (call "(bolt:spacer &key (flex 1))" :spacer-call)))
+
+              (bolt:row (:id :eighth :gap 20 :fill t)
+                (section ("Images and icons" :images)
+                  (bolt:paragraph "An image at its own size, and larger; icons are images tinted, so that they follow the theme's colours. One without a :label is decoration, and a screen reader passes over it."
+                                  :id :images-about :size 13 :color +note-color+)
+                  (bolt:row (:id :pictures :gap 12 :cross-align :end)
+                    (bolt:image +sunset+ :id :sunset :label "A sky from orange to blue")
+                    (bolt:image +sunset+ :id :sunset-large :width 180)
+                    (bolt:image +sunset+ :id :sunset-faded :opacity 0.4))
+                  (bolt:row (:id :tools :gap 4)
+                    (when (bolt:pressable (:id :play :all 6 :tooltip "Play")
+                            (bolt:image +play-icon+ :id :icon :tint :text :label "Play"))
+                      (incf presses))
+                    (when (bolt:pressable (:id :stop :all 6 :tooltip "Stop")
+                            (bolt:image +stop-icon+ :id :icon :tint :accent :label "Stop"))
+                      (incf presses)))
+                  (call "(bolt:image source &key id label tooltip width height tint (opacity 1) (flex 0))"
+                        :image-call))))))
         (when (bolt:dialog (:id :question :open asking :title "Keep the changes?")
                 (bolt:label "A dialog keeps the keyboard; Tab goes round its buttons." :id :question-text)
                 (bolt:row (:gap 8)

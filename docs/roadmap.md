@@ -11,7 +11,13 @@ the order inside a section is not a schedule. What has shipped is in the
 
 ## Later
 
-- **Images and icons.**
+- **Images and icons.** Raster images from files or bytes, at any size, and
+  icons as images tinted by the theme. (In 0.3.)
+  - Vector icons (SVG or PDF), drawn sharp at any size, and the system's
+    symbols.
+  - Images of more than 2048 pixels a side, and smaller copies made ahead, so
+    that one drawn much smaller does not shimmer.
+  - Images in the GUI designer's catalogue.
 - **Text and layout.**
   - A font for every element that draws text: its family, any weight, its
     size, letter spacing and line height; fonts by role (label, body, heading,

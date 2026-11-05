@@ -154,6 +154,7 @@ element (that a client still holds) answers."
     (:menu-button (foreign-constant "NSAccessibilityMenuButtonRole"))
     (:menu-item (foreign-constant "NSAccessibilityMenuItemRole"))
     (:progress-bar (foreign-constant "NSAccessibilityProgressIndicatorRole"))
+    (:image (foreign-constant "NSAccessibilityImageRole"))
     (:slider (foreign-constant "NSAccessibilitySliderRole"))
     (:radio-group (foreign-constant "NSAccessibilityRadioGroupRole"))
     (:tab-group (foreign-constant "NSAccessibilityTabGroupRole"))
@@ -401,6 +402,7 @@ thing that is not told yet."
     (:menu-button :menu-button)
     (:menu-item :menu-item)
     (:progress-bar :progress-bar)
+    (:image :image)
     (:slider :slider)
     (:splitter :splitter)
     ;; A tab bar is a tab group, whose tabs are radio buttons, as AppKit's own is.
@@ -462,6 +464,9 @@ thing that is not told yet."
                             (item-value item) (getf node :value)))
       ((:menu-item :menu-button) (setf (item-label item) name
                                        (item-value item) nil))
+      ;; An image is called by its label, and has no value.
+      (:image (setf (item-label item) name
+                    (item-value item) nil))
       (:progress-bar (setf (item-label item) name
                            (item-value item) (getf node :value)
                            (item-minimum item) 0d0

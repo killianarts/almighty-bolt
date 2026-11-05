@@ -172,6 +172,10 @@
                 #:push-rounded-stroke
                 #:+command-shadow+
                 #:push-shadow
+                #:+command-image+
+                #:+command-image-tinted+
+                #:image-kind-p
+                #:push-image
                 #:stroke-width-of
                 #:stroke-dash-of
                 #:push-clip
@@ -190,6 +194,16 @@
                 #:display-list-color
                 #:display-list-extra
                 #:display-list-hash)
+  (:import-from #:almighty-bolt/image
+                #:image
+                #:image-p
+                #:make-image
+                #:image-id
+                #:image-width
+                #:image-height
+                #:image-pixel-width
+                #:image-pixel-height
+                #:image-scale)
   (:import-from #:almighty-bolt/app-instance
                 #:app-instance
                 #:handle-event
@@ -248,6 +262,7 @@
                 #:context-index-at-x
                 #:context-caret-rect
                 #:context-push-text
+                #:context-push-image
                 #:context-clipboard-text
                 #:context-set-clipboard-text
                 #:context-choose-file
@@ -486,6 +501,10 @@
            #:push-rounded-stroke
            #:+command-shadow+
            #:push-shadow
+           #:+command-image+
+           #:+command-image-tinted+
+           #:image-kind-p
+           #:push-image
            #:stroke-width-of
            #:stroke-dash-of
            #:push-clip
@@ -555,6 +574,16 @@
            #:context-index-at-x
            #:context-caret-rect
            #:context-push-text
+           #:context-push-image
+           #:image
+           #:image-p
+           #:make-image
+           #:image-id
+           #:image-width
+           #:image-height
+           #:image-pixel-width
+           #:image-pixel-height
+           #:image-scale
            #:context-clipboard-text
            #:context-set-clipboard-text
            #:context-choose-file

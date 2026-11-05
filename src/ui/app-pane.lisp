@@ -37,6 +37,7 @@
                 #:context-index-at-x
                 #:context-caret-rect
                 #:context-push-text
+                #:context-push-image
                 #:context-forget-glyphs
                 #:context-clipboard-text
                 #:context-set-clipboard-text
@@ -169,6 +170,11 @@ ZOOMED, the same at the pane's zoom, which draws."
                            baseline color turn)
       (unless (= zoom 1f0)
         (unzoom-glyphs list start (float x 1f0) (float baseline 1f0) zoom)))))
+
+(defmethod context-push-image ((context pane-context) list image x y width height &key tint (opacity 1))
+  ;; The image is drawn where the app says, in its points; the pane makes the whole list larger.
+  (context-push-image (pane-context-outer context) list image x y width height
+                      :tint tint :opacity opacity))
 
 (defmethod context-forget-glyphs ((context pane-context))
   (context-forget-glyphs (pane-context-outer context)))

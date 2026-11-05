@@ -10,7 +10,9 @@
                 #:record-frame
                 #:record-frame-details)
   (:import-from #:almighty-bolt/display-list
-                #:make-display-list)
+                #:make-display-list
+                #:pack-color
+                #:push-image)
   (:import-from #:almighty-bolt/kept
                 #:make-kept-state
                 #:with-kept-state)
@@ -48,6 +50,7 @@
                 #:context-index-at-x
                 #:context-caret-rect
                 #:context-push-text
+                #:context-push-image
                 #:context-clipboard-text
                 #:context-appearance
                 #:context-set-clipboard-text
@@ -111,13 +114,18 @@
   (:import-from #:almighty-bolt/render/metal/renderer
                 #:make-renderer
                 #:renderer-atlas
+                #:renderer-images
                 #:render-display-list
                 #:wait-for-last-frame
                 #:last-frame-gpu-ns)
   (:import-from #:almighty-bolt/render/metal/draw-text
                 #:push-line)
   (:import-from #:almighty-bolt/render/metal/glyph-atlas
-                #:clear-glyph-atlas)
+                #:clear-glyph-atlas
+                #:glyph-atlas-scale)
+  (:import-from #:almighty-bolt/render/metal/image-atlas
+                #:atlas-image-index
+                #:clear-image-atlas)
   (:export #:host
            #:make-host
            #:host-app
@@ -228,12 +236,24 @@ copied is kept in the context and the person's clipboard is never touched."
   ;; The frame before may still be drawing from the atlas.
   (let ((renderer (mac-context-renderer context)))
     (wait-for-last-frame renderer)
-    (clear-glyph-atlas (renderer-atlas renderer))))
+    (clear-glyph-atlas (renderer-atlas renderer))
+    (clear-image-atlas (renderer-images renderer))))
 
 (defmethod context-push-text ((context mac-context) display-list font string x baseline color
                               &optional turn)
   (push-line display-list (renderer-atlas (mac-context-renderer context))
              (get-line font string) (float x 1f0) (float baseline 1f0) color turn))
+
+(defmethod context-push-image ((context mac-context) display-list image x y width height
+                               &key tint (opacity 1))
+  ;; The image's top left is put on a whole pixel, as a glyph's is, so that one drawn at its own
+  ;; size is its pixels one for one and not filtered soft.
+  (let* ((renderer (mac-context-renderer context))
+         (scale (glyph-atlas-scale (renderer-atlas renderer))))
+    (push-image display-list (/ (fround (* x scale)) scale) (/ (fround (* y scale)) scale)
+                width height (atlas-image-index (renderer-images renderer) image)
+                (or tint (pack-color 255 255 255 (round (* 255 (max 0 (min 1 opacity))))))
+                (and tint t))))
 
 ;;; --- the host ---
 
@@ -303,17 +323,20 @@ flag set."
             (t (setf (context-frame-requested (host-context host)) t))))))
 
 (defun make-host (instance device pixel-format
-                  &key (capacity 65536) (ring-capacity 4096) (scale 2) (atlas-size 1024) phases
+                  &key (capacity 65536) (ring-capacity 4096) (scale 2) (atlas-size 1024)
+                    (image-atlas-size 2048) phases
                     (kept-state (make-kept-state)))
   "A host for INSTANCE drawing with DEVICE into targets of PIXEL-FORMAT, with no
 window yet. CAPACITY is the most commands a frame may hold. SCALE is the pixels a
 point that the glyph atlas is rasterized at, which is the scale text must be drawn
-at, and ATLAS-SIZE the pixels square the atlas is. With PHASES, the instrumentation is on: the app's update, layout and paint
+at, and ATLAS-SIZE the pixels square the atlas is; IMAGE-ATLAS-SIZE is the pixels square the image
+atlas is. With PHASES, the instrumentation is on: the app's update, layout and paint
 times, the first build, garbage collection and the GPU's time go into the ring as well
 (see WITH-PHASE). KEPT-STATE is what the app keeps when it is made again (STATE-LET); the one that
 made INSTANCE had it bound. RUN-HOST makes one with a window; tests make one and call RUN-FRAME."
   (let* ((renderer (make-renderer device pixel-format :capacity capacity :scale scale
-                                             :atlas-size atlas-size))
+                                             :atlas-size atlas-size
+                                             :image-atlas-size image-atlas-size))
          (context (let ((context (make-mac-context :width 0f0 :height 0f0 :scale 1f0
                                                     :renderer renderer)))
                     (setf (context-phases-p context) (and phases t))

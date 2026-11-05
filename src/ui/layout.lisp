@@ -239,6 +239,8 @@ them in the boxes, and return the width and height."
          (set-box box w h)))
       (:slider
        (set-box box (constrain (box-pref-w box) min-w max-w) (constrain (theme-slider-height *theme*) min-h max-h)))
+      (:image
+       (set-box box (constrain (box-pref-w box) min-w max-w) (constrain (box-pref-h box) min-h max-h)))
       (:progress
        (set-box box (constrain (box-pref-w box) min-w max-w) (constrain (theme-progress-height *theme*) min-h max-h)))
       (:canvas
