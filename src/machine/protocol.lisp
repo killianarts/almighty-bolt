@@ -360,10 +360,12 @@ value is, press the option of a choice, pick the item of a list."
            (refuse 'cannot "The ~a goes from ~a to ~a; ~s is outside that." (describe-node node)
                    minimum maximum value))
          (destructuring-bind (x y width height) (node-bounds node)
-           ;; The thumb is 16 points wide and its middle goes from 8 points in to 8 points from the end.
-           (let ((travel (max 1 (- width 16)))
-                 (fraction (if (= maximum minimum) 0 (/ (- value minimum) (- maximum minimum)))))
-             (press-at session (+ x 8 (* fraction travel)) (+ y (/ height 2)))))))
+           ;; The thumb is 16 points wide (or as the slider says, in a pane at a zoom) and its
+           ;; middle goes from half of that in to half of it from the end.
+           (let* ((thumb (or (node-property node :thumb-width) 16))
+                  (travel (max 1 (- width thumb)))
+                  (fraction (if (= maximum minimum) 0 (/ (- value minimum) (- maximum minimum)))))
+             (press-at session (+ x (/ thumb 2) (* fraction travel)) (+ y (/ height 2)))))))
       (:radio-group (choose-option session node value))
       (:list (if (integerp value)
                  (select-item session value :id (node-id node) :role :list :name (node-name node))

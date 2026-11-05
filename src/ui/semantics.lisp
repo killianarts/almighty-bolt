@@ -50,9 +50,12 @@
                 #:choice-state-option-height
                 #:list-state-top
                 #:scroll-state-offset
-                #:scroll-state-content-height)
+                #:scroll-state-content-height
+                #:+thumb-size+)
   (:import-from #:almighty-bolt/ui/theme
                 #:theme-row-height)
+  (:import-from #:almighty-bolt/ui/app-pane
+                #:app-pane-inside)
   (:import-from #:almighty-bolt/ui/immediate
                 #:immediate-app
                 #:immediate-app-ui
@@ -321,6 +324,14 @@ shows; one that is all out of sight is :hidden, with no width or height."
                                                    (pressed-inside child (+ x (box-x child))
                                                                    (+ y (box-y child)))))))
                         (pressed-inside box x y)))
+                     ;; An app in a pane: its own tree, where the pane shows it.
+                     ((and (eq (box-kind box) :canvas) (app-pane-inside ui (box-key box)))
+                      (multiple-value-bind (instance zoom focused) (app-pane-inside ui (box-key box))
+                        (let ((inner (accessibility-tree instance)))
+                          (and inner
+                               (list (graft inner x y zoom shown-left shown-top
+                                            (+ shown-left shown-w) (+ shown-top shown-h)
+                                            focused))))))
                      ((member (box-kind box) '(:scroll :lazy-list))
                       (loop :for child :across (box-children box)
                             :collect (node-of ui child x y shown-left shown-top
@@ -341,6 +352,48 @@ shows; one that is all out of sight is :hidden, with no width or height."
                               (list (min (max x left) right) (min (max y top) bottom) 0f0 0f0)
                               (list shown-left shown-top shown-w shown-h)))
             (and children (list :children children)))))
+
+(defun graft (node px py zoom left top right bottom focused)
+  "NODE, of the tree of an app in a pane at PX, PY in the window, at ZOOM, as the window has it: its
+bounds and the places in its state in the window's points, and only the part of it inside LEFT, TOP,
+RIGHT, BOTTOM (what shows of the pane) shown; one that is all out of sight is :hidden. A thing in it
+has the keyboard only if the pane has it (FOCUSED). A slider says how wide its thumb is shown."
+  (flet ((place (bounds)
+           (destructuring-bind (x y w h) bounds
+             (list (+ px (* zoom x)) (+ py (* zoom y)) (* zoom w) (* zoom h)))))
+    (destructuring-bind (x y w h) (place (node-bounds node))
+      (let* ((shown-left (max x left))
+             (shown-top (max y top))
+             (shown-w (max 0f0 (- (min (+ x w) right) shown-left)))
+             (shown-h (max 0f0 (- (min (+ y h) bottom) shown-top)))
+             (hidden (or (node-property node :hidden)
+                         (and (plusp w) (plusp h) (or (zerop shown-w) (zerop shown-h)))))
+             (state (append
+                     (and hidden (list :hidden t))
+                     (loop :for (key value) :on (node-state node) :by #'cddr
+                           :append (case key
+                                     (:hidden '())
+                                     (:focused (and focused (list key value)))
+                                     ((:option-bounds :item-bounds)
+                                      (list key (mapcar #'place value)))
+                                     (t (list key value))))
+                     (and (eq (node-role node) :slider) (/= zoom 1f0)
+                          (list :thumb-width (* zoom +thumb-size+))))))
+        (loop :for (key value) :on node :by #'cddr
+              :append (case key
+                        (:state '())
+                        (:bounds (append (and state (list :state state))
+                                         (list :bounds
+                                               (if hidden
+                                                   (list (min (max x left) right)
+                                                         (min (max y top) bottom) 0f0 0f0)
+                                                   (list shown-left shown-top shown-w shown-h)))))
+                        (:children
+                         (list :children
+                               (loop :for child :in value
+                                     :collect (graft child px py zoom left top right bottom
+                                                     focused))))
+                        (t (list key value))))))))
 
 (defun shown-frame (ui)
   "What says where things are in the frame the window shows: the hash of what decides its layout,

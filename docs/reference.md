@@ -407,8 +407,12 @@ zoom and drawn `:zoom` times larger, its text in fonts that size so that it is
 sharp. The pointer and the wheel over it, and the keys while it has the
 keyboard (a press gives it), are the inner app's, in its own points, and so is
 what is typed through the input method, whose candidates open by the inner
-app's caret. It returns the inner app. To the window's semantic tree and
-VoiceOver it is a canvas.
+app's caret. It returns the inner app. In the window's semantic tree it is a
+canvas with the inner app's tree inside it, where the pane shows it, so
+VoiceOver reads and presses what is in it and the machine interface finds and
+works it (`:within` the pane's id tells it from a thing with the same id
+outside). A thing in it has the keyboard in the window only while the pane
+does.
 
 `inspector-pane` (`target &key id flex`) is the inspector, in this window, of
 TARGET, an app in an `app-pane` as it returns it (or `nil`): Pick, then a press

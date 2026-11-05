@@ -4140,6 +4140,16 @@ left, left to right."
 
 (defvar *inner* nil "The app in the pane of the last frame of an app with one.")
 
+(defun show-pane (constructor)
+  "Show the app of CONSTRUCTOR, and draw the frames it asks for after its first, as a host does: an
+app pane lays out its app in the frame after the one it first appears in, when its size is known."
+  (let ((screen (show constructor)))
+    (assert-true (core:take-frame-request (screen-context screen)))
+    (loop :repeat 4
+          :do (draw screen)
+          :while (core:take-frame-request (screen-context screen)))
+    screen))
+
 (defun make-inner ()
   (state-let ((count 0) (words ""))
     (lambda ()
@@ -4158,7 +4168,7 @@ left, left to right."
           (setf *inner* inner))))))
 
 (define-test an-app-in-a-pane-works-through-the-pane-at-its-zoom ()
-  (let ((screen (show 'make-outer)))
+  (let ((screen (show-pane 'make-outer)))
     (labels ((inner-bounds (id) (multiple-value-list (core:lookup-target *inner* id)))
              (inner-name (id)
                (s:node-name (first (s:find-nodes (core:accessibility-tree *inner*) :id id))))
@@ -4223,6 +4233,98 @@ left, left to right."
         (assert-true c)
         (assert-eql 8 (round (- (core:display-list-x list (1+ c)) (core:display-list-x list c))))))))
 
+;;; --- what is in an app in a pane, to a screen reader and an agent ---
+
+(defun make-inner-gauges ()
+  (state-let ((count 0) (words "") (level 3) (size 0))
+    (lambda ()
+      (column (:id :inner-page :gap 8)
+        (when (button "Add one" :id :plus) (incf count))
+        (label (format nil "Count ~d" count) :id :count)
+        (multiple-value-bind (text edited) (text-field words :id :words :width 120)
+          (when edited (setf words text)))
+        (multiple-value-bind (value changed) (slider level 0 10 :id :level :width 120)
+          (when changed (setf level value)))
+        (multiple-value-bind (chosen changed) (choice '("S" "M" "L") size :id :size)
+          (when changed (setf size chosen)))
+        ;; Below the pane's bottom, at either zoom.
+        (column (:id :room :height 400))
+        (label "Far down" :id :far)))))
+
+(defun make-gauges-outer ()
+  (state-let ((zoom 1))
+    (lambda ()
+      (column (:id :page :fill t :cross-align :stretch)
+        (when (button "Zoom" :id :zoom) (setf zoom (if (= zoom 1) 2 1)))
+        (setf *inner* (app-pane 'make-inner-gauges :id :running :zoom zoom :flex 1))))))
+
+(defun inner-node (id)
+  (first (s:find-nodes (core:accessibility-tree *inner*) :id id)))
+
+(define-test an-agent-sees-and-works-what-is-in-an-app-in-a-pane-where-the-pane-shows-it ()
+  (let* ((screen (show-pane 'make-gauges-outer))
+         (session (screen-session screen)))
+    (destructuring-bind (px py pw ph) (bounds-of screen :running)
+      (declare (ignore pw ph))
+      ;; The window's tree has the inner app's things inside the pane, where the pane shows them.
+      (destructuring-bind (x y w h) (s:node-bounds (inner-node :plus))
+        (assert-equal (list (+ px x) (+ py y) w h)
+                      (s:node-bounds (m:find-node session :id :plus :within :running))))
+      (m:click session :id :plus)
+      (assert-equal "Count 1" (s:node-name (inner-node :count)))
+      ;; What the inner app has below the pane is out of sight in the window, as it is.
+      (assert-false (s:node-property (inner-node :far) :hidden))
+      (assert-true (s:node-property (node-of screen :far) :hidden))
+      ;; Typed into through the pane; it has the keyboard in the window only while the pane does.
+      (m:set-value session "hello" :id :words)
+      (assert-equal "hello" (s:node-value (inner-node :words)))
+      (assert-true (s:node-property (node-of screen :words) :focused))
+      (m:click session :id :zoom)
+      (assert-true (s:node-property (inner-node :words) :focused))
+      (assert-false (s:node-property (node-of screen :words) :focused))
+      ;; Twice as large: where things are, a slider's thumb, and a choice's options, at the zoom.
+      (destructuring-bind (x y w h) (s:node-bounds (inner-node :plus))
+        (assert-equal (list (+ px (* 2 x)) (+ py (* 2 y)) (* 2 w) (* 2 h))
+                      (s:node-bounds (node-of screen :plus))))
+      (m:click session :id :plus)
+      (assert-equal "Count 2" (s:node-name (inner-node :count)))
+      (assert-eql 32f0 (s:node-property (node-of screen :level) :thumb-width))
+      (m:set-value session 7 :id :level)
+      (assert-true (near 7 (s:node-value (inner-node :level))) (s:node-value (inner-node :level)))
+      (m:set-value session "L" :id :size)
+      (assert-equal "L" (s:node-value (inner-node :size))))))
+
+(defun element-inside (element id)
+  "The element inside ELEMENT, at any depth, with the accessibility identifier of ID."
+  (let ((name (string-downcase (princ-to-string id))))
+    (labels ((search-in (element)
+               (dolist (child (parts-of element))
+                 (when (equal name (ns-value (objc:msg-send :id child "accessibilityIdentifier")))
+                   (return-from element-inside child))
+                 (search-in child))))
+      (search-in element)
+      nil)))
+
+(define-test a-screen-reader-reads-and-works-what-is-in-an-app-in-a-pane ()
+  (let ((screen (show-pane 'make-gauges-outer)))
+    (with-reader (reader screen)
+      (let* ((pane (element-named reader :running))
+             (plus (element-inside pane :plus))
+             (level (element-inside pane :level)))
+        (assert-equal "AXButton" (says plus :role))
+        (assert-equal "Add one" (says plus :label))
+        (assert-true (press plus))
+        (assert-equal "Count 1" (s:node-name (inner-node :count)))
+        (assert-equal "Count 1" (says (element-inside pane :count) :value))
+        (assert-equal "AXSlider" (says level :role))
+        ;; A step of a slider in the pane at twice the size.
+        (click screen :zoom)
+        (dotimes (i 2) (draw screen))
+        (let ((level (element-inside (element-named reader :running) :level)))
+          (assert-true (increment level))
+          (assert-true (near 3.5 (s:node-value (inner-node :level)))
+                       (s:node-value (inner-node :level))))))))
+
 ;;; --- the inspector beside an app in a pane ---
 
 (defun make-inspected ()
@@ -4234,7 +4336,7 @@ left, left to right."
 
 
 (define-test the-input-method-reaches-a-field-of-an-app-in-a-pane-with-its-caret-where-the-pane-shows-it ()
-  (let ((screen (show 'make-outer)))
+  (let ((screen (show-pane 'make-outer)))
     ;; Twice as large, and the inner app's field given the keyboard through the pane.
     (click screen :zoom)
     (destructuring-bind (px py pw ph) (bounds-of screen :running)
@@ -4270,7 +4372,7 @@ left, left to right."
           (assert-equal "ab日" (inner-value)))))))
 
 (define-test the-inspector-in-a-pane-picks-and-presses-in-the-app-in-a-pane ()
-  (let ((screen (show 'make-inspected)))
+  (let ((screen (show-pane 'make-inspected)))
     (flet ((inner-name (id)
              (s:node-name (first (s:find-nodes (core:accessibility-tree *inner*) :id id)))))
       (click screen :inspector-pick)

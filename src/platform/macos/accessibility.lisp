@@ -77,6 +77,10 @@
   ;; text. A test puts another here.
   (announcer #'speak :type function))
 
+(defconstant +thumb-width+ 16
+  "The width of a slider's thumb, whose middle goes from half of it in to half of it from the end
+(the machine interface presses a slider by the same measure).")
+
 (defstruct (item (:constructor make-item (bridge path role)))
   bridge
   path
@@ -90,6 +94,8 @@
   ;; chosen one.
   (minimum nil)
   (maximum nil)
+  ;; How wide a slider's thumb is shown (wider in a pane at a zoom).
+  (thumb-width +thumb-width+)
   (selected nil)
   (enabled t)
   (focused nil)
@@ -243,10 +249,6 @@ that was taken away, is not pressed."
 (define-item-callback element-press sb-alien:unsigned-char 0
   (if (press-item item) 1 0))
 
-(defconstant +thumb-width+ 16
-  "The width of a slider's thumb, whose middle goes from half of it in to half of it from the end
-(the machine interface presses a slider by the same measure).")
-
 (defun nudge-item (item direction)
   "Move the slider ITEM a twentieth of its range up (DIRECTION 1) or down (-1), the step of an arrow key,
 by pressing where the value then is, as a hand would. True if that is a change."
@@ -260,10 +262,11 @@ by pressing where the value then is, as a hand would. True if that is a change."
                (realp value) (realp minimum) (realp maximum) (> maximum minimum))
       (let ((target (max minimum (min maximum (+ value (* direction (/ (- maximum minimum) 20)))))))
         (when (/= target value)
-          (let ((travel (max 1d0 (- (item-width item) +thumb-width+)))
-                (fraction (/ (- target minimum) (- maximum minimum))))
+          (let* ((thumb (item-thumb-width item))
+                 (travel (max 1d0 (- (item-width item) thumb)))
+                 (fraction (/ (- target minimum) (- maximum minimum))))
             (funcall (bridge-press bridge)
-                     (+ (item-x item) (/ +thumb-width+ 2) (* fraction travel))
+                     (+ (item-x item) (/ thumb 2) (* fraction travel))
                      (+ (item-y item) (/ (item-height item) 2)))
             t))))))
 
@@ -439,6 +442,7 @@ thing that is not told yet."
                            (item-maximum item) 1d0))
       (:slider (setf (item-label item) name
                      (item-value item) (getf node :value)
+                     (item-thumb-width item) (or (getf state :thumb-width) +thumb-width+)
                      (item-minimum item) (getf state :minimum)
                      (item-maximum item) (getf state :maximum)))
       ;; What a choice or a list holds is in the things inside it; the group is called by its label.

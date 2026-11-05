@@ -57,6 +57,7 @@
                 #:open-box
                 #:close-box
                 #:state-of
+                #:ui-states
                 #:rect-of
                 #:rect-x
                 #:rect-y
@@ -94,7 +95,8 @@
   (:import-from #:almighty-bolt/ui/views
                 #:make-weak-table)
   (:export #:app-pane
-           #:settle-app-pane))
+           #:settle-app-pane
+           #:app-pane-inside))
 
 (in-package #:almighty-bolt/ui/app-pane)
 
@@ -107,6 +109,8 @@
 ;;; its text drawn with fonts ZOOM times the size, so that it is sharp. While the pane has the
 ;;; keyboard and something in the inner app takes text, the window does: the input method's text
 ;;; and what it composes go to the inner app, and its candidates open by the inner app's caret.
+;;; What the inner app's screen means (its semantic tree) is inside the pane's, where the pane
+;;; shows it, for a screen reader and the machine interface (see APP-PANE-INSIDE).
 
 ;;; --- the inner app's context ---
 
@@ -203,6 +207,15 @@ frame."
     (when state
       (settle-pane state)
       (request-frame (pane-context-outer (app-pane-state-context state))))))
+
+(defun app-pane-inside (ui key)
+  "If the box KEY of UI's last frame is an app pane, the app in it, its zoom, and whether the pane
+has the keyboard; otherwise NIL."
+  (let ((state (gethash key (ui-states ui))))
+    (when (and (app-pane-state-p state) (app-pane-state-instance state))
+      (values (app-pane-state-instance state)
+              (pane-context-zoom (app-pane-state-context state))
+              (= (ui-focus ui) key)))))
 
 (defun deliver (state event)
   "Give EVENT to the inner app."
@@ -318,9 +331,13 @@ inner app (for a tool that looks at it, as the inspector does). The :id is requi
               moved (deliver state (make-composition-event :timestamp 0 :kind :committed
                                                            :text ""))))
       ;; Its frame, when something happened to it or it asked for one; then made ZOOM times larger.
-      (when (or moved (context-frame-requested inner))
-        (settle-pane state)
-        (setf (ui-consumed ui) t))
+      ;; Not before the pane has been laid out, when its size is not known (its first frame), but in
+      ;; the window's next, which it asks for.
+      (if rect
+          (when (or moved (context-frame-requested inner))
+            (settle-pane state)
+            (setf (ui-consumed ui) t))
+          (request-frame outer))
       (when hot
         (want-cursor ui key (context-cursor inner)))
       ;; What takes text in the inner app takes it in the window, with its caret where the pane
