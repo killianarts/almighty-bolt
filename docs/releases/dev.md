@@ -66,6 +66,8 @@ The studio runs in the Lisp Sly is connected to, and `emacs/almighty-bolt.el` ke
 
 Every widget that draws text takes `:font`: a family, a role of the theme (`:body`, `:label`, `:heading`, `:code`, `:button`), or one of those with what differs, `(bolt:typeface "Mohave" :weight 500 :size 16 :tracking 1.3 :line-height 20)`. A weight is any from 1 to 1000 or a name (`:light`, `:medium`, `:semibold` and the rest); the tracking is the space after each character; the line height spaces a paragraph's and a text area's lines and sets a label's height. A theme gives each role its font, `:heading-font ("Georgia" :size 30)`, following its `:font-name` and `:font-size` for what it does not say, so a studio, or any app, can set its labels, headings, code and buttons apart. A font is data, written in a theme's `define-theme` form and read back. `(bolt:load-font-file "fonts/Mohave-Medium.ttf")` makes the fonts in a file ones the app can ask for by name, for as long as it runs, so an app can bring its own.
 
+A label turns a quarter, for the tabs on the side of a window: `(bolt:label "OUTLINE" :id :rail-outline :turn :up)` reads upwards from its bottom and `:turn :down` downwards from its top, and the label is as wide as a line is tall. Each glyph is drawn from the same bitmap as upright, turned as it is drawn, so turned text is as sharp as upright text, and it turns in a view and in an app in a pane at a zoom too. In a canvas, `context-push-text` takes the turn as an optional last argument.
+
 ### Docked panes
 
 `(bolt:dock (:id :studio :layout layout) (:outline "Outline" ...) (:canvas "Canvas" ...))` is panes in groups of tabs, side by side or one over the other, that the person arranges: a tab dragged to another group's tabs puts its pane there, and to a group's edge splits the group. A split of the layout can keep the size of its second group, `(:split :horizontal 300 left right :second)`, as the studio's right-hand group does, and `:min` says how small a group may be made. A tab's context menu moves its pane to the next or the previous group, or splits its group with it, and Control-Shift-Right and -Left move the active pane, so a pane is moved with the keyboard, by an agent and by VoiceOver too. An app moves them too: `show-pane` brings a pane to the front, `place-pane` puts it in or beside another's group, and `pane-group` says which panes share a group. What is in a pane keeps its state when it moves, and a `shortcut` in a pane is heard only while it is the pane last pressed in or that has the keyboard. The layout is a list, returned each frame, for the app to keep and give back. A `split` given a new `:size` now takes it up, so an app can keep a split's width too.
@@ -205,6 +207,16 @@ A theme that gives the spacing works out every size again, except those it gives
 - The theme designer has Undo and Redo, by its buttons and by Command-Z and Command-Shift-Z: every change to the theme is taken back and put back, a run of changes to one control (a slider dragged, a colour typed) as one step.
 
 ## Backwards incompatible changes in X.Y
+
+### `context-push-text` takes a turn
+
+`context-push-text` is now `(context-push-text context display-list font string x baseline color &optional turn)`, with `turn` NIL, `:up` or `:down`. A method of it for a context of your own must take the optional argument too:
+
+```lisp
+(defmethod context-push-text ((context my-context) list font string x baseline color
+                              &optional turn)
+  (my-push-text list font string x baseline color turn))
+```
 
 ### `context-font` takes a weight and a tracking
 

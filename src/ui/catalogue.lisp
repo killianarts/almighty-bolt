@@ -169,8 +169,9 @@ wired there or NIL, and SET-VALUE the function that sets the place wired as :val
 
 (define-widget-entry :label (:title "Label"
                              :options ((:text :string "Label") (:size :number 15)
-                                       (:weight (:choice :regular :bold) :regular)))
-  (label text :id id :size size :weight weight))
+                                       (:weight (:choice :regular :bold) :regular)
+                                       (:turn (:choice :none :up :down) :none)))
+  (label text :id id :size size :weight weight :turn (and (not (eq turn :none)) turn)))
 
 (define-widget-entry :paragraph (:title "Paragraph"
                                  :options ((:text :string "Some words, broken into lines to fit.")

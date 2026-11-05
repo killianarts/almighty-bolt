@@ -230,9 +230,10 @@ copied is kept in the context and the person's clipboard is never touched."
     (wait-for-last-frame renderer)
     (clear-glyph-atlas (renderer-atlas renderer))))
 
-(defmethod context-push-text ((context mac-context) display-list font string x baseline color)
+(defmethod context-push-text ((context mac-context) display-list font string x baseline color
+                              &optional turn)
   (push-line display-list (renderer-atlas (mac-context-renderer context))
-             (get-line font string) (float x 1f0) (float baseline 1f0) color))
+             (get-line font string) (float x 1f0) (float baseline 1f0) color turn))
 
 ;;; --- the host ---
 

@@ -159,12 +159,14 @@ ZOOMED, the same at the pane's zoom, which draws."
 (defmethod context-caret-rect ((context pane-context) font string index)
   (context-caret-rect (pane-context-outer context) (zoomed-font-base font) string index))
 
-(defmethod context-push-text ((context pane-context) list font string x baseline color)
+(defmethod context-push-text ((context pane-context) list font string x baseline color
+                              &optional turn)
+  ;; Turned or not, the glyphs are drawn larger about the point the text starts at, X, BASELINE.
   (let ((start (display-list-count list))
         (zoom (pane-context-zoom context)))
     (multiple-value-prog1
         (context-push-text (pane-context-outer context) list (zoomed-font-zoomed font) string x
-                           baseline color)
+                           baseline color turn)
       (unless (= zoom 1f0)
         (unzoom-glyphs list start (float x 1f0) (float baseline 1f0) zoom)))))
 

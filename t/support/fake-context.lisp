@@ -73,9 +73,18 @@ and the font's tracking after each."
                       (setf start stop)))
           (nreverse lines)))))
 
-(defmethod context-push-text ((context fake-context) list font string x baseline color)
+(defmethod context-push-text ((context fake-context) list font string x baseline color
+                              &optional turn)
+  ;; Turned, each character's cell is turned about X, BASELINE: up, the line goes up from there with
+  ;; the ascent to the left; down, it goes down with the ascent to the right.
   (loop :with width = (width-of font)
+        :with tall = (+ +ascent+ +descent+)
         :for i :from 0 :below (length string)
-        :do (push-glyph list (+ x (* i width)) (- baseline +ascent+)
-                        width (+ +ascent+ +descent+) (char-code (char string i)) color))
+        :for code = (char-code (char string i))
+        :do (ecase turn
+              ((nil) (push-glyph list (+ x (* i width)) (- baseline +ascent+) width tall code color))
+              (:up (push-glyph list (- x +ascent+) (- baseline (* (1+ i) width)) tall width code
+                               color :up))
+              (:down (push-glyph list (- x +descent+) (+ baseline (* i width)) tall width code
+                                 color :down))))
   (length string))

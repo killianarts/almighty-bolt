@@ -163,6 +163,9 @@
                 #:+command-rect+
                 #:+command-rounded-rect+
                 #:+command-glyph+
+                #:+command-glyph-up+
+                #:+command-glyph-down+
+                #:glyph-kind-p
                 #:+command-clip+
                 #:+command-unclip+
                 #:+command-rounded-stroke+
@@ -470,6 +473,9 @@
            #:+command-rect+
            #:+command-rounded-rect+
            #:+command-glyph+
+           #:+command-glyph-up+
+           #:+command-glyph-down+
+           #:glyph-kind-p
            #:+command-clip+
            #:+command-unclip+
            #:+command-rounded-stroke+

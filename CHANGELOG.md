@@ -14,6 +14,7 @@ are not listed.
 
 ### Added
 
+- `:turn :up` and `:turn :down` on `label`: text turned a quarter, reading upwards or downwards, as sharp as upright; `context-push-text` takes the turn too ([0.3](docs/releases/dev.md#a-font-for-every-element)).
 - `load-font-file`: the fonts in a file, asked for by name while the app runs ([0.3](docs/releases/dev.md#a-font-for-every-element)).
 - `:font` on every widget that draws text, and `typeface`: a family or a role of the theme, with any weight, a size, a tracking and a line height; a theme's `:body-font`, `:label-font`, `:heading-font`, `:code-font` and `:button-font` ([0.3](docs/releases/dev.md#a-font-for-every-element)).
 - The inspector: while an app is developed, Command-Option-I opens a window beside it that says what a picked widget is and changes its value and its theme ([0.3](docs/releases/dev.md#the-inspector)).
@@ -60,6 +61,7 @@ are not listed.
 
 ### Changed
 
+- `context-push-text` takes an optional turn, so a method of it for a context of your own must take it too ([0.3](docs/releases/dev.md#context-push-text-takes-a-turn)).
 - A window whose frame fails shows the last frame that did not, with the error over it, and goes on, instead of failing again on every event ([0.3](docs/releases/dev.md#windowing)).
 - `make-session` takes `:app` where it took `:variant`, and `session-variant` is `session-app` ([0.3](docs/releases/dev.md#machine-interface)).
 - The examples' make targets take `TASK=` alone, not `VARIANT=immediate` (`make 7guis TASK=counter`, `make image` writes `build/apps`), each task's app is in `app.lisp`, and their systems are `almighty-bolt-7guis/apps` and `almighty-bolt-stress/apps` ([0.3](docs/releases/dev.md#examples)).

@@ -4430,6 +4430,69 @@ process.)"
       (assert-true on)
       (assert-eql (+ (first (s:node-bounds (m:find-node session :id :field))) 8 20) x))))
 
+;;; --- text turned a quarter ---
+
+(defun make-turned ()
+  (state-let ((turn :up))
+    (lambda ()
+      (row (:id :page :gap 4 :cross-align :start)
+        (label "Rail" :id :up :turn :up)
+        (label "Rail" :id :down :turn :down)
+        (label "Rail" :id :flat)
+        (label "abc" :id :turning :turn turn)
+        (when (button "Turn" :id :turn)
+          (setf turn (if turn nil :up)))))))
+
+(defun make-turned-selectable ()
+  (lambda ()
+    (label "Rail" :id :both :turn :up :selectable t)))
+
+(defun glyphs-in (screen id)
+  "The glyphs drawn inside the rectangle of ID: each its kind, character and rectangle relative to
+ID's, in the order they were drawn."
+  (destructuring-bind (left top width height) (bounds-of screen id)
+    (let ((list (screen-list screen)))
+      (loop :for index :below (core:display-list-count list)
+            :for x = (core:display-list-x list index)
+            :for y = (core:display-list-y list index)
+            :when (and (core:glyph-kind-p (core:display-list-kind list index))
+                       (<= left x (+ left width -1)) (<= top y (+ top height -1)))
+              :collect (list (core:display-list-kind list index)
+                             (code-char (round (core:display-list-parameter list index)))
+                             (round (- x left)) (round (- y top))
+                             (round (core:display-list-width list index))
+                             (round (core:display-list-height list index)))))))
+
+(define-test a-label-turned-a-quarter-reads-up-or-down-its-box ()
+  ;; Turned, a label is a line tall across and its text long down: 14 by 32 for four characters. Up,
+  ;; it is read from the bottom, each character's cell 8 above the one before it; down, from the top.
+  (let ((screen (show 'make-turned)))
+    (flet ((size (id) (mapcar #'round (cddr (bounds-of screen id)))))
+      (assert-equal '(14 32) (size :up))
+      (assert-equal '(14 32) (size :down))
+      (assert-equal '(32 14) (size :flat))
+      (assert-equal (list (list core:+command-glyph-up+ #\R 0 24 14 8)
+                          (list core:+command-glyph-up+ #\a 0 16 14 8)
+                          (list core:+command-glyph-up+ #\i 0 8 14 8)
+                          (list core:+command-glyph-up+ #\l 0 0 14 8))
+                    (glyphs-in screen :up))
+      (assert-equal (list (list core:+command-glyph-down+ #\R 0 0 14 8)
+                          (list core:+command-glyph-down+ #\a 0 8 14 8)
+                          (list core:+command-glyph-down+ #\i 0 16 14 8)
+                          (list core:+command-glyph-down+ #\l 0 24 14 8))
+                    (glyphs-in screen :down))
+      (assert-equal "Rail" (text-in screen :flat))
+      ;; Turned no longer: the frame is laid out again.
+      (assert-equal '(14 24) (size :turning))
+      (click screen :turn)
+      (assert-equal '(24 14) (size :turning))
+      (click screen :turn)
+      (assert-equal '(14 24) (size :turning))
+      ;; Selecting in turned text is not something a label does.
+      (let ((condition (handler-case (progn (show 'make-turned-selectable) nil)
+                         (error (condition) condition))))
+        (assert-true (search "cannot be selectable" (princ-to-string condition)))))))
+
 (define-test a-font-is-data-that-a-theme-writes-and-reads-back-and-asking-again-makes-nothing ()
   ;; Written as the theme was given, it defines the same theme again.
   (let ((form (theme:theme-form (theme:find-theme :t-fonts))))
@@ -4728,6 +4791,41 @@ app pane lays out its app in the frame after the one it first appears in, when i
       (assert-equal '("Helvetica" 10 :medium 2) (almighty-bolt/ui/app-pane::zoomed-font-base font))
       (assert-equal '("Helvetica" 20f0 :medium 4f0)
                     (almighty-bolt/ui/app-pane::zoomed-font-zoomed font)))))
+
+(defun make-inner-turned ()
+  (lambda ()
+    (column (:id :inner-page)
+      (label "Up" :id :rail :turn :up))))
+
+(defun make-turned-outer ()
+  (lambda ()
+    (column (:id :page :fill t :cross-align :stretch)
+      (setf *inner* (app-pane 'make-inner-turned :id :running :zoom 2 :flex 1)))))
+
+(define-test an-app-in-a-pane-at-a-zoom-turns-its-text-as-at-its-own-size ()
+  ;; The pane draws the inner app's glyphs about where its text starts, and then twice the size: a
+  ;; turned glyph is still the character it was, and where it was in the label, twice as far.
+  (let ((screen (show-with-pane 'make-turned-outer)))
+    (destructuring-bind (px py pw ph) (bounds-of screen :running)
+      (declare (ignore pw ph))
+      (destructuring-bind (x y w h) (multiple-value-list (core:lookup-target *inner* :rail))
+        (assert-equal '(14 16) (list (round w) (round h)))
+        (let ((list (screen-list screen)))
+          (assert-equal
+           ;; The fake font is 8 wide at any size, so drawn twice the size it is half as far from
+           ;; the start, at the bottom of the label's box, and the zoom makes it 8 again.
+           (list (list core:+command-glyph-up+ #\U (round (+ px (* 2 x) 10))
+                       (round (+ py (* 2 (+ y h)) -8)) 14 8)
+                 (list core:+command-glyph-up+ #\p (round (+ px (* 2 x) 10))
+                       (round (+ py (* 2 (+ y h)) -16)) 14 8))
+           (loop :for index :below (core:display-list-count list)
+                 :when (core:glyph-kind-p (core:display-list-kind list index))
+                   :collect (list (core:display-list-kind list index)
+                                  (code-char (round (core:display-list-parameter list index)))
+                                  (round (core:display-list-x list index))
+                                  (round (core:display-list-y list index))
+                                  (round (core:display-list-width list index))
+                                  (round (core:display-list-height list index))))))))))
 
 ;;; --- the inspector beside an app in a pane ---
 
@@ -5103,6 +5201,24 @@ two values, or NIL."
     (m:click session :id :go)
     (assert-equal "2" (text-in screen :count))
     (assert-true (m:find-node session :id :count :within :recent))))
+
+(define-view t-rail
+  (:row :rail (:gap 4 :cross-align :start)
+   (:label :up (:text "Rail" :turn :up))
+   (:label :down (:text "Rail" :turn :down))
+   (:label :flat (:text "Rail"))))
+
+(defun make-rail ()
+  (lambda ()
+    (view t-rail)))
+
+(define-test a-views-label-can-be-turned ()
+  (let ((screen (show 'make-rail)))
+    (flet ((size (id) (mapcar #'round (cddr (bounds-of screen id)))))
+      (assert-equal '(14 32) (size :up))
+      (assert-equal core:+command-glyph-up+ (first (first (glyphs-in screen :up))))
+      (assert-equal core:+command-glyph-down+ (first (first (glyphs-in screen :down))))
+      (assert-equal '(32 14) (size :flat)))))
 
 (define-test a-view-defined-again-is-drawn-without-the-code-being-compiled-again ()
   (let ((before (almighty-bolt/ui/views:find-view 't-login))

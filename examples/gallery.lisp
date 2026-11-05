@@ -90,7 +90,10 @@
                 (section ("Text" :text)
                   (bolt:label "A label is one line." :id :plain)
                   (bolt:label "Labels come in sizes." :id :big :size 22)
-                  (call "(bolt:label text &key id tooltip size color (flex 0) live selectable weight font)"
+                  (bolt:row (:id :turned :gap 8)
+                    (bolt:label "Turned up" :id :turned-up :turn :up)
+                    (bolt:label "and down" :id :turned-down :turn :down))
+                  (call "(bolt:label text &key id tooltip size color (flex 0) live selectable weight font turn)"
                         :label-call)
                   (bolt:paragraph "A paragraph is broken into lines to the width it is given, so its height follows its width. Make the window narrower and it takes more lines."
                                   :id :paragraph)

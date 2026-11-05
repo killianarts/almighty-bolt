@@ -169,8 +169,13 @@ is when its selection shows."
     (multiple-value-bind (step baseline) (line-metrics context box)
       (when selected
         (draw-selection-on-line context list font text 0 (length text) selected x y step))
-      (context-push-text context list font text x (+ y baseline)
-                         (or (box-color box) (theme-text *theme*))))))
+      (let ((color (or (box-color box) (theme-text *theme*))))
+        ;; Turned, the line's top is the box's left edge (up, read from the bottom) or its right
+        ;; (down, read from the top).
+        (case (round (box-n1 box))
+          (0 (context-push-text context list font text x (+ y baseline) color))
+          (1 (context-push-text context list font text (+ x baseline) (+ y (box-h box)) color :up))
+          (2 (context-push-text context list font text (+ x (- step baseline)) y color :down)))))))
 
 (defun draw-paragraph (box context list x y)
   (let* ((state (box-data box))

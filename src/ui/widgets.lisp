@@ -860,15 +860,22 @@ its own."
   (face-variant (widget-face font role) size weight))
 
 (defun label (text &key (id (required-id 'label)) tooltip size color (flex 0) live selectable
-                     weight font)
+                     weight font turn)
   "A line of TEXT in FONT (a family's name, a role such as :heading, or a TYPEFACE: the theme's body
 font if not given), with SIZE (points) and WEIGHT (1 to 1000, or a name such as :bold or :medium) in
 place of the font's if given. A LIVE label is read out by a screen reader whenever its text changes, wherever the
 reader is: for a result, a count or a status that a person should hear without going to look for it.
-A SELECTABLE label's text can be selected with the pointer and copied."
+A SELECTABLE label's text can be selected with the pointer and copied. TURN :UP turns the label a
+quarter to the left, so that it reads upwards, and :DOWN a quarter to the right, so that it reads
+downwards: it is then as wide as a line is tall and as tall as its text is long. A turned label
+cannot be selectable."
+  (check-type turn (member nil :up :down))
+  (when (and turn selectable)
+    (error "A turned label cannot be selectable."))
   (let* ((ui *ui*)
          (box (open-box ui :label :id id :tooltip tooltip)))
     (setf (box-text box) text
+          (box-n1 box) (case turn (:up 1f0) (:down 2f0) (t 0f0))
           (box-font box) (text-face font size weight :body)
           (box-size box) (round (face-size (box-font box)))
           (box-color box) (or (theme-color color) *foreground*)
@@ -2764,6 +2771,8 @@ counting its children."
          (layout (case (box-kind box)
                    (:choice (mix layout (hash-options (car (box-data box)))))
                    ((:list-box :text-area) (mix layout (box-n3 box)))
+                   ;; Turned, or not.
+                   (:label (mix layout (hash-of (box-n1 box))))
                    (:scroll (mix layout (hash-of (box-n1 box))))
                    ;; Side by side or one over the other.
                    (:split (mix layout (box-n3 box)))

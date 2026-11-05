@@ -39,15 +39,16 @@ What 0.3 has, against the prototype:
   in the running app opened in its view, live; the bridge to Emacs; the theme
   designer (seeds, worked-out colours, sizes, readability, the `define-theme`
   form, undo); the semantic tree and VoiceOver; the frame ring, the recorder,
-  replay scripts and a virtual clock.
+  replay scripts and a virtual clock; fonts for every element (any weight,
+  letter spacing, line height, by role in a theme, from files) and text turned
+  90 degrees.
 - **Part:** the canvas and the running app are two panes, not one; options do
   not say where their values come from; the frame ring, the recorder and the
   kept state have no face; the theme designer previews widgets, not the app's
   own view.
-- **Missing:** fonts per element, weights between regular and bold, letter
-  spacing; text turned 90 degrees; shadows and dashed strokes; images and
-  icons; a code view; the studio's shell (modes, rail, status bar, bottom
-  panel, REPL); the timeline, time travel and the call tree.
+- **Missing:** shadows and dashed strokes; images and icons; a code view; the
+  studio's shell (modes, rail, status bar, bottom panel, REPL); the timeline,
+  time travel and the call tree.
 
 ## Phase A: the library can draw the prototype
 
@@ -58,7 +59,8 @@ user of.
    on every widget that draws text, and fonts by role in a theme. Fonts
    registered from files (Core Text), so an app can ship its own. (Done:
    `:font`, `typeface`, the theme's role fonts, `load-font-file`.)
-2. **Text turned 90 degrees,** for the rail's vertical labels.
+2. **Text turned 90 degrees,** for the rail's vertical labels. (Done: `label`'s
+   `:turn :up` and `:down`, and `context-push-text`'s turn.)
 3. **Effects:** a soft drop shadow, drawn in the shader and reaching past its
    widget's edges (the roadmap's Effects); then a dashed stroke, for outlines
    and hit boxes.

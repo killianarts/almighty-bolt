@@ -416,12 +416,13 @@ the line, as four values: x, y, width and height.")
     (declare (ignore font string index))
     (no-text 'context-caret-rect)))
 
-(defgeneric context-push-text (context display-list font string x baseline color)
+(defgeneric context-push-text (context display-list font string x baseline color &optional turn)
   (:documentation "Append a glyph command to DISPLAY-LIST for each glyph of STRING in
 FONT, starting at X with its baseline at BASELINE (points, y down), in COLOR.
-Returns the number of commands added.")
-  (:method ((context context) display-list font string x baseline color)
-    (declare (ignore display-list font string x baseline color))
+TURN :UP turns the text a quarter to the left about that point, to read upwards from it, and
+:DOWN a quarter to the right, to read downwards. Returns the number of commands added.")
+  (:method ((context context) display-list font string x baseline color &optional turn)
+    (declare (ignore display-list font string x baseline color turn))
     (no-text 'context-push-text)))
 
 ;;; --- the clipboard, which the host supplies ---

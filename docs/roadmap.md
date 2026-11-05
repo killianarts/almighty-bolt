@@ -17,7 +17,7 @@ the order inside a section is not a schedule. What has shipped is in the
     size, letter spacing and line height; fonts by role (label, body, heading,
     code, button) in a theme; fonts loaded from an app's own files. (In 0.3.)
   - Italic, and rich text.
-  - Text turned 90 degrees.
+  - Text turned 90 degrees. (In 0.3.)
   - Wrapping layouts.
   - A table, and date and colour pickers.
 - **Effects.** Shadows, glows, blur, opacity and other filters, and dashed
@@ -183,10 +183,10 @@ the GUI designer, and where on this roadmap each is closed.
 - **Views take no parameters.** A view inside another is drawn as it was
   designed; wiring where a view is drawn gives what differs, which may be
   enough.
-- **Type and effects.** No font for each element, no weights between regular
-  and bold, no letter spacing, no turned text; no shadow, dashed stroke, grain
-  or scanlines; no icons: the prototype's chrome cannot be drawn by the library
-  yet ([Text and layout, Effects, Images and icons](#later)).
+- **Effects and icons.** Fonts for each element and turned text are in 0.3; no
+  shadow, dashed stroke, grain or scanlines, and no icons: the prototype's
+  chrome cannot all be drawn by the library yet ([Effects, Images and
+  icons](#later)).
 - **No code view.** A text area is plain text, with no line numbers. Emacs, over
   the bridge, edits the code (0.3); the studio needs a viewer with light
   editing for its Wire mode.

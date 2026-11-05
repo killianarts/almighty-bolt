@@ -185,10 +185,12 @@ them in the boxes, and return the width and height."
   (let ((*theme* (box-theme box)))
     (ecase (box-kind box)
       (:label
-       (let ((font (box-text-font context box)))
-         (set-box box
-                  (constrain (float (context-measure context font (box-text box)) 1f0) min-w max-w)
-                  (constrain (float (line-height context box) 1f0) min-h max-h))))
+       (let ((long (float (context-measure context (box-text-font context box) (box-text box)) 1f0))
+             (short (float (line-height context box) 1f0)))
+         ;; A turned label is as wide as a line is tall.
+         (if (zerop (box-n1 box))
+             (set-box box (constrain long min-w max-w) (constrain short min-h max-h))
+             (set-box box (constrain short min-w max-w) (constrain long min-h max-h)))))
       (:paragraph
        (let* ((state (box-data box))
               (text (box-text box))

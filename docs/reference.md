@@ -63,6 +63,13 @@ ones the app can ask for by name while it runs, as if they were installed
 Load a font before the window first asks for it: a font asked for by a name the
 system did not have then is the system's, and the window keeps it.
 
+A `label` given `:turn :up` is turned a quarter to the left and reads upwards,
+from its bottom, the tops of its letters to the left; `:turn :down` turns it to
+the right, to read downwards from its top. It is then as wide as a line is tall
+and as tall as its text is long, as a tab on the side of a window is:
+`(bolt:label "OUTLINE" :id :rail-outline :turn :up)`. Its glyphs are the upright ones, turned
+as they are drawn, so it is as sharp. A turned label cannot be `:selectable`.
+
 A `label` or `paragraph` given `:selectable t` can be selected with the pointer,
 as a text field can (a drag, a double-click for a word, a triple-click for all
 of a label or a paragraph's line), and copied with Command-C; Command-A selects
@@ -587,7 +594,10 @@ top left; what it draws is drawn once if it is the same as last frame. Draw with
 `pack-color`, and text with `context-push-text` after `context-font` (`context
 name size &optional weight tracking`: a weight from 1 to 1000 or a name, `:thin`
 to `:black`, and the points of space after each character) and
-`context-measure`. The events the canvas returns are `(:press x y button
+`context-measure`. `(context-push-text context list font string x baseline color
+&optional turn)` with `turn` `:up` or `:down` draws the text turned a quarter
+about the point `x`, `baseline`, where it starts, reading up or down from it.
+The events the canvas returns are `(:press x y button
 click-count)`, `(:move x y)`, `(:drag x y)`, `(:release x y inside-p)`, `(:key
 event)` (see `key-event-logical-key` and the `+key-...+` and `+modifier-...+`
 constants), `(:text string)`, `(:composition kind text selection-start

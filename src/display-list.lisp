@@ -14,6 +14,9 @@
            #:+command-rect+
            #:+command-rounded-rect+
            #:+command-glyph+
+           #:+command-glyph-up+
+           #:+command-glyph-down+
+           #:glyph-kind-p
            #:+command-clip+
            #:+command-unclip+
            #:+command-rounded-stroke+
@@ -55,6 +58,17 @@
 (defconstant +command-glyph+ 2
   "One glyph: the rectangle is where its bitmap goes, the parameter is its index in
 the glyph atlas, and the colour is the colour of the text.")
+
+(defconstant +command-glyph-up+ 5
+  "A glyph turned a quarter to the left, as text that reads upwards has it: the rectangle is where
+its bitmap goes once turned (its width is the bitmap's height), and the rest is as for a glyph.")
+(defconstant +command-glyph-down+ 6
+  "A glyph turned a quarter to the right, as text that reads downwards has it.")
+
+(declaim (inline glyph-kind-p))
+(defun glyph-kind-p (kind)
+  "True if a command of KIND is a glyph, upright or turned: its parameter is an index in the atlas."
+  (or (= kind +command-glyph+) (= kind +command-glyph-up+) (= kind +command-glyph-down+)))
 
 (defconstant +command-clip+ 3
   "Start clipping what follows to the rectangle, inside the clip that is already on.
@@ -169,10 +183,16 @@ Returns its index."
   "The width in points of the stroke that a command of KIND is, or NIL if it is not one."
   (and (> kind +command-rounded-stroke+) (/ (- kind +command-rounded-stroke+) 4f0)))
 
-(defun push-glyph (display-list x y width height atlas-index color)
+(defun push-glyph (display-list x y width height atlas-index color &optional turn)
   "Append the glyph at ATLAS-INDEX in the glyph atlas, with its bitmap's top left
-at X, Y and its size WIDTH by HEIGHT (all in points). Returns its index."
-  (push-command display-list +command-glyph+ x y width height atlas-index color))
+at X, Y and its size WIDTH by HEIGHT (all in points). TURN :UP draws the bitmap turned a quarter
+to the left and :DOWN a quarter to the right, and X, Y, WIDTH and HEIGHT are then the rectangle it
+fills turned (WIDTH is the bitmap's height). Returns its index."
+  (push-command display-list (ecase turn
+                               ((nil) +command-glyph+)
+                               (:up +command-glyph-up+)
+                               (:down +command-glyph-down+))
+                x y width height atlas-index color))
 
 (defun append-display-list (target source &optional (dx 0f0) (dy 0f0))
   "Append the commands of SOURCE to TARGET, each moved DX across and DY down, and return
@@ -300,7 +320,7 @@ has not room for them."
               (aref ys i) (* (aref ys i) zoom)
               (aref ws i) (* (aref ws i) zoom)
               (aref hs i) (* (aref hs i) zoom))
-        (cond ((= kind +command-glyph+))
+        (cond ((glyph-kind-p kind))
               ((> kind +command-rounded-stroke+)
                (setf (aref ps i) (* (aref ps i) zoom)
                      (aref kinds i) (+ +command-rounded-stroke+
@@ -316,7 +336,7 @@ and the BASELINE, back in unzoomed points about that place."
         (ys (display-list-ys list)) (ws (display-list-widths list))
         (hs (display-list-heights list)))
     (loop :for i :from start :below (display-list-count list)
-          :when (= (aref kinds i) +command-glyph+)
+          :when (glyph-kind-p (aref kinds i))
             :do (setf (aref xs i) (+ x (/ (- (aref xs i) x) zoom))
                       (aref ys i) (+ baseline (/ (- (aref ys i) baseline) zoom))
                       (aref ws i) (/ (aref ws i) zoom)

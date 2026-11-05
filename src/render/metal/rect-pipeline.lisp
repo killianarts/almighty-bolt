@@ -36,7 +36,8 @@ struct Instance {
   float4 rect;      // x, y, width, height in points, from the top left
   float parameter;  // the corner radius in points, or a glyph's index in the atlas
   uint color;       // red, green, blue, alpha: a byte each, red in the high byte
-  uint kind;        // 0 rectangle, 1 rounded rectangle, 2 glyph, 16 + quarter points a stroke
+  uint kind;        // 0 rectangle, 1 rounded rectangle, 2 glyph, 5 and 6 a glyph turned up or
+                    // down, 16 + quarter points a stroke
   uint pad;
 };
 
@@ -63,7 +64,7 @@ vertex VertexOut rect_vertex(uint vertex_id [[vertex_id]],
                              constant Frame &frame [[buffer(1)]],
                              constant float4 *glyph_uvs [[buffer(2)]]) {
   Instance inst = instances[instance_id];
-  bool glyph = inst.kind == 2u;
+  bool glyph = inst.kind == 2u || inst.kind == 5u || inst.kind == 6u;
   float2 corner = float2(float(vertex_id & 1), float(vertex_id >> 1));
   float2 half_size = inst.rect.zw * 0.5;
   // A shape gets one more pixel all round for its antialiased edge; a glyph's
@@ -79,7 +80,13 @@ vertex VertexOut rect_vertex(uint vertex_id [[vertex_id]],
   out.uv = float2(0.0);
   if (glyph) {
     float4 uvs = glyph_uvs[uint(inst.parameter)];   // left, top, right, bottom
-    out.uv = mix(uvs.xy, uvs.zw, corner);
+    // A turned glyph's quad is its bitmap turned a quarter: up (to the left), the bitmap's top
+    // is the quad's left and its left the quad's bottom; down, its top is the right and its
+    // left the top.
+    float2 along = inst.kind == 5u ? float2(1.0 - corner.y, corner.x)
+                 : inst.kind == 6u ? float2(corner.y, 1.0 - corner.x)
+                 : corner;
+    out.uv = mix(uvs.xy, uvs.zw, along);
   }
   out.half_size = half_size;
   out.radius = glyph ? 0.0 : min(inst.parameter, min(half_size.x, half_size.y));
@@ -93,7 +100,7 @@ vertex VertexOut rect_vertex(uint vertex_id [[vertex_id]],
 fragment float4 rect_fragment(VertexOut in [[stage_in]],
                               texture2d<float> atlas [[texture(0)]]) {
   float coverage;
-  if (in.kind == 2u) {
+  if (in.kind == 2u || in.kind == 5u || in.kind == 6u) {
     // The atlas is at device resolution, so sample it texel for pixel.
     constexpr sampler nearest(coord::normalized, filter::nearest, address::clamp_to_edge);
     coverage = atlas.sample(nearest, in.uv, level(0.0)).r;

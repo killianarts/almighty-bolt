@@ -167,6 +167,65 @@ coverage for each pixel, row by row from the top. The atlas is held to this."
                                        (= 0 (aref pixels i))))))         ; blue
         (assert-true full)))))
 
+;;; --- text turned a quarter ---
+
+(defun lit-crop (pixels width height)
+  "The red of every pixel in the lit box of PIXELS (WIDTH by HEIGHT pixels), as a 2D array of rows,
+and the lit box."
+  (destructuring-bind (left top right bottom) (lit-box pixels width height)
+    (let ((crop (make-array (list (1+ (- bottom top)) (1+ (- right left))))))
+      (dotimes (row (array-dimension crop 0))
+        (dotimes (column (array-dimension crop 1))
+          (setf (aref crop row column)
+                (aref pixels (+ 2 (* 4 (+ (* (+ top row) width) left column)))))))
+      (values crop (list left top right bottom)))))
+
+(defun turned-crop (crop turn)
+  "CROP turned a quarter: to the left if TURN is :up, to the right if it is :down."
+  (destructuring-bind (rows columns) (array-dimensions crop)
+    (let ((turned (make-array (list columns rows))))
+      (dotimes (row columns turned)
+        (dotimes (column rows)
+          (setf (aref turned row column)
+                (ecase turn
+                  (:up (aref crop column (- columns 1 row)))
+                  (:down (aref crop (- rows 1 column) row)))))))))
+
+(define-test turned-text-is-the-upright-texts-pixels-turned ()
+  ;; Each glyph of a turned line is the bitmap of the upright one, read turned in the shader: on whole
+  ;; pixels, what is drawn is exactly the upright line's pixels turned a quarter, and it starts at the
+  ;; point it was given, reading up (the letters' tops to the left) or down (to the right).
+  (with-text-scene (device renderer font)
+    (let* ((atlas (renderer:renderer-atlas renderer))
+           (line (line:get-line font "Hgy,"))
+           (size 160)
+           (pixels (* size +scale+)))
+      (flet ((drawn (x baseline turn)
+               (let ((list (dl:make-display-list :capacity 16)))
+                 (draw:push-line list atlas line x baseline (dl:pack-color 255 255 255) turn)
+                 (lit-crop (render-text device renderer list size size) pixels pixels))))
+        (let ((upright (drawn 20f0 50f0 nil))
+              (ascent (line:text-line-ascent line))
+              (descent (line:text-line-descent line))
+              (long (line:text-line-width line))
+              (margin 3))
+          (dolist (turn '(:up :down))
+            (multiple-value-bind (crop box) (drawn 80f0 80f0 turn)
+              (assert-equalp (turned-crop upright turn) crop turn)
+              (destructuring-bind (left top right bottom) box
+                (multiple-value-bind (above below) (if (eq turn :up)
+                                                       (values ascent descent)
+                                                       (values descent ascent))
+                  (assert-true (>= left (- (* (- 80 above) +scale+) margin)) turn left)
+                  (assert-true (<= right (+ (* (+ 80 below) +scale+) margin)) turn right))
+                (if (eq turn :up)
+                    (assert-true (and (<= bottom (+ (* 80 +scale+) margin))
+                                      (>= top (- (* (- 80 long) +scale+) margin)))
+                                 turn top bottom)
+                    (assert-true (and (>= top (- (* 80 +scale+) margin))
+                                      (<= bottom (+ (* (+ 80 long) +scale+) margin)))
+                                 turn top bottom))))))))))
+
 (define-test text-in-another-script-draws-with-a-font-that-has-it ()
   (with-text-scene (device renderer font)
     (let ((list (dl:make-display-list :capacity 64)))
