@@ -13,11 +13,15 @@ the order inside a section is not a schedule. What has shipped is in the
 
 - **Images and icons.**
 - **Text and layout.**
-  - Italic, weights between regular and bold, a font for each widget besides
-    labels and paragraphs (which have `:weight :bold` and `:font`); rich text.
+  - A font for every element that draws text: its family, any weight (not
+    only regular and bold, which labels and paragraphs have), its size, letter
+    spacing and line height; fonts by role (label, body, heading, code) in a
+    theme; fonts loaded from an app's own files. Italic, and rich text.
+  - Text turned 90 degrees.
   - Wrapping layouts.
   - A table, and date and colour pickers.
-- **Effects.** Shadows, glows, blur, opacity and other filters.
+- **Effects.** Shadows, glows, blur, opacity and other filters, and dashed
+  strokes.
   - An effect can reach past the edges of the widget it belongs to, by as far as
     it needs.
   - A soft shadow or glow is drawn in the shader. A blur or filter reads what is
@@ -81,12 +85,23 @@ site, is in [Figma][studio-prototype].
 
 ### Features
 
-In five modes, with the panes of each. What 0.3 has is said; the rest is
-planned.
+In five modes, Design, Wire, Debug, Theme and Agent, chosen in the studio's
+title bar. Each mode is a dock layout of its own, opened as the prototype
+arranges it, which the person rearranges and which is kept. Over them, the
+title bar says what is open (the view, the app, the file) and whether the image
+is live, and has Save and Run Window; under them, a panel with the REPL, the
+problems, the events and the agent; and a status bar. What 0.3 has is said; the
+rest is planned, in the order of the [studio's plan](studio-plan.md).
 
 - **Design.**
+  - The canvas is the app's window: the running app, with its real data, in a
+    window of the size, zoom and theme chosen over the canvas. In Design a
+    press selects the widget of the view it is on, with its id and whether it
+    is wired, and a widget let go of goes into the view; in Run the app has the
+    input. (0.3 has the view and the running app in two panes, the app at a
+    size of its own, and a widget picked in the app opened in its view.)
   - A catalogue of every widget and container of the library, and the app's own
-    views and widgets beside them.
+    views and widgets beside them, with a search.
   - Widgets dragged from the catalogue into the view, and moved within it, with
     a marker where they will land: into this column, before its third child.
     (In 0.3.)
@@ -124,13 +139,19 @@ planned.
     the view and in every wiring of it, and where an id is wired.
   - The window's `state-let` values, live and editable, kept across a reload.
     (0.3 has them at the REPL, with `state`.)
-  - The view's form edited as Lisp in the studio itself, with paredit and
-    completion of ids, kinds and options, for those who do not use Emacs.
+  - The view's file and the code's file in the studio, with line numbers, and
+    edited there lightly: a clause written inline with completion, a stub for
+    every id, an id renamed. Each id beside them, with what wires it or that
+    nothing does. Emacs, through the bridge, is the editor for the rest.
+  - Problems checked across files, and before a save: a wire a save would
+    leave with nothing to wire.
 - **Debug.**
   - A timeline of frames: the build, layout and paint of each, the builds it
     took and the bytes it allocated, from the frame ring.
-  - Replay and time travel: back to any event, replayed from there on a virtual
-    clock, with the state of two frames compared.
+  - Every event since the window opened, each with its frame. Replay and time
+    travel: back to any event, replayed from there on a virtual clock, with the
+    state of two frames compared, and the canvas as it was then: what took the
+    pointer, where a press was, and what it did.
   - Why a frame was laid out or painted again: what in its description changed.
   - What a press called, with its arguments, its result and its time, and a way
     into the debugger at it.
@@ -142,8 +163,9 @@ planned.
     form, kept in step with the design system's variables in Figma.
 - **Test and agent.**
   - The semantic tree, spoken by VoiceOver on request, the keyboard order drawn
-    over the canvas, and the contrast of every text checked. (0.3 has the tree,
-    and VoiceOver.)
+    over the canvas, and checks that every control has a name, that Tab goes in
+    reading order and that every text can be read. (0.3 has the tree, and
+    VoiceOver.)
   - An agent pane: a change asked for in words, made by an agent through the
     machine interface and the MCP server, and proposed as a change to the view
     and the code, shown on the canvas.
@@ -160,22 +182,25 @@ the GUI designer, and where on this roadmap each is closed.
 - **Views take no parameters.** A view inside another is drawn as it was
   designed; wiring where a view is drawn gives what differs, which may be
   enough.
-- **Type and effects.** No italic, no weights between regular and bold, no
-  shadow, grain or scanlines: the design system's chrome cannot be drawn by the
-  library yet ([Text and layout, Effects](#later)).
-- **No code editor.** A text area is plain text: no colouring, no structural
-  editing, no large files. A code widget, or a bridge to Emacs through the
-  image.
+- **Type and effects.** No font for each element, no weights between regular
+  and bold, no letter spacing, no turned text; no shadow, dashed stroke, grain
+  or scanlines; no icons: the prototype's chrome cannot be drawn by the library
+  yet ([Text and layout, Effects, Images and icons](#later)).
+- **No code view.** A text area is plain text, with no line numbers. Emacs, over
+  the bridge, edits the code (0.3); the studio needs a viewer with light
+  editing for its Wire mode.
 - **Recording without a face.** The frame ring, the phase times and replay
   scripts exist, and nothing shows them; the timeline and replay panes are built
   on what is there.
 
 ### Stages
 
-1. **Code and time.** The running app edited in the studio, and the bridge to
-   Emacs (both in 0.3; see Wire and code). Then the timeline, replay and state
-   panes over the frame ring, the semantic and accessibility panes, and tests
-   made from recordings.
-2. **Craft and agents.** Effects for the chrome: shadow, grain, scanlines. The
-   agent pane over the MCP server. The theme and the Figma variables kept in
-   step. Shipping an `.app`.
+1. **The prototype, built.** The running app edited in the studio and the
+   bridge to Emacs are in 0.3. Then, as the [studio's plan](studio-plan.md)
+   orders it: what the library needs to draw the prototype (fonts for every
+   element, turned text, shadows, icons, a code view); the shell and its five
+   modes as docks; Design with the canvas as the app's window; Wire; Debug,
+   with the timeline, time travel and the state of each frame; Theme.
+2. **Craft and agents.** Grain and scanlines for the chrome. The agent mode
+   over the MCP server. The theme and the Figma variables kept in step.
+   Shipping an `.app`.
