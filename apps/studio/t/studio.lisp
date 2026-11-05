@@ -320,3 +320,83 @@
                (assert-true (search "\"Add one\"" (getf request :text)) (getf request :text))))
         (emacs-gone)
         (views:set-view 'tiny-view *tiny-view*)))))
+
+;;; --- the canvas and the app at sizes of their own; the outline as the selection moves ---
+
+(defun outline-places (screen)
+  "Where the frame's outlines are: (x y width height) each."
+  (let ((ui (almighty-bolt/ui/immediate:immediate-app-ui (screen-app screen))))
+    (loop :for float :across (almighty-bolt/ui/ui:ui-floats ui)
+          :when (eq (almighty-bolt/ui/box:box-kind float) :outline)
+            :collect (mapcar #'round (list (almighty-bolt/ui/box:box-x float)
+                                           (almighty-bolt/ui/box:box-y float)
+                                           (almighty-bolt/ui/box:box-w float)
+                                           (almighty-bolt/ui/box:box-h float))))))
+
+(define-test the-outline-s-rows-select-in-the-canvas-whatever-is-on-the-right ()
+  ;; With the theme's settings on the right, nothing there changes when a row is chosen: the
+  ;; canvas's outline must still go round what was.
+  (multiple-value-bind (screen session) (open-studio)
+    (m:click session :id :theme-pane)
+    (dolist (row (s:find-nodes (m:find-node session :id :outline-tree) :role :row))
+      (let* ((name (s:node-name row))
+             (id (intern (string-upcase (subseq name (1+ (position #\: name)))) :keyword)))
+        (destructuring-bind (x y w h) (s:node-bounds row)
+          (pointer screen :move (+ x (/ w 2)) (+ y (/ h 2)))
+          (pointer screen :down (+ x (/ w 2)) (+ y (/ h 2)))
+          (pointer screen :up (+ x (/ w 2)) (+ y (/ h 2)))
+          (dotimes (i 3) (draw screen)))
+        (assert-equal (list (mapcar #'round (s:node-bounds (m:find-node session :id id
+                                                                                :within :canvas))))
+                      (outline-places screen)
+                      name)))))
+
+(defun resize (screen width)
+  (setf (core:context-width (screen-context screen)) (float width 1f0))
+  (dotimes (i 2) (draw screen)))
+
+(define-test the-canvas-and-the-app-are-laid-out-at-their-own-sizes-which-the-person-sets ()
+  (multiple-value-bind (screen session) (open-studio)
+    (labels ((field-width ()
+               (third (s:node-bounds (m:find-node session :id :name :within :canvas))))
+             (size-set (within)
+               ;; The size the person set, which the stage is where there is room for it.
+               (s:node-value (m:find-node session :id :stage-width :within within)))
+             (app-width ()
+               ;; The window the app in the pane is laid out in, in its own points.
+               (core:context-width
+                (almighty-bolt/ui/app-pane::app-pane-state-context
+                 (gethash studio:*running* almighty-bolt/ui/app-pane::*pane-states*)))))
+      ;; The view at the canvas's 480, however wide the window is: its field does not change.
+      (let ((wide (field-width)))
+        (resize screen 900)
+        (assert-eql wide (field-width))
+        (resize screen 1240)
+        (assert-equal "480" (size-set :canvas-stage))
+        ;; Its width typed, and taken with Return; and dragged by the grip, 50 points.
+        (m:set-value session "520" :id :stage-width :within :canvas-stage)
+        (m:press-key session :return)
+        (assert-equal "520" (size-set :canvas-stage))
+        (destructuring-bind (x y w h) (s:node-bounds (m:find-node session :id :stage-grip))
+          (let ((x (+ x (/ w 2))) (y (+ y (/ h 2))))
+            (pointer screen :move x y)
+            (pointer screen :down x y)
+            (pointer screen :move (+ x 50) y)
+            (pointer screen :up (+ x 50) y)
+            (dotimes (i 3) (draw screen))))
+        (assert-equal "570" (size-set :canvas-stage))
+        ;; The pane has room for less: the stage is cut off at its edge, not made smaller.
+        (assert-true (< (third (s:node-bounds (m:find-node session :id :stage
+                                                                   :within :canvas-stage)))
+                        570))
+        (assert-eql wide (field-width)))
+      ;; The app at its own size, as its window's would be, whatever the pane: and at 200%, the
+      ;; same size in its own points, shown twice as large.
+      (run-in-studio session 'make-tiny)
+      (assert-eql 480f0 (app-width))
+      (m:set-value session "200%" :id :zoom)
+      (dotimes (i 3) (draw screen))
+      (assert-eql 480f0 (app-width))
+      (resize screen 900)
+      (assert-eql 480f0 (app-width))
+      (assert-equal "480" (size-set :run-stage)))))

@@ -10,6 +10,8 @@
                 #:constrain
                 #:request-frame
                 #:+unbounded+)
+  (:import-from #:almighty-bolt/ui/split
+                #:+divider-width+)
   (:import-from #:almighty-bolt/ui/box
                 #:box-theme
                 #:box-kind
@@ -396,9 +398,22 @@ them in the boxes, and return the width and height."
        (set-box box (if (< max-w +unbounded+) max-w min-w) (if (< max-h +unbounded+) max-h min-h)))
       (:splitter
        (set-box box (constrain (box-pref-w box) min-w max-w) (constrain (box-pref-h box) min-h max-h)))
-      ((:column :row :context-area :surface :drag-source :pane :split :tree)
+      ((:column :row :context-area :surface :drag-source :pane :split :tree :stage)
        (let ((children (box-children box)))
          (flet ((measure (i a b c d)
+                  ;; A split's pane of a fixed size is no larger than the room leaves it, the other
+                  ;; keeping its least (N1).
+                  (when (and (eq (box-kind box) :split)
+                             (zerop (box-flex (aref children i)))
+                             (not (eq (box-kind (aref children i)) :splitter)))
+                    (let* ((horizontal (zerop (box-n3 box)))
+                           (room (if horizontal max-w max-h)))
+                      (when (< room +unbounded+)
+                        (let ((most (max (box-n1 box)
+                                         (- room +divider-width+ (box-n1 box)))))
+                          (if horizontal
+                              (setf b (min b most) a (min a b))
+                              (setf d (min d most) c (min c d)))))))
                   (layout-box (aref children i) context a b c d))
                 (place (i x y)
                   (let ((child (aref children i)))
@@ -408,6 +423,15 @@ them in the boxes, and return the width and height."
                   (values (box-flex (aref children i)) t)))
            (declare (dynamic-extent #'measure #'place #'flex-of))
            (multiple-value-bind (w h)
+               (if (eq (box-kind box) :stage)
+                   ;; What is on a stage is laid out at the stage's own size, whatever the room;
+                   ;; the stage is no larger than the room, and cuts off what does not fit.
+                   (let ((w (box-pref-w box)) (h (box-pref-h box)))
+                     (layout-flex :vertical w w h h (length children) #'measure #'place
+                                  :flex-of #'flex-of :gap (box-gap box)
+                                  :main-align (box-main-align box)
+                                  :cross-align (box-cross-align box) :main-size :max)
+                     (values (constrain w min-w max-w) (constrain h min-h max-h)))
                (layout-flex (if (or (eq (box-kind box) :row)
                                     (and (eq (box-kind box) :split) (zerop (box-n3 box))))
                                 :horizontal :vertical)
@@ -415,7 +439,7 @@ them in the boxes, and return the width and height."
                             #'measure #'place
                             :flex-of #'flex-of :gap (box-gap box)
                             :main-align (box-main-align box) :cross-align (box-cross-align box)
-                            :main-size (if (box-fill box) :max :min))
+                            :main-size (if (box-fill box) :max :min)))
              (set-box box w h)))))
       (:scroll
        ;; What is inside is a column as tall as it wants; the window onto it is HEIGHT (PREF-H) tall if

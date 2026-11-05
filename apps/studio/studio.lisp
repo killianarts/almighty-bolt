@@ -23,10 +23,12 @@
 
 (defparameter +layout+
   '(:split :horizontal 300 (:tabs :widgets-pane :widgets-pane)
-    (:split :horizontal 620 (:tabs :canvas-pane :canvas-pane :preview-pane :run-pane)
-     (:tabs :options-pane :options-pane :theme-pane :inspect-pane)))
+    (:split :horizontal 340 (:tabs :canvas-pane :canvas-pane :preview-pane :run-pane)
+     (:tabs :options-pane :options-pane :theme-pane :inspect-pane)
+     :second))
   "How the panes are first arranged: the widgets on the left, the canvas (and the theme's preview)
-in the middle, the selected widget's options (and the theme's settings) on the right; the app
+in the middle, the selected widget's options (and the theme's settings) on the right, which keep
+their widths when the window is made larger or smaller, the middle taking what changes; the app
 running behind the canvas's tab, and the inspector of it behind the options'.")
 
 (defparameter +zooms+ '(("50%" 1/2) ("100%" 1) ("200%" 2))
@@ -53,6 +55,11 @@ looks at it, and a test.")
                        ;; The app to run, by the name of the function that makes it, and its zoom.
                        (app-name "")
                        (zoom 1)
+                       ;; The app's own size, as its window's would be, which the person drags or
+                       ;; types: it is laid out at it whatever the pane is.
+                       (app-w 480)
+                       (app-h 360)
+                       (app-drafts (make-hash-table))
                        ;; True for the frame after Edit in the View: the canvas and the options
                        ;; are brought to the front.
                        (to-canvas nil))
@@ -70,7 +77,7 @@ looks at it, and a test.")
             ;; to share). A designer's keys come after its part, so that a text field with the
             ;; keyboard undoes its own typing first.
             (setf layout
-                  (bolt:dock (:id :panes :layout layout :flex 1)
+                  (bolt:dock (:id :panes :layout layout :flex 1 :min 220)
                     (:widgets-pane "Widgets"
                      (bolt:stack (:id :widgets-part :flex 1) (funcall widgets))
                      (funcall view-keys))
@@ -104,8 +111,14 @@ looks at it, and a test.")
                                             :id :zoom :style :segmented)
                              (when changed (setf zoom (second (nth index +zooms+))))))
                          (if constructor
-                             (setf *running* (bolt:app-pane constructor :id :running :zoom zoom
-                                                                        :flex 1))
+                             (multiple-value-bind (w h)
+                                 (gui-designer:sized-stage
+                                  :run-stage app-w app-h
+                                  (lambda ()
+                                    (setf *running* (bolt:app-pane constructor :id :running
+                                                                               :zoom zoom :flex 1)))
+                                  app-drafts :scale zoom)
+                               (setf app-w w app-h h))
                              (progn
                                (setf *running* nil)
                                (bolt:paragraph "The name of the function that makes the app, as open-app takes it: my-app:make-app."

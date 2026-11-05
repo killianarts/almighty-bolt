@@ -4179,6 +4179,126 @@ process.)"
           (assert-true (search "(:tabs :beta :gamma :beta)" (s:node-name (node-of screen :layout)))
                        (s:node-name (node-of screen :layout))))))))
 
+;;; --- a sidebar that keeps its width, and a window made smaller and larger ---
+
+(defun make-sidebar-dock ()
+  (state-let ((layout '(:split :horizontal 120 (:tabs :left :left)
+                        (:split :horizontal 100 (:tabs :middle :middle) (:tabs :right :right)
+                         :second))))
+    (lambda ()
+      (column (:id :page :fill t :cross-align :stretch)
+        (setf layout
+              (dock (:id :panes :layout layout :flex 1 :min 60)
+                (:left "Left" (label "L" :id :left-words))
+                (:middle "Middle" (label "M" :id :middle-words))
+                (:right "Right" (label "R" :id :right-words))))
+        (label (format nil "~(~s~)" layout) :id :layout)))))
+
+(define-test a-split-keeps-the-pane-it-keeps-the-size-of-as-the-window-is-made-smaller-and-larger ()
+  (let* ((screen (show 'make-sidebar-dock))
+         (context (screen-context screen)))
+    (labels ((width-of (id) (third (bounds-of screen id)))
+             (resize (width)
+               (setf (core:context-width context) (float width 1f0))
+               ;; One frame, settled in one build: nothing the layout says changes as the window
+               ;; does, so nothing is built again for it.
+               (assert-eql 1 (core:settle-frame (screen-app screen) context (screen-list screen))
+                           width))
+             (layout () (s:node-name (node-of screen :layout))))
+      (resize 360)
+      (let ((layout (layout)))
+        ;; The right keeps its 100; the middle has the rest.
+        (assert-eql 100f0 (width-of :group-1-1))
+        (resize 500)
+        (assert-eql 100f0 (width-of :group-1-1))
+        (assert-eql (- 500 120 6 100 6) (round (width-of :group-1-0)))
+        ;; Too small for all of it: the right is shown smaller, the middle keeping its least...
+        (resize 280)
+        (assert-eql 60 (round (width-of :group-1-0)))
+        (assert-eql (- 280 120 6 6 60) (round (width-of :group-1-1)))
+        ;; ...and is its own width again when there is room, the layout as it was all along.
+        (resize 400)
+        (assert-eql 100f0 (width-of :group-1-1))
+        (assert-equal layout (layout))))))
+
+;;; --- an outline that moves to another thing, and nothing else changes ---
+
+(defun make-re-outlined ()
+  (state-let ((picked :first))
+    (lambda ()
+      (column (:id :page :gap 8)
+        (when (button "Pick the other" :id :other)
+          (setf picked (if (eq picked :first) :second :first)))
+        (design-surface (:id :surface :selected picked)
+          (column (:id :things :gap 30)
+            (button "First" :id :first)
+            (button "Second" :id :second)))))))
+
+(defun outline-places (screen)
+  "Where the outlines of the frame are: (x y width height) each."
+  (let ((ui (almighty-bolt/ui/immediate:immediate-app-ui (screen-app screen))))
+    (loop :for float :across (almighty-bolt/ui/ui:ui-floats ui)
+          :when (eq (almighty-bolt/ui/box:box-kind float) :outline)
+            :collect (mapcar #'round (list (almighty-bolt/ui/box:box-x float)
+                                           (almighty-bolt/ui/box:box-y float)
+                                           (almighty-bolt/ui/box:box-w float)
+                                           (almighty-bolt/ui/box:box-h float))))))
+
+(define-test an-outline-put-by-another-thing-is-laid-out-again-though-nothing-else-changed ()
+  (let* ((screen (show 'make-re-outlined))
+         (session (screen-session screen)))
+    (draw screen)
+    (flet ((at (id) (mapcar #'round (s:node-bounds (m:find-node session :id id :within :surface)))))
+      (assert-equal (list (at :first)) (outline-places screen))
+      ;; The button's press is all that changes: the frame is laid out as it was, but for the
+      ;; outline, which is round the other thing.
+      (m:click session :id :other)
+      (assert-equal (list (at :second)) (outline-places screen))
+      (m:click session :id :other)
+      (assert-equal (list (at :first)) (outline-places screen)))))
+
+;;; --- a stage: laid out at its own size, whatever the room ---
+
+(defun make-staged ()
+  (state-let ((room 200) (ends 0))
+    (lambda ()
+      (column (:id :page :gap 8)
+        (when (button "Wider" :id :wider) (setf room 600))
+        (column (:id :room :width room :height 200)
+          (stage (:id :stage :width 300 :height 150)
+            (text-field "" :id :field)
+            (row (:id :ends)
+              (spacer)
+              (when (button "End" :id :end) (incf ends)))))
+        (label (format nil "~d" ends) :id :ends-pressed)))))
+
+(define-test what-is-on-a-stage-is-laid-out-at-its-size-and-what-does-not-fit-is-cut-off ()
+  (let* ((screen (show 'make-staged))
+         (session (screen-session screen)))
+    (flet ((bounds (id) (mapcar #'round (s:node-bounds (m:find-node session :id id)))))
+      ;; In 200 points of room: the stage is 200 wide, what is on it is laid out at 300 (the field
+      ;; stretches to it), and what is past 200 is out of sight.
+      (assert-eql 200 (third (bounds :stage)))
+      (assert-true (s:node-property (m:find-node session :id :end) :hidden))
+      ;; Where it is laid out, past the stage's edge (its row is under the field, which is as wide
+      ;; as the stage's 300, and it is at the row's end), a press reaches nothing.
+      (multiple-value-bind (x y w h) (core:lookup-target (screen-app screen) :field)
+        (let ((x (+ x w -10)) (y (+ y h 14)))
+          (assert-true (> x 200))
+          (pointer screen :move x y)
+          (pointer screen :down x y :button 0 :buttons 1)
+          (pointer screen :up x y :button 0)))
+      (assert-equal "0" (text-in screen :ends-pressed))
+      (destructuring-bind (x y w h) (multiple-value-list (core:lookup-target (screen-app screen)
+                                                                             :field))
+        (declare (ignore x y h))
+        (assert-eql 300 (round w)))
+      ;; More room: the stage is its own size, and no larger.
+      (m:click session :id :wider)
+      (assert-eql 300 (third (bounds :stage)))
+      (assert-false (s:node-property (m:find-node session :id :end) :hidden))
+      (assert-eql 150 (fourth (bounds :stage))))))
+
 ;;; --- shortcuts in panes ---
 
 (defun make-two-editors ()

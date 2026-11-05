@@ -39,6 +39,7 @@
                 #:view-names)
   (:export #:make-designer
            #:designer-parts
+           #:sized-stage
            #:open-designer
            #:write-view
            #:read-view
@@ -159,6 +160,56 @@ its kind and id, for what the app gives it."
                (mapc #'walk (node-children node))))
       (walk view))
     (format out ")")))
+
+;;; --- a stage, the size the person makes it ---
+
+(defconstant +least-stage+ 80 "The least a stage is made wide or tall.")
+
+(defun sized-stage (id width height draw drafts &key (scale 1))
+  "DRAW, a function, on a stage WIDTH by HEIGHT points (BOLT:STAGE): what it draws is laid out at
+that size whatever room the pane gives it, and cut off where the pane ends. Over it, its width and
+height, each typed (and taken with Return) into a field; under its corner, a grip that drags its
+size. DRAFTS is a hash table of what is typed in the fields, by their ids. With SCALE, the size is
+in points of what is on the stage, which is shown SCALE times larger (an app in a pane at a zoom).
+Returns the width and height as the person left them."
+  (let ((w width) (h height))
+    (flet ((size-field (field value label)
+             (let ((shown (gethash field drafts (princ-to-string (round value)))))
+               (multiple-value-bind (text edited submitted)
+                   (bolt:text-field shown :id field :width 56 :labelled-by label
+                                          :invalid (null (number-text shown)))
+                 (when edited (setf (gethash field drafts) text))
+                 (when submitted
+                   (remhash field drafts)
+                   (let ((number (number-text text)))
+                     (when number (return-from size-field (max +least-stage+ number))))))
+               value)))
+      (bolt:column (:id id :gap 6)
+        (bolt:row (:id :stage-size :gap 6 :cross-align :center)
+          (bolt:label "Width" :id :stage-width-label :color :dim-text)
+          (setf w (size-field :stage-width w :stage-width-label))
+          (bolt:label "Height" :id :stage-height-label :color :dim-text)
+          (setf h (size-field :stage-height h :stage-height-label)))
+        (bolt:stage (:id :stage :width (* w scale) :height (* h scale))
+          (funcall draw))
+        ;; The grip, under the stage's corner; dragged, the stage follows it.
+        (bolt:row (:id :stage-grip-row :width (* w scale))
+          (bolt:spacer)
+          (let ((events (bolt:canvas 14 14
+                                     (lambda (list context width height)
+                                       (declare (ignore context))
+                                       (bolt:push-rounded-rect list 0 0 width height 3
+                                                               (bolt:theme-color :dim-text)))
+                                     :id :stage-grip :cursor :crosshair)))
+            (dolist (event events)
+              (destructuring-bind (kind &optional x y &rest more) event
+                (declare (ignore more))
+                (when (eq kind :drag)
+                  ;; Where it is within the grip, which has moved with the size since: the
+                  ;; middle of the grip is where the size is.
+                  (setf w (max +least-stage+ (+ w (/ (- x 7) scale)))
+                        h (max +least-stage+ (+ h (/ (- y 7) scale)))))))))))
+    (values w h)))
 
 ;;; --- pieces of the screen ---
 
@@ -399,7 +450,12 @@ puts them in a window; the studio puts them in panes."
                    (file nil)
                    ;; How many times views had been defined when the live view was last looked at:
                    ;; one defined since, elsewhere (typed in Emacs), is taken up.
-                   (seen-version 0))
+                   (seen-version 0)
+                   ;; The size the view is designed at, which the person drags or types, as a
+                   ;; window's: the view is laid out at it whatever the canvas's pane is.
+                   (stage-w 480)
+                   (stage-h 360)
+                   (stage-drafts (make-hash-table)))
     (labels ((make-live ()
                "Make the view, as it is now, the live view in the image, and say what of the code
 that wires it no longer fits."
@@ -567,20 +623,26 @@ selected if given."
                 (when chosen
                   (select chosen))))))
         (lambda ()
-          (bolt:panel (:id :canvas-back :color :background :radius 0 :flex 1 :all 32)
-            (multiple-value-bind (pressed drop)
-                (bolt:design-surface (:id :canvas :selected selected)
-                  (draw-form (node-form view)))
-              (when pressed
-                (select pressed))
-              ;; A widget from the left, or one of the view's own, let go of where it goes.
-              (when drop
-                (destructuring-bind (payload into at) drop
-                  (if (and (consp payload) (eq (first payload) :move))
-                      (change (move-node view (second payload) into at))
-                      (let ((new (new-node view payload)))
-                        (change (add-node view new :into into :at at))
-                        (select (node-id new)))))))))
+          (bolt:panel (:id :canvas-back :color :background :radius 0 :flex 1 :all 24)
+            (multiple-value-bind (w h)
+                (sized-stage
+                 :canvas-stage stage-w stage-h
+                 (lambda ()
+                   (multiple-value-bind (pressed drop)
+                       (bolt:design-surface (:id :canvas :selected selected)
+                         (draw-form (node-form view)))
+                     (when pressed
+                       (select pressed))
+                     ;; A widget from the left, or one of the view's own, let go of where it goes.
+                     (when drop
+                       (destructuring-bind (payload into at) drop
+                         (if (and (consp payload) (eq (first payload) :move))
+                             (change (move-node view (second payload) into at))
+                             (let ((new (new-node view payload)))
+                               (change (add-node view new :into into :at at))
+                               (select (node-id new))))))))
+                 stage-drafts)
+              (setf stage-w w stage-h h))))
         (lambda ()
           (let ((new view) (now selected) (edit nil))
             (bolt:panel (:id :right :radius 0)

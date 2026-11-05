@@ -26,6 +26,8 @@ are not listed.
 - Open View in the GUI designer: a view the running Lisp has, opened by name and edited live, and saved to the file it came from ([0.3](docs/releases/dev.md#the-gui-designer-begun)).
 - `show-pane`, `place-pane` and `pane-group`: an app moves a dock's panes ([0.3](docs/releases/dev.md#docked-panes)).
 - `app-pane`: another app, working, in an area of this one, at a zoom, made again when its code is compiled, which VoiceOver and the machine interface see into; and `inspector-pane`, the inspector of it in the same window ([0.3](docs/releases/dev.md#an-app-in-a-pane)).
+- `stage`: what is in it laid out at a size of its own, whatever the room, and cut off where the room ends; the GUI designer's canvas and the studio's App pane are on stages, sized by the person ([0.3](docs/releases/dev.md#an-app-in-a-pane)).
+- `split` takes `:keep :second`, and a dock's layout keeps a split's second group with `:second`, for a sidebar on the right; `dock` takes `:min` ([0.3](docs/releases/dev.md#two-panes-and-a-divider)).
 - `dock`: panes in groups of tabs, moved by dragging their tabs, by a tab's menu or with Control-Shift-Right and -Left, each keeping what it holds ([0.3](docs/releases/dev.md#docked-panes)).
 - A `shortcut` in a dock's pane is heard only in the active pane ([0.3](docs/releases/dev.md#docked-panes)).
 - A `split` given a new `:size` takes it up ([0.3](docs/releases/dev.md#docked-panes)).
@@ -72,6 +74,7 @@ are not listed.
 
 ### Fixed
 
+- A float whose anchor is another box, and nothing else in the frame changed, is laid out again: the designer's outline follows the selection ([0.3](docs/releases/dev.md#bug-fixes)).
 - Text fields, combo boxes and text areas take what is typed through the system's input method: Japanese, Chinese and Korean, accents made with dead keys, and the Character Viewer ([0.3](docs/releases/dev.md#bug-fixes)).
 - Two things at the top of an app, with ids of their own, are an error instead of the last alone being shown ([0.3](docs/releases/dev.md#bug-fixes)).
 - Command-Z and Command-Shift-Z undo and redo in text fields, combo boxes and text areas ([0.3](docs/releases/dev.md#bug-fixes)).

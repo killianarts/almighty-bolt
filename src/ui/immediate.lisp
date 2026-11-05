@@ -279,7 +279,7 @@ key (RECT-OF, which a widget measures from) is the whole of it, wherever it is."
                              (hit-layer hit) layer))
                      (incf (ui-hit-count ui))))
                  (let ((inert (or inert (eq (box-kind box) :surface))))
-                   (if (member (box-kind box) '(:scroll :lazy-list :pane))
+                   (if (member (box-kind box) '(:scroll :lazy-list :pane :stage))
                        (loop :for child :across (box-children box)
                              :do (walk child x y shown-left shown-top (+ shown-left shown-w)
                                        (+ shown-top shown-h) layer inert))

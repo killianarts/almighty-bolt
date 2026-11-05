@@ -89,6 +89,7 @@
                 #:padding
                 #:panel
                 #:center
+                #:stage
                 #:scroll
                 #:lazy-list
                 #:with-theme)
@@ -148,7 +149,7 @@
            #:progress #:canvas #:scrim #:design-surface #:app-menu #:drag-source #:drop-target #:dragging
            #:split #:tree #:dock #:show-pane #:place-pane #:pane-group #:app-pane #:inspector-pane
            #:define-view #:view #:define-widget-entry
-           #:column #:row #:stack #:padding #:panel #:center #:scroll #:lazy-list
+           #:column #:row #:stack #:padding #:panel #:center #:stage #:scroll #:lazy-list
            #:theme #:make-theme #:define-theme #:find-theme #:with-theme #:theme-names #:theme-name
            #:theme-setting #:theme-color #:theme-form #:+theme-settings+ #:+theme-seeds+ #:+theme-colors+ #:+theme-sizes+
            #:parse-color #:color-hex #:mix-colors #:contrast-ratio

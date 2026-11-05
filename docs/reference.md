@@ -298,6 +298,14 @@ to). What is in a container given a greatest size and is too large for it is cut
 off at its edges: `(bolt:panel (:id :day :height 100) ...)` is 100 points tall
 whatever is in it.
 
+`stage` (`:id :width :height`) is a window inside the window: what is in it is
+laid out one under another as in a window `:width` by `:height` points,
+whatever room the stage is given. Given less, it shows what fits and cuts off
+the rest, which cannot be pressed and is out of sight in the semantic tree;
+given more, it is no larger. It is for a designer that shows a view, or an app,
+at the size it is made for, which the person changes and the window does not:
+the GUI designer's canvas and the studio's App pane are on stages.
+
 `scroll` (`:id :height :flex`) shows what is inside it, one under another, in a
 window that the wheel or a trackpad moves up and down, with a bar at the right
 edge when not all of it shows. Its `:id` is required, since the place the window
@@ -345,7 +353,7 @@ described. In the semantic tree it is a `:scroll-area` whose state also has
 `:row-count` and `:first-row`, and whose children are the rows that were
 described.
 
-`split` (`:id :direction :size :min :max :flex :width :height`) is two panes
+`split` (`:id :direction :size :min :max :keep :flex :width :height`) is two panes
 with a divider between them, the first form of its body in the first and the
 second in the second:
 
@@ -361,8 +369,13 @@ dragged, or moved by the arrow keys once Tab or a press has given it the
 keyboard; the width is kept by the split's id, and returned. A `:size` other
 than the one given the frame before is taken up, so an app that keeps the width
 itself gives back what was returned. It is no less than
-`:min` (80), no more than `:max`, and leaves the second pane `:min` too; the
-second has the rest. Each pane, `:first` and `:second` by id, is a column whose
+`:min` (80) and no more than `:max`, and the second has the rest. With `:keep
+:second`, `:size` is the second pane's, which keeps it as the split is made
+larger or smaller (a sidebar on the right), and the first has the rest. While
+there is not room for the pane its size, it is shown smaller, leaving the other
+`:min`, and it is its size again when there is room: the window made smaller
+and larger again leaves it as it was, and the size returned is the one chosen.
+The divider is not dragged past the room there is. Each pane, `:first` and `:second` by id, is a column whose
 children are as wide as it is, and what does not fit in it is cut at its edge
 and cannot be pressed there. A split takes all the room its parent gives it
 along its panes, so it needs a parent that bounds it (a window's column, a
@@ -391,7 +404,10 @@ empty goes, and the divider with it. What is in a pane keeps its state when the
 pane moves: a caret, a scroll, the items of a tree that are closed. The layout
 is data, returned each frame: `(:tabs selected key ...)` for a group, and
 `(:split direction size first second)` for two side by side (`:horizontal`) or
-one over the other (`:vertical`), the first `size` points. Give it back as
+one over the other (`:vertical`), the first `size` points (with `:second` after
+the second, the second is, and keeps its size as the dock is made larger or
+smaller: a sidebar on the right). `:min` (80) is how small a group is made, by
+its divider or by the window. Give it back as
 `:layout` to keep it, in `state-let` or a file; a `:layout` other than the one
 given the frame before is taken up. With none, every pane is a tab of one
 group; a pane the layout does not have goes in its first group, and one the

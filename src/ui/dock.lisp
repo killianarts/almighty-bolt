@@ -71,7 +71,8 @@
 ;;;
 ;;; The layout is data, which the dock returns, so that an app can keep it (in STATE-LET, or a file):
 ;;;   (:tabs SELECTED KEY ...)                     a group of the panes KEY ..., SELECTED shown
-;;;   (:split DIRECTION SIZE FIRST SECOND)         two layouts, as SPLIT draws them
+;;;   (:split DIRECTION SIZE FIRST SECOND [KEEP])  two layouts, as SPLIT draws them: SIZE is the
+;;;                                                first's, or with KEEP :second the second's
 ;;; A pane keeps what it holds (a caret, a scroll, which items of a tree are closed) when it is moved,
 ;;; because what is in it is keyed by the dock and the pane, not by where in the dock it is.
 
@@ -94,10 +95,10 @@ other side. NIL if nothing is left."
              (cond ((null keys) nil)
                    ((member (second layout) keys :test #'equal) (list* :tabs (second layout) keys))
                    (t (list* :tabs (first keys) keys)))))
-    (:split (destructuring-bind (direction size first second) (rest layout)
+    (:split (destructuring-bind (direction size first second &rest keep) (rest layout)
               (let ((first (remove-pane first key))
                     (second (remove-pane second key)))
-                (cond ((and first second) (list :split direction size first second))
+                (cond ((and first second) (list* :split direction size first second keep))
                       (t (or first second))))))))
 
 (defun place-pane (layout key anchor zone &optional (size 240))
@@ -118,8 +119,9 @@ tall. KEY is taken from where it was first. LAYOUT as it was if ANCHOR is KEY, o
                             (:top (list :split :vertical size alone layout))
                             (:bottom (list :split :vertical size layout alone))))
                         layout))
-                   (:split (destructuring-bind (direction size first second) (rest layout)
-                             (list :split direction size (put first) (put second)))))))
+                   (:split (destructuring-bind (direction size first second &rest keep)
+                               (rest layout)
+                             (list* :split direction size (put first) (put second) keep))))))
         (put (remove-pane layout key)))))
 
 (defun groups (layout)
@@ -160,8 +162,8 @@ front (the dock takes up a layout given that is not the one it was given before)
     (:tabs (if (member key (cddr layout) :test #'equal)
                (list* :tabs key (cddr layout))
                layout))
-    (:split (destructuring-bind (direction size first second) (rest layout)
-              (list :split direction size (show-pane first key) (show-pane second key))))))
+    (:split (destructuring-bind (direction size first second &rest keep) (rest layout)
+              (list* :split direction size (show-pane first key) (show-pane second key) keep)))))
 
 (defun with-panes (layout keys)
   "LAYOUT with only the panes in KEYS, and any of KEYS it did not have in its first group."
@@ -175,27 +177,27 @@ front (the dock takes up a layout given that is not the one it was given before)
           (t (labels ((add (layout)
                         (ecase (first layout)
                           (:tabs (append layout missing))
-                          (:split (list :split (second layout) (third layout) (add (fourth layout))
-                                        (fifth layout))))))
+                          (:split (list* :split (second layout) (third layout)
+                                         (add (fourth layout)) (nthcdr 4 layout))))))
                (add layout))))))
 
 (defun with-size (layout path size)
   "LAYOUT with the split at PATH (a list of 0 and 1, from the top) SIZE points."
   (if (null path)
-      (list :split (second layout) size (fourth layout) (fifth layout))
-      (destructuring-bind (direction old first second) (rest layout)
+      (list* :split (second layout) size (nthcdr 3 layout))
+      (destructuring-bind (direction old first second &rest keep) (rest layout)
         (if (zerop (first path))
-            (list :split direction old (with-size first (rest path) size) second)
-            (list :split direction old first (with-size second (rest path) size))))))
+            (list* :split direction old (with-size first (rest path) size) second keep)
+            (list* :split direction old first (with-size second (rest path) size) keep)))))
 
 (defun with-selected (layout path key)
   "LAYOUT with the group at PATH showing KEY."
   (if (null path)
       (list* :tabs key (cddr layout))
-      (destructuring-bind (direction size first second) (rest layout)
+      (destructuring-bind (direction size first second &rest keep) (rest layout)
         (if (zerop (first path))
-            (list :split direction size (with-selected first (rest path) key) second)
-            (list :split direction size first (with-selected second (rest path) key))))))
+            (list* :split direction size (with-selected first (rest path) key) second keep)
+            (list* :split direction size first (with-selected second (rest path) key) keep)))))
 
 ;;; --- drawing it ---
 
@@ -256,6 +258,9 @@ front (the dock takes up a layout given that is not the one it was given before)
           (box-fill box) t
           (box-flex box) 1f0)
     box))
+
+(defvar *dock-min* 80
+  "How small the panes of the dock being drawn may be made.")
 
 (defvar *dock-state* nil
   "The state of the dock being drawn.")
@@ -346,19 +351,19 @@ size))."
   (ecase (first node)
     (:tabs (draw-group dock-key layout node path panes))
     (:split
-     (destructuring-bind (direction size first second) (rest node)
+     (destructuring-bind (direction size first second &optional (keep :first)) (rest node)
        (let ((new-first first) (new-second second) (drop nil))
-         (let ((now (split (:id (path-id "SPLIT" path) :direction direction :size size :min 80
-                            :flex 1)
+         (let ((now (split (:id (path-id "SPLIT" path) :direction direction :size size
+                            :min *dock-min* :keep keep :flex 1)
                       (multiple-value-bind (node there) (draw-node dock-key layout first (append path '(0))
                                                                panes)
                         (setf new-first node drop (or drop there)))
                       (multiple-value-bind (node there) (draw-node dock-key layout second (append path '(1))
                                                                panes)
                         (setf new-second node drop (or drop there))))))
-           (values (list :split direction now new-first new-second) drop)))))))
+           (values (list* :split direction now new-first new-second (nthcdr 5 node)) drop)))))))
 
-(defun draw-dock (id layout flex width height panes)
+(defun draw-dock (id layout flex width height panes &optional (min 80))
   (let* ((ui *ui*)
          (box (open-box ui :column :id (or id (required-id 'dock))))
          (key (box-key box))
@@ -372,7 +377,8 @@ size))."
       (setf (dock-state-layout state) layout
             (dock-state-given state) layout))
     (let ((old (with-panes (dock-state-layout state) (mapcar #'first panes)))
-          (*dock-state* state))
+          (*dock-state* state)
+          (*dock-min* min))
       ;; A press in a pane, where it was in the last frame, makes it the active one; until there is
       ;; one, the first pane is.
       (when (ui-pressed ui)
@@ -403,13 +409,17 @@ size))."
         (close-box ui)
         new))))
 
-(defmacro dock ((&key id layout (flex 0) width height) &body panes)
+(defmacro dock ((&key id layout (flex 0) width height (min 80)) &body panes)
   "Panes the person arranges, each (KEY TITLE BODY...): KEY names it (a keyword), TITLE is its tab's
 words, and BODY draws it when it is shown. LAYOUT, if given, is how they are arranged (see above);
 by default all are tabs of one group. Returns the layout now, which the app gives back to keep it
 (a LAYOUT other than the one given the frame before is taken up). A pane is moved by dragging its
 tab: to another group's tabs or middle to go in it, to a group's edge to split it there. What is in
-a pane keeps its state when the pane is moved. The :id is required: the layout is kept by it."
+a pane keeps its state when the pane is moved. MIN is how small a group may be made, by its divider
+or by the window. A split of the layout keeps the size of its first group, or with :second as its
+last element the second's (a sidebar on the right), when the dock is made larger or smaller. The :id
+is required: the layout is kept by it."
   `(draw-dock ,id ,layout ,flex ,width ,height
               (list ,@(loop :for (key title . body) :in panes
-                            :collect `(list ,key ,title (lambda () ,@body))))))
+                            :collect `(list ,key ,title (lambda () ,@body))))
+              ,min))

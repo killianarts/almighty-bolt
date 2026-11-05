@@ -81,7 +81,7 @@ middle is thin, and the rest is there to be pressed.")
     (setf (box-cross-align pane) :stretch)
     pane))
 
-(defun begin-split (id direction size flex width height)
+(defun begin-split (id direction size flex width height &optional least)
   "Open the split and its first pane. Returns the split, its state and the first pane."
   (let* ((ui *ui*)
          (box (open-box ui :split :id (or id (required-id 'split))))
@@ -90,6 +90,8 @@ middle is thin, and the rest is there to be pressed.")
     (setf (box-cross-align box) :stretch
           (box-fill box) t
           (box-n3 box) (if (eq direction :vertical) 1 0)
+          ;; How small a pane may be made, which the layout keeps the pane that flexes.
+          (box-n1 box) (float (or least 0) 1f0)
           (box-flex box) (float flex 1f0))
     ;; The size the split was first given, and a new one it is given after, wins over the one it
     ;; keeps; the same one given again does not, so a split given a constant is moved by its
@@ -100,14 +102,18 @@ middle is thin, and the rest is there to be pressed.")
               (split-state-given state) size)))
     (values box state (open-pane ui :first))))
 
-(defun divide (box state pane direction least most)
-  "Close the first pane PANE, draw the divider and take what moved it, give PANE its size, and open
-the second pane."
+(defun divide (box state pane direction least most keep)
+  "Close the first pane PANE, draw the divider and take what moved it, give the pane KEEP says
+(:first or :second) its size, and open the second pane. The size is the one the person chose; the
+layout shows the pane smaller while there is not room for it (see LAYOUT-SPLIT), and it is as it was
+when there is again."
   (let* ((ui *ui*)
          (horizontal (not (eq direction :vertical)))
          (outer (rect-of ui (box-key box)))
          (size (split-state-size state))
-         (least (float least 1f0)))
+         (least (float least 1f0))
+         (second-kept (eq keep :second))
+         (moved nil))
     (close-box ui)
     (let* ((divider (open-box ui :splitter :id :divider))
            (key (box-key divider)))
@@ -128,9 +134,13 @@ the second pane."
                       0f0))))
         (when (= (ui-active ui) key)
           (when (and (ui-down ui) outer)
-            (setf size (- (along (ui-pointer-x ui) (ui-pointer-y ui))
-                          (along (rect-x outer) (rect-y outer))
-                          (split-state-grab state))))
+            (let ((first (- (along (ui-pointer-x ui) (ui-pointer-y ui))
+                            (along (rect-x outer) (rect-y outer))
+                            (split-state-grab state))))
+              (setf moved t
+                    size (if second-kept
+                             (- (along (rect-w outer) (rect-h outer)) +divider-width+ first)
+                             first))))
           (when (ui-released ui)
             (consume-release ui)
             (setf (ui-active ui) 0)))
@@ -141,23 +151,34 @@ the second pane."
                                ((eql k (if horizontal +key-right+ +key-down+)) +divider-step+))))
               (when step
                 (consume-key ui event)
-                (incf size step)))))
+                (setf moved t)
+                (if second-kept (decf size step) (incf size step))))))
         (want-cursor ui key (if horizontal :resize-left-right :resize-up-down))
         ;; No less than LEAST, no more than MOST, and leaving the second pane LEAST too.
-        (let ((room (and outer (- (along (rect-w outer) (rect-h outer)) +divider-width+ least))))
-          (when most (setf size (min size (float most 1f0))))
-          (when room (setf size (min size room)))
-          (setf size (max least size)))
+        ;; Within the person's limits. Moved by the person, within the room there is: they cannot
+        ;; choose more than they see. Made smaller by the window, the size is kept, and the layout
+        ;; shows the pane smaller until there is room again.
+        (when most (setf size (min size (float most 1f0))))
+        (when (and moved outer)
+          (setf size (min size (- (along (rect-w outer) (rect-h outer)) +divider-width+ least))))
+        (setf size (max least size))
         (setf (split-state-size state) size
               (box-look divider) (look-of ui key t)
               (box-n1 divider) size
               (box-n3 divider) (if horizontal 0 1))
-        (if horizontal
-            (setf (box-min-w pane) size (box-max-w pane) size)
-            (setf (box-min-h pane) size (box-max-h pane) size))
+        (unless second-kept
+          (if horizontal
+              (setf (box-min-w pane) size (box-max-w pane) size)
+              (setf (box-min-h pane) size (box-max-h pane) size)))
         (close-box ui)))
     (let ((second (open-pane ui :second)))
-      (setf (box-flex second) 1f0))
+      (if second-kept
+          (progn
+            (setf (box-flex pane) 1f0)
+            (if horizontal
+                (setf (box-min-w second) size (box-max-w second) size)
+                (setf (box-min-h second) size (box-max-h second) size)))
+          (setf (box-flex second) 1f0)))
     size))
 
 (defun end-split (size)
@@ -166,19 +187,24 @@ the second pane."
     (close-box ui)
     size))
 
-(defmacro split ((&key id (direction :horizontal) (size 240) (min 80) max (flex 0) width height)
+(defmacro split ((&key id (direction :horizontal) (size 240) (min 80) max (keep :first) (flex 0)
+                   width height)
                  first second)
   "Two panes, FIRST and SECOND, side by side (or with DIRECTION :VERTICAL one over the other), with a
 divider between them that the pointer drags and the arrow keys move. The first pane starts SIZE
 points wide (or tall), and is moved by the divider from there; a SIZE other than the one given
 the frame before is taken up, so an app that keeps the size gives back what is returned. It is
-kept no smaller than MIN, no larger than MAX, and leaving the second at
-least MIN; the second has the rest. Each pane is a column, :FIRST and :SECOND by id, whose children are
+kept no smaller than MIN and no larger than MAX, and the other pane has the rest. With KEEP :SECOND,
+SIZE is the second pane's, which keeps it when the split is made larger or smaller (a sidebar on the
+right), and the first has the rest. While there is not room for the pane its size, it is shown
+smaller, leaving the other MIN, and it is its size again when there is room; the size returned is
+the one chosen. Each pane is a column, :FIRST and :SECOND by id, whose children are
 as wide as it is; what does not fit is cut at its edge. Returns how wide (or tall) the first pane is.
 FLEX, WIDTH and HEIGHT are the container's own. The :id is required: the size is kept by it."
   (let ((box (gensym "BOX")) (state (gensym "STATE")) (pane (gensym "PANE")) (now (gensym "SIZE")))
-    `(multiple-value-bind (,box ,state ,pane) (begin-split ,id ,direction ,size ,flex ,width ,height)
+    `(multiple-value-bind (,box ,state ,pane)
+         (begin-split ,id ,direction ,size ,flex ,width ,height ,min)
        ,first
-       (let ((,now (divide ,box ,state ,pane ,direction ,min ,max)))
+       (let ((,now (divide ,box ,state ,pane ,direction ,min ,max ,keep)))
          ,second
          (end-split ,now)))))

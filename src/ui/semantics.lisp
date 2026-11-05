@@ -127,7 +127,8 @@
     (:canvas :canvas)
     (:scrim :overlay)
     ((:scroll :lazy-list) :scroll-area)
-    ((:column :row :stack :padding :panel :center :context-area :surface :pane :split) :group)
+    ((:column :row :stack :padding :panel :center :context-area :surface :pane :split :stage)
+     :group)
     (:splitter :splitter)
     (:tree :outline)
     (:tree-row :row)
@@ -338,7 +339,8 @@ shows; one that is all out of sight is :hidden, with no width or height."
                                (list (graft inner x y zoom shown-left shown-top
                                             (+ shown-left shown-w) (+ shown-top shown-h)
                                             focused))))))
-                     ((member (box-kind box) '(:scroll :lazy-list))
+                     ;; What shows of it: a stage cuts off what is laid out past its edges.
+                     ((member (box-kind box) '(:scroll :lazy-list :stage))
                       (loop :for child :across (box-children box)
                             :collect (node-of ui child x y shown-left shown-top
                                               (+ shown-left shown-w) (+ shown-top shown-h))))

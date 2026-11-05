@@ -218,6 +218,7 @@
            #:padding
            #:panel
            #:center
+           #:stage
            #:scroll
            #:begin-scroll
            #:end-scroll
@@ -516,6 +517,19 @@ tree."
     `(with-container (,box :center :id ,id)
        (set-size-limits ,box ,width ,height ,min-width ,min-height ,max-width ,max-height)
        (setf (box-flex ,box) (float ,flex 1f0))
+       ,@body)))
+
+(defmacro stage ((&key id width height) &body body)
+  "An area in which BODY is laid out, one under another, as in a window WIDTH by HEIGHT points,
+whatever room the stage is given: given less, it shows what fits and cuts off the rest, which is
+there to be moved to by making the room larger; given more, it is no larger. For a designer that
+shows a view or an app at the size it is made for, which the person changes, not the window.
+The :id is required."
+  (let ((box (gensym "BOX")))
+    `(with-container (,box :stage :id (or ,id (required-id 'stage)))
+       (setf (box-pref-w ,box) (float ,width 1f0)
+             (box-pref-h ,box) (float ,height 1f0)
+             (box-cross-align ,box) :stretch)
        ,@body)))
 
 ;;; --- a scroll container ---
@@ -2695,12 +2709,16 @@ counting its children."
                    (:column (mix layout (box-n3 box)))
                    (:grid (hash-numbers layout (box-n3 box) (hash-of (box-n1 box))
                                         (hash-of (car (box-data box))) (hash-of (cdr (box-data box)))))
-                   ;; A float is put where its spec says (its anchor's place is the screen's).
+                   ;; A float is put where its spec says, by its anchor: which box that is (its
+                   ;; place is the screen's), so that a float put by another box (an outline of
+                   ;; what is selected, when the selection changes) is laid out again.
                    ((:menu :catcher :tooltip :popover :dialog :toasts :outline)
-                    (let ((spec (box-data box)))
+                    (let* ((spec (box-data box))
+                           (anchor (float-spec-anchor spec)))
                       (hash-numbers layout (hash-of (float-spec-placement spec))
                                     (hash-of (float-spec-x spec)) (hash-of (float-spec-y spec))
-                                    (hash-of (float-spec-min-width spec)))))
+                                    (hash-of (float-spec-min-width spec))
+                                    (if anchor (box-key anchor) 0))))
                    (t layout)))
          ;; One more than the colour, so that NIL (the theme's) and 0 (transparent) differ.
          (paint (hash-numbers layout (if (box-color box) (1+ (box-color box)) 0) (box-look box)

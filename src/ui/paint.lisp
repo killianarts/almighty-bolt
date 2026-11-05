@@ -714,8 +714,8 @@ kept, and otherwise afresh, which is then kept."
          (push-rounded-rect list x y (box-w box) (box-h box) 6 (theme-panel *theme*))
          (paint-children ui box context list x y)
          (draw-menu-bar box list x y))
-        (:pane
-         ;; A pane of a split cuts what does not fit at its edges.
+        ((:pane :stage)
+         ;; A pane of a split, and a stage, cut what does not fit at their edges.
          (push-clip list x y (box-w box) (box-h box))
          (paint-contents ui box context list x y)
          (push-unclip list))
