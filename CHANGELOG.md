@@ -14,6 +14,8 @@ are not listed.
 
 ### Added
 
+- `scroll` takes `:follow`: the window stays at the end while it is there, as more is put at the end ([0.3](docs/releases/dev.md#the-studios-repl)).
+- The studio's REPL, in the app's package, with what was printed and returned, errors, and the forms typed before on Up and Down ([0.3](docs/releases/dev.md#the-studios-repl)).
 - The studio's rail, section headers, bottom panel (REPL, problems, events, agent) and status bar ([0.3](docs/releases/dev.md#the-studios-rail-sections-bottom-panel-and-status-bar)).
 - The studio's title bar: its modes, each a dock of its own, kept; where the person is; the image; Save from any mode, and Run Window ([0.3](docs/releases/dev.md#the-studios-title-bar-and-modes)).
 - `appearance`: whether the window is dark or light, for an app that has a theme of each ([0.3](docs/releases/dev.md#the-studios-own-theme)).

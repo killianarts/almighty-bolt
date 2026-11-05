@@ -307,7 +307,7 @@ given by PIXEL, a function of its x and y from 0 to 1."
                     (bolt:column (:gap 6)
                       (dotimes (i 20)
                         (bolt:label (format nil "Line ~d of twenty" (1+ i)) :id i))))
-                  (call "(bolt:scroll (&key id height (flex 0)) &body body)" :scroll-call)))
+                  (call "(bolt:scroll (&key id height (flex 0) follow) &body body)" :scroll-call)))
 
               (bolt:row (:id :sixth :gap 20 :fill t)
                 (section ("Containers" :containers)

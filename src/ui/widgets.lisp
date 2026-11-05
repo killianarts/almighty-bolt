@@ -245,6 +245,7 @@
            #:scroll-state-offset
            #:scroll-state-content-height
            #:scroll-state-viewport-height
+           #:scroll-state-following
            #:+ring-reach+
            #:lazy-list
            #:begin-lazy-list
@@ -675,7 +676,9 @@ moves it toward 0, and a negative one toward MOST."
   ;; The index of the first box inside the container, this build.
   (first-inside 0 :type fixnum)
   ;; The key of what had the keyboard when the container was last described.
-  (last-focus 0 :type fixnum))
+  (last-focus 0 :type fixnum)
+  ;; True while it follows its end (SCROLL's :follow, and at the end): its layout keeps it there.
+  (following nil))
 
 (defun begin-scroll (id height flex)
   (let* ((ui *ui*)
@@ -700,7 +703,10 @@ container, and is not inside.)"
                                 :while parent
                                   :thereis (eq parent scroll))))))
 
-(defun end-scroll (box)
+(defun end-scroll (box &optional follow)
+  "Close the scroll container BOX: the wheel over it moves it, and the keyboard come to something
+inside brings that into sight. If FOLLOW, and it is at the end of what it holds, it stays at the
+end when more is put there (its layout puts it there)."
   (let* ((ui *ui*)
          (key (box-key box))
          (state (box-data box))
@@ -728,19 +734,24 @@ container, and is not inside.)"
       (setf (scroll-state-last-focus state) focus))
     (setf offset (max 0f0 (min offset most)))
     (setf (scroll-state-offset state) offset
-          (box-n1 box) offset)
+          (box-n1 box) offset
+          ;; Following: at the end (where the wheel left it, or where it was), so that the layout
+          ;; keeps it at the end of what is inside now.
+          (scroll-state-following state) (and follow (>= offset (- most 0.5f0))))
     (close-box ui)
     nil))
 
-(defmacro scroll ((&key id height (flex 0)) &body body)
+(defmacro scroll ((&key id height (flex 0) follow) &body body)
   "What BODY describes, one under another, in a window that the wheel moves up and down. The window
 is HEIGHT points tall where the container is not given a height (in a column, which gives only the
-room it has), or as tall as what is inside; FLEX gives it a share of a column's free space. The
+room it has), or as tall as what is inside; FLEX gives it a share of a column's free space. With
+FOLLOW, the window stays at the end while it is there, as more is put at the end (a log, a REPL, a
+chat); the wheel takes it back from the end, and it follows again once it is at the end again. The
 :id is required: the place the window is at is kept by it."
   (let ((box (gensym "BOX")))
     `(let ((,box (begin-scroll ,id ,height ,flex)))
        ,@body
-       (end-scroll ,box))))
+       (end-scroll ,box ,follow))))
 
 ;;; --- a list that builds only the rows that show ---
 ;;;

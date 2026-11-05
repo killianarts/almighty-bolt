@@ -42,16 +42,17 @@ What 0.3 has, against the prototype:
   designer (seeds, worked-out colours, sizes, readability, the `define-theme`
   form, undo); the semantic tree and VoiceOver; the frame ring, the recorder,
   replay scripts and a virtual clock; fonts for every element (any weight,
-  letter spacing, line height, by role in a theme, from files); text turned
-  90 degrees; soft shadows and dashed edges; images, and icons tinted by the
-  theme; a code view, its lines numbered and marked.
+  letter spacing, line height, by role in a theme, from files); text turned 90
+  degrees; soft shadows and dashed edges; images, and icons tinted by the theme;
+  a code view, its lines numbered and marked; the studio's own theme, light and
+  dark; its shell: the title bar, the five modes as docks of their own, the
+  rail, the section headers, the bottom panel and its REPL, and the status bar.
 - **Part:** the canvas and the running app are two panes, not one; options do
   not say where their values come from; the frame ring, the recorder and the
   kept state have no face; the theme designer previews widgets, not the app's
   own view.
-- **Missing:** vector icons; colours for code's syntax; the studio's shell
-  (modes, rail, status bar, bottom panel, REPL); the timeline, time travel and
-  the call tree.
+- **Missing:** vector icons, and the mark; colours for code's syntax; the panes
+  of Wire, Debug and Agent; the timeline, time travel and the call tree.
 
 ## Phase A: the library can draw the prototype
 
@@ -98,7 +99,9 @@ user of.
    problems are the live view's wiring problems, and the events and the agent
    say they are not built.)
 9. **A REPL pane** that evaluates in the app's package, with its history and
-   what it printed.
+   what it printed. (Done: in the bottom panel, in the package of the app being
+   run or the view's, with Up and Down through what was typed; it evaluates on
+   the window's thread.)
 
 ## Phase C: Design
 

@@ -102,6 +102,12 @@ Over the studio is its title bar, as the prototype draws it: its name; the modes
 
 Down the left of the studio is its rail: a dot that is green while a view is live, and, turned to read upwards, the mode, the view and how many widgets it has. The designer's sections have the studio's headers, a title, its kana, a line and a count, as "CATALOGUE カタログ ── 27". Under the panes, in every mode, is a bottom panel of its own panes, which the person arranges and makes taller: the REPL, the problems (what does not fit between the live view and the code that wires it, counted on its tab), the events and the agent. Along the bottom, the status bar says what was last done, where the view is saved, how many of its widgets are wired, how many problems there are and how many steps Undo can take back. The GUI designer's parts take `*heading*`, a function that draws their headings, which the studio gives.
 
+### The studio's REPL
+
+The bottom panel's REPL evaluates what is typed in the image the studio runs in, in the package of the app being run (or the view's), as the prompt says: `counter> (+ 1 2)`. It shows what each form printed and what it returned, each value on a line of its own, or the error, in red, and goes on; `*`, `**`, `+` and the rest are set as in any REPL. Up and Down go back through what was typed. It runs on the window's thread, so a form that takes long holds the window as long.
+
+A `scroll` takes `:follow`: it stays at the end of what is inside while it is there, as more is put at the end, and the wheel takes it back to read. The REPL's lines follow so.
+
 ### A tree view
 
 `(bolt:tree roots :id :outline :children #'node-children :label #'node-title :key #'node-id :selected picked)` shows a tree of items, each indented a level further, with a mark that opens and closes those that have children, and returns the key selected. It takes the keyboard as one thing: the arrows move the selection, open and close. VoiceOver reads it as an outline of rows. The GUI designer's outline is one, so that a container's contents can be hidden while the rest is worked on.

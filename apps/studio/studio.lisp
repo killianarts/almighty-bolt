@@ -9,6 +9,8 @@
                 #:tool-color)
   (:import-from #:almighty-bolt-studio/title-bar
                 #:title-bar)
+  (:import-from #:almighty-bolt-studio/repl
+                #:make-repl)
   (:import-from #:almighty-bolt-studio/chrome
                 #:section-header
                 #:rail
@@ -77,6 +79,7 @@ inspector, and Theme the theme's preview and settings and the app.")
   (multiple-value-bind (toolbar widgets canvas options view-keys open-view about save)
       (gui-designer:designer-parts)
     (multiple-value-bind (settings preview theme-keys) (theme-designer:designer-parts)
+     (let ((repl (make-repl)))
       (bolt:state-let ((mode :design)
                        ;; Each mode's arrangement of its panes, kept while another mode is shown.
                        (layouts (copy-list +mode-layouts+))
@@ -242,9 +245,13 @@ inspector, and Theme the theme's preview and settings and the app.")
                                       (section-header :agent-heading "Agent")
                                       (bolt:paragraph "The agent is not built yet."
                                                       :id :agent-log-note :color :dim-text))))))))
+                     ;; In the package of the app being run, or else the view's.
                      (repl-pane ()
-                       (bolt:padding (:id :repl-part :all 12)
-                         (section-header :repl-heading "REPL")))
+                       (bolt:panel (:id :repl-part :all 12 :radius 0 :color :background :flex 1)
+                         (funcall repl (let ((colon (position #\: app-name)))
+                                         (if (and colon constructor)
+                                             (subseq app-name 0 colon)
+                                             (getf facts :package))))))
                      ;; What the status bar says: what was last done, where the view is saved, how
                      ;; many of its widgets are wired, the problems, and the steps Undo can take.
                      (status-parts (facts)
@@ -298,7 +305,7 @@ inspector, and Theme the theme's preview and settings and the app.")
                                                   :options-pane)))
                       (when (member :run-pane (bolt:pane-group layout :canvas-pane))
                         (setf layout (bolt:place-pane layout :run-pane :canvas-pane :right 340)))
-                      (setf (getf layouts :design) layout))))))))))))
+                      (setf (getf layouts :design) layout)))))))))))))
 
 (defun open-studio ()
   "Open the studio in a window, from the REPL."

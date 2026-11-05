@@ -55,6 +55,7 @@
                 #:scroll-state-offset
                 #:scroll-state-content-height
                 #:scroll-state-viewport-height
+                #:scroll-state-following
                 #:+lazy-list-height+
                 #:area-lines
                 #:area-line-height
@@ -472,7 +473,10 @@ them in the boxes, and return the width and height."
              (let* ((w (if (< max-w +unbounded+) max-w (constrain content-w min-w max-w)))
                     (h (constrain (if (plusp (box-pref-h box)) (box-pref-h box) content-h)
                                   min-h max-h))
-                    (offset (max 0f0 (min (box-n1 box) (max 0f0 (- content-h h))))))
+                    ;; At the end of what is inside, if it is following, else where it was.
+                    (offset (if (scroll-state-following state)
+                                (max 0f0 (- content-h h))
+                                (max 0f0 (min (box-n1 box) (max 0f0 (- content-h h)))))))
                (setf (scroll-state-offset state) offset
                      (scroll-state-content-height state) content-h
                      (scroll-state-viewport-height state) h)

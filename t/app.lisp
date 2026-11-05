@@ -1146,6 +1146,41 @@ that leaves two of them. Each button counts its presses."
         (dotimes (i 4)
           (button (format nil "B~d" i) :id i))))))
 
+(defun make-following ()
+  "A scroll container 60 points tall that follows its end, and a button that puts a line there."
+  (state-let ((lines 2))
+    (lambda ()
+      (column (:gap 4)
+        (scroll (:id :log :height 60 :follow t)
+          (dotimes (i lines)
+            (label (format nil "Line ~d" i) :id (list :line i))))
+        (when (button "More" :id :more)
+          (incf lines))))))
+
+(define-test a-scroll-that-follows-stays-at-its-end-until-the-wheel-takes-it-back ()
+  (let* ((screen (show 'make-following))
+         (session (screen-session screen)))
+    (flet ((offset () (s:node-property (node-of screen :log) :offset))
+           (most () (- (s:node-property (node-of screen :log) :content-height) 60)))
+      ;; Two lines fit: nothing to follow yet.
+      (assert-eql 0f0 (offset))
+      (dotimes (i 6) (m:click session :id :more))
+      ;; Eight lines: the window at the end, from the frame the line is put there.
+      (assert-true (plusp (most)))
+      (assert-eql (most) (offset))
+      (m:click session :id :more)
+      (assert-eql (most) (offset))
+      ;; Taken back by the wheel, it stays where it was as lines are put at the end.
+      (m:scroll session :id :log :dy 1)
+      (let ((back (offset)))
+        (assert-true (< back (most)))
+        (m:click session :id :more)
+        (assert-eql back (offset)))
+      ;; At the end again, it follows again.
+      (m:scroll session :id :log :dy -100)
+      (m:click session :id :more)
+      (assert-eql (most) (offset)))))
+
 (define-test the-wheel-over-a-text-area-whose-lines-all-show-moves-the-container-it-is-in ()
   (let* ((screen (show 'make-text-area-in-a-scroll))
          (session (screen-session screen)))

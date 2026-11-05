@@ -375,7 +375,7 @@ given more, it is no larger. It is for a designer that shows a view, or an app,
 at the size it is made for, which the person changes and the window does not:
 the GUI designer's canvas and the studio's App pane are on stages.
 
-`scroll` (`:id :height :flex`) shows what is inside it, one under another, in a
+`scroll` (`:id :height :flex :follow`) shows what is inside it, one under another, in a
 window that the wheel or a trackpad moves up and down, with a bar at the right
 edge when not all of it shows. Its `:id` is required, since the place the window
 is at is kept by it. The window is `:height` points tall where nothing gives it
@@ -388,10 +388,13 @@ pointer is over the container or anything in it. When Tab brings the keyboard to
 something out of the window, the window moves as little as shows all of it and
 its ring. The ring round what has the keyboard is drawn past the container's
 edges, where what is inside is cut off. What is out of the window cannot be
-pressed, and is `:hidden` in the semantic tree.
+pressed, and is `:hidden` in the semantic tree. With `:follow`, the window stays
+at the end of what is inside while it is there, as more is put at the end (a
+log, a REPL, a chat): the wheel takes it back to read, and it follows again once
+it is at the end again.
 
 ```lisp
-(bolt:scroll (:id :log :height 300)
+(bolt:scroll (:id :log :height 300 :follow t)
   (dolist (line lines)
     (bolt:label (line-text line) :id (line-id line))))
 ```

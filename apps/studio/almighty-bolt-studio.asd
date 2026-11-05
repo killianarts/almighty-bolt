@@ -9,6 +9,7 @@
                "almighty-bolt-theme-designer")
   :components ((:file "theme")
                (:file "chrome")
+               (:file "repl")
                (:file "title-bar")
                (:file "studio"))
   :in-order-to ((test-op (test-op "almighty-bolt-studio/tests"))))
