@@ -8,6 +8,9 @@
            #:reset-kept-state
            #:kept-state-names
            #:kept-value
+           #:kept-variables
+           #:set-kept-value
+           #:pin-kept
            #:kept-in-use-p))
 
 (in-package #:almighty-bolt/kept)
@@ -23,8 +26,10 @@
 (defstruct (cell (:constructor make-cell (value form)) (:copier nil))
   value
   ;; The form the value was made from. If the form is not the same when the app is made again,
-  ;; it was edited, and the cell is made again.
-  form)
+  ;; it was edited, and the cell is made again, unless it is pinned.
+  form
+  ;; True if the cell is kept even when its form was edited (PIN-KEPT).
+  (pinned nil))
 
 (defstruct (kept-state (:constructor make-kept-state ()) (:copier nil))
   "What an app keeps between the times it is made: its cells, by name and by how many of that name
@@ -73,6 +78,35 @@ binds one twice), and true if there is one; for looking at what an app keeps fro
         (values (cell-value cell) t)
         (values nil nil))))
 
+(defun kept-variables (state)
+  "What STATE keeps, a list of one property list for each variable: :name (its symbol),
+:occurrence (1, or more for a name the app binds again), :value, :form (the initial form it was
+made from) and :pinned. In order of name, then occurrence."
+  (sort (loop :for (name . occurrence) :being :the :hash-keys :of (kept-state-cells state)
+                :using (hash-value cell)
+              :collect (list :name name :occurrence occurrence :value (cell-value cell)
+                             :form (cell-form cell) :pinned (cell-pinned cell)))
+        (lambda (a b)
+          (let ((x (symbol-name (getf a :name))) (y (symbol-name (getf b :name))))
+            (or (string< x y)
+                (and (string= x y) (< (getf a :occurrence) (getf b :occurrence))))))))
+
+(defun state-cell (state name occurrence)
+  (or (gethash (cons name occurrence) (kept-state-cells state))
+      (error "~s keeps no variable ~s (occurrence ~d)." state name occurrence)))
+
+(defun set-kept-value (state name value &optional (occurrence 1))
+  "Give the variable NAME that STATE keeps (the OCCURRENCE-th of that name) VALUE: the app that
+binds it sees VALUE where it reads it next. Returns VALUE."
+  (setf (cell-value (state-cell state name occurrence)) value))
+
+(defun pin-kept (state name pinned &optional (occurrence 1))
+  "Pin the variable NAME that STATE keeps (the OCCURRENCE-th of that name), or with PINNED NIL
+unpin it. A pinned variable keeps its value when the app is made again even if its initial form
+was edited (and then takes the new form as its own, so that unpinned it is kept until the form is
+edited again)."
+  (setf (cell-pinned (state-cell state name occurrence)) (and pinned t)))
+
 (defun kept-in-use-p ()
   "True if a STATE-LET has run in the app that is being made, with a store: the app keeps state, and
 what it shows can be carried to the next time it is made without showing what its variables do not
@@ -88,8 +122,9 @@ a new one."
         (make-cell (funcall thunk) form)
         (let* ((key (cons name (incf (gethash name (kept-state-seen state) 0))))
                (cell (gethash key (kept-state-cells state))))
-          (if (and cell (equal (cell-form cell) form))
-              cell
+          (if (and cell (or (equal (cell-form cell) form) (cell-pinned cell)))
+              (progn (setf (cell-form cell) form)
+                     cell)
               (let ((new (make-cell (funcall thunk) form)))
                 (push (cons key new) (kept-state-pending state))
                 new))))))

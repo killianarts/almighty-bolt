@@ -545,6 +545,17 @@ each frame's build, layout and paint in nanoseconds (the build being its
 builds' time but the layout's and the paint's), or `nil` for an app in no
 pane. The studio charts them.
 
+`app-pane-variables` (`app`) is the variables that an app in an app pane keeps
+with `state-let`, live: a list of one property list for each, of `:name` (its
+symbol), `:occurrence` (1, or more for a name the app binds again), `:value`,
+`:form` (its initial form, as written) and `:pinned`; `nil` for an app in no
+pane. `set-app-pane-variable` (`app name value &key occurrence`) gives one a
+value, and the app is drawn again with it. `pin-app-pane-variable` (`app name
+pinned &key occurrence`) pins one, or unpins it with `pinned` `nil`: a pinned
+variable keeps its value when the app is made again even if its initial form
+was edited, and takes the new form as its own, so that unpinned it is kept
+until the form is edited again. The studio's Wire shows them, to edit and pin.
+
 `inspector-pane` (`target &key id flex`) is the inspector, in this window, of
 TARGET, an app in an `app-pane` as it returns it (or `nil`): Pick, then a press
 on the app in the pane, says what the widget there is, and the inspector

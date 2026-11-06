@@ -131,7 +131,10 @@
                 #:pane-group)
   (:import-from #:almighty-bolt/ui/app-pane
                 #:app-pane
-                #:app-pane-frames)
+                #:app-pane-frames
+                #:app-pane-variables
+                #:set-app-pane-variable
+                #:pin-app-pane-variable)
   (:import-from #:almighty-bolt/machine/inspector-pane
                 #:inspector-pane)
   (:import-from #:almighty-bolt/ui/catalogue
@@ -179,7 +182,8 @@
            #:switch #:tabs #:spinner #:dropdown #:menu-button #:context-menu #:popover
            #:dialog #:toast #:shortcut #:spacer #:grid #:pressable #:open-file-dialog #:save-file-dialog #:list-box
            #:progress #:canvas #:scrim #:design-surface #:app-menu #:drag-source #:drop-target #:dragging
-           #:split #:tree #:dock #:show-pane #:place-pane #:pane-group #:app-pane #:app-pane-frames #:inspector-pane
+           #:split #:tree #:dock #:show-pane #:place-pane #:pane-group #:app-pane #:app-pane-frames
+           #:app-pane-variables #:set-app-pane-variable #:pin-app-pane-variable #:inspector-pane
            #:define-view #:view #:define-widget-entry
            #:column #:row #:stack #:padding #:panel #:center #:stage #:scroll #:lazy-list
            #:typeface #:+font-roles+ #:load-font-file

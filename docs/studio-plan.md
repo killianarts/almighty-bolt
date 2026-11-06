@@ -49,9 +49,10 @@ What 0.3 has, against the prototype:
   dark; its shell: the title bar, the five modes as docks of their own, the
   rail, the section headers, the bottom panel and its REPL, and the status bar;
   Design's canvas, catalogue, outline and options as the prototype has them
-  (Phase C), and the app's frames charted.
-- **Part:** the recorder and the kept state have no face; the theme designer
-  previews widgets, not the app's own view.
+  (Phase C), and the app's frames charted; Wire's views, each with its
+  wires, and the state of the app, live, to edit and pin.
+- **Part:** the recorder has no face; the theme designer previews widgets,
+  not the app's own view.
 - **Missing:** vector icons, and the mark; colours for code's syntax; the panes
   of Wire, Debug and Agent; the timeline, time travel and the call tree.
 
@@ -148,7 +149,9 @@ user of.
 
 16. **The views, and the state:** every view with its wire count; every
     `state-let` variable of the window, live and editable, kept across a
-    reload, and pinned to be kept even when its first value is edited.
+    reload, and pinned to be kept even when its first value is edited. (Done:
+    Wire's Views pane, the views over the state of the app on the canvas;
+    `app-pane-variables`, `set-app-pane-variable`, `pin-app-pane-variable`.)
 17. **The view's file and the code's file** in code views, in step with the
     canvas and, through the bridge, with Emacs.
 18. **The wires:** each id of the view, what wires it or that nothing does; the

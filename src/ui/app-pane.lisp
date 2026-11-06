@@ -18,6 +18,9 @@
                     (#:views #:almighty-bolt/ui/views))
   (:export #:app-pane
            #:app-pane-frames
+           #:app-pane-variables
+           #:set-app-pane-variable
+           #:pin-app-pane-variable
            #:settle-app-pane
            #:app-pane-inside))
 
@@ -197,6 +200,32 @@ being the builds' time but the layout's and the paint's. NIL for an app in no pa
         (loop :for i :from (- next count) :below next
               :for at = (* 3 (mod i +frames-kept+))
               :collect (list (aref frames at) (aref frames (+ at 1)) (aref frames (+ at 2))))))))
+
+(defun pane-store (instance)
+  (let ((state (and instance (gethash instance *pane-states*))))
+    (unless state
+      (error "~s is not an app in an app pane." instance))
+    (app-pane-state-kept state)))
+
+(defun app-pane-variables (instance)
+  "The variables that INSTANCE, an app in an app pane, keeps with STATE-LET, live: a list of one
+property list for each, of :name (its symbol), :occurrence (1, or more for a name the app binds
+again), :value, :form (its initial form, as written) and :pinned. NIL for an app in no pane."
+  (and instance (gethash instance *pane-states*)
+       (kept:kept-variables (pane-store instance))))
+
+(defun set-app-pane-variable (instance name value &key (occurrence 1))
+  "Give the variable NAME that INSTANCE, an app in an app pane, keeps with STATE-LET (the
+OCCURRENCE-th of that name) VALUE; the app is drawn again with it. Returns VALUE."
+  (kept:set-kept-value (pane-store instance) name value occurrence)
+  (settle-app-pane instance)
+  value)
+
+(defun pin-app-pane-variable (instance name pinned &key (occurrence 1))
+  "Pin the variable NAME that INSTANCE, an app in an app pane, keeps with STATE-LET (the
+OCCURRENCE-th of that name), or with PINNED NIL unpin it: pinned, it keeps its value when the app is
+made again even if its initial form was edited."
+  (kept:pin-kept (pane-store instance) name pinned occurrence))
 
 (defun app-pane-inside (ui key)
   "If the box KEY of UI's last frame is an app pane, the app in it, its zoom, and whether the pane

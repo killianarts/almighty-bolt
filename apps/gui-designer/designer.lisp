@@ -528,6 +528,18 @@ widget's id."
                   (t (designer-view:add-node view new :after selected)))
             (designer-view:node-id new))))
 
+(defun view-wire-counts ()
+  "Every view the image has, in order of name, each with how many of its widgets the code loaded
+wires: a list of (name count)."
+  (labels ((ids (form)
+             (destructuring-bind (kind id &optional options &rest children) form
+               (declare (ignore kind options))
+               (cons id (mapcan #'ids children)))))
+    (sort (loop :for name :in (views:view-names)
+                :collect (list name (count-if (lambda (id) (views:wired-keys name id))
+                                              (ids (views:find-view name)))))
+          #'string< :key (lambda (entry) (symbol-name (first entry))))))
+
 (defun designer-parts ()
   "The GUI designer's parts, each a function that draws one, all of one design and its history:
 (values toolbar left canvas right keys open-view about save). TOOLBAR takes :SHOWN NIL to draw no bar
@@ -546,8 +558,9 @@ property list of :name (the view's name), :package (its package's, as written), 
 is saved to, or NIL), :live (the view of the image it is, while it is live, or NIL), :selected (the
 id of the widget selected, or NIL), :width and :height (the stage's), :ids (its widgets' ids),
 :undo (how many steps Undo can take back), :status (what was last done, as the bar says it),
-:wires (how many of its widgets the code that draws it wires, while it is live) and :problems
-(what does not fit between the two, as sentences). SAVE is what Save... does, from elsewhere: to
+:wires (how many of its widgets the code that draws it wires, while it is live), :problems
+(what does not fit between the two, as sentences) and :views (every view the image has, each with
+how many of its widgets the code wires, as a list of (name count), in order of name). SAVE is what Save... does, from elsewhere: to
 the view's own file, or with the dialog, which TOOLBAR draws. MAKE-DESIGNER puts them in a window;
 the studio puts them in panes."
   (bolt:state-let ((view (designer-view:form-node +sample+))
@@ -886,7 +899,8 @@ container INTO, at AT among its children."
                 :wires (if live
                            (count-if (lambda (id) (views:wired-keys live id)) (designer-view:all-ids view))
                            0)
-                :problems problems))
+                :problems problems
+                :views (view-wire-counts)))
         (lambda ()
           (save))))))
 

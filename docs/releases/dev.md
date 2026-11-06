@@ -149,6 +149,23 @@ container of a view and where (a Command-press is the inner app's); `:selected`,
 marked as chosen, with a `:tag`; and `:appearance`, the inner app's light or dark in place
 of the window's. An app pane is kept by its id wherever in the window it is.
 
+### Wire: the views and the state
+
+Wire's left pane lists the views the image has, each with how many of its
+widgets the code loaded wires (`VIEW login 4`); pressing one opens it in the
+designer, live, and it is chosen in the list. Under them is the state of the
+app on the canvas: each variable its `state-let`s keep, by name, with its
+value, live, as the app changes it. Type a value and press Return, and the
+app has it and shows it; what does not read is marked, and the app keeps what
+it had. A value that does not print to be read back (a hash table) is shown,
+not edited. Pin a variable, and it keeps its value when the app is made again
+even if its first value was edited in the code; a variable not pinned starts
+again from its new first value, as `state-let` has always done.
+
+`(bolt:app-pane-variables app)` lists them for an app in an app pane,
+`(bolt:set-app-pane-variable app 'count 41)` gives one a value and draws the
+app again, and `(bolt:pin-app-pane-variable app 'count t)` pins it.
+
 ### The studio's REPL
 
 The bottom panel's REPL evaluates what is typed in the image the studio runs in, in the package of the app being run (or the view's), as the prompt says: `counter> (+ 1 2)`. It shows what each form printed and what it returned, each value on a line of its own, or the error, in red, and goes on; `*`, `**`, `+` and the rest are set as in any REPL. Up and Down go back through what was typed. It runs on the window's thread, so a form that takes long holds the window as long.

@@ -11,6 +11,7 @@
                (:file "chrome")
                (:file "repl")
                (:file "title-bar")
+               (:file "wire")
                (:file "studio"))
   :in-order-to ((test-op (test-op "almighty-bolt-studio/tests"))))
 

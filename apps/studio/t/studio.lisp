@@ -19,18 +19,21 @@
 ;;; The studio worked as a person works it, through the machine interface, in a context with no
 ;;; window: both designers in one window, each kept while the other is shown.
 
-(defstruct (screen (:constructor %make-screen (app context list)))
-  app context list)
+(defstruct (screen (:constructor %make-screen (app context list kept)))
+  app context list
+  ;; What the studio's STATE-LETs keep, so that it can be made again as a reload makes it.
+  kept)
 
 (defun draw (screen)
   (core:settle-frame (screen-app screen) (screen-context screen) (screen-list screen)))
 
 (defun open-studio ()
   "The studio and a machine session on it."
-  (let* ((instance (core:with-kept-state ((core:make-kept-state))
-                    (app:make-app-instance 'studio:make-studio)))
+  (let* ((kept (core:make-kept-state))
+         (instance (core:with-kept-state (kept)
+                     (app:make-app-instance 'studio:make-studio)))
          (screen (%make-screen instance (fake:make-fake-context :width 1240f0 :height 3000f0)
-                               (core:make-display-list :capacity 65536))))
+                               (core:make-display-list :capacity 65536) kept)))
     (draw screen)
     (values screen
             (m:make-session :app (lambda () (screen-app screen))
@@ -786,6 +789,7 @@ ACROSS of the way along it."
     (m:click session :id :theme-pane)
     (assert-true (shown-p session :theme-part))
     (to-mode session "WIRE")
+    (assert-true (shown-p session :views-part))
     (assert-true (shown-p session :canvas-part))
     (assert-true (shown-p session :options-part))
     (assert-false (shown-p session :widgets-part))
@@ -1035,3 +1039,114 @@ window): its app, after a few frames."
       (m:press-key session :up)
       (m:press-key session :return)
       (assert-equal "4" (car (last (repl-says session)))))))
+
+;;; --- Wire: the views, and the state of the app on the canvas ---
+
+(defun make-studio-again (screen)
+  "Make the studio again with what it kept, as the host does when code is compiled."
+  (let ((new (core:with-kept-state ((screen-kept screen))
+               (app:make-app-instance 'studio:make-studio))))
+    (core:inherit-state new (screen-app screen))
+    (setf (screen-app screen) new)
+    (dotimes (i 3) (draw screen))))
+
+(defun state-value (session name)
+  "What Wire's State shows of the variable NAME of the app on the canvas."
+  (s:node-value (m:find-node session :id :state-value :within (list :state-row name 1))))
+
+(defun enter-state (session name text)
+  "Type TEXT as the value of the variable NAME in Wire's State, and press Return."
+  (m:set-value session (format nil "~a~%" text) :id :state-value :within (list :state-row name 1)))
+
+(define-test wire-lists-the-views-with-their-wires-and-opens-the-one-pressed ()
+  (multiple-value-bind (screen session) (open-studio)
+    (declare (ignore screen))
+    (to-mode session "WIRE")
+    ;; Every view the image has, each with how many of its widgets the code loaded wires: the
+    ;; button and the label of MAKE-VIEWED's, none of the nested one's.
+    (assert-equal "View tiny-view, 2 wires"
+                  (s:node-name (m:find-node session :id (list :view-row 'tiny-view))))
+    (assert-equal "View nested-view, 0 wires"
+                  (s:node-name (m:find-node session :id (list :view-row 'nested-view))))
+    (assert-false (s:node-property (m:find-node session :id (list :view-row 'tiny-view)) :selected))
+    ;; Pressed, it is the view open in the designer, live, and chosen in the list.
+    (m:click session :id (list :view-row 'tiny-view))
+    (assert-true (search "TINY-VIEW" (words-of session :where)))
+    (assert-true (s:node-property (m:find-node session :id (list :view-row 'tiny-view)) :selected))
+    (assert-false (s:node-property (m:find-node session :id (list :view-row 'nested-view))
+                                   :selected))))
+
+(define-test wire-shows-the-state-of-the-app-live-and-a-value-entered-there-is-the-apps ()
+  (multiple-value-bind (screen session) (open-studio)
+    (flet ((count-shown ()
+             (s:node-name (first (s:find-nodes (core:accessibility-tree studio:*running*)
+                                               :id :count)))))
+      (to-mode session "WIRE")
+      (assert-true (search "No app is running"
+                           (s:node-name (m:find-node session :id :state-note))))
+      (run-in-studio session 'make-tiny)
+      ;; Its one variable, live: pressed in the app, it shows the new count.
+      (assert-equal "0" (state-value session 'count))
+      (press-in-running screen :plus)
+      (assert-equal "1" (state-value session 'count))
+      ;; A value typed and entered is the app's, which shows it.
+      (enter-state session 'count "41")
+      (assert-equal "Count 41" (count-shown))
+      (assert-equal "41" (state-value session 'count))
+      ;; And the field follows the app again.
+      (press-in-running screen :plus)
+      (assert-equal "42" (state-value session 'count))
+      ;; What does not read is said to be wrong, and the app keeps its value.
+      (enter-state session 'count "(1")
+      (assert-true (s:node-property (m:find-node session :id :state-value
+                                                         :within (list :state-row 'count 1))
+                                    :invalid))
+      (assert-equal "Count 42" (count-shown))
+      ;; Kept when the studio is made again, as when its code is compiled.
+      (make-studio-again screen)
+      (assert-equal "Count 42" (count-shown)))))
+
+(defun define-pinnable (initial)
+  "Define MAKE-PINNABLE again, as compiling an edit of it would, with INITIAL as the first value of
+its two variables."
+  (setf (fdefinition 'make-pinnable)
+        (compile nil `(lambda ()
+                        (bolt:state-let ((count ,initial) (other ,initial)
+                                         (table (make-hash-table)))
+                          (lambda ()
+                            (bolt:label (format nil "~d ~d" count other) :id :count)))))))
+
+(define-test a-pinned-variable-keeps-its-value-when-its-first-value-is-edited ()
+  (define-pinnable 0)
+  (multiple-value-bind (screen session) (open-studio)
+    (flet ((shown ()
+             (s:node-name (first (s:find-nodes (core:accessibility-tree studio:*running*)
+                                               :id :count)))))
+      (to-mode session "WIRE")
+      (run-in-studio session 'make-pinnable)
+      (enter-state session 'count "5")
+      (enter-state session 'other "5")
+      (assert-equal "5 5" (shown))
+      ;; What does not print to be read back is shown, and not edited.
+      (assert-false (eq :text-field
+                        (s:node-role (m:find-node session :id :state-value
+                                                          :within (list :state-row 'table 1)))))
+      (assert-true (search "HASH-TABLE"
+                           (s:node-name (m:find-node session :id :state-value
+                                                             :within (list :state-row 'table 1)))))
+      ;; COUNT pinned; the first values edited, and the app made again: COUNT keeps its value, and
+      ;; OTHER starts again from its new one.
+      (m:click session :id :state-pin :within (list :state-row 'count 1))
+      (assert-true (s:node-property (m:find-node session :id :state-pin
+                                                         :within (list :state-row 'count 1))
+                                    :selected))
+      (define-pinnable 10)
+      (make-studio-again screen)
+      (assert-equal "5 10" (shown))
+      ;; Unpinned, it is kept while its first value is as it is now, and edited again, starts again.
+      (m:click session :id :state-pin :within (list :state-row 'count 1))
+      (make-studio-again screen)
+      (assert-equal "5 10" (shown))
+      (define-pinnable 20)
+      (make-studio-again screen)
+      (assert-equal "20 20" (shown)))))
