@@ -239,37 +239,87 @@ shows the parts (the studio) gives one of its own.")
 (defun heading (id title &optional count)
   (funcall *heading* id title count))
 
-(defun palette (view)
-  "The widgets that can be added to VIEW, each dragged with the id it will have there. Returns the
-kind of the one pressed, or NIL."
-  (let ((pressed nil))
+(defparameter +groups+
+  '(("Text" :label :paragraph)
+    ("Input" :button :text-field :text-area :combo-box :slider :choice :checkbox :switch :dropdown
+     :list-box :pressable)
+    ("Display" :progress :spinner :tree :tabs)
+    ("Layout" :column :row :grid :stack :padding :panel :center :scroll :split :view))
+  "The groups the catalogue's widgets are shown in, each its title and its kinds; a kind in none
+(one an app defined) is in Other.")
+
+(defun group-of (kind)
+  (or (first (find-if (lambda (group) (member kind (rest group))) +groups+))
+      "Other"))
+
+(defun palette (view query)
+  "The widgets that can be added to VIEW, in groups, each with how many it shows, those whose names
+have QUERY in them; each is dragged with the id it will have in VIEW. Returns the kind of the one
+pressed, or NIL, and what is searched for, as typed."
+  (let* ((pressed nil)
+         (wanted (string-trim " " query))
+         (entries (remove-if-not (lambda (entry)
+                                   (search wanted (catalogue:entry-title entry) :test #'char-equal))
+                                 (catalogue:catalogue)))
+         (names (remove-if-not (lambda (name) (search wanted (symbol-name name) :test #'char-equal))
+                               (views:view-names))))
     (bolt:column (:id :palette :gap 8 :cross-align :stretch)
-      (heading :palette-heading "Add" (length (catalogue:catalogue)))
-      (bolt:grid (:id :palette-grid :columns 2 :gap 6)
-        ;; Each is pressed to add it, or dragged to where it goes.
-        (dolist (entry (catalogue:catalogue))
-          (when (bolt:drag-source (:id (id "add" (catalogue:entry-kind entry))
-                                   :payload (catalogue:entry-kind entry)
-                                   :label (format nil "~a ~(~s~)" (catalogue:entry-title entry)
-                                                  (designer-view:fresh-id
-                                                   view (catalogue:entry-kind entry))))
-                  (bolt:panel (:id :tile :all 6 :radius 4)
-                    (bolt:label (catalogue:entry-title entry) :id :title)))
-            (setf pressed (catalogue:entry-kind entry)))))
+      (heading :palette-heading "Add" (length entries))
+      (multiple-value-bind (text edited)
+          (bolt:text-field query :id :palette-search :width 240 :labelled-by :palette-heading)
+        (when edited (setf query text)))
+      (dolist (group (append (mapcar #'first +groups+) '("Other")))
+        (let ((shown (remove-if-not (lambda (entry)
+                                      (string= group (group-of (catalogue:entry-kind entry))))
+                                    entries)))
+          (when shown
+            (bolt:label (format nil "~:@(~a~) · ~d" group (length shown))
+                        :id (id "group" group) :size 11 :color :dim-text)
+            (bolt:grid (:id (id "group" group "grid") :columns 2 :gap 6)
+              ;; Each is pressed to add it, or dragged to where it goes.
+              (dolist (entry shown)
+                (when (bolt:drag-source (:id (id "add" (catalogue:entry-kind entry))
+                                         :payload (catalogue:entry-kind entry)
+                                         :label (format nil "~a ~(~s~)" (catalogue:entry-title entry)
+                                                        (designer-view:fresh-id
+                                                         view (catalogue:entry-kind entry))))
+                        (bolt:panel (:id :tile :all 6 :radius 4)
+                          (bolt:label (catalogue:entry-title entry) :id :title)))
+                  (setf pressed (catalogue:entry-kind entry))))))))
       ;; The views defined, each to put inside this one.
-      (let ((names (views:view-names)))
-        (when names
-          (heading :views-heading "Views" (length names))
-          (bolt:grid (:id :views-grid :columns 2 :gap 6)
-            (dolist (name names)
-              (when (bolt:drag-source (:id (id "add-view" (symbol-name name))
-                                       :payload (list :view name)
-                                       :label (format nil "~(~a ~s~)" (symbol-name name)
-                                                      (designer-view:fresh-id view :view)))
-                      (bolt:panel (:id :tile :all 6 :radius 4)
-                        (bolt:label (string-downcase (symbol-name name)) :id :title)))
-                (setf pressed (list :view name))))))))
-    pressed))
+      (when names
+        (heading :views-heading "Views" (length names))
+        (bolt:grid (:id :views-grid :columns 2 :gap 6)
+          (dolist (name names)
+            (when (bolt:drag-source (:id (id "add-view" (symbol-name name))
+                                     :payload (list :view name)
+                                     :label (format nil "~(~a ~s~)" (symbol-name name)
+                                                    (designer-view:fresh-id view :view)))
+                    (bolt:panel (:id :tile :all 6 :radius 4)
+                      (bolt:label (string-downcase (symbol-name name)) :id :title)))
+              (setf pressed (list :view name)))))))
+    (values pressed query)))
+
+(defparameter +abbreviations+
+  '(:label "LBL" :paragraph "PAR" :button "BTN" :text-field "FLD" :text-area "TXT" :combo-box "CMB"
+    :slider "SLD" :choice "CHO" :tabs "TAB" :checkbox "CHK" :switch "SWT" :dropdown "DRP"
+    :list-box "LST" :progress "PRG" :spinner "SPN" :column "COL" :row "ROW" :grid "GRD"
+    :stack "STK" :padding "PAD" :panel "PNL" :center "CTR" :scroll "SCR" :tree "TRE" :split "SPL"
+    :pressable "PRS" :view "VEW")
+  "How the outline abbreviates each kind; another is its first three letters.")
+
+(defun abbreviation (kind)
+  (or (getf +abbreviations+ kind)
+      (let ((name (symbol-name kind)))
+        (subseq name 0 (min 3 (length name))))))
+
+(defun outline-label (node)
+  "How the outline says NODE: its kind abbreviated, its id, and, for a container, how many widgets
+are in it."
+  (format nil "~a ~(~s~)~@[ · ~d~]"
+          (abbreviation (designer-view:node-kind node)) (designer-view:node-id node)
+          (and (catalogue:entry-container-p (catalogue:find-entry (designer-view:node-kind node)))
+               (length (designer-view:node-children node)))))
 
 (defun row-key (node-id)
   "The id of the outline's row of the widget NODE-ID: its own, but not the widget's, so that a row
@@ -291,10 +341,7 @@ Returns the id of the one chosen there, on the frame it is, or NIL."
         (multiple-value-bind (key changed)
             (bolt:tree (list view) :id :outline-tree :width 260 :children #'designer-view:node-children
                                         :key (lambda (node) (row-key (designer-view:node-id node)))
-                                        :label (lambda (node)
-                                                 (format nil "~a ~(~s~)"
-                                                         (catalogue:entry-title (catalogue:find-entry (designer-view:node-kind node)))
-                                                         (designer-view:node-id node)))
+                                        :label #'outline-label
                                         :selected (and selected (row-key selected))
                                         :labelled-by :outline-heading)
           (when changed
@@ -453,6 +500,8 @@ the studio puts them in panes."
                    (name "sign-in")
                    (package "cl-user")
                    (selected nil)
+                   ;; What the catalogue is searched for.
+                   (query "")
                    (drafts (make-hash-table :test 'equal))
                    (saving nil)
                    (opening nil)
@@ -669,7 +718,8 @@ container INTO, at AT among its children."
         (lambda ()
           (bolt:panel (:id :left :all 14 :radius 0)
             (bolt:column (:gap 20)
-              (let ((kind (palette view)))
+              (multiple-value-bind (kind typed) (palette view query)
+                (setf query typed)
                 (when kind
                   (multiple-value-bind (new id) (added view selected kind)
                     (change new)

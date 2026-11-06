@@ -127,7 +127,9 @@ user of.
     on the app and on the view drawn alone: `:tag` on `app-pane` and
     `design-surface`.)
 13. **The catalogue and the outline:** a search, groups with counts, icons;
-    each widget's kind abbreviated and each container's count.
+    each widget's kind abbreviated and each container's count. (Done but
+    for the icons, which wait for vector icons. The outline's rows are read
+    by VoiceOver as they show, abbreviated.)
 14. **The inspector:** each option's value and where it comes from (given,
     wired, a default, the theme); the container the widget is in, and its gap
     and alignments, to change; the wiring, checked against the view, with the

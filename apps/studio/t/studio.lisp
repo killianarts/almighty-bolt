@@ -596,7 +596,9 @@ ACROSS of the way along it."
     (m:click session :id :theme-pane)
     (dolist (row (s:find-nodes (m:find-node session :id :outline-tree) :role :row))
       (let* ((name (s:node-name row))
-             (id (intern (string-upcase (subseq name (1+ (position #\: name)))) :keyword)))
+             (id (intern (string-upcase (subseq name (1+ (position #\: name))
+                                                (position #\Space name :start (position #\: name))))
+                         :keyword)))
         (destructuring-bind (x y w h) (s:node-bounds row)
           (pointer screen :move (+ x (/ w 2)) (+ y (/ h 2)))
           (pointer screen :down (+ x (/ w 2)) (+ y (/ h 2)))
@@ -871,7 +873,10 @@ window): its app, after a few frames."
                   (name-of session :count (list :palette-heading :header)))
     (assert-equal "9" (name-of session :count (list :outline-heading :header)))
     (assert-equal "OUTLINE" (name-of session :outline-tree))
-    (assert-equal "配線" (name-of session :kana (list :wiring-heading :header)))))
+    (assert-equal "配線" (name-of session :kana (list :wiring-heading :header)))
+    ;; The catalogue's count is of what it shows, searched.
+    (m:set-value session "field" :id :palette-search)
+    (assert-equal "1" (name-of session :count (list :palette-heading :header)))))
 
 (defun status-of (session)
   (words-of session :status-words))

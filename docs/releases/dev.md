@@ -126,6 +126,11 @@ corner brackets and a tag that says its kind, its id and whether the code
 that draws the view wires it: `Button :sign-in · wired`. A widget dragged
 from the catalogue says the id it will have: `Button :button-2`.
 
+The catalogue is in groups (Text, Input, Display, Layout, and Other for an
+app's own widgets), each with how many it shows, and is searched by name as
+it is typed. The outline says each widget's kind abbreviated (`BTN :sign-in`)
+and how many widgets each container has (`ROW :actions · 2`).
+
 `app-pane` takes `:mode :design`, which gives the inner app nothing and
 returns the view and the widget a press picked, and what was let go of on a
 container of a view and where (a Command-press is the inner app's); `:selected`,
