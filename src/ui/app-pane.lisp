@@ -17,6 +17,7 @@
                     (#:immediate #:almighty-bolt/ui/immediate)
                     (#:views #:almighty-bolt/ui/views))
   (:export #:app-pane
+           #:app-pane-frames
            #:settle-app-pane
            #:app-pane-inside))
 
@@ -108,6 +109,8 @@ ZOOMED, the same at the pane's zoom, which draws."
 
 ;;; --- the pane ---
 
+(defconstant +frames-kept+ 120 "How many of the inner app's frames an app pane keeps the times of.")
+
 (defstruct (app-pane-state (:constructor make-app-pane-state ()))
   (constructor nil)
   (instance nil)
@@ -128,7 +131,29 @@ ZOOMED, the same at the pane's zoom, which draws."
   ;; that press, to try a widget.
   (trying nil)
   ;; Whether the input method is composing in the inner app: it began and has not been committed.
-  (composing nil))
+  (composing nil)
+  ;; The inner app's last frames, each the nanoseconds of its builds, its layout and its paint, in
+  ;; a ring of +FRAMES-KEPT+ (the next to be written at FRAMES-NEXT), and how many there are.
+  (frames (make-array (* 3 +frames-kept+) :element-type '(unsigned-byte 64) :initial-element 0))
+  (frames-next 0 :type fixnum)
+  (frames-count 0 :type fixnum))
+
+(defun note-frame (state context)
+  "Keep the times of the frame of STATE's app just settled, from CONTEXT's phases."
+  (let* ((slots (app-instance:context-phase-ns context))
+         (builds (aref slots app-instance:+phase-all-builds+))
+         (layout (aref slots app-instance:+phase-layout+))
+         (paint (aref slots app-instance:+phase-paint+))
+         (frames (app-pane-state-frames state))
+         (at (* 3 (app-pane-state-frames-next state))))
+    ;; Layout and paint are done in the last build: the build is what is left.
+    (setf (aref frames at) (max 0 (- builds layout paint))
+          (aref frames (+ at 1)) layout
+          (aref frames (+ at 2)) paint
+          (app-pane-state-frames-next state) (mod (1+ (app-pane-state-frames-next state))
+                                                  +frames-kept+)
+          (app-pane-state-frames-count state) (min +frames-kept+
+                                                   (1+ (app-pane-state-frames-count state))))))
 
 (defvar *pane-states* (views:make-weak-table)
   "The state of the pane each app in a pane is in, by the app.")
@@ -136,12 +161,15 @@ ZOOMED, the same at the pane's zoom, which draws."
 (defun settle-pane (state)
   "Settle the frame of STATE's app, and make what it drew ZOOM times larger to show."
   (let ((inner (app-pane-state-context state)))
-    (setf (app-instance:context-frame-requested inner) nil)
+    (setf (app-instance:context-frame-requested inner) nil
+          (app-instance:context-phases-p inner) t)
+    (fill (app-instance:context-phase-ns inner) 0)
     (loop
       (handler-case
           (progn (settle:settle-frame (app-pane-state-instance state) inner (app-pane-state-list state))
                  (dl:zoom-display-list (app-pane-state-shown state) (app-pane-state-list state)
                                        (pane-context-zoom inner))
+                 (note-frame state inner)
                  (return))
         (dl:display-list-full ()
           (let ((capacity (* 2 (dl:display-list-capacity (app-pane-state-list state)))))
@@ -156,6 +184,19 @@ frame."
     (when state
       (settle-pane state)
       (app-instance:request-frame (pane-context-outer (app-pane-state-context state))))))
+
+(defun app-pane-frames (instance)
+  "The times of the last frames (as many as 120) of INSTANCE, an app in an app pane, as APP-PANE
+returns it: a list, oldest first, of each frame's build, layout and paint, in nanoseconds, the build
+being the builds' time but the layout's and the paint's. NIL for an app in no pane."
+  (let ((state (and instance (gethash instance *pane-states*))))
+    (when state
+      (let ((frames (app-pane-state-frames state))
+            (count (app-pane-state-frames-count state))
+            (next (app-pane-state-frames-next state)))
+        (loop :for i :from (- next count) :below next
+              :for at = (* 3 (mod i +frames-kept+))
+              :collect (list (aref frames at) (aref frames (+ at 1)) (aref frames (+ at 2))))))))
 
 (defun app-pane-inside (ui key)
   "If the box KEY of UI's last frame is an app pane, the app in it, its zoom, and whether the pane

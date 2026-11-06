@@ -539,6 +539,12 @@ is let go of, to try a widget while designing. `:mode :run`, the default, is
 as above. `:appearance`, `:light` or `:dark`, is the inner app's in place of
 the window's: it is drawn in that theme, if it gives none of its own.
 
+`app-pane-frames` (`app`) is the times of the last frames, as many as 120, of
+an app in an app pane, as `app-pane` returns it: a list, oldest first, of
+each frame's build, layout and paint in nanoseconds (the build being its
+builds' time but the layout's and the paint's), or `nil` for an app in no
+pane. The studio charts them.
+
 `inspector-pane` (`target &key id flex`) is the inspector, in this window, of
 TARGET, an app in an `app-pane` as it returns it (or `nil`): Pick, then a press
 on the app in the pane, says what the widget there is, and the inspector

@@ -429,6 +429,22 @@ event changed shows in it."
       (assert-false (enabled-p :redo))
       (assert-true (in-view session :forgot)))))
 
+(define-test command-g-wraps-the-selected-widget-in-a-column-where-it-was ()
+  (multiple-value-bind (screen session) (open-designer)
+    (declare (ignore screen))
+    (m:click session :id :sign-in :within :canvas)
+    (m:press-key session :g :modifiers '(:super))
+    ;; In the row, first, as the button was: a column with the button in it, selected.
+    (assert-equal "Column :column-1" (shown-name session :selected-what))
+    (let ((rows (outline-rows session)))
+      (assert-equal '(("ROW :actions · 2" 1) ("COL :column-1 · 1" 2) ("BTN :sign-in" 3)
+                      ("BTN :forgot" 2))
+                    (last rows 4)))
+    ;; One step, which Command-Z takes back.
+    (m:press-key session :z :modifiers '(:super))
+    (assert-equal '(("ROW :actions · 2" 1) ("BTN :sign-in" 2) ("BTN :forgot" 2))
+                  (last (outline-rows session) 3))))
+
 (define-test command-z-undoes-and-command-shift-z-redoes ()
   (multiple-value-bind (screen session) (open-designer)
     (declare (ignore screen))

@@ -137,6 +137,12 @@ container the widget is in, with its gap and alignments, to change from there.
 The wiring part says where the code that wires the view is, `Wired in
 app.lisp, line 42.`, and what of it does not fit the view.
 
+The bottom panel has Frames: a bar for each of the last frames of the app on
+the canvas, its build, layout and paint, and the last one's times in words.
+`(bolt:app-pane-frames app)` gives those times, for an app in an app pane.
+Command-G wraps the selected widget in a column, where it was, as one step
+that Undo takes back.
+
 `app-pane` takes `:mode :design`, which gives the inner app nothing and
 returns the view and the widget a press picked, and what was let go of on a
 container of a view and where (a Command-press is the inner app's); `:selected`,

@@ -38,8 +38,8 @@ What 0.3 has, against the prototype:
 - **Have:** docked panes; the GUI designer's parts (catalogue, outline, canvas
   on a stage of its own size, options, wiring stub); the running app on the
   canvas, at a zoom and at a size of its own, where a press picks its view's
-  widget; the inspector beside it; a widget picked
-  in the running app opened in its view, live; the bridge to Emacs; the theme
+  widget; the inspector beside it; a widget picked in the running app opened
+  in its view, live; the bridge to Emacs; the theme
   designer (seeds, worked-out colours, sizes, readability, the `define-theme`
   form, undo); the semantic tree and VoiceOver; the frame ring, the recorder,
   replay scripts and a virtual clock; fonts for every element (any weight,
@@ -47,10 +47,11 @@ What 0.3 has, against the prototype:
   degrees; soft shadows and dashed edges; images, and icons tinted by the theme;
   a code view, its lines numbered and marked; the studio's own theme, light and
   dark; its shell: the title bar, the five modes as docks of their own, the
-  rail, the section headers, the bottom panel and its REPL, and the status bar.
-- **Part:** options do not say where their values come from; the frame ring,
-  the recorder and the kept state have no face; the theme designer previews
-  widgets, not the app's own view.
+  rail, the section headers, the bottom panel and its REPL, and the status bar;
+  Design's canvas, catalogue, outline and options as the prototype has them
+  (Phase C), and the app's frames charted.
+- **Part:** the recorder and the kept state have no face; the theme designer
+  previews widgets, not the app's own view.
 - **Missing:** vector icons, and the mark; colours for code's syntax; the panes
   of Wire, Debug and Agent; the timeline, time travel and the call tree.
 
@@ -138,7 +139,10 @@ user of.
     its value from the theme; the container and its gap and alignments; the
     file and line of the `view` form, and the problems.)
 15. **The frames chart** (build, layout and paint of each frame, from the
-    ring), and wrapping widgets in a container with Command-G.
+    ring), and wrapping widgets in a container with Command-G. (Done: the
+    app on the canvas has no window, so no ring; its pane keeps the times of
+    its last 120 frames, `app-pane-frames`, which the bottom panel's Frames
+    charts. Command-G wraps the selected widget in a column.)
 
 ## Phase D: Wire
 

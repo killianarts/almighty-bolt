@@ -68,6 +68,41 @@ of the app on it, and Theme the theme's preview and settings and the canvas.")
 (defvar *open-window* 'bolt:open-window
   "What Run Window calls, as OPEN-WINDOW is called: a test gives one that notes the call.")
 
+(defun milliseconds (ns)
+  (/ ns 1000000.0))
+
+(defparameter +frame-budget-ns+ 16666667
+  "A frame's time at 60 a second: the chart's height is this, or the longest frame if longer.")
+
+(defun frames-chart (frames)
+  "The times of FRAMES (APP-PANE-FRAMES's: each a build, a layout and a paint, in nanoseconds), each
+a bar of three parts, the latest on the right, and the last in words."
+  (if (null frames)
+      (bolt:paragraph "No frames yet: run an app on the canvas." :id :frames-summary
+                      :color :dim-text)
+      (let ((top (max +frame-budget-ns+ (reduce #'max frames :key (lambda (f) (reduce #'+ f))))))
+        (bolt:canvas 360 64
+                     (lambda (list context width height)
+                       (declare (ignore context))
+                       (let ((colors (list (bolt:theme-color :accent) (bolt:theme-color :ring)
+                                           (bolt:theme-color :dim-text)))
+                             (step (/ width 120)))
+                         (loop :for frame :in frames
+                               :for x :from (- width (* step (length frames))) :by step
+                               :do (let ((y height))
+                                     (loop :for ns :in frame
+                                           :for color :in colors
+                                           :do (let ((h (* height (/ ns top))))
+                                                 (decf y h)
+                                                 (bolt:push-rounded-rect list x y (max 1 (- step 1))
+                                                                         h 0 color)))))))
+                     :id :frames-chart)
+        (destructuring-bind (build layout paint) (car (last frames))
+          (bolt:label (format nil "~d frame~:p · last: build ~,2f ms, layout ~,2f ms, paint ~,2f ms"
+                              (length frames) (milliseconds build) (milliseconds layout)
+                              (milliseconds paint))
+                      :id :frames-summary :font :code)))))
+
 (defun make-studio ()
   (multiple-value-bind (toolbar widgets canvas options view-keys open-view about save)
       (gui-designer:designer-parts)
@@ -218,8 +253,8 @@ of the app on it, and Theme the theme's preview and settings and the canvas.")
                                (:agent
                                 (bolt:dock (:id :agent-panes :layout (getf layouts :agent) :flex 1)
                                   (:agent-pane "Agent" (agent-pane)))))))
-                     ;; Under the panes: the REPL, the problems, the events and the agent, in a dock
-                     ;; of their own, in every mode.
+                     ;; Under the panes: the REPL, the problems, the frames, the events and the
+                     ;; agent, in a dock of their own, in every mode.
                      (bottom-panel (facts)
                        (let ((problems (getf facts :problems)))
                          (setf bottom-layout
@@ -237,6 +272,11 @@ of the app on it, and Theme the theme's preview and settings and the canvas.")
                                                                             :color :field-invalid))
                                           (bolt:paragraph "None: the view and the code that wires it fit, as far as the code loaded says."
                                                           :id :no-problems :color :dim-text)))))
+                                 (:frames-pane "Frames"
+                                  (bolt:padding (:id :frames-part :all 12)
+                                    (bolt:column (:gap 8 :fill t :cross-align :stretch)
+                                      (chrome:section-header :frames-heading "Frames")
+                                      (frames-chart (bolt:app-pane-frames *running*)))))
                                  (:events-pane "Events"
                                   (bolt:padding (:id :events-part :all 12)
                                     (bolt:column (:gap 8 :fill t :cross-align :stretch)

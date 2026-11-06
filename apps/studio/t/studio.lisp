@@ -491,6 +491,28 @@ ACROSS of the way along it."
                              (said :wiring-where))))
         (views:set-view 'tiny-view *tiny-view*)))))
 
+(define-test the-frames-pane-charts-the-frames-of-the-app-on-the-canvas ()
+  (multiple-value-bind (screen session) (open-studio)
+    (flet ((frames-said ()
+             (let ((words (s:node-name (m:find-node session :id :frames-summary))))
+               (values (parse-integer words :junk-allowed t) words))))
+      (m:click session :id :frames-pane)
+      (assert-equal "No frames yet: run an app on the canvas." (nth-value 1 (frames-said)))
+      (run-in-studio session 'make-tiny)
+      (m:click session :id :frames-pane)
+      (dotimes (i 3) (draw screen))
+      (let ((before (frames-said)))
+        (assert-true (plusp before))
+        (assert-true (search " · last: build " (nth-value 1 (frames-said)))
+                     (nth-value 1 (frames-said)))
+        ;; Each frame timed: its build, layout and paint took some time.
+        (assert-true (every (lambda (frame) (plusp (reduce #'+ frame)))
+                            (bolt:app-pane-frames studio:*running*)))
+        (assert-true (shown-p session :frames-chart))
+        ;; A press makes the app draw again: another frame.
+        (press-in-running screen :plus)
+        (assert-true (> (frames-said) before))))))
+
 (define-test on-the-canvas-a-press-picks-the-widget-of-its-view-and-in-run-is-the-apps ()
   (multiple-value-bind (screen session) (open-studio)
     (flet ((inner (id)

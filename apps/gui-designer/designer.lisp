@@ -536,9 +536,10 @@ NIL to have no Save... of its own. LEFT is the widgets to add and the outline. C
 drawn, on a stage of the size it is designed at; with :APP (a constructor, as APP-PANE takes) it is
 that app, running with its own data, at :ZOOM, in the :MODE and the :APPEARANCE APP-PANE takes
 (:design, the default: a press picks the widget of a view it is on, and opens that view if it is
-another), under a window's bar that says :TITLE; it returns the app running, or NIL. RIGHT is the selected widget's
-options and the wiring, KEYS the shortcuts (Command-Z and Command-Shift-Z), described after the
-part that has the keyboard so that a text field undoes its own typing first. OPEN-VIEW is not
+another), under a window's bar that says :TITLE; it returns the app running, or NIL. RIGHT is
+the selected widget's options and the wiring, KEYS the shortcuts (Command-Z and Command-Shift-Z,
+and Command-G, which wraps the selected widget in a column), described after the part that has the
+keyboard so that a text field undoes its own typing first. OPEN-VIEW is not
 drawn: it is called with the name of a view the image has, and the id of a widget in it, to open
 that view live with the widget selected. ABOUT is not drawn: it says what is being designed, as a
 property list of :name (the view's name), :package (its package's, as written), :file (the file it
@@ -864,7 +865,15 @@ container INTO, at AT among its children."
           (when (bolt:shortcut #\z :command)
             (step-back))
           (when (bolt:shortcut #\z :command :shift)
-            (step-forward)))
+            (step-forward))
+          ;; Command-G: the selected widget in a column of its own, where it was.
+          (when (and (bolt:shortcut #\g :command) selected
+                     (designer-view:find-by-id view selected))
+            (let ((id (designer-view:fresh-id view :column)))
+              (change (designer-view:replace-node
+                       view selected
+                       (lambda (node) (designer-view:make-node :column id :children (list node)))))
+              (select id))))
         ;; For a tool beside it (the studio's inspector): open a view of the image, live.
         (lambda (symbol &optional widget)
           (open-view symbol widget))
