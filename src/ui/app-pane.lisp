@@ -5,9 +5,12 @@
                     (#:app-instance #:almighty-bolt/app-instance)
                     (#:kept #:almighty-bolt/kept)
                     (#:settle #:almighty-bolt/settle)
+                    (#:hash #:almighty-bolt/ui/hash)
+                    (#:theme #:almighty-bolt/ui/theme)
                     (#:box #:almighty-bolt/ui/box)
                     (#:ui #:almighty-bolt/ui/ui)
                     (#:widgets #:almighty-bolt/ui/widgets)
+                    (#:inspection #:almighty-bolt/ui/inspection)
                     (#:immediate #:almighty-bolt/ui/immediate)
                     (#:views #:almighty-bolt/ui/views))
   (:export #:app-pane
@@ -27,6 +30,10 @@
 ;;; and what it composes go to the inner app, and its candidates open by the inner app's caret.
 ;;; When the window's app is made again because its code changed, so is the inner app, from its
 ;;; constructor, keeping what its STATE-LETs hold and what was done to its widgets, as a window's.
+;;; The pane is kept by its id wherever in the window it is described (a pane of one dock, then of
+;;; another), so the inner app is one app however the window is arranged. In design mode the inner
+;;; app is shown and given nothing: a press on it picks the widget of a view it is on, and the pane
+;;; outlines that widget and the one the pointer is over, as a design surface does.
 ;;; What the inner app's screen means (its semantic tree) is inside the pane's, where the pane
 ;;; shows it, for a screen reader and the machine interface (see APP-PANE-INSIDE).
 
@@ -188,26 +195,97 @@ kept (INHERIT-STATE). If that fails, the one it has stays, and what went wrong i
   (event:make-pointer-event :timestamp 0 :kind kind :x (float x 1d0) :y (float y 1d0) :button button
                             :buttons buttons :click-count clicks))
 
+;;; --- designing in it ---
+
+(defun inner-ui (state)
+  "The ui of STATE's app, if it is an immediate app whose last frame did not fail, or NIL."
+  (let ((instance (app-pane-state-instance state)))
+    (and (typep instance 'immediate:immediate-app)
+         (null (immediate:immediate-app-failure instance))
+         (immediate:immediate-app-ui instance))))
+
+(defun widget-box (box name id)
+  "The box that is the widget ID of the view NAME, as VIEW-WIDGET found it from BOX: BOX or one it
+is in, the view's outermost if none has the id (the code gave it another)."
+  (let ((outermost box))
+    (loop :for at = box :then (box:box-parent at)
+          :while (and at (eq (box:box-view at) name))
+          :do (when (eq (box:box-id at) id)
+                (return-from widget-box at))
+              (setf outermost at))
+    outermost))
+
+(defun view-widget-at (ui x y)
+  "The widget of a view under X, Y (in the inner app's points) in UI's last frame: the view's name,
+the widget's id and where its box is (x, y, width and height), or NIL."
+  (let ((box (inspection:box-at ui x y)))
+    (when box
+      (multiple-value-bind (name id) (views:view-widget box)
+        (when name
+          (let ((widget (widget-box box name id)))
+            (multiple-value-bind (found wx wy) (inspection:box-by-key ui (box:box-key widget))
+              (when found
+                (values name id (list wx wy (box:box-w widget) (box:box-h widget)))))))))))
+
+(defun view-widget-place (ui name id)
+  "Where the widget ID of the view NAME is in UI's last frame (x, y, width and height), or NIL."
+  (inspection:walk-frame ui (lambda (box x y left top right bottom)
+                              (declare (ignore left top right bottom))
+                              (when (and (eq (box:box-view box) name) (eql (box:box-id box) id))
+                                (return-from view-widget-place
+                                  (list x y (box:box-w box) (box:box-h box))))))
+  nil)
+
+(defun outline-widget (ui owner id place rect zoom color)
+  "A frame of COLOR round PLACE (in the inner app's points), where the pane at RECT shows it: one of
+OWNER's floats, called ID."
+  (when place
+    (destructuring-bind (x y w h) place
+      (multiple-value-bind (float open)
+          (ui:open-float ui :outline owner id
+                         (ui:make-float-spec :placement :at :x (+ (ui:rect-x rect) (* x zoom))
+                                             :y (+ (ui:rect-y rect) (* y zoom)) :tool t))
+        (setf (box:box-pref-w float) (float (* w zoom) 1f0)
+              (box:box-pref-h float) (float (* h zoom) 1f0)
+              (box:box-color float) color)
+        (ui:close-float ui open)))))
+
+(defparameter +pane-root+ (hash:hash-of :app-pane)
+  "What an app pane's key is made from in place of its parent's, so that it is kept by its id
+wherever in the window it is described.")
+
 (defun app-pane (constructor &key (id (widgets:required-id 'app-pane)) (zoom 1) width height (flex 0)
-                               min-width min-height max-width max-height)
+                               min-width min-height max-width max-height (mode :run) selected)
   "The app that CONSTRUCTOR (a function, or the name of one, as OPEN-APP takes) makes, working, in
 an area of this window, at ZOOM (1 as it is; 2 twice as large). It is made the first time and kept
-by the pane's id, and made again if CONSTRUCTOR is another. The pointer and the wheel over the area,
-and the keys while it has the keyboard (a press gives it), are the inner app's, in its own points.
-WIDTH and HEIGHT fix the area's size, as a container's; with neither, give it a FLEX. Returns the
-inner app (for a tool that looks at it, as the inspector does). The :id is required."
+by the pane's id, wherever in the window the pane is (two app panes of a window have two ids), and
+made again if CONSTRUCTOR is another. The pointer and the wheel over the area, and the keys while it
+has the keyboard (a press gives it), are the inner app's, in its own points. WIDTH and HEIGHT fix
+the area's size, as a container's; with neither, give it a FLEX.
+
+With MODE :design the inner app is given nothing: it is shown as it is, and a press on it picks the
+widget of a view (DEFINE-VIEW) it is on. The pane outlines that widget and the one the pointer is
+over; SELECTED, a list of a view's name and a widget's id, is outlined as chosen.
+
+Returns the inner app (for a tool that looks at it, as the inspector does), and, on the frame of a
+press in design mode on a widget of a view, the view's name and the widget's id. The :id is
+required."
   (let* ((ui ui:*ui*)
-         (box (ui:open-box ui :canvas :id id))
+         (box (ui:open-box ui :canvas :id id :rooted-at +pane-root+))
          (key (box:box-key box))
          (state (ui:state-of ui key #'make-app-pane-state))
          (rect (ui:rect-of ui key))
          (hot (= (ui:ui-hot ui) key))
+         (design (eq mode :design))
          (zoom (float zoom 1f0))
          (outer (ui:ui-context ui))
-         (moved nil))
+         (moved nil)
+         (picked-view nil)
+         (picked-id nil)
+         (hover nil))
     (widgets:set-size-limits box width height min-width min-height max-width max-height)
     (setf (box:box-interactive box) t
-          (box:box-focusable box) t
+          (box:box-focusable box) (not design)
           (box:box-moves box) t
           (box:box-pref-w box) (float (or width 0) 1f0)
           (box:box-pref-h box) (float (or height 0) 1f0)
@@ -246,26 +324,40 @@ inner app (for a tool that looks at it, as the inspector does). The :id is requi
             (app-instance:context-window inner) (app-instance:context-window outer))
       (when rect
         (let ((w (/ (ui:rect-w rect) zoom)) (h (/ (ui:rect-h rect) zoom)))
-          (unless (and (= w (almighty-bolt/app-instance:context-width inner))
-                       (= h (almighty-bolt/app-instance:context-height inner))
+          (unless (and (= w (app-instance:context-width inner))
+                       (= h (app-instance:context-height inner))
                        (= zoom (app-pane-state-zoom state)))
-            (setf (almighty-bolt/app-instance:context-width inner) w
-                  (almighty-bolt/app-instance:context-height inner) h
+            (setf (app-instance:context-width inner) w
+                  (app-instance:context-height inner) h
                   (app-pane-state-zoom state) zoom
                   moved t)))
         ;; The pointer, in the inner app's points.
         (let ((x (/ (- (ui:ui-pointer-x ui) (ui:rect-x rect)) zoom))
               (y (/ (- (ui:ui-pointer-y ui) (ui:rect-y rect)) zoom)))
-          (when (and hot (ui:ui-pressed ui))
+          ;; Designing: what is under the pointer is found in what the inner app last drew, and a
+          ;; press picks it; the inner app has none of it.
+          (when (and design hot)
+            (let ((inner-ui (inner-ui state)))
+              (when inner-ui
+                (multiple-value-bind (name widget place) (view-widget-at inner-ui x y)
+                  (setf hover (and name
+                                   (not (and (eq name (first selected))
+                                             (eql widget (second selected))))
+                                   place))
+                  (when (ui:ui-pressed ui)
+                    (ui:consume-press ui)
+                    (setf picked-view name
+                          picked-id widget))))))
+          (when (and (not design) hot (ui:ui-pressed ui))
             (ui:consume-press ui)
             (setf (ui:ui-active ui) key)
             (ui:focus-by-click ui key)
             (setf moved (deliver state (pointer-event :down x y :button 0 :buttons 1
                                                                 :clicks (ui:ui-click-count ui)))))
-          (when (and hot (ui:consume-secondary-press ui))
+          (when (and (not design) hot (ui:consume-secondary-press ui))
             (deliver state (pointer-event :down x y :button 1 :buttons 2 :clicks 1))
             (setf moved (deliver state (pointer-event :up x y :button 1))))
-          (when (and (ui:ui-moved ui) (or hot (= (ui:ui-active ui) key)))
+          (when (and (not design) (ui:ui-moved ui) (or hot (= (ui:ui-active ui) key)))
             (setf (ui:ui-moved ui) nil
                   moved (deliver state (pointer-event :move x y
                                                       :buttons (if (and (= (ui:ui-active ui) key)
@@ -275,17 +367,18 @@ inner app (for a tool that looks at it, as the inspector does). The :id is requi
             (ui:consume-release ui)
             (setf (ui:ui-active ui) 0
                   moved (deliver state (pointer-event :up x y :button 0))))
-          (when hot
+          (when (and (not design) hot)
             (multiple-value-bind (dx dy) (ui:consume-wheel ui)
               (when (or (/= dx 0f0) (/= dy 0f0))
                 (setf moved (deliver state (event:make-wheel-event :timestamp 0 :x (float x 1d0)
                                                                    :y (float y 1d0) :dx (float dx 1d0)
                                                                    :dy (float dy 1d0)))))))))
-      (when (and (app-pane-state-was-hot state) (not hot))
+      ;; The pointer gone, or the inner app no longer given it.
+      (when (and (app-pane-state-was-hot state) (not (and hot (not design))))
         (setf moved (deliver state (pointer-event :leave -1 -1))))
-      (setf (app-pane-state-was-hot state) hot)
+      (setf (app-pane-state-was-hot state) (and hot (not design)))
       ;; The keys, while the pane has the keyboard: those no widget of this window took.
-      (when (= (ui:ui-focus ui) key)
+      (when (and (not design) (= (ui:ui-focus ui) key))
         (dolist (event (copy-list (ui:ui-inputs ui)))
           (typecase event
             (event:key-event
@@ -313,11 +406,12 @@ inner app (for a tool that looks at it, as the inspector does). The :id is requi
             (settle-pane state)
             (setf (ui:ui-consumed ui) t))
           (app-instance:request-frame outer))
-      (when hot
+      (when (and hot (not design))
         (ui:want-cursor ui key (app-instance:context-cursor inner)))
       ;; What takes text in the inner app takes it in the window, with its caret where the pane
       ;; shows it.
-      (when (and rect (= (ui:ui-focus ui) key) (app-instance:context-text-input-p inner))
+      (when (and rect (not design) (= (ui:ui-focus ui) key)
+                 (app-instance:context-text-input-p inner))
         (let ((caret (app-instance:context-text-input-rect inner)))
           (app-instance:set-text-input-caret outer
                                              (+ (ui:rect-x rect) (* zoom (aref caret 0)))
@@ -329,4 +423,12 @@ inner app (for a tool that looks at it, as the inspector does). The :id is requi
             (box:box-n3 box) (dl:display-list-hash shown)
             (box:box-look box) (widgets:look-of ui key t)))
     (ui:close-box ui)
-    (app-pane-state-instance state)))
+    ;; Designing: what the pointer is over, and what is chosen, where the inner app drew it now.
+    (when (and design rect)
+      (outline-widget ui key :hover hover rect zoom (theme:theme-dim-text theme:*theme*))
+      (let ((inner-ui (and selected (inner-ui state))))
+        (when inner-ui
+          (outline-widget ui key :selected
+                          (view-widget-place inner-ui (first selected) (second selected))
+                          rect zoom (theme:theme-ring theme:*theme*)))))
+    (values (app-pane-state-instance state) picked-view picked-id)))

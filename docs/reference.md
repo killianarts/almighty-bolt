@@ -499,11 +499,13 @@ with KEY put in ANCHOR's group (`:into`) or beside it in a group of its own
 or tall), and `(bolt:pane-group layout key)` the keys of the group that has
 KEY.
 
-`app-pane` (`constructor &key id zoom width height flex` and the size limits)
-is another app, working, in an area of this one: a designer showing the app
-being made. `(bolt:app-pane 'my-app:make-app :id :running :zoom 2 :flex 1)`
-makes the app the first time (and again if the constructor is another) and
-keeps it by the pane's id. It is laid out in the pane's size divided by the
+`app-pane` (`constructor &key id zoom width height flex mode selected` and the
+size limits) is another app, working, in an area of this one: a designer
+showing the app being made. `(bolt:app-pane 'my-app:make-app :id :running
+:zoom 2 :flex 1)` makes the app the first time (and again if the constructor
+is another) and keeps it by the pane's id, wherever in the window the pane is
+described (a pane of one dock, then of another), so two app panes of a window
+need two ids. It is laid out in the pane's size divided by the
 zoom and drawn `:zoom` times larger, its text in fonts that size so that it is
 sharp. The pointer and the wheel over it, and the keys while it has the
 keyboard (a press gives it), are the inner app's, in its own points, and so is
@@ -518,6 +520,15 @@ the app in the pane, from its constructor: what its `state-let`s hold and
 what was done to its widgets (the keyboard, a caret, a scroll) are kept, as
 in a window. If it cannot be made, the one in the pane stays and the error is
 printed.
+
+With `:mode :design` the inner app is shown and given nothing: no press, key,
+wheel or move of the pointer, and nothing in it is hovered. A press on it picks
+the widget of a view (`define-view`) it is on, and `app-pane` returns the
+view's name and the widget's id as its second and third values on the frame
+of the press. The pane outlines the widget the pointer is over, and the one
+`:selected` names, a list of a view's name and a widget's id:
+`(bolt:app-pane 'my-app:make-app :id :running :mode :design :selected (list
+'my-app::sign-in :name))`. `:mode :run`, the default, is as above.
 
 `inspector-pane` (`target &key id flex`) is the inspector, in this window, of
 TARGET, an app in an `app-pane` as it returns it (or `nil`): Pick, then a press

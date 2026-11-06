@@ -133,13 +133,30 @@ its kind and id, for what the app gives it."
 
 (defconstant +least-stage+ 80 "The least a stage is made wide or tall.")
 
-(defun sized-stage (id width height draw drafts &key (scale 1))
+(defparameter +window-lights+ '("#ff5f57" "#febc2e" "#28c840")
+  "The colours of a window's three buttons, as a Mac draws them, for the bar over a stage.")
+
+(defun window-bar (title width)
+  "A window's bar, WIDTH points wide, over a stage: its three buttons, and TITLE."
+  (bolt:panel (:id :window-bar :width width :all 8 :radius 0 :color :panel)
+    (bolt:row (:id :window-bar-row :gap 10 :cross-align :center)
+      (bolt:canvas 52 12 (lambda (list context width height)
+                           (declare (ignore context width height))
+                           (loop :for color :in +window-lights+
+                                 :for x :from 0 :by 20
+                                 :do (bolt:push-rounded-rect list x 0 12 12 6
+                                                             (bolt:parse-color color))))
+                   :id :window-lights)
+      (bolt:label title :id :window-title :size 12 :color :dim-text))))
+
+(defun sized-stage (id width height draw drafts &key (scale 1) title)
   "DRAW, a function, on a stage WIDTH by HEIGHT points (BOLT:STAGE): what it draws is laid out at
 that size whatever room the pane gives it, and cut off where the pane ends. Over it, its width and
-height, each typed (and taken with Return) into a field; under its corner, a grip that drags its
-size. DRAFTS is a hash table of what is typed in the fields, by their ids. With SCALE, the size is
-in points of what is on the stage, which is shown SCALE times larger (an app in a pane at a zoom).
-Returns the width and height as the person left them."
+height, each typed (and taken with Return) into a field, and, with TITLE, a window's bar that says
+it; under its corner, a grip that drags its size. DRAFTS is a hash table of what is typed in the
+fields, by their ids. With SCALE, the size is in points of what is on the stage, which is shown
+SCALE times larger (an app in a pane at a zoom). Returns the width and height as the person left
+them."
   (let ((w width) (h height))
     (flet ((size-field (field value label)
              (let ((shown (gethash field drafts (princ-to-string (round value)))))
@@ -158,8 +175,12 @@ Returns the width and height as the person left them."
           (setf w (size-field :stage-width w :stage-width-label))
           (bolt:label "Height" :id :stage-height-label :color :dim-text)
           (setf h (size-field :stage-height h :stage-height-label)))
-        (bolt:stage (:id :stage :width (* w scale) :height (* h scale))
-          (funcall draw))
+        ;; The bar on the window, with nothing between them.
+        (bolt:column (:id :window :gap 0)
+          (when title
+            (window-bar title (* w scale)))
+          (bolt:stage (:id :stage :width (* w scale) :height (* h scale))
+            (funcall draw)))
         ;; The grip, under the stage's corner; dragged, the stage follows it.
         (bolt:row (:id :stage-grip-row :width (* w scale))
           (bolt:spacer)
@@ -404,19 +425,23 @@ widget's id."
   "The GUI designer's parts, each a function that draws one, all of one design and its history:
 (values toolbar left canvas right keys open-view about save). TOOLBAR takes :SHOWN NIL to draw no bar
 but still have the File menu, the dialogs and a view typed in an editor taken up, and :SAVE-BUTTON
-NIL to have no Save... of its own. LEFT is the widgets to add and the outline,
-CANVAS the view drawn, RIGHT the selected widget's options and the wiring, KEYS the shortcuts
-(Command-Z and Command-Shift-Z), described after the part that has the keyboard so that a text field
-undoes its own typing first. OPEN-VIEW is not drawn: it is called with the name of a view the image
-has, and the id of a widget in it, to open that view live with the widget selected. ABOUT is not
-drawn: it says what is being designed, as a property list of :name (the view's name), :package
-(its package's, as written), :file (the file it is saved to, or NIL), :live (the view of the image
-it is, while it is live, or NIL), :ids (its widgets' ids), :undo (how many steps Undo can take
-back), :status (what was last done, as the bar says it), :wires (how many of its widgets the code
-that draws it wires, while it is live) and :problems (what does not fit between the two, as
-sentences). SAVE is what Save... does, from elsewhere: to the view's own
-file, or with the dialog, which TOOLBAR draws. MAKE-DESIGNER puts them in a window; the studio puts
-them in panes."
+NIL to have no Save... of its own. LEFT is the widgets to add and the outline. CANVAS is the view
+drawn, on a stage of the size it is designed at; with :APP (a constructor, as APP-PANE takes) it is
+that app, running with its own data, at :ZOOM, in the :MODE APP-PANE takes (:design, the default:
+a press picks the widget of a view it is on, and opens that view if it is another), under a
+window's bar that says :TITLE; it returns the app running, or NIL. RIGHT is the selected widget's
+options and the wiring, KEYS the shortcuts (Command-Z and Command-Shift-Z), described after the
+part that has the keyboard so that a text field undoes its own typing first. OPEN-VIEW is not
+drawn: it is called with the name of a view the image has, and the id of a widget in it, to open
+that view live with the widget selected. ABOUT is not drawn: it says what is being designed, as a
+property list of :name (the view's name), :package (its package's, as written), :file (the file it
+is saved to, or NIL), :live (the view of the image it is, while it is live, or NIL), :selected (the
+id of the widget selected, or NIL), :width and :height (the stage's), :ids (its widgets' ids),
+:undo (how many steps Undo can take back), :status (what was last done, as the bar says it),
+:wires (how many of its widgets the code that draws it wires, while it is live) and :problems
+(what does not fit between the two, as sentences). SAVE is what Save... does, from elsewhere: to
+the view's own file, or with the dialog, which TOOLBAR draws. MAKE-DESIGNER puts them in a window;
+the studio puts them in panes."
   (bolt:state-let ((view (designer-view:form-node +sample+))
                    ;; What the view is called, which an app draws it by (the file's name, once
                    ;; saved), and the package that name is in (the app's), as written.
@@ -628,27 +653,41 @@ selected if given."
               (let ((chosen (outline view selected)))
                 (when chosen
                   (select chosen))))))
-        (lambda ()
-          (bolt:panel (:id :canvas-back :color :background :radius 0 :flex 1 :all 24)
-            (multiple-value-bind (w h)
-                (sized-stage
-                 :canvas-stage stage-w stage-h
-                 (lambda ()
-                   (multiple-value-bind (pressed drop)
-                       (bolt:design-surface (:id :canvas :selected selected)
-                         (catalogue:draw-form (designer-view:node-form view)))
-                     (when pressed
-                       (select pressed))
-                     ;; A widget from the left, or one of the view's own, let go of where it goes.
-                     (when drop
-                       (destructuring-bind (payload into at) drop
-                         (if (and (consp payload) (eq (first payload) :move))
-                             (change (designer-view:move-node view (second payload) into at))
-                             (let ((new (new-node view payload)))
-                               (change (designer-view:add-node view new :into into :at at))
-                               (select (designer-view:node-id new))))))))
-                 stage-drafts)
-              (setf stage-w w stage-h h))))
+        (lambda (&key app (zoom 1) (mode :design) title)
+          (let ((running nil))
+            (bolt:panel (:id :canvas-back :color :background :radius 0 :flex 1 :all 24)
+              (multiple-value-bind (w h)
+                  (sized-stage
+                   :canvas-stage stage-w stage-h
+                   (lambda ()
+                     (if app
+                         ;; The app, with its own data; designing, a press picks the widget of
+                         ;; the view it is on, as in the view drawn alone.
+                         (multiple-value-bind (instance picked widget)
+                             (bolt:app-pane app :id :running :zoom zoom :flex 1 :mode mode
+                                                :selected (and live selected (list live selected)))
+                           (setf running instance)
+                           (when picked
+                             (if (eq picked live)
+                                 (select widget)
+                                 (open-view picked widget))))
+                         (multiple-value-bind (pressed drop)
+                             (bolt:design-surface (:id :canvas :selected selected)
+                               (catalogue:draw-form (designer-view:node-form view)))
+                           (when pressed
+                             (select pressed))
+                           ;; A widget from the left, or one of the view's own, let go of where
+                           ;; it goes.
+                           (when drop
+                             (destructuring-bind (payload into at) drop
+                               (if (and (consp payload) (eq (first payload) :move))
+                                   (change (designer-view:move-node view (second payload) into at))
+                                   (let ((new (new-node view payload)))
+                                     (change (designer-view:add-node view new :into into :at at))
+                                     (select (designer-view:node-id new)))))))))
+                   stage-drafts :scale (if app zoom 1) :title title)
+                (setf stage-w w stage-h h)))
+            running))
         (lambda ()
           (let ((new view) (now selected) (edit nil))
             (bolt:panel (:id :right :radius 0)
@@ -678,7 +717,8 @@ selected if given."
             (unless (equal asked problems-asked)
               (setf problems-asked asked
                     problems (and live (views:wiring-problems live)))))
-          (list :name name :package package :file file :live live
+          (list :name name :package package :file file :live live :selected selected
+                :width stage-w :height stage-h
                 :ids (designer-view:all-ids view) :undo (length undo) :status status
                 :wires (if live
                            (count-if (lambda (id) (views:wired-keys live id)) (designer-view:all-ids view))

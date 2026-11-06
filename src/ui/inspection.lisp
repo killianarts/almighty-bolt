@@ -9,7 +9,8 @@
            #:inspection-take-input
            #:describe-outlines
            #:box-at
-           #:box-by-key))
+           #:box-by-key
+           #:walk-frame))
 
 (in-package #:almighty-bolt/ui/inspection)
 

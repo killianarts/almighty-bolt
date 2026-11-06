@@ -36,8 +36,9 @@ the reference and the release notes, and committed when `make test` passes.
 What 0.3 has, against the prototype:
 
 - **Have:** docked panes; the GUI designer's parts (catalogue, outline, canvas
-  on a stage of its own size, options, wiring stub); the running app in a pane,
-  at a zoom and at a size of its own; the inspector beside it; a widget picked
+  on a stage of its own size, options, wiring stub); the running app on the
+  canvas, at a zoom and at a size of its own, where a press picks its view's
+  widget; the inspector beside it; a widget picked
   in the running app opened in its view, live; the bridge to Emacs; the theme
   designer (seeds, worked-out colours, sizes, readability, the `define-theme`
   form, undo); the semantic tree and VoiceOver; the frame ring, the recorder,
@@ -47,10 +48,9 @@ What 0.3 has, against the prototype:
   a code view, its lines numbered and marked; the studio's own theme, light and
   dark; its shell: the title bar, the five modes as docks of their own, the
   rail, the section headers, the bottom panel and its REPL, and the status bar.
-- **Part:** the canvas and the running app are two panes, not one; options do
-  not say where their values come from; the frame ring, the recorder and the
-  kept state have no face; the theme designer previews widgets, not the app's
-  own view.
+- **Part:** options do not say where their values come from; the frame ring,
+  the recorder and the kept state have no face; the theme designer previews
+  widgets, not the app's own view.
 - **Missing:** vector icons, and the mark; colours for code's syntax; the panes
   of Wire, Debug and Agent; the timeline, time travel and the call tree.
 
@@ -109,7 +109,11 @@ user of.
     on a stage with a window's bar. In Design, a press picks the widget of the
     view it is on (`view-widget`) and does not reach the app, and a widget let
     go of goes into the view's container under it; in Run, the app has the
-    input. With no app running, the view is drawn with sample data.
+    input. With no app running, the view is drawn with sample data. (Done
+    but for the drop: the canvas pane has the app, under a window's bar, in
+    every mode, one app in all of them; `app-pane`'s `:mode :design` picks and
+    outlines; the App pane is gone. With no app, the view is drawn from its own
+    options.)
 11. **The canvas's bar:** the window's size, the zoom, the theme (the app drawn
     in a theme the studio picks), live or sample data, Design or Run, and
     Command-click to try a widget in Design.

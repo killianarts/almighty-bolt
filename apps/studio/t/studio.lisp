@@ -95,7 +95,7 @@ inside every clip it is in."
 
 (define-test the-app-in-the-app-pane-is-in-the-windows-theme-not-the-studios ()
   (multiple-value-bind (screen session) (open-studio)
-    (m:click session :id :run-pane)
+    (m:click session :id :canvas-pane)
     (m:set-value session "almighty-bolt-studio/t/studio:make-tiny" :id :app-name)
     (dolist (appearance '(:light :dark))
       (setf (core:context-appearance (screen-context screen)) appearance)
@@ -218,9 +218,12 @@ inside every clip it is in."
                    (pointer screen :down x y)
                    (pointer screen :up x y)
                    (dotimes (i 3) (draw screen)))))))
-      (m:click session :id :run-pane)
-      (assert-true (shown-p session :run-hint))
+      ;; With no app, the canvas has the view drawn alone.
+      (m:click session :id :canvas-pane)
+      (assert-false studio:*running*)
+      (assert-true (shown-p session :canvas))
       (m:set-value session "almighty-bolt-studio/t/studio:make-tiny" :id :app-name)
+      (m:set-value session "Run" :id :canvas-mode)
       (assert-true studio:*running*)
       (press-plus)
       (assert-equal "Count 1" (count-shown))
@@ -270,8 +273,9 @@ inside every clip it is in."
                      :while node :collect (s:node-name node))))
       (unwind-protect
            (progn
-             (m:click session :id :run-pane)
+             (m:click session :id :canvas-pane)
              (m:set-value session "almighty-bolt-studio/t/studio:make-viewed" :id :app-name)
+             (m:set-value session "Run" :id :canvas-mode)
              (press-plus)
              (assert-equal "Count 1" (s:node-name (inner :count)))
              ;; Picked in the running app: the inspector says which view drew it, and what of it the
@@ -287,8 +291,7 @@ inside every clip it is in."
              ;; the button selected.
              (m:click session :id :inspector-edit-view)
              (dotimes (i 2) (draw screen))
-             (assert-true (shown-p session :plus :canvas))
-             ;; The running app beside it, where what is edited shows.
+             ;; On the canvas, the running app, where what is edited shows.
              (assert-true (shown-p session :running))
              (assert-equal "Button :plus"
                            (s:node-name (m:find-node session :id :selected-what)))
@@ -317,10 +320,45 @@ inside every clip it is in."
   "What the studio asked Emacs to do since this was last asked, oldest first."
   (loop :for request = (emacs:next-request 0) :while request :collect request))
 
-(defun run-in-studio (session constructor)
-  (m:click session :id :run-pane)
+(defun run-in-studio (session constructor &key (mode "Run"))
+  "Run the app CONSTRUCTOR makes on the canvas, in MODE (\"Run\": the app has the presses)."
+  (m:click session :id :canvas-pane)
   (m:set-value session (format nil "almighty-bolt-studio/t/studio:~(~a~)" constructor)
-               :id :app-name))
+               :id :app-name)
+  (m:set-value session mode :id :canvas-mode))
+
+(defun press-in-running (screen id)
+  "Press the widget ID of the app running on the canvas, where the canvas shows it."
+  (multiple-value-bind (px py) (core:lookup-target (screen-app screen) :running)
+    (multiple-value-bind (x y w h) (core:lookup-target studio:*running* id)
+      (let ((x (+ px x (/ w 2))) (y (+ py y (/ h 2))))
+        (pointer screen :move x y)
+        (pointer screen :down x y)
+        (pointer screen :up x y)
+        (dotimes (i 3) (draw screen))))))
+
+(define-test on-the-canvas-a-press-picks-the-widget-of-its-view-and-in-run-is-the-apps ()
+  (multiple-value-bind (screen session) (open-studio)
+    (flet ((inner (id)
+             (s:node-name (first (s:find-nodes (core:accessibility-tree studio:*running*) :id id)))))
+      (unwind-protect
+           (progn
+             (run-in-studio session 'make-viewed :mode "Design")
+             (dotimes (i 3) (draw screen))
+             ;; Designing: the press picks the button, in its view, opened live; the app has none
+             ;; of it.
+             (press-in-running screen :plus)
+             (assert-equal "Count 0" (inner :count))
+             (assert-equal "Button :plus" (s:node-name (m:find-node session :id :selected-what)))
+             ;; Another widget of the view, picked as the view is live.
+             (press-in-running screen :count)
+             (assert-equal "Label :count" (s:node-name (m:find-node session :id :selected-what)))
+             ;; Run: the press is the app's, and the selection stays.
+             (m:set-value session "Run" :id :canvas-mode)
+             (press-in-running screen :plus)
+             (assert-equal "Count 1" (inner :count))
+             (assert-equal "Label :count" (s:node-name (m:find-node session :id :selected-what))))
+        (almighty-bolt/ui/views:set-view 'tiny-view *tiny-view*)))))
 
 (defun pick-in-running (screen session id)
   "Pick the widget ID of the running app with the inspector."
@@ -381,7 +419,7 @@ inside every clip it is in."
            (progn
              (run-in-studio session 'make-viewed)
              ;; Point on the button's clause, in Emacs: the view in the designer, the button
-             ;; selected, the running app beside it.
+             ;; selected, the running app on the canvas.
              (emacs:point-in-view "tiny-view" "almighty-bolt-studio/t/studio" "plus")
              (dotimes (i 3) (draw screen))
              (assert-equal "Button :plus" (s:node-name (m:find-node session :id :selected-what)))
@@ -396,7 +434,8 @@ inside every clip it is in."
                                              "almighty-bolt-studio/t/studio"))
              (dotimes (i 3) (draw screen))
              (assert-equal "Typed" (s:node-name (inner :plus)))
-             (assert-equal "Typed" (s:node-name (m:find-node session :id :plus :within :canvas)))
+             ;; The designer too: the button's words, in its options.
+             (assert-equal "Typed" (s:node-value (m:find-node session :id :option-text)))
              ;; Not sent back to Emacs, which has it.
              (assert-false (requests))
              ;; Undone in the designer (its button: the keyboard is in the App field, whose
@@ -479,16 +518,16 @@ inside every clip it is in."
                                                                    :within :canvas-stage)))
                         570))
         (assert-eql wide (field-width)))
-      ;; The app at its own size, as its window's would be, whatever the pane: and at 200%, the
-      ;; same size in its own points, shown twice as large.
+      ;; The app on the canvas, at the size the view was given there, as its window's would be,
+      ;; whatever the pane: and at 200%, the same size in its own points, shown twice as large.
       (run-in-studio session 'make-tiny)
-      (assert-eql 480f0 (app-width))
+      (assert-eql 570f0 (app-width))
       (m:set-value session "200%" :id :zoom)
       (dotimes (i 3) (draw screen))
-      (assert-eql 480f0 (app-width))
+      (assert-eql 570f0 (app-width))
       (resize screen 900)
-      (assert-eql 480f0 (app-width))
-      (assert-equal "480" (size-set :run-stage)))))
+      (assert-eql 570f0 (app-width))
+      (assert-equal "570" (size-set :canvas-stage)))))
 
 ;;; --- the title bar and the modes ---
 
@@ -563,9 +602,9 @@ inside every clip it is in."
     (assert-true (shown-p session :options-part))
     (assert-false (shown-p session :widgets-part))
     (to-mode session "DEBUG")
-    (assert-true (shown-p session :run-part))
+    (assert-true (shown-p session :canvas-part))
     (assert-true (shown-p session :inspecting))
-    (assert-false (shown-p session :canvas-part))
+    (assert-false (shown-p session :options-part))
     (to-mode session "THEME")
     (assert-true (shown-p session :preview-part))
     (assert-true (shown-p session :theme-part))
@@ -579,10 +618,10 @@ inside every clip it is in."
     (assert-false (shown-p session :options-part))
     ;; And in Theme, its app brought to the front, which Design does not change.
     (to-mode session "THEME")
-    (m:click session :id :run-pane)
+    (m:click session :id :canvas-pane)
     (to-mode session "DESIGN")
     (to-mode session "THEME")
-    (assert-true (shown-p session :run-part))
+    (assert-true (shown-p session :canvas-part))
     (assert-false (shown-p session :preview-part))))
 
 (define-test save-in-the-title-bar-saves-the-view-from-any-mode ()

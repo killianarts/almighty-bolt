@@ -1,5 +1,5 @@
 ;;;; Check, in a real window, the studio as a screen reader and a person's hands use it: the counter
-;;;; example run in the App pane, read through the system's accessibility API (AXUIElement, as
+;;;; example run on the canvas, read through the system's accessibility API (AXUIElement, as
 ;;;; VoiceOver reads it), pressed there at 100% and at 200%, made again when its code is compiled, and
 ;;;; a pane moved by its tab's menu, shown as VoiceOver's Show Menu shows it. From the repository
 ;;;; root:
@@ -70,11 +70,12 @@
         (session (host-session:open-session)))
     (flet ((find-it (identifier) (anywhere application identifier))
            (settle () (host:wait-for-idle host)))
-      ;; The counter, named in the App pane.
-      (m:click session :id :run-pane)
+      ;; The counter, named on the canvas.
+      (m:click session :id :canvas-pane)
       (m:set-value session "almighty-bolt-examples/counter:make-counter" :id :app-name)
+      (m:set-value session "Run" :id :canvas-mode)
       (settle)
-      (check "the counter runs in the App pane, and the system finds its button"
+      (check "the counter runs on the canvas, and the system finds its button"
              (wait-for (lambda () (find-it "count-button")) 5))
       (let ((button (find-it "count-button"))
             (pane (find-it "running")))

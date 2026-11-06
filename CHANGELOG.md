@@ -14,6 +14,8 @@ are not listed.
 
 ### Added
 
+- The studio's canvas is the app's window: the app running with its own data under a window's bar, where in Design a press picks the widget of its view and in Run is the app's ([0.3](docs/releases/dev.md#the-studios-canvas-is-the-apps-window)).
+- `:mode :design` and `:selected` on `app-pane`: the inner app shown and given nothing, a press returning the view and the widget it picked, outlined ([0.3](docs/releases/dev.md#the-studios-canvas-is-the-apps-window)).
 - `scroll` takes `:follow`: the window stays at the end while it is there, as more is put at the end ([0.3](docs/releases/dev.md#the-studios-repl)).
 - The studio's REPL, in the app's package, with what was printed and returned, errors, and the forms typed before on Up and Down ([0.3](docs/releases/dev.md#the-studios-repl)).
 - The studio's rail, section headers, bottom panel (REPL, problems, events, agent) and status bar ([0.3](docs/releases/dev.md#the-studios-rail-sections-bottom-panel-and-status-bar)).
@@ -72,6 +74,7 @@ are not listed.
 
 ### Changed
 
+- An `app-pane` is kept by its id wherever in the window it is described, so two app panes of one window need two ids ([0.3](docs/releases/dev.md#the-studios-canvas-is-the-apps-window)).
 - `context-push-text` takes an optional turn, so a method of it for a context of your own must take it too ([0.3](docs/releases/dev.md#context-push-text-takes-a-turn)).
 - A window whose frame fails shows the last frame that did not, with the error over it, and goes on, instead of failing again on every event ([0.3](docs/releases/dev.md#windowing)).
 - `make-session` takes `:app` where it took `:variant`, and `session-variant` is `session-app` ([0.3](docs/releases/dev.md#machine-interface)).
