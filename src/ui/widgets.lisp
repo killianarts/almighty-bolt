@@ -759,8 +759,8 @@ text nearest them and the character they are over."
                    (ui:consume-key ui event)
                    (let ((state (selection-state-state selection)))
                      (when (core:text-state-selection-p state)
-                          (core:context-set-clipboard-text (ui:ui-context ui)
-                                                           (core:text-state-selected-string state))))))))))
+                       (core:context-set-clipboard-text (ui:ui-context ui)
+                                                        (core:text-state-selected-string state))))))))))
     (setf (box:box-look box) (look-of ui key t))))
 
 (defun box-text-font (context box)
@@ -797,12 +797,12 @@ cannot be selectable."
     (when selectable
       (select-text ui box (ui:state-of ui (box:box-key box) #'make-selection-state)
                    (lambda (x y)
-                         (declare (ignore y))
-                         (let ((rect (ui:rect-of ui (box:box-key box)))
-                               (font (text-font ui box)))
-                           (if (and rect font)
-                               (index-at (ui:ui-context ui) font text (- x (ui:rect-x rect)))
-                               (values 0 0))))))
+                     (declare (ignore y))
+                     (let ((rect (ui:rect-of ui (box:box-key box)))
+                           (font (text-font ui box)))
+                       (if (and rect font)
+                           (index-at (ui:ui-context ui) font text (- x (ui:rect-x rect)))
+                           (values 0 0))))))
     (ui:close-box ui)
     nil))
 
@@ -2049,7 +2049,7 @@ space bar, Return and the arrows open the menu."
       (let ((chosen (menu ui key state options
                           (ui:make-float-spec :anchor box :placement :below
                                               :min-width (let ((rect (ui:rect-of ui key)))
-                                                             (if rect (ui:rect-w rect) 0f0)))
+                                                           (if rect (ui:rect-w rect) 0f0)))
                           :checked selected :max-rows max-rows)))
         (when chosen
           (setf new chosen))))
@@ -2092,7 +2092,7 @@ keyboard on it, the space bar, Return and the arrows open the menu."
       (let ((index (menu ui key state items
                          (ui:make-float-spec :anchor box :placement :below
                                              :min-width (let ((rect (ui:rect-of ui key)))
-                                                            (if rect (ui:rect-w rect) 0f0)))
+                                                          (if rect (ui:rect-w rect) 0f0)))
                          :max-rows max-rows)))
         (when index
           (setf chosen (nth index items)))))
@@ -2220,9 +2220,9 @@ whether it changed because a suggestion was taken."
       (setf (file-dialog-state-waiting state) t)
       (core:context-choose-file context kind types name
                                 (lambda (path)
-                                (setf (file-dialog-state-chosen state) path
-                                      (file-dialog-state-waiting state) nil)
-                                (core:request-frame context))))
+                                  (setf (file-dialog-state-chosen state) path
+                                        (file-dialog-state-waiting state) nil)
+                                  (core:request-frame context))))
     (let ((path (file-dialog-state-chosen state)))
       (when path
         (setf (file-dialog-state-chosen state) nil
@@ -2621,8 +2621,8 @@ frame to frame, as what is under the pointer changes."
       (loop
         (core:clear-display-list fragment)
         (handler-case (progn (core:with-painting ((ui:ui-context ui) id)
-                                  (funcall painter fragment (ui:ui-context ui) (float width 1f0)
-                                           (float height 1f0)))
+                               (funcall painter fragment (ui:ui-context ui) (float width 1f0)
+                                        (float height 1f0)))
                              (return))
           (almighty-bolt/internals:display-list-full ()
             (setf fragment (core:make-display-list
@@ -2754,12 +2754,12 @@ function."
               :for i :from 0
               :do (let* ((box (ui:open-box ui :toast :id i))
                          (key (box:box-key box)))
-                       (setf (box:box-text box) (car toast)
-                             (box:box-interactive box) t)
-                       (when (and (= (ui:ui-hot ui) key) (ui:ui-pressed ui))
-                           (ui:consume-press ui)
-                           (setf pressed toast))
-                       (ui:close-box ui)))
+                    (setf (box:box-text box) (car toast)
+                          (box:box-interactive box) t)
+                    (when (and (= (ui:ui-hot ui) key) (ui:ui-pressed ui))
+                      (ui:consume-press ui)
+                      (setf pressed toast))
+                    (ui:close-box ui)))
         (ui:close-float ui open)
         (when pressed
           (setf (ui:ui-toasts ui) (remove pressed (ui:ui-toasts ui))))

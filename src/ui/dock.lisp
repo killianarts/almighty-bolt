@@ -261,12 +261,12 @@ size))."
                          (when (drag:drag-source (:id key :payload (list :dock-pane key) :label title)
                                  (widgets:panel (:id :tab :left 10 :right 10 :top 4 :bottom 4 :radius 4
                                                  :color (if (equal key selected) :row-selected :panel))
-                                       ;; On the chosen tab's fill, in the colour words on it take.
-                                       (widgets:label title :id :title
-                                                            :color (and (equal key selected) :button-text))))
-                              ;; Chosen, its pane is shown, and its shortcuts heard.
-                              (setf new (list* :tabs key keys)
-                                    (dock-state-active *dock-state*) key)))))
+                                   ;; On the chosen tab's fill, in the colour words on it take.
+                                   (widgets:label title :id :title
+                                                        :color (and (equal key selected) :button-text))))
+                           ;; Chosen, its pane is shown, and its shortcuts heard.
+                           (setf new (list* :tabs key keys)
+                                 (dock-state-active *dock-state*) key)))))
             ;; Moved by its menu: as if it were let go of there.
             (when item
               (let ((side (cdr (assoc item *split-items* :test #'string=)))
@@ -342,10 +342,10 @@ size))."
       (when (ui:ui-pressed ui)
         (maphash (lambda (pane box-key)
                    (let ((rect (ui:rect-of ui box-key)))
-                             (when (and rect
-                                        (<= (ui:rect-x rect) (ui:ui-pointer-x ui) (+ (ui:rect-x rect) (ui:rect-w rect)))
-                                        (<= (ui:rect-y rect) (ui:ui-pointer-y ui) (+ (ui:rect-y rect) (ui:rect-h rect))))
-                           (setf (dock-state-active state) pane))))
+                     (when (and rect
+                                (<= (ui:rect-x rect) (ui:ui-pointer-x ui) (+ (ui:rect-x rect) (ui:rect-w rect)))
+                                (<= (ui:rect-y rect) (ui:ui-pointer-y ui) (+ (ui:rect-y rect) (ui:rect-h rect))))
+                       (setf (dock-state-active state) pane))))
                  (dock-state-pane-boxes state)))
       (unless (member (dock-state-active state) (dock-panes old) :test #'equal)
         (setf (dock-state-active state) (first (dock-panes old))))

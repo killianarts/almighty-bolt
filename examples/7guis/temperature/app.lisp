@@ -18,19 +18,19 @@
       (bolt:padding (:all 20)
         (bolt:row (:gap 10 :cross-align :center)
           (multiple-value-bind (text changed)
-                   (bolt:text-field celsius :id :celsius :labelled-by :celsius-label :width 100)
+              (bolt:text-field celsius :id :celsius :labelled-by :celsius-label :width 100)
             (when changed
-                   (setf celsius text)
-                   (let ((other (model:celsius-text->fahrenheit-text text)))
-                     (when other
+              (setf celsius text)
+              (let ((other (model:celsius-text->fahrenheit-text text)))
+                (when other
                   (setf fahrenheit other)))))
           (bolt:label "Celsius =" :id :celsius-label)
           (multiple-value-bind (text changed)
-                   (bolt:text-field fahrenheit :id :fahrenheit :labelled-by :fahrenheit-label :width 100)
+              (bolt:text-field fahrenheit :id :fahrenheit :labelled-by :fahrenheit-label :width 100)
             (when changed
-                   (setf fahrenheit text)
-                   (let ((other (model:fahrenheit-text->celsius-text text)))
-                     (when other
+              (setf fahrenheit text)
+              (let ((other (model:fahrenheit-text->celsius-text text)))
+                (when other
                   (setf celsius other)))))
           (bolt:label "Fahrenheit" :id :fahrenheit-label))))))
 

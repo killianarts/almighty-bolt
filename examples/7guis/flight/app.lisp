@@ -35,8 +35,8 @@
                       message "")))
             (multiple-value-bind (text changed)
                 (bolt:text-field return :id :return :width 160 :enabled return-enabled
-                                                :invalid (and return-enabled
-                                                              (not (model:date-text-valid-p return))))
+                                           :invalid (and return-enabled
+                                                         (not (model:date-text-valid-p return))))
               (when changed
                 (setf return text
                       message "")))

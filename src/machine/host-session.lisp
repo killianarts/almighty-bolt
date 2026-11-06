@@ -43,7 +43,7 @@ texture that nobody sees, between frames, on the main thread."
   "A session on the window of HOST (the machine interface's operations work on one)."
   (m:make-session :app (lambda () (host:host-app host))
                   :deliver (lambda (event)
-                           (main-queue:call-on-main (lambda () (host:host-deliver-event host event))))
+                             (main-queue:call-on-main (lambda () (host:host-deliver-event host event))))
                   :settle (lambda () (host:wait-for-idle host))
                   :on-main #'main-queue:call-on-main
                   :screenshot (lambda () (host-screenshot host))))

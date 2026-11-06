@@ -150,8 +150,8 @@ lay things out, with no id and no name, are left out and what is in them is not 
   (when text
     (let ((found nil))
       (s:walk-nodes (lambda (node)
-                    (when (and (null found) (s:node-id node) (string= (id-text (s:node-id node)) text))
-                      (setf found (s:node-id node))))
+                      (when (and (null found) (s:node-id node) (string= (id-text (s:node-id node)) text))
+                        (setf found (s:node-id node))))
                     (m:see session))
       (or found (error 'm:no-such-node
                        :message (format nil "There is nothing on the screen with the id ~a." text))))))

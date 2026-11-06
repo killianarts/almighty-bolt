@@ -90,31 +90,31 @@
 (defun quit ()
   "What Command-Q does."
   (main-queue:call-on-main (lambda ()
-                  (objc:msg-send :void (objc:msg-send :id (objc:objc-class "NSApplication") "sharedApplication")
-                                 "terminate:" (:id 0)))))
+                             (objc:msg-send :void (objc:msg-send :id (objc:objc-class "NSApplication") "sharedApplication")
+                                            "terminate:" (:id 0)))))
 
 (defun frame-of (host)
   "Where HOST's window is: x, y (down from the top of the screen's usable area), width and height."
   (main-queue:call-on-main (lambda ()
-                  (multiple-value-list
-                   (almighty-bolt/platform/macos/window:window-frame
-                    (almighty-bolt/platform/macos/host:host-window host))))))
+                             (multiple-value-list
+                              (almighty-bolt/platform/macos/window:window-frame
+                               (almighty-bolt/platform/macos/host:host-window host))))))
 
 (defun usable-width ()
   "The width and the left of the main screen's usable area."
   (main-queue:call-on-main (lambda ()
-                  (multiple-value-bind (x y w h)
-                      (objc:msg-send :rect (objc:msg-send :id (objc:objc-class "NSScreen") "mainScreen") "visibleFrame")
-                    (declare (ignore y h))
-                    (list x w)))))
+                             (multiple-value-bind (x y w h)
+                                 (objc:msg-send :rect (objc:msg-send :id (objc:objc-class "NSScreen") "mainScreen") "visibleFrame")
+                               (declare (ignore y h))
+                               (list x w)))))
 
 (defun near (a b) (< (abs (- a b)) 0.5))
 
 (defun command-option-i (host)
   (main-queue:call-on-main (lambda ()
-                  (host:host-deliver-event host (core:make-key-event :timestamp 0 :kind :down :logical-key #\i
-                                                                     :modifiers (logior core:+modifier-super+
-                                                                                        core:+modifier-alt+))))))
+                             (host:host-deliver-event host (core:make-key-event :timestamp 0 :kind :down :logical-key #\i
+                                                                                :modifiers (logior core:+modifier-super+
+                                                                                                   core:+modifier-alt+))))))
 
 (defun the-inspector-of (host)
   (find host (host:open-hosts) :key #'host:host-owner))
@@ -172,8 +172,8 @@
 (defun press-on (host id)
   "A press and release of the primary button in the middle of ID, where the last good frame had it."
   (destructuring-bind (x y w h) (main-queue:call-on-main (lambda ()
-                                                (multiple-value-list
-                                                 (core:lookup-target (host:host-app host) id))))
+                                                           (multiple-value-list
+                                                            (core:lookup-target (host:host-app host) id))))
     (let ((px (float (+ x (/ w 2)) 1d0)) (py (float (+ y (/ h 2)) 1d0)))
       (main-queue:call-on-main
        (lambda ()
@@ -247,14 +247,14 @@ there reaches it."
   (let ((window (bolt:open-window 'make-with-file-menu :title "Menus" :width 240 :height 80)))
     (wait-for (lambda () (plusp (frames window))))
     (main-queue:call-on-main (lambda () (objc:msg-send :void (almighty-bolt/platform/macos/window:window-object
-                                               (host:host-window window))
+                                                               (host:host-window window))
                                                        "makeKeyAndOrderFront:" (:id 0))))
     (host:request-host-frame window)
     (check "the menu bar has the app's File menu, between the application's and Edit"
            (wait-for (lambda ()
                        (main-queue:call-on-main
                         (lambda ()
-                                     (let ((titles (menu-titles (objc:msg-send :id (objc:msg-send :id (objc:objc-class "NSApplication") "sharedApplication") "mainMenu"))))
+                          (let ((titles (menu-titles (objc:msg-send :id (objc:msg-send :id (objc:objc-class "NSApplication") "sharedApplication") "mainMenu"))))
                             (let ((file (position "File" titles :test #'string=))
                                   (edit (position "Edit" titles :test #'string=)))
                               (and file edit (< 0 file edit))))))))

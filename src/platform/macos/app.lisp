@@ -205,10 +205,10 @@ this returns, and it can be called again for another window."
 (defun quit-application ()
   "End the application, and the process with it. Safe from any thread."
   (main-queue:run-on-main (lambda ()
-                 (objc:msg-send :void (shared-application) "terminate:" (:id 0)))))
+                            (objc:msg-send :void (shared-application) "terminate:" (:id 0)))))
 
 (defun stop-application ()
   "Make RUN-APPLICATION return, whatever started it, leaving the process alone and the windows
 as they are. Safe from any thread."
   (main-queue:run-on-main (lambda ()
-                 (stop-event-loop (shared-application)))))
+                            (stop-event-loop (shared-application)))))

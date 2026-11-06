@@ -17,7 +17,7 @@
                    (duration 10d0)
                    (last-time nil))
     (flet ((timer ()
-                  (model:make-timer :duration duration :elapsed elapsed)))
+             (model:make-timer :duration duration :elapsed elapsed)))
       (lambda ()
         (let ((now (bolt:now)))
           (cond ((model:timer-running-p (timer))
@@ -38,9 +38,9 @@
             (bolt:row (:gap 12 :cross-align :center)
               (bolt:label "Duration:" :id :duration-caption)
               (multiple-value-bind (new changed)
-                       (bolt:slider duration 1 30 :id :duration :labelled-by :duration-caption :width 240)
+                  (bolt:slider duration 1 30 :id :duration :labelled-by :duration-caption :width 240)
                 (when changed
-                       (setf duration new)))
+                  (setf duration new)))
               (bolt:label (model:format-seconds duration) :id :duration-label))
             (when (bolt:button "Reset" :id :reset)
               (setf elapsed 0d0

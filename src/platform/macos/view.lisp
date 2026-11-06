@@ -89,15 +89,15 @@ high-contrast dark appearance is dark too.)"
   "The NSCursor for SHAPE, one of the context's cursors."
   (objc:msg-send :id (objc:objc-class "NSCursor")
                  (ecase shape
-              (:arrow "arrowCursor")
-              (:text "IBeamCursor")
-              (:pointing-hand "pointingHandCursor")
-              (:crosshair "crosshairCursor")
-              (:open-hand "openHandCursor")
-              (:closed-hand "closedHandCursor")
-              (:not-allowed "operationNotAllowedCursor")
-              (:resize-left-right "resizeLeftRightCursor")
-              (:resize-up-down "resizeUpDownCursor"))))
+                   (:arrow "arrowCursor")
+                   (:text "IBeamCursor")
+                   (:pointing-hand "pointingHandCursor")
+                   (:crosshair "crosshairCursor")
+                   (:open-hand "openHandCursor")
+                   (:closed-hand "closedHandCursor")
+                   (:not-allowed "operationNotAllowedCursor")
+                   (:resize-left-right "resizeLeftRightCursor")
+                   (:resize-up-down "resizeUpDownCursor"))))
 
 (defun set-view-cursor (view shape)
   "Give the pointer SHAPE while it is over VIEW. Call on the main thread."
@@ -530,4 +530,4 @@ view when the system goes dark or light (VIEW-APPEARANCE says which). Call on th
 (defun request-draw (view)
   "Ask VIEW to draw one frame. Safe from any thread."
   (main-queue:run-on-main (lambda ()
-                 (objc:msg-send :void (metal-view-object view) "setNeedsDisplay:" (:bool t)))))
+                            (objc:msg-send :void (metal-view-object view) "setNeedsDisplay:" (:bool t)))))

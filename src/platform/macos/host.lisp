@@ -88,8 +88,8 @@ copied is kept in the context and the person's clipboard is never touched."
   ;; of its own.
   (if (mac-context-windowed context)
       (main-queue:run-on-main-in-a-turn (lambda ()
-                           (funcall callback (panel:run-file-panel (panel:make-file-panel kind :types types
-                                                                                               :name name)))))
+                                      (funcall callback (panel:run-file-panel (panel:make-file-panel kind :types types
+                                                                                                          :name name)))))
       (call-next-method)))
 
 (defmethod app-instance:context-set-clipboard-text ((context mac-context) string)
@@ -659,7 +659,7 @@ RUN-HOST's."
          (device (device:default-device))
          (window (window:make-window :title title :width width :height height
                                      :event-handler (lambda (event)
-                                               (host-deliver-event host event))
+                                                      (host-deliver-event host event))
                                      :on-close (lambda () (window-closing host))))
          (view (view:make-metal-view :device device :width width :height height
                                      ;; Read when asked, from the app the host has then: the app

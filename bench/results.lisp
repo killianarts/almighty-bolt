@@ -171,11 +171,11 @@ ring, one for each frame (see +RING-COLUMNS+)."
                                :display-list (host:host-display-list host)
                                :frame-function
                                (lambda ()
-                                        (objc:with-autorelease-pool
+                                 (objc:with-autorelease-pool
                                    (host:run-frame host (core:context-width context)
                                                    (core:context-height context)
                                                    (core:context-scale context)))
-                                        (let ((last (1- (core:frame-ring-count ring))))
+                                 (let ((last (1- (core:frame-ring-count ring))))
                                    (values (core:frame-builds ring last)
                                            (core:frame-capped-p ring last)))))))
       (values result (loop :for i :below (core:frame-ring-count ring) :collect (frame-row ring i))))))

@@ -244,11 +244,11 @@ Returns the command buffer. Must run inside an autorelease pool."
                  (w (aref scissors (+ (* 4 run) 2)))
                  (h (aref scissors (+ (* 4 run) 3))))
              (when (and (plusp w) (plusp h))
-                    (set-scissor encoder x y w h)
-                    (objc:msg-send :void encoder
-                                   "drawPrimitives:vertexStart:vertexCount:instanceCount:baseInstance:"
-                                   (:ulong 4) (:ulong 0) (:ulong 4)
-                                   (:ulong (aref counts run)) (:ulong (aref firsts run)))))))))
+               (set-scissor encoder x y w h)
+               (objc:msg-send :void encoder
+                              "drawPrimitives:vertexStart:vertexCount:instanceCount:baseInstance:"
+                              (:ulong 4) (:ulong 0) (:ulong 4)
+                              (:ulong (aref counts run)) (:ulong (aref firsts run)))))))))
     (objc:msg-send :void encoder "endEncoding")
     (unless (zerop drawable)
       (objc:msg-send :void buffer "presentDrawable:" (:id drawable)))

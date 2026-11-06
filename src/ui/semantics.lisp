@@ -289,33 +289,33 @@ shows; one that is all out of sight is :hidden, with no width or height."
          (value (value-of box))
          (state (state-of ui box x y hidden))
          (children (cond
-                         ;; A pressable is one thing to press, named by its words: what is in it is left
-                         ;; out, but for what can be pressed or typed into in its own right.
-                         ((eq (box:box-kind box) :pressable)
-                          (labels ((pressed-inside (box x y)
+                     ;; A pressable is one thing to press, named by its words: what is in it is left
+                     ;; out, but for what can be pressed or typed into in its own right.
+                     ((eq (box:box-kind box) :pressable)
+                      (labels ((pressed-inside (box x y)
                                  (loop :for child :across (box:box-children box)
                                        :append (if (box:box-interactive child)
                                                    (list (node-of ui child x y left top right bottom))
                                                    (pressed-inside child (+ x (box:box-x child))
                                                                    (+ y (box:box-y child)))))))
                         (pressed-inside box x y)))
-                         ;; An app in a pane: its own tree, where the pane shows it.
-                         ((and (eq (box:box-kind box) :canvas) (app-pane:app-pane-inside ui (box:box-key box)))
-                          (multiple-value-bind (instance zoom focused) (app-pane:app-pane-inside ui (box:box-key box))
+                     ;; An app in a pane: its own tree, where the pane shows it.
+                     ((and (eq (box:box-kind box) :canvas) (app-pane:app-pane-inside ui (box:box-key box)))
+                      (multiple-value-bind (instance zoom focused) (app-pane:app-pane-inside ui (box:box-key box))
                         (let ((inner (core:accessibility-tree instance)))
-                              (and inner
-                                   (list (graft inner x y zoom shown-left shown-top
-                                                (+ shown-left shown-w) (+ shown-top shown-h)
-                                                focused))))))
-                         ;; What shows of it: a stage cuts off what is laid out past its edges.
-                         ((member (box:box-kind box) '(:scroll :lazy-list :stage))
-                          (loop :for child :across (box:box-children box)
-                                :collect (node-of ui child x y shown-left shown-top
-                                                  (+ shown-left shown-w) (+ shown-top shown-h))))
-                         ;; A spacer is room and nothing more, and says nothing to anyone.
-                         (t (loop :for child :across (box:box-children box)
-                                  :unless (eq (box:box-kind child) :spacer)
-                                    :collect (node-of ui child x y left top right bottom))))))
+                          (and inner
+                               (list (graft inner x y zoom shown-left shown-top
+                                            (+ shown-left shown-w) (+ shown-top shown-h)
+                                            focused))))))
+                     ;; What shows of it: a stage cuts off what is laid out past its edges.
+                     ((member (box:box-kind box) '(:scroll :lazy-list :stage))
+                      (loop :for child :across (box:box-children box)
+                            :collect (node-of ui child x y shown-left shown-top
+                                              (+ shown-left shown-w) (+ shown-top shown-h))))
+                     ;; A spacer is room and nothing more, and says nothing to anyone.
+                     (t (loop :for child :across (box:box-children box)
+                              :unless (eq (box:box-kind child) :spacer)
+                                :collect (node-of ui child x y left top right bottom))))))
     (append (and id (list :id id))
             (list :role (role-of box))
             (and name (list :name name))

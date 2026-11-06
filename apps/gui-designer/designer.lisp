@@ -266,9 +266,9 @@ Returns the id of the one chosen there, on the frame it is, or NIL."
             (bolt:tree (list view) :id :outline-tree :width 260 :children #'designer-view:node-children
                                         :key (lambda (node) (row-key (designer-view:node-id node)))
                                         :label (lambda (node)
-                                                               (format nil "~a ~(~s~)"
-                                                                       (catalogue:entry-title (catalogue:find-entry (designer-view:node-kind node)))
-                                                                       (designer-view:node-id node)))
+                                                 (format nil "~a ~(~s~)"
+                                                         (catalogue:entry-title (catalogue:find-entry (designer-view:node-kind node)))
+                                                         (designer-view:node-id node)))
                                         :selected (and selected (row-key selected))
                                         :labelled-by :outline-heading)
           (when changed

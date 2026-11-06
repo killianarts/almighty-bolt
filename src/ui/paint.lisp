@@ -162,8 +162,8 @@ is when its selection shows."
               (flet ((underline (a b thickness)
                        (let ((a (max a start)) (b (min b end)))
                          (when (< a b)
-                                (core:push-rect list (x-at a) (+ y pad ascent 2) (- (x-at b) (x-at a))
-                                                thickness (theme:theme-text theme:*theme*))))))
+                           (core:push-rect list (x-at a) (+ y pad ascent 2) (- (x-at b) (x-at a))
+                                           thickness (theme:theme-text theme:*theme*))))))
                 (underline from to 1f0)
                 (underline chosen-from chosen-to 2f0))))
           (when (and focused (not (core:text-state-selection-p state))
@@ -245,8 +245,8 @@ is when its selection shows."
                           (flet ((underline (a b thickness)
                                    (let ((a (max a start)) (b (min b end)))
                                      (when (< a b)
-                                            (core:push-rect list (x-at a) (+ top ascent 2) (- (x-at b) (x-at a))
-                                                            thickness (theme:theme-text theme:*theme*))))))
+                                       (core:push-rect list (x-at a) (+ top ascent 2) (- (x-at b) (x-at a))
+                                                       thickness (theme:theme-text theme:*theme*))))))
                             (underline marked-from marked-to 1f0)
                             (underline chosen-from chosen-to 2f0)))))))
       (when (and focused (not (core:text-state-selection-p state)) (plusp (length lines)))
@@ -337,8 +337,8 @@ which has a bar of the selection's colour under it (the ring's when the bar has 
             :do (let ((left (+ x (svref (widgets:choice-state-lefts state) i)))
                       (width (svref (widgets:choice-state-widths state) i)))
                   (when (= i selected)
-                         (core:push-rect list (+ left 4) (+ y h -3) (- width 8) 3
-                                         (if focused (theme:theme-ring theme:*theme*) (theme:theme-row-selected theme:*theme*))))
+                    (core:push-rect list (+ left 4) (+ y h -3) (- width 8) 3
+                                    (if focused (theme:theme-ring theme:*theme*) (theme:theme-row-selected theme:*theme*))))
                   (core:context-push-text context list font option
                                           (+ left (/ (- width (core:context-measure context font option)) 2))
                                           (+ y (/ (- h (+ ascent 4f0)) 2) ascent)
@@ -728,9 +728,9 @@ the pointer and more so pressed; with the ring when it has the keyboard."
                        ((= (box:box-n2 box) 1f0) (theme:button-color theme:*theme* state))
                        (t (let ((base (or (box:box-color box) (theme:theme-panel theme:*theme*))))
                             (case state
-                                  (:hover (theme:mix-colors base (theme:theme-text theme:*theme*) 0.08))
-                                  (:pressed (theme:mix-colors base (theme:theme-text theme:*theme*) 0.16))
-                                  (t base)))))))
+                              (:hover (theme:mix-colors base (theme:theme-text theme:*theme*) 0.08))
+                              (:pressed (theme:mix-colors base (theme:theme-text theme:*theme*) 0.16))
+                              (t base)))))))
       (when focused
         (core:push-rounded-rect list (- x 2) (- y 2) (+ w 4) (+ h 4) (+ radius 2) (theme:theme-ring theme:*theme*)))
       (core:push-rounded-rect list x y w h radius fill))))

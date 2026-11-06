@@ -216,8 +216,8 @@ keyboard: it goes there when the dialog comes, and Tab goes round inside it."
                (not (and (ui:ui-click-focused ui)
                          (loop :for i :below (ui:ui-hit-count ui)
                                :thereis (let ((hit (aref (ui:ui-hits ui) i)))
-                                             (and (= (ui:hit-key hit) (ui:ui-focus ui))
-                                                  (= (ui:hit-layer hit) modal)))))))
+                                          (and (= (ui:hit-key hit) (ui:ui-focus ui))
+                                               (= (ui:hit-layer hit) modal)))))))
       (setf (ui:ui-focus ui) (first keys)
             (ui:ui-click-focused ui) nil))
     (when direction

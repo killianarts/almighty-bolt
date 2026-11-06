@@ -196,13 +196,13 @@ and height."
 (defun close-window (window)
   "Close WINDOW as if the user had pressed its close button. Safe from any thread."
   (main-queue:run-on-main (lambda ()
-                 (objc:msg-send :void (window-object window) "performClose:" (:id 0)))))
+                            (objc:msg-send :void (window-object window) "performClose:" (:id 0)))))
 
 (defun resize-window-content (window width height)
   "Resize WINDOW so that its content is WIDTH by HEIGHT points. Safe from any thread."
   (main-queue:run-on-main (lambda ()
-                 (objc:msg-send :void (window-object window) "setContentSize:"
-                                (:size width height)))))
+                            (objc:msg-send :void (window-object window) "setContentSize:"
+                                           (:size width height)))))
 
 (defun window-number (window)
   "The window server's number for WINDOW, as events carry it."

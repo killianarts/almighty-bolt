@@ -304,7 +304,7 @@ them in the boxes, and return the width and height."
        (set-box box (if (< max-w core:+unbounded+) max-w min-w) (if (< max-h core:+unbounded+) max-h min-h)))
       (:switch
        (set-box box (core:constrain (+ widgets:+switch-width+ 8f0 (float (core:context-measure context (widgets:ui-font context box)
-                                                                                         (box:box-text box))
+                                                                                           (box:box-text box))
                                                                           1f0))
                                     min-w max-w)
                 (core:constrain (theme:theme-control-height theme:*theme*) min-h max-h)))
@@ -312,7 +312,7 @@ them in the boxes, and return the width and height."
        (set-box box (core:constrain (box:box-pref-w box) min-w max-w) (core:constrain (box:box-pref-h box) min-h max-h)))
       (:checkbox
        (set-box box (core:constrain (+ widgets:+dot-size+ 6f0 (float (core:context-measure context (widgets:ui-font context box)
-                                                                                    (box:box-text box))
+                                                                                       (box:box-text box))
                                                                       1f0))
                                     min-w max-w)
                 (core:constrain (theme:theme-control-height theme:*theme*) min-h max-h)))

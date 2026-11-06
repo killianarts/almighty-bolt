@@ -131,7 +131,7 @@ the player knows of time is still the script's, and the host's ring is on the re
     (when (getf header :scale) (setf (app-instance:context-scale context) (float (getf header :scale) 1f0)))
     (setf (app-instance:context-frame-requested context) nil
           (app-instance:context-requester context) (lambda (context)
-                                        (setf (app-instance:context-frame-requested context) t)))
+                                                     (setf (app-instance:context-frame-requested context) t)))
     (unwind-protect
          (let ((clock:*time-source* (clock:virtual-clock-source clock)))
            (labels ((now () (clock:virtual-clock-ns clock))
@@ -145,14 +145,14 @@ the player knows of time is still the script's, and the host's ring is on the re
                                   (if frame-function
                                       (funcall frame-function)
                                       (settle:settle-frame instance context list)))
-                                    (when measure
+                              (when measure
                                 (vector-push-extend
                                  (list (- (clock:real-time-source) start) n
                                        (- (sb-ext:get-bytes-consed) consed)
                                        event-ns event-bytes events)
                                  samples)
                                 (setf event-ns 0 event-bytes 0 events 0))
-                                    (values n capped-p)))
+                              (values n capped-p)))
                         (incf frames)
                         (incf builds n)
                         (when capped-p (incf capped))
@@ -218,10 +218,10 @@ the player knows of time is still the script's, and the host's ring is on the re
                         :entries (loop :for entry :in (script:script-entries script)
                                        :collect entry
                                        :unless (eq (first (script:entry-form entry)) :checkpoint)
-                                  :collect (list (script:entry-time entry)
-                                                 (list :checkpoint
-                                                       :name (format nil "after entry ~d"
-                                                                     (incf index))))))))
+                                         :collect (list (script:entry-time entry)
+                                                        (list :checkpoint
+                                                              :name (format nil "after entry ~d"
+                                                                            (incf index))))))))
 
 (defun freeze-checkpoints (script result)
   "SCRIPT with the hash of each of its checkpoints set to what RESULT, a replay of it, found.

@@ -15,19 +15,19 @@
 (defun make-rows-app ()
   (bolt:state-let ((top 0) (selected nil) (remainder 0f0) (dragging nil))
     (labels ((draw (list context width height)
-                    (paint:paint-rows context list 0f0 0f0 width height top selected))
+               (paint:paint-rows context list 0f0 0f0 width height top selected))
              (handle (event)
-                    (ecase (first event)
+               (ecase (first event)
                  (:press
                   (destructuring-bind (x y button click-count) (rest event)
                     (declare (ignore click-count))
                     (when (eql button 0)
-                           (cond ((model:on-bar-p x)
-                                  (setf dragging t
-                                        top (model:top-for-thumb y)))
-                                 (t (let ((row (model:row-at x y top)))
+                      (cond ((model:on-bar-p x)
+                             (setf dragging t
+                                   top (model:top-for-thumb y)))
+                            (t (let ((row (model:row-at x y top)))
                                  (when row
-                                        (setf selected row))))))))
+                                   (setf selected row))))))))
                  (:drag
                   (when dragging
                     (setf top (model:top-for-thumb (third event)))))
@@ -40,7 +40,7 @@
                  (:key
                   (let ((key-event (second event)))
                     (when (eq (bolt:key-event-kind key-event) :down)
-                           (multiple-value-bind (new-selected new-top handled)
+                      (multiple-value-bind (new-selected new-top handled)
                           (model:key-move (bolt:key-event-logical-key key-event) selected top)
                         (when handled
                           (setf selected new-selected

@@ -172,12 +172,12 @@ widgets hold, is kept."
         (finish-output))
       (unwind-protect
            (host:run-host object :title (registry:app-title app) :width (registry:app-width app)
-                                        :height (registry:app-height app)
-                                        :kept-state state
-                                        :driver (cond (smoke #'smoke-check)
-                                                      (measure #'measure-driver))
-                                        :rebuild (and hot
-                                                      (lambda () (make-task-app task log))))
+                               :height (registry:app-height app)
+                               :kept-state state
+                               :driver (cond (smoke #'smoke-check)
+                                             (measure #'measure-driver))
+                               :rebuild (and hot
+                                             (lambda () (make-task-app task log))))
         (when sources
           (sources:stop-watching-files sources))))))
 

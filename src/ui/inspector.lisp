@@ -152,10 +152,10 @@ that can be changed has. What went wrong is shown when ACT says so."
         (when (widgets:button "Set" :id :inspector-set)
           (if (eq role :slider)
               (let ((number (number-in (inspector-draft inspector))))
-                        (if number
-                            (ask inspector :set-value number)
-                            (setf (inspector-message inspector)
-                                  (format nil "~s is not a number." (inspector-draft inspector)))))
+                (if number
+                    (ask inspector :set-value number)
+                    (setf (inspector-message inspector)
+                          (format nil "~s is not a number." (inspector-draft inspector)))))
               (ask inspector :set-value (inspector-draft inspector))))))
     ;; A button for each of the options of a choice or a dropdown, or the items of a list.
     (let ((options (or (getf state :options) (getf state :items))))
@@ -164,8 +164,8 @@ that can be changed has. What went wrong is shown when ACT says so."
           (loop :for option :in options
                 :for i :from 0
                 :do (when (widgets:button (format nil "Choose ~a" option) :id (list :inspector-option i))
-                              ;; A dropdown is set by the words of its row, a choice or a list by the index.
-                              (ask inspector :set-value (if (eq role :pop-up-button) option i)))))))))
+                      ;; A dropdown is set by the words of its row, a choice or a list by the index.
+                      (ask inspector :set-value (if (eq role :pop-up-button) option i)))))))))
 
 (defun setting-named (words)
   "The setting of a theme (one of +THEME-SETTINGS+) that WORDS name, with or without a colon, or NIL."
@@ -221,19 +221,19 @@ the theme written down."
           (widgets:paragraph (if key
                                  (format nil "~a is ~a now." (shown key)
                                          (let ((value (theme:theme-setting (theme:find-theme name) key)))
-                                   (if (member key theme:+theme-colors+)
-                                       (theme:color-hex value)
-                                       (shown value))))
+                                           (if (member key theme:+theme-colors+)
+                                               (theme:color-hex value)
+                                               (shown value))))
                                  "No setting yet.")
                              :id :inspector-setting-now)
           (when (widgets:button "Change the theme" :id :inspector-change-theme)
             (setf (inspector-message inspector)
                   (if key
                       (handler-case
-                                  (progn (theme:change-theme-setting
-                                          name key (setting-value key (inspector-setting-value-draft inspector)))
-                                         nil)
-                                (error (condition) (princ-to-string condition)))
+                          (progn (theme:change-theme-setting
+                                  name key (setting-value key (inspector-setting-value-draft inspector)))
+                                 nil)
+                        (error (condition) (princ-to-string condition)))
                       (format nil "A theme has no setting called ~s."
                               (inspector-setting-draft inspector)))))
           ;; Written down, to be copied into the app's code.
@@ -275,43 +275,43 @@ known of the picked widget from the app's last frame."
           (widgets:column (:id :inspector-column :gap 10)
             (widgets:label "Inspector" :id :inspector-title :size 18)
             (cond
-                      ((null ui)
-                       (widgets:paragraph "The app's window is closed." :id :inspector-hint))
-                      (t
-                       (when (widgets:button (if (ui:inspection-picking inspection) "Stop picking" "Pick")
-                                             :id :inspector-pick)
-                         (setf (ui:inspection-picking inspection) (not (ui:inspection-picking inspection))))
-                       (cond ((ui:inspection-picking inspection)
-                              (widgets:paragraph "Press a widget in the app's window to pick it. Escape stops."
-                                                 :id :inspector-hint))
-                             ((zerop (ui:inspection-picked inspection))
-                              (widgets:paragraph "Press Pick, then a widget." :id :inspector-hint))
-                             ((null (inspector-facts inspector))
-                              (widgets:paragraph "What was picked is not on the screen now." :id :inspector-hint))
-                             (t
-                              (widgets:column (:id :inspector-facts :gap 4)
-                                (loop :for line :in (fact-lines (inspector-facts inspector))
-                                      :for i :from 0
-                                      :do (widgets:paragraph line :id (list :inspector-fact i))))
-                              (let ((facts (inspector-facts inspector)))
-                                (when (and (getf facts :view) (inspector-edit-view inspector)
-                                           (widgets:button "Edit in the View" :id :inspector-edit-view))
-                                          (funcall (inspector-edit-view inspector)
-                                                   (getf facts :view) (getf facts :view-widget)))
-                                ;; Its source, in an editor: the view's clause or the code that drew it, and
-                                ;; where the code wires it.
-                                (when (inspector-edit-source inspector)
-                                          (flet ((show (what)
-                                                   (setf (inspector-message inspector)
-                                                         (funcall (inspector-edit-source inspector) what facts))))
-                                    (widgets:row (:id :inspector-source-row :gap 8)
-                                      (when (widgets:button "Edit Source" :id :inspector-edit-source)
-                                                (show (if (getf facts :view) :view :code)))
-                                      (when (and (getf facts :view) (getf facts :wired)
-                                                 (widgets:button "Edit Wiring" :id :inspector-edit-wiring))
-                                                (show :wiring))))))
-                              (describe-changes inspector)
-                              ;; What went wrong with the last change, if anything, under what changes.
-                              (when (inspector-message inspector)
-                                (widgets:paragraph (inspector-message inspector) :id :inspector-message))
-                              (describe-theme-change inspector)))))))))))
+              ((null ui)
+               (widgets:paragraph "The app's window is closed." :id :inspector-hint))
+              (t
+               (when (widgets:button (if (ui:inspection-picking inspection) "Stop picking" "Pick")
+                                     :id :inspector-pick)
+                 (setf (ui:inspection-picking inspection) (not (ui:inspection-picking inspection))))
+               (cond ((ui:inspection-picking inspection)
+                      (widgets:paragraph "Press a widget in the app's window to pick it. Escape stops."
+                                         :id :inspector-hint))
+                     ((zerop (ui:inspection-picked inspection))
+                      (widgets:paragraph "Press Pick, then a widget." :id :inspector-hint))
+                     ((null (inspector-facts inspector))
+                      (widgets:paragraph "What was picked is not on the screen now." :id :inspector-hint))
+                     (t
+                      (widgets:column (:id :inspector-facts :gap 4)
+                        (loop :for line :in (fact-lines (inspector-facts inspector))
+                              :for i :from 0
+                              :do (widgets:paragraph line :id (list :inspector-fact i))))
+                      (let ((facts (inspector-facts inspector)))
+                        (when (and (getf facts :view) (inspector-edit-view inspector)
+                                   (widgets:button "Edit in the View" :id :inspector-edit-view))
+                          (funcall (inspector-edit-view inspector)
+                                   (getf facts :view) (getf facts :view-widget)))
+                        ;; Its source, in an editor: the view's clause or the code that drew it, and
+                        ;; where the code wires it.
+                        (when (inspector-edit-source inspector)
+                          (flet ((show (what)
+                                   (setf (inspector-message inspector)
+                                         (funcall (inspector-edit-source inspector) what facts))))
+                            (widgets:row (:id :inspector-source-row :gap 8)
+                              (when (widgets:button "Edit Source" :id :inspector-edit-source)
+                                (show (if (getf facts :view) :view :code)))
+                              (when (and (getf facts :view) (getf facts :wired)
+                                         (widgets:button "Edit Wiring" :id :inspector-edit-wiring))
+                                (show :wiring))))))
+                      (describe-changes inspector)
+                      ;; What went wrong with the last change, if anything, under what changes.
+                      (when (inspector-message inspector)
+                        (widgets:paragraph (inspector-message inspector) :id :inspector-message))
+                      (describe-theme-change inspector)))))))))))
