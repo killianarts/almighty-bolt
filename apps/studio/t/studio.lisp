@@ -1411,6 +1411,8 @@ its spaces, with START."
              (m:click session :id (list :wire-row :go))
              ;; What is typed is completed by the names of the code's package.
              (m:set-value session ":on-press (bump-sa" :id :wire-inline)
+             ;; Not marked wrong while it is typed.
+             (assert-false (s:node-property (m:find-node session :id :wire-inline) :invalid))
              (m:click session :id (list :completion "bump-said"))
              (assert-equal ":on-press (bump-said" (s:node-value (m:find-node session :id :wire-inline)))
              ;; What does not read is marked, and Return writes nothing.

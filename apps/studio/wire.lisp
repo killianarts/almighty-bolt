@@ -467,23 +467,31 @@ value), VALUE as written; or NIL."
                     (start (last-word draft))
                     (names (and code (code-edit:completions (subseq draft start) package))))
                (multiple-value-bind (text edited entered)
+                   ;; Marked when Return found it does not read, not while it is typed (a clause half
+                   ;; typed never reads), until it is typed again.
                    (bolt:text-field draft :id :wire-inline :width 200 :font :code :enabled code
-                                          :invalid (and (plusp (length draft))
-                                                        (not (inline-clause draft package))))
-                 (when edited (setf (gethash :inline memory) text))
+                                          :invalid (gethash :inline-refused memory))
+                 (when edited
+                   (setf (gethash :inline memory) text
+                         (gethash :inline-refused memory) nil))
                  (when entered
                    (multiple-value-bind (key value) (inline-clause text package)
-                     (when key
-                       (setf action (list :inline key value)
-                             (gethash :inline memory) "")))))
+                     (if key
+                         (setf action (list :inline key value)
+                               (gethash :inline memory) "")
+                         (setf (gethash :inline-refused memory) t)))))
                ;; The names that complete the word typed; one pressed is written.
                (when names
-                 (bolt:row (:id :wire-completions :gap 6)
+                 (bolt:grid (:id :wire-completions :columns 2 :gap 6)
                    (dolist (name names)
                      (when (bolt:pressable (:id (list :completion name) :radius 2 :left 4 :right 4
                                             :top 1 :bottom 1 :border-color :field-border
                                             :name (format nil "Complete ~a" name))
-                             (bolt:label (chrome:caps name) :id :completion-words :font chrome:+small+))
+                             ;; A long name shortened, as a tag; pressed, it is written whole.
+                             (bolt:label (chrome:caps (if (> (length name) 18)
+                                                          (concatenate 'string (subseq name 0 17) "…")
+                                                          name))
+                                         :id :completion-words :font chrome:+small+))
                        (setf (gethash :inline memory)
                              (concatenate 'string (subseq draft 0 start) name))))))))))
     action))
