@@ -538,6 +538,8 @@ index. A press with Command down is the inner app's, and what follows until it
 is let go of, to try a widget while designing. `:mode :run`, the default, is
 as above. `:appearance`, `:light` or `:dark`, is the inner app's in place of
 the window's: it is drawn in that theme, if it gives none of its own.
+A frame of the inner app that fails shows its last good frame with the error
+over it, as a window's does, and the window the pane is in goes on.
 
 `app-pane-frames` (`app`) is the times of the last frames, as many as 120, of
 an app in an app pane, as `app-pane` returns it: a list, oldest first, of

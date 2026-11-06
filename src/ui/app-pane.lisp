@@ -176,7 +176,11 @@ ZOOMED, the same at the pane's zoom, which draws."
     (fill (app-instance:context-phase-ns inner) 0)
     (loop
       (handler-case
-          (progn (settle:settle-frame (app-pane-state-instance state) inner (app-pane-state-list state))
+          ;; A frame of the inner app that fails shows the last one that did not, with the error
+          ;; over it, as a window's does, and the window it is in goes on.
+          (progn (let ((app-instance:*show-frame-errors* t))
+                   (settle:settle-frame (app-pane-state-instance state) inner
+                                        (app-pane-state-list state)))
                  (dl:zoom-display-list (app-pane-state-shown state) (app-pane-state-list state)
                                        (pane-context-zoom inner))
                  (note-frame state inner)

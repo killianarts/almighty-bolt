@@ -514,6 +514,10 @@ collector sees, where a local one that is not used again may not be.")
                (m:click session :id :forgot :within :canvas)
                (m:click session :id :remove :within :toolbar)
                (m:click session :id :save :within :toolbar)
+               ;; Asked first, saying what a save would drop; and then saved, and said.
+               (assert-true (search "Saving would drop :forgot"
+                                    (s:node-name (m:find-node session :id (list :save-drop :forgot)))))
+               (m:click session :id :save-drops-anyway)
                (assert-true (search ":FORGOT is wired" (shown-name session :status))
                             (shown-name session :status))))
         (remhash keyword views::*views*)

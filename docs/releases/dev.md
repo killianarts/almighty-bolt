@@ -217,6 +217,21 @@ read again (`auto-revert-mode` does it). Undo in the designer undoes a rename
 in the view and not in the code. Rename changes the one file of code that the
 studio shows.
 
+### Problems, across files and before a save
+
+The bottom panel's Problems are file by file, as the prototype lays them out:
+what saving the view would drop (`Saving would drop :forgot, which
+settings.lisp:8 wires.`), each file of code that wires the view, with the line
+of its `view` form, and whether it fits (`Compiled; every wire fits the
+view.`), and a note on what the image knows. They are asked again when a view
+is defined and when code that wires one is compiled. Save, in the title bar or
+the File menu, asks first when the view would leave a wire of the code with
+nothing to wire: Cancel, or Save Anyway.
+
+An app in an `app-pane` whose frame fails (a view that no longer fits the code
+drawing it, say) now shows its last good frame with the error over it, as a
+window does, and the window the pane is in goes on.
+
 ### The studio's REPL
 
 The bottom panel's REPL evaluates what is typed in the image the studio runs in, in the package of the app being run (or the view's), as the prompt says: `counter> (+ 1 2)`. It shows what each form printed and what it returned, each value on a line of its own, or the error, in red, and goes on; `*`, `**`, `+` and the rest are set as in any REPL. Up and Down go back through what was typed. It runs on the window's thread, so a form that takes long holds the window as long.

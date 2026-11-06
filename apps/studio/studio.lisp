@@ -314,22 +314,14 @@ a bar of three parts, the latest on the right, and the last in words."
                        ;; Under the panes: the REPL, the problems, the frames, the events and the
                        ;; agent, in a dock of their own, in every mode.
                        (bottom-panel (facts)
-                         (let ((problems (getf facts :problems)))
+                         (progn
                            (setf bottom-layout
                                  (bolt:dock (:id :bottom-panes :layout bottom-layout :flex 1)
                                    (:repl-pane "REPL" (repl-pane))
-                                   (:problems-pane (format nil "Problems · ~d" (length problems))
-                                                   (bolt:padding (:id :problems-part :all 12)
-                                                     (bolt:column (:gap 8 :fill t :cross-align :stretch)
-                                                       (chrome:section-header :problems-heading "Problems"
-                                                                              (length problems))
-                                                       (if problems
-                                                           (loop :for problem :in problems
-                                                                 :for i :from 0
-                                                                 :do (bolt:paragraph problem :id (list :problem i)
-                                                                                             :color :field-invalid))
-                                                           (bolt:paragraph "None: the view and the code that wires it fit, as far as the code loaded says."
-                                                                           :id :no-problems :color :dim-text)))))
+                                   (:problems-pane (format nil "Problems · ~d" (wire:problem-count facts))
+                                                   (bolt:scroll (:id :problems-scroll :flex 1)
+                                                     (bolt:padding (:id :problems-part :all 12)
+                                                       (wire:problems-list facts))))
                                    (:frames-pane "Frames"
                                                  (bolt:padding (:id :frames-part :all 12)
                                                    (bolt:column (:gap 8 :fill t :cross-align :stretch)
@@ -362,7 +354,7 @@ a bar of three parts, the latest on the right, and the last in words."
                            (list (if (plusp (length status)) status "Ready")
                                  (if file (format nil "Saved ~a" (file-namestring file)) "Not saved")
                                  (format nil "~d wire~:p" (getf facts :wires))
-                                 (format nil "~d problem~:p" (length (getf facts :problems)))
+                                 (format nil "~d problem~:p" (wire:problem-count facts))
                                  (format nil "Undo ~d" (getf facts :undo))))))
 
                 ;; The studio in its own theme, light or dark as the system is; what it designs, in

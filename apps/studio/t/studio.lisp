@@ -961,15 +961,18 @@ window): its app, after a few frames."
              (assert-eql 0 (search "LIVE: TINY-VIEW CHANGES IN THE RUNNING APP" status) status)
              (assert-true (search "SAVED STUDIO.LISP ■ 2 WIRES ■ 0 PROBLEMS" status) status))
            (m:click session :id :problems-pane)
-           (assert-true (shown-p session :no-problems))
-           ;; The count's label taken out of the view: its wiring no longer fits.
+           (assert-equal "Compiled; every wire fits the view."
+                         (second (first (problem-rows session))))
+           ;; The count's label taken out of the view: its wiring no longer fits, and a save would
+           ;; drop the wire.
            (m:click session :id :count :within :canvas)
            (m:click session :id :remove :within :toolbar)
            (dotimes (i 3) (draw screen))
            (let ((status (status-of session)))
-             (assert-true (search "1 WIRE ■ 1 PROBLEM ■" status) status))
-           (assert-true (search ":count" (name-of session (list :problem 0)) :test #'char-equal))
-           (assert-equal "Problems · 1" (name-of session :problems-pane))
+             (assert-true (search "1 WIRE ■ 2 PROBLEMS ■" status) status))
+           (assert-true (search "Saving would drop :count" (second (first (problem-rows session)))))
+           (assert-true (search ":COUNT is wired" (second (second (problem-rows session)))))
+           (assert-equal "Problems · 2" (name-of session :problems-pane))
            ;; The bottom panel in every mode.
            (to-mode session "DEBUG")
            (assert-true (shown-p session (list :problem 0))))
@@ -1472,3 +1475,80 @@ its spaces, with START."
         ;; Put back as this file has it, which the code renamed no longer fits.
         (handler-bind ((warning #'muffle-warning))
           (views:set-view 'stub-view *stub-view*))))))
+;;; --- Wire: the problems, across files and before a save ---
+
+(bolt:define-view check-view
+  (:column :edit-page (:gap 8)
+   (:button :go (:text "Go"))
+   (:label :said (:text "Said"))))
+
+(defparameter *check-view* (views:find-view 'check-view))
+
+(defun problem-rows (session)
+  "What the Problems pane says, each row its place and its words."
+  (loop :for i :from 0
+        :for row = (ignore-errors (m:find-node session :id (list :problem i)))
+        :while row
+        :collect (list (s:node-name (m:find-node session :id :problem-where :within (list :problem i)))
+                       (s:node-name (m:find-node session :id :problem-words :within (list :problem i))))))
+
+(define-test the-problems-say-each-file-and-a-save-that-would-drop-a-wire-asks-first ()
+  (uiop:with-temporary-file (:pathname file :type "lisp" :keep nil)
+    (write-edit-code file "check-view" "make-check")
+    (let ((path (merge-pathnames "check-view.lisp" (uiop:temporary-directory)))
+          (code (string-upcase (format nil "~a:7" (file-namestring file))))
+          (image '("IMAGE" "Wiring loaded before is noted until the image restarts; drawing checks the code that runs.")))
+      (multiple-value-bind (screen session) (open-studio)
+        (unwind-protect
+             (progn
+               (setf (core:context-file-chooser (screen-context screen))
+                     (lambda (kind types offered)
+                       (declare (ignore kind types offered))
+                       (namestring path)))
+               (to-mode session "WIRE")
+               (m:click session :id (list :view-row 'check-view))
+               (run-in-studio session 'make-check)
+               ;; Each file of code that wires the view, where its VIEW form is, and whether it fits.
+               (m:click session :id :problems-pane)
+               (assert-equal (list (list code "Compiled; every wire fits the view.") image)
+                             (problem-rows session))
+               ;; A wired widget taken out of the view: the code no longer fits it, and a save would
+               ;; drop the wire; the app on the canvas shows its frame failing, and the studio goes on.
+               (m:click session :id (list :wire-row :said))
+               (to-mode session "DESIGN")
+               (m:click session :id :remove)
+               (assert-equal (list (list "STUDIO.LISP" (format nil "Saving would drop :said, which ~a ~
+                                                                    wires. Keep it, or rename the wire too."
+                                                               (format nil "~a:7" (file-namestring file))))
+                                   (list code ":SAID is wired, and the view has no widget with that id.")
+                                   image)
+                             (problem-rows session))
+               (assert-true (search "2 PROBLEMS" (words-of session :status-words)))
+               ;; A save asks first, and Cancel saves nothing.
+               (m:click session :id :title-save)
+               (assert-true (shown-p session (list :save-drop :said)))
+               (assert-false (probe-file path))
+               (m:click session :id :save-drops-cancel)
+               (assert-false (shown-p session (list :save-drop :said)))
+               (assert-false (probe-file path))
+               ;; Save Anyway saves.
+               (m:click session :id :title-save)
+               (m:click session :id :save-drops-anyway)
+               (assert-true (probe-file path))
+               (assert-false (shown-p session (list :save-drop :said)))
+               ;; More code loaded that wires the view: said at once, as the code compiled is.
+               (uiop:with-temporary-file (:pathname more :type "lisp" :keep nil)
+                 (with-open-file (out more :direction :output :if-exists :supersede)
+                   (format out "(in-package #:almighty-bolt-studio/t/studio)~%~%~
+                                (defun make-ghost ()~%  (lambda ()~%    (bolt:view check-view~%      ~
+                                (button :go :on-press (bump-said)))))~%"))
+                 (handler-bind ((warning #'muffle-warning))
+                   (load more))
+                 (dotimes (i 2) (draw screen))
+                 (assert-true (member (list (string-upcase (format nil "~a:5" (file-namestring more)))
+                                            "Compiled; every wire fits the view.")
+                                      (problem-rows session) :test #'equal)
+                              (problem-rows session))))
+          (when (probe-file path) (delete-file path))
+          (handler-bind ((warning #'muffle-warning))
+            (views:set-view 'check-view *check-view*)))))))

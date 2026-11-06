@@ -11,6 +11,7 @@
            #:find-view
            #:view-file
            #:views-version
+           #:wirings-version
            #:view-widget
            #:wired-keys
            #:wiring-file
@@ -19,6 +20,8 @@
            #:view-names
            #:form-text
            #:wiring-problems
+           #:wiring-checks
+           #:dropped-wires
            #:*view-defined-hook*))
 
 (in-package #:almighty-bolt/ui/views)
@@ -155,6 +158,64 @@ compiled again since (and no longer held) is not counted."
            (and (problems)
                 (progn (collect-garbage) (problems)))))))
 
+(defun form-line (file name)
+  "The line (from 1) of FILE, as it is now, that a VIEW form of the view NAME begins on, or NIL."
+  (ignore-errors
+   (with-open-file (in file)
+     (loop :for line = (read-line in nil)
+           :for number :from 1
+           :while line
+           :when (view-form-on-line-p line name)
+             :return number))))
+
+(defun wiring-checks (name)
+  "The view called NAME checked against each file of code, as loaded, that wires it: a list of (file
+line problems), LINE that of its VIEW form in the file as it is now (or NIL), PROBLEMS sentences,
+empty if all is well. Code not from a file is under the file NIL. As WIRING-PROBLEMS, the garbage
+is collected first if something does not fit, so that code compiled again since is not counted."
+  (let ((form (find-view name)))
+    (flet ((checks ()
+             (let ((by-file '()))
+               (loop :for spec :being :the :hash-keys :of *wirings* :using (hash-value view)
+                     :when (eq view name)
+                       :do (let* ((file (gethash spec *wiring-files*))
+                                  (entry (or (assoc file by-file :test #'equal)
+                                             (car (push (list file '()) by-file)))))
+                             (setf (second entry)
+                                   (union (second entry) (spec-problems spec form) :test #'string=))))
+               (sort (mapcar (lambda (entry)
+                               (destructuring-bind (file problems) entry
+                                 (list file (and file (form-line file name))
+                                       (sort problems #'string<))))
+                             by-file)
+                     #'string< :key (lambda (check) (if (first check) (namestring (first check)) ""))))))
+      (when form
+        (let ((checks (checks)))
+          (if (some #'third checks)
+              (progn (collect-garbage) (checks))
+              checks))))))
+
+(defun dropped-wires (name form)
+  "What code, as loaded, wires in the view NAME that FORM (the view as it would be saved) has no
+widget for: a list of (id file line), FILE the file of the code (or NIL) and LINE its VIEW form's.
+As WIRING-PROBLEMS, the garbage is collected first if there is any, so that code compiled again
+since is not counted."
+  (let ((ids (form-ids form)))
+    (flet ((dropped ()
+             (let ((found '()))
+               (loop :for spec :being :the :hash-keys :of *wirings* :using (hash-value view)
+                     :when (eq view name)
+                       :do (dolist (clause spec)
+                             (unless (member (first clause) ids)
+                               (pushnew (list (first clause) (gethash spec *wiring-files*)) found
+                                        :test #'equal))))
+               found)))
+      (let ((dropped (and (dropped) (progn (collect-garbage) (dropped)))))
+        (mapcar (lambda (drop)
+                  (destructuring-bind (id file) drop
+                    (list id file (and file (form-line file name)))))
+                (sort dropped #'string< :key (lambda (drop) (symbol-name (first drop)))))))))
+
 (define-condition view-wiring-mismatch (style-warning)
   ((name :initarg :name :reader view-wiring-mismatch-name)
    (problem :initarg :problem :reader view-wiring-mismatch-problem))
@@ -203,9 +264,16 @@ defined when compiled too, so that the code that wires it, compiled after, is ch
                      (view-not-defined-name condition))))
   (:documentation "A VIEW form compiled before the view it draws is defined."))
 
+(defvar *wirings-version* 0
+  "How many times a VIEW form's wiring has been noted (its code loaded or compiled), so that what
+asks what the code wires knows to ask again.")
+
+(defun wirings-version () *wirings-version*)
+
 (defun note-wiring (name spec &optional file)
   "Note that a VIEW form wires SPEC to the view NAME, in code compiled from FILE (or NIL); called when
 that form is loaded."
+  (incf *wirings-version*)
   (setf (gethash spec *wirings*) name)
   (when file
     (setf (gethash spec *wiring-files*) (pathname file)))

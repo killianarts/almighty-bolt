@@ -52,11 +52,12 @@ What 0.3 has, against the prototype:
   (Phase C), and the app's frames charted; Wire's views, each with its
   wires, and the state of the app, live, to edit and pin; the view's file and
   the code's, in step with the selection; the wires, and the selected one;
-  a clause, the stubs and a rename written into the code and compiled.
+  a clause, the stubs and a rename written into the code and compiled; the
+  problems file by file, and a save that would drop a wire asked about.
 - **Part:** the recorder has no face; the theme designer previews widgets,
   not the app's own view.
 - **Missing:** vector icons, and the mark; colours for code's syntax; the panes
-  of Wire, Debug and Agent; the timeline, time travel and the call tree.
+  of Debug and Agent; the timeline, time travel and the call tree.
 
 ## Phase A: the library can draw the prototype
 
@@ -147,7 +148,7 @@ user of.
     its last 120 frames, `app-pane-frames`, which the bottom panel's Frames
     charts. Command-G wraps the selected widget in a column.)
 
-## Phase D: Wire
+## Phase D: Wire (done)
 
 16. **The views, and the state:** every view with its wire count; every
     `state-let` variable of the window, live and editable, kept across a
@@ -169,7 +170,9 @@ user of.
     and the one file of code the studio shows; Undo in the designer does not
     undo the code's half, which item 20's checks will say.)
 20. **Problems,** checked across files, and before a save: a wire a save would
-    leave with nothing to wire.
+    leave with nothing to wire. (Done: the Problems pane file by file, asked
+    again when code is compiled; Save asks first; an app pane whose frame
+    fails shows it and the studio goes on.)
 
 ## Phase E: Debug
 

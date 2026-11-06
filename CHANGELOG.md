@@ -14,6 +14,7 @@ are not listed.
 
 ### Added
 
+- The studio's Problems, file by file: what saving the view would drop, each file of code that wires it and whether it fits (with the line of its `view` form), and what the image knows; a save that would leave a wire with nothing to wire asks first ([0.3](docs/releases/dev.md#problems-across-files-and-before-a-save)).
 - Light editing of the code in the studio's Wire mode: a clause written for the selected widget, with the code's names to complete what is typed, goes into the code's `view` form and is compiled; Write the Stub for Every Id; Rename an id in the view and in the code that wires it ([0.3](docs/releases/dev.md#wire-light-editing-of-the-code)).
 - The studio's Wire mode lists each id of the view and what the code's `view` form wires of it, or that nothing does; the selected wire's clauses as written, the options the view gives it, when it was last pressed in the app, and Go to the Code ([0.3](docs/releases/dev.md#wire-the-wires)).
 - `app-pane-last-press`: the frame and the time the widget of a view was last pressed in an app in an app pane ([0.3](docs/releases/dev.md#wire-the-wires)).
@@ -81,6 +82,7 @@ are not listed.
 
 ### Changed
 
+- An app in an `app-pane` whose frame fails shows its last good frame with the error over it, as a window's does, and the window it is in goes on ([0.3](docs/releases/dev.md#problems-across-files-and-before-a-save)).
 - The GUI designer writes a view's file with each widget on a line of its own, one column in from its container, and so does a view sent to an Emacs buffer ([0.3](docs/releases/dev.md#wire-the-views-file-and-the-codes)).
 - An `app-pane` is kept by its id wherever in the window it is described, so two app panes of one window need two ids ([0.3](docs/releases/dev.md#the-studios-canvas-is-the-apps-window)).
 - `context-push-text` takes an optional turn, so a method of it for a context of your own must take it too ([0.3](docs/releases/dev.md#context-push-text-takes-a-turn)).

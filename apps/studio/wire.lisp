@@ -11,7 +11,9 @@
            #:view-clauses
            #:wires-list
            #:wire-detail
-           #:edit-code))
+           #:edit-code
+           #:problems-list
+           #:problem-count))
 
 (in-package #:almighty-bolt-studio/wire)
 
@@ -533,3 +535,46 @@ the view. Returns what was done, or what went wrong, as a sentence."
                                                               id new where))
                            (format nil "Renamed ~(~s~) to ~(~s~) in the view; ~a does not wire it."
                                    id new where)))))))))))
+
+;;; --- the problems ---
+
+(defun problem-count (about)
+  "How many problems there are between the view being designed and its code (ABOUT, the GUI
+designer's): what the code that wires it does not fit, and what a save would drop."
+  (+ (length (getf about :problems)) (length (getf about :drops))))
+
+(defun problems-list (about)
+  "The problems between the view being designed and its code (ABOUT, the GUI designer's), file by
+file, as the prototype lays them out: what saving the view would drop, each file of code that wires
+it and whether it fits, and what the image knows."
+  (let ((rows '()))
+    (flet ((row (color where words)
+             (push (list color where words) rows)))
+      (let ((file (getf about :file)))
+        (dolist (drop (getf about :drops))
+          (row :warn (if file (file-namestring file) "view") drop)))
+      (loop :for (file line problems) :in (getf about :checks)
+            :do (let ((where (if file
+                                 (format nil "~a~@[:~d~]" (file-namestring file) line)
+                                 "code not from a file")))
+                  (if problems
+                      (dolist (problem problems)
+                        (row :danger where problem))
+                      (row :ok where "Compiled; every wire fits the view."))))
+      (row nil "image" "Wiring loaded before is noted until the image restarts; drawing checks the code that runs."))
+    (bolt:column (:id :problems-list :gap 6 :fill t :cross-align :stretch)
+      (chrome:section-header :problems-heading "Problems" (problem-count about))
+      (unless (getf about :live)
+        (bolt:paragraph "The view is not live: open a view of the image (in Views, or Open View) to check it against the code that wires it."
+                        :id :no-problems :color :dim-text))
+      (loop :for (color where words) :in (reverse rows)
+            :for i :from 0
+            :do (bolt:row (:id (list :problem i) :gap 8 :cross-align :center :fill t)
+                  (if color
+                      (bolt:panel (:id :problem-dot :radius 4 :width 8 :height 8
+                                   :color (studio-theme:tool-color color)))
+                      (bolt:panel (:id :problem-dot :radius 4 :width 8 :height 8
+                                   :border-color (studio-theme:tool-color :line-strong))))
+                  (bolt:label (chrome:caps where) :id :problem-where :font chrome:+small+
+                                                  :color :dim-text)
+                  (bolt:paragraph words :id :problem-words :flex 1))))))

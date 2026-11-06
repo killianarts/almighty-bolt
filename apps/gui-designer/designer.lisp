@@ -536,6 +536,14 @@ widget's id."
                   (t (designer-view:add-node view new :after selected)))
             (designer-view:node-id new))))
 
+(defun dropped-sentence (drop)
+  "What a save would drop, DROP being a wire (id file line) the view would no longer have a widget
+for, as a sentence."
+  (destructuring-bind (id file line) drop
+    (format nil "Saving would drop ~(~s~), which ~:[code not from a file~;~:*~a~@[:~d~]~] wires. Keep ~
+                 it, or rename the wire too."
+            id (and file (file-namestring file)) line)))
+
 (defun view-wire-counts ()
   "Every view the image has, in order of name, each with how many of its widgets the code loaded
 wires: a list of (name count)."
@@ -570,8 +578,9 @@ id of the widget selected, or NIL), :width and :height (the stage's), :ids (its 
 (what does not fit between the two, as sentences), :views (every view the image has, each with
 how many of its widgets the code wires, as a list of (name count), in order of name), :source (the
 view as the file it is saved as, a string), :wiring-file (the file of the code that wires it,
-while it is live, or NIL), :kinds (each widget's id and kind, as a list of (id kind)), and
-:selected-kind and :selected-options (the selected widget's kind, as
+while it is live, or NIL), :kinds (each widget's id and kind, as a list of (id kind)), :checks (the
+live view checked against each file of code that wires it, as WIRING-CHECKS says), :drops (what
+of that code a save would leave with nothing to wire, as sentences), and :selected-kind and :selected-options (the selected widget's kind, as
 the catalogue calls it, and the options the view gives it, a property list). SAVE is what Save... does, from elsewhere: to the view's own file, or
 with the dialog, which TOOLBAR draws. SELECT selects the widget whose id it is called with, if the
 view has one. RENAME, called with a widget's id and a new one, gives it the new id as a step that
@@ -617,7 +626,14 @@ Undo takes back, and returns NIL, or what is wrong (no such widget, the id taken
                    ;; The view as the file it is saved as, and what it was written from: the view,
                    ;; its name and its package.
                    (source nil)
-                   (source-of nil))
+                   (source-of nil)
+                   ;; The live view checked against each file of code that wires it, and what of
+                   ;; that code a save would leave with nothing to wire, asked when the problems are.
+                   (checks '())
+                   (drops '())
+                   ;; A save that would drop wires, waiting for the person to say Save Anyway: the
+                   ;; path and the name it would be saved as, and what it would drop.
+                   (save-asked nil))
     (labels ((make-live ()
                "Make the view, as it is now, the live view in the image, and say what of the code
 that wires it no longer fits."
@@ -702,10 +718,12 @@ selected if given."
              (current-problems ()
                "What does not fit between the live view and its wiring, asked again only when the
 view or the views have changed (asking may collect the garbage)."
-               (let ((asked (cons live (views:views-version))))
+               (let ((asked (list live (views:views-version) (views:wirings-version))))
                  (unless (equal asked problems-asked)
                    (setf problems-asked asked
                          problems (and live (views:wiring-problems live))
+                         checks (and live (views:wiring-checks live))
+                         drops (and live (views:dropped-wires live (designer-view:node-form view)))
                          where (wiring-where live))))
                problems)
              (selected-tag ()
@@ -727,10 +745,17 @@ container INTO, at AT among its children."
                    (let ((new (new-node view payload)))
                      (change (designer-view:add-node view new :into into :at at))
                      (select (designer-view:node-id new)))))
+             (checked-save-to (path symbol)
+               "Save to PATH as the view SYMBOL, unless the code loaded wires widgets the view no
+longer has: then ask first (Save Anyway does it)."
+               (let ((dropped (views:dropped-wires symbol (designer-view:node-form view))))
+                 (if dropped
+                     (setf save-asked (list path symbol dropped))
+                     (save-to path symbol))))
              (save ()
                "To its own file without asking, if that file is only the view; else ask where."
                (if (and live file (view-only-file-p file live))
-                   (save-to file live)
+                   (checked-save-to file live)
                    (setf saving t))))
       (values
         (lambda (&key (shown t) (save-button t))
@@ -793,7 +818,21 @@ container INTO, at AT among its children."
                       (setf status (format nil "Not saved: this Lisp has no package called ~a." package))
                       ;; Defined here too, so that a window that draws it shows it now, and live
                       ;; from then on; what the code that wires it no longer fits is said.
-                      (save-to path (intern (string-upcase (pathname-name path)) home))))))
+                      (checked-save-to path (intern (string-upcase (pathname-name path)) home))))))
+            ;; A save that would leave code with nothing to wire, asked about first.
+            (when save-asked
+              (destructuring-bind (path symbol dropped) save-asked
+                ;; Escape is Cancel.
+                (when (bolt:dialog (:id :save-drops-dialog :open t :title "Save, and drop wires?")
+                        (dolist (drop dropped)
+                          (bolt:paragraph (dropped-sentence drop) :id (list :save-drop (first drop))))
+                        (bolt:row (:id :save-drops-buttons :gap 8)
+                          (when (bolt:button "Cancel" :id :save-drops-cancel)
+                            (setf save-asked nil))
+                          (when (bolt:button "Save Anyway" :id :save-drops-anyway)
+                            (setf save-asked nil)
+                            (save-to path symbol))))
+                  (setf save-asked nil))))
             (let ((path (bolt:open-file-dialog :id :open-panel :show opening :types '("lisp"))))
               (setf opening nil)
               (when path
@@ -917,7 +956,9 @@ container INTO, at AT among its children."
                            (count-if (lambda (id) (views:wired-keys live id)) (designer-view:all-ids view))
                            0)
                 :problems problems
-                :views (view-wire-counts)
+:views (view-wire-counts)
+                :checks checks
+                :drops (mapcar #'dropped-sentence drops)
                 :source (let ((of (list view name package)))
                           (unless (equal of source-of)
                             (setf source-of of
