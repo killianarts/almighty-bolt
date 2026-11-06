@@ -118,6 +118,14 @@ not, and is edited where the code is."
             (= views 1))))
     (error () nil)))
 
+(defun wiring-where (live)
+  "Where the code that wires the live view LIVE (or NIL) is, as a sentence. It reads the file."
+  (cond ((null live) "Not live: not checked against code.")
+        (t (multiple-value-bind (file line) (views:wiring-place live)
+             (cond ((null file) "No code from a file wires it.")
+                   (line (format nil "Wired in ~a, line ~d." (file-namestring file) line))
+                   (t (format nil "Wired in ~a." (file-namestring file))))))))
+
 (defun wiring-text (name view)
   "The start of the code that draws the view called NAME (as written): a line for each widget, by
 its kind and id, for what the app gives it."
@@ -348,30 +356,33 @@ Returns the id of the one chosen there, on the frame it is, or NIL."
             (setf chosen (gethash key ids))))))
     chosen))
 
-(defun option-editor (node option drafts)
-  "An editor of NODE's OPTION, of the option's type. Returns the new value if it was changed, and
-true as a second value."
+(defun option-editor (node option drafts &key source (prefix "option"))
+  "An editor of NODE's OPTION, of the option's type, and, if SOURCE is given, where its value comes
+from, in a word. Its parts' ids begin with PREFIX. Returns the new value if it was changed, and true
+as a second value."
   (let* ((name (catalogue:option-name option))
          (value (node-option node name))
-         (editor (id "option" name))
+         (editor (id prefix name))
          (key (cons (designer-view:node-id node) name))
          (result nil)
          (changed nil))
-    (bolt:row (:id (id "option" name "row") :gap 8 :cross-align :center)
+    (bolt:row (:id (id prefix name "row") :gap 8 :cross-align :center)
       ;; A check box says its own name.
       (unless (eq (catalogue:option-type option) :boolean)
-        (bolt:label (string-downcase (string name)) :id (id "option" name "label")))
+        (bolt:label (string-downcase (string name)) :id (id prefix name "label")))
+      (when source
+        (bolt:label source :id (id prefix name "source") :size 11 :color :dim-text))
       (let ((type (catalogue:option-type option)))
         (cond ((eq type :string)
                (multiple-value-bind (text edited)
                    (bolt:text-field value :id editor :width 200
-                                          :labelled-by (id "option" name "label"))
+                                          :labelled-by (id prefix name "label"))
                  (when edited (setf result text changed t))))
               ((eq type :number)
                (let ((shown (gethash key drafts (princ-to-string value))))
                  (multiple-value-bind (text edited)
                      (bolt:text-field shown :id editor :width 80 :invalid (null (number-text shown))
-                                            :labelled-by (id "option" name "label"))
+                                            :labelled-by (id prefix name "label"))
                    (when edited
                      (setf (gethash key drafts) text)
                      (let ((number (number-text text)))
@@ -382,7 +393,7 @@ true as a second value."
                (multiple-value-bind (text edited)
                    (bolt:text-area (gethash key drafts (format nil "~{~a~^~%~}" value))
                                    :id editor :width 200 :rows 3
-                                   :labelled-by (id "option" name "label"))
+                                   :labelled-by (id prefix name "label"))
                  (when edited
                    (setf (gethash key drafts) text
                          result (remove "" (uiop:split-string text :separator '(#\Newline))
@@ -394,7 +405,7 @@ true as a second value."
                       (shown (mapcar (lambda (n) (string-downcase (symbol-name n))) names)))
                  (multiple-value-bind (index moved)
                      (bolt:dropdown (or shown '("No view yet")) (position value names)
-                                    :id editor :labelled-by (id "option" name "label"))
+                                    :id editor :labelled-by (id prefix name "label"))
                    (when (and moved names)
                      (setf result (nth index names) changed t)))))
               ((eq type :boolean)
@@ -405,14 +416,32 @@ true as a second value."
                (let ((choices (rest type)))
                  (multiple-value-bind (index moved)
                      (bolt:dropdown (mapcar #'show-value choices) (position value choices)
-                                    :id editor :labelled-by (id "option" name "label"))
+                                    :id editor :labelled-by (id prefix name "label"))
                    (when moved (setf result (nth index choices) changed t))))))))
     (values result changed)))
 
-(defun selection (view selected drafts)
-  "The selected node's kind, its id and its options, to change. Returns the view as the changes
-leave it, the selection (which an id changed changes), and, if an option was changed, which: the
-widget's id and the option's name, as a cons."
+(defun given-p (node name)
+  "True if NODE's options give NAME (and it is not its kind's default)."
+  (loop :for (key) :on (designer-view:node-options node) :by #'cddr
+          :thereis (eq key name)))
+
+(defun option-source (node name wired)
+  "Where the value of NODE's option NAME comes from, in a word: the code (WIRED, the keys it wires),
+the view, or the kind's default."
+  (cond ((member name wired) "wired")
+        ((given-p node name) "given")
+        (t "default")))
+
+(defparameter +container-options+ '(:gap :main-align :cross-align)
+  "The options of a container that say how what is in it is laid out, which are changed from what is
+in it.")
+
+(defun selection (view selected drafts &optional wired)
+  "The selected node's kind, its id and its options, to change, each saying where its value comes
+from (WIRED is the keys the code gives it); then the container it is in, and that container's gap
+and alignments, to change. Returns the view as the changes leave it, the selection (which an id
+changed changes), and, if an option was changed, which: the widget's id and the option's name, as
+a cons."
   (let ((edit nil))
   (bolt:padding (:id :selection :all 14)
     (bolt:column (:gap 8 :min-width 300)
@@ -446,12 +475,38 @@ widget's id and the option's name, as a cons."
                             node (designer-view:find-by-id view wanted)))))
                 (bolt:label "Return renames" :id :id-hint :color :dim-text))
               (dolist (option (catalogue:entry-options entry))
-                (multiple-value-bind (value changed) (option-editor node option drafts)
+                (multiple-value-bind (value changed)
+                    (option-editor node option drafts
+                                   :source (option-source node (catalogue:option-name option)
+                                                          wired))
                   (when changed
                     (setf view (designer-view:with-option view (designer-view:node-id node) (catalogue:option-name option) value
                                                           (catalogue:option-default option))
                           edit (cons (designer-view:node-id node) (catalogue:option-name option))
-                          node (designer-view:find-by-id view (designer-view:node-id node)))))))))))
+                          node (designer-view:find-by-id view (designer-view:node-id node))))))
+              ;; The container it is in, and how that lays out what is in it.
+              (let* ((parent (designer-view:parent-of view (designer-view:node-id node)))
+                     (options (and parent
+                                   (remove-if-not (lambda (option)
+                                                    (member (catalogue:option-name option)
+                                                            +container-options+))
+                                                  (catalogue:entry-options
+                                                   (catalogue:find-entry
+                                                    (designer-view:node-kind parent)))))))
+                (when parent
+                  (bolt:column (:id :container-part :gap 8)
+                    (bolt:label (format nil "In ~a" (outline-label parent))
+                                :id :container-what :weight :bold)
+                    (dolist (option options)
+                      (multiple-value-bind (value changed)
+                          (option-editor parent option drafts :prefix "container")
+                        (when changed
+                          (setf view (designer-view:with-option
+                                      view (designer-view:node-id parent)
+                                      (catalogue:option-name option) value
+                                      (catalogue:option-default option))
+                                edit (cons (designer-view:node-id parent)
+                                           (catalogue:option-name option))))))))))))))
     (values view selected edit)))
 
 (defun new-node (view what)
@@ -529,7 +584,9 @@ the studio puts them in panes."
                    ;; views' version it was asked for (asking may collect the garbage, so it is
                    ;; asked again only when a view changes).
                    (problems '())
-                   (problems-asked nil))
+                   (problems-asked nil)
+                   ;; Where the code that wires it is, as a sentence, asked when the problems are.
+                   (where ""))
     (labels ((make-live ()
                "Make the view, as it is now, the live view in the image, and say what of the code
 that wires it no longer fits."
@@ -611,6 +668,15 @@ selected if given."
                (let ((problems (handler-bind ((warning #'muffle-warning))
                                  (views:set-view symbol (designer-view:node-form view) :file path))))
                  (setf status (format nil "Saved to ~a~:[.~;; ~:*~{~a~^ ~}~]" path problems))))
+             (current-problems ()
+               "What does not fit between the live view and its wiring, asked again only when the
+view or the views have changed (asking may collect the garbage)."
+               (let ((asked (cons live (views:views-version))))
+                 (unless (equal asked problems-asked)
+                   (setf problems-asked asked
+                         problems (and live (views:wiring-problems live))
+                         where (wiring-where live))))
+               problems)
              (selected-tag ()
                "What the tag over the selected widget says: its kind, its id, and whether the code
 that draws the view wires it."
@@ -775,10 +841,18 @@ container INTO, at AT among its children."
           (let ((new view) (now selected) (edit nil))
             (bolt:panel (:id :right :radius 0)
              (bolt:column (:gap 0)
-              (multiple-value-setq (new now edit) (selection view selected drafts))
+              (multiple-value-setq (new now edit)
+                (selection view selected drafts
+                           (and live selected (views:wired-keys live selected))))
               (bolt:padding (:id :wiring-pane :all 14)
                 (bolt:column (:gap 8)
                   (heading :wiring-heading "Wiring")
+                  ;; Where the code that wires the view is, and what of it does not fit.
+                  (bolt:paragraph (progn (current-problems) where) :id :wiring-where)
+                  (loop :for problem :in (current-problems)
+                        :for i :from 0
+                        :do (bolt:paragraph problem :id (list :wiring-problem i)
+                                                    :color :field-invalid))
                   (bolt:paragraph "The start of the code that draws this view, to copy."
                                   :id :wiring-note :color :dim-text)
                   (bolt:text-area (wiring-text name view) :id :wiring :width 300 :rows 8
@@ -796,10 +870,7 @@ container INTO, at AT among its children."
           (open-view symbol widget))
         ;; What is being designed, and Save, for a tool beside it (the studio's title bar).
         (lambda ()
-          (let ((asked (cons live (views:views-version))))
-            (unless (equal asked problems-asked)
-              (setf problems-asked asked
-                    problems (and live (views:wiring-problems live)))))
+          (current-problems)
           (list :name name :package package :file file :live live :selected selected
                 :width stage-w :height stage-h
                 :ids (designer-view:all-ids view) :undo (length undo) :status status

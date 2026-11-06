@@ -131,6 +131,12 @@ app's own widgets), each with how many it shows, and is searched by name as
 it is typed. The outline says each widget's kind abbreviated (`BTN :sign-in`)
 and how many widgets each container has (`ROW :actions · 2`).
 
+The options say where each value comes from: `given` by the view, `wired`
+by the code that draws it, or the kind's `default`. Under them is the
+container the widget is in, with its gap and alignments, to change from there.
+The wiring part says where the code that wires the view is, `Wired in
+app.lisp, line 42.`, and what of it does not fit the view.
+
 `app-pane` takes `:mode :design`, which gives the inner app nothing and
 returns the view and the widget a press picked, and what was let go of on a
 container of a view and where (a Command-press is the inner app's); `:selected`,

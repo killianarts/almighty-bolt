@@ -133,7 +133,10 @@ user of.
 14. **The inspector:** each option's value and where it comes from (given,
     wired, a default, the theme); the container the widget is in, and its gap
     and alignments, to change; the wiring, checked against the view, with the
-    file and line of the `view` form that wires it.
+    file and line of the `view` form that wires it. (Done, in the options:
+    given, wired or the default, since no option of the catalogue's takes
+    its value from the theme; the container and its gap and alignments; the
+    file and line of the `view` form, and the problems.)
 15. **The frames chart** (build, layout and paint of each frame, from the
     ring), and wrapping widgets in a container with Command-G.
 

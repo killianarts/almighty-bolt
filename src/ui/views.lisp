@@ -14,6 +14,7 @@
            #:view-widget
            #:wired-keys
            #:wiring-file
+           #:wiring-place
            #:*view-changed-functions*
            #:view-names
            #:wiring-problems
@@ -191,6 +192,43 @@ that form is loaded."
   (loop :for spec :being :the :hash-keys :of *wirings* :using (hash-value view)
         :when (and (eq view name) (gethash spec *wiring-files*))
           :return (gethash spec *wiring-files*)))
+
+(defun bare-name (token)
+  "TOKEN without the package before it (bolt:view is view), in small letters."
+  (string-downcase (subseq token (1+ (or (position #\: token :from-end t) -1)))))
+
+(defun view-form-on-line-p (line name)
+  "True if a VIEW form of the view NAME begins on LINE: (view name, (bolt:view name, or (view
+(name :id ...)."
+  (let ((target (string-downcase (symbol-name name))))
+    (flet ((token-at (start)
+             ;; The token that begins at START, and where it ends.
+             (let ((end (or (position-if (lambda (c) (member c '(#\Space #\Tab #\( #\))))
+                                         line :start start)
+                            (length line))))
+               (values (subseq line start end) end))))
+      (loop :for open = (position #\( line) :then (position #\( line :start (1+ open))
+            :while open
+              :thereis (multiple-value-bind (operator end) (token-at (1+ open))
+                         (and (string= (bare-name operator) "view")
+                              (let ((next (position-if-not (lambda (c) (member c '(#\Space #\Tab #\()))
+                                                           line :start end)))
+                                (and next (string= (bare-name (token-at next)) target)))))))))
+
+(defun wiring-place (name)
+  "The file whose code, as loaded, wires the view NAME, and the line (from 1) its VIEW form begins on
+in that file as it is now: two values, the line NIL if the form is not found there; NIL if no code
+from a file wires it."
+  (let ((file (wiring-file name)))
+    (when file
+      (values file
+              (ignore-errors
+               (with-open-file (in file)
+                 (loop :for line = (read-line in nil)
+                       :for number :from 1
+                       :while line
+                       :when (view-form-on-line-p line name)
+                         :return number)))))))
 
 (defun draw-view (name id spec wires)
   (let ((form (or (find-view name)

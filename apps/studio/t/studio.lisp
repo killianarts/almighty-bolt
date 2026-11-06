@@ -456,6 +456,41 @@ ACROSS of the way along it."
              (assert-equal "Count 1" (inner :count)))
         (views:set-view 'tiny-view *tiny-view*)))))
 
+(define-test the-options-say-where-each-value-comes-from-the-container-and-the-wiring ()
+  (multiple-value-bind (screen session) (open-studio)
+    (flet ((said (id &optional within)
+             (s:node-name (if within
+                              (m:find-node session :id id :within within)
+                              (m:find-node session :id id)))))
+      (unwind-protect
+           (progn
+             (run-in-studio session 'make-viewed :mode "Design")
+             (dotimes (i 3) (draw screen))
+             ;; The count's words are the code's; its size the kind's default.
+             (press-in-running screen :count)
+             (assert-equal "wired" (said :option-text-source))
+             (assert-equal "default" (said :option-size-source))
+             ;; The button's words are the view's.
+             (press-in-running screen :plus)
+             (assert-equal "given" (said :option-text-source))
+             (assert-equal "default" (said :option-enabled-source))
+             ;; The column it is in, whose gap is changed from here: the view has it, live.
+             (assert-equal "In COL :tiny-page · 2" (said :container-what))
+             (assert-equal "8" (s:node-value (m:find-node session :id :container-gap)))
+             (m:set-value session "20" :id :container-gap)
+             (assert-eql 20 (getf (third (views:find-view 'tiny-view)) :gap))
+             ;; Where the code that wires it is: this file, at its VIEW form.
+             (let ((line (with-open-file (in (asdf:system-relative-pathname
+                                              "almighty-bolt-studio" "t/studio.lisp"))
+                           (loop :for text = (read-line in nil)
+                                 :for number :from 1
+                                 :while text
+                                 :when (search "(bolt:view tiny-view" text)
+                                   :return number))))
+               (assert-equal (format nil "Wired in studio.lisp, line ~d." line)
+                             (said :wiring-where))))
+        (views:set-view 'tiny-view *tiny-view*)))))
+
 (define-test on-the-canvas-a-press-picks-the-widget-of-its-view-and-in-run-is-the-apps ()
   (multiple-value-bind (screen session) (open-studio)
     (flet ((inner (id)
