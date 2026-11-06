@@ -412,9 +412,9 @@ the same key are an error (DUPLICATE-ID): the ui could not tell them apart."
                            (&key anchor (placement :below) (x 0f0) (y 0f0) (min-width 0f0) modal
                                  tool)))
   "Where a float goes. PLACEMENT is :below (or above, if there is no room below) or :right of the box
-ANCHOR, :over it (where it is, and its size), :at the point X, Y of the window, :center of the window,
-or :fill the window. MIN-WIDTH is the
-least it is as wide. A MODAL float is one the keyboard stays in. A TOOL float is the library's (the
+ANCHOR, :over it (where it is, and its size), :above its top left (or under it, if there is no room
+above), :at the point X, Y of the window, :center of the window, or :fill the window. MIN-WIDTH is
+the least it is as wide. A MODAL float is one the keyboard stays in. A TOOL float is the library's (the
 inspector's outlines), not the app's: it is not in the semantic tree."
   (anchor nil)
   (placement :below :type keyword)

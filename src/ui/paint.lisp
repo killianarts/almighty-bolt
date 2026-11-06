@@ -671,12 +671,26 @@ kept, and otherwise afresh, which is then kept."
          (paint-ring-past-edges ui box context list x y)
          (draw-scroll-bar box list x y))
         (:outline
-         ;; A frame two points wide, inside the edges.
          (let ((w (box:box-w box)) (h (box:box-h box)) (color (box:box-color box)))
-           (core:push-rect list x y w 2 color)
-           (core:push-rect list x (+ y h -2) w 2 color)
-           (core:push-rect list x y 2 h color)
-           (core:push-rect list (+ x w -2) y 2 h color)))
+           (if (eql (box:box-n1 box) 1f0)
+               ;; Corner brackets, two points wide, just outside the edges, each arm ten long
+               ;; (or a third of a side that is short).
+               (let* ((l (- x 2)) (top (- y 2)) (r (+ x w)) (b (+ y h))
+                      (across (min 10f0 (/ (+ w 4) 3))) (down (min 10f0 (/ (+ h 4) 3))))
+                 (core:push-rect list l top across 2 color)
+                 (core:push-rect list l top 2 down color)
+                 (core:push-rect list (- (+ r 2) across) top across 2 color)
+                 (core:push-rect list r top 2 down color)
+                 (core:push-rect list l b across 2 color)
+                 (core:push-rect list l (- (+ b 2) down) 2 down color)
+                 (core:push-rect list (- (+ r 2) across) b across 2 color)
+                 (core:push-rect list r (- (+ b 2) down) 2 down color))
+               ;; A frame two points wide, inside the edges.
+               (progn
+                 (core:push-rect list x y w 2 color)
+                 (core:push-rect list x (+ y h -2) w 2 color)
+                 (core:push-rect list x y 2 h color)
+                 (core:push-rect list (+ x w -2) y 2 h color)))))
         (:panel
          (draw-shadows box list x y)
          (core:push-rounded-rect list x y (box:box-w box) (box:box-h box) (box:box-n1 box)

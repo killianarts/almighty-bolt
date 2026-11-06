@@ -129,17 +129,26 @@ event changed shows in it."
     (let ((dark (bolt:find-theme :dark)))
       (multiple-value-bind (x y w h) (core:lookup-target (screen-app screen) :forgot)
         (declare (ignore w))
-        (flet ((edge () (color-at screen (+ x 1) (+ y (/ h 2)))))
+        (flet ((edge () (color-at screen (+ x 1) (+ y (/ h 2))))
+               (corner () (color-at screen (- x 1) (- y 1))))
           (assert-false (eql (bolt:theme-setting dark :dim-text) (edge)))
           (pointer screen :move (+ x 10) (+ y (/ h 2)))
           (assert-eql (bolt:theme-setting dark :dim-text) (edge))
-          ;; Pressed, it is outlined as the selection in the frame of the press.
+          ;; Pressed, it is marked as the selection in the frame of the press: corner brackets
+          ;; just outside it, not a frame along its edges, and a tag over it that says it.
           (pointer screen :down (+ x 10) (+ y (/ h 2)))
-          (assert-eql (bolt:theme-setting dark :ring) (edge))
+          (assert-eql (bolt:theme-setting dark :ring) (corner))
+          (assert-false (eql (bolt:theme-setting dark :ring) (edge)))
           (pointer screen :up (+ x 10) (+ y (/ h 2)))
           (assert-equal "Button :forgot" (shown-name session :selected-what))
+          (assert-equal "Button :forgot · not wired" (shown-name session :selection-tag-text))
+          ;; The tag is over the widget, not on it.
+          (destructuring-bind (tx ty tw th)
+              (s:node-bounds (m:find-node session :id :selection-tag-text))
+            (declare (ignore tx tw))
+            (assert-true (<= (+ ty th) y)))
           (pointer screen :leave 0 0)
-          (assert-eql (bolt:theme-setting dark :ring) (edge)))))))
+          (assert-eql (bolt:theme-setting dark :ring) (corner)))))))
 
 ;;; --- changing the view ---
 
@@ -307,7 +316,8 @@ event changed shows in it."
           (draw screen))
         (multiple-value-bind (x y w h) (core:lookup-target (screen-app screen) :forgot)
           (assert-true (> w w0))
-          (assert-eql ring (color-at screen (+ x w -1) (+ y (/ h 2)))))))))
+          ;; The bracket at its bottom right corner, just outside it.
+          (assert-eql ring (color-at screen (+ x w 1) (+ y h 1))))))))
 
 ;;; --- the outline ---
 
@@ -590,6 +600,17 @@ collector sees, where a local one that is not used again may not be.")
     (assert-equal "Button :button-1" (shown-name session :selected-what))
     (assert-true (< (left-of session :sign-in) (left-of session :button-1)
                     (left-of session :forgot)))))
+
+(define-test what-is-dragged-from-the-left-says-the-id-it-will-have ()
+  (multiple-value-bind (screen session) (open-designer)
+    (m:click session :id :add-button :within :left)
+    (multiple-value-bind (sx sy) (middle-of screen :add-button)
+      (pointer screen :move sx sy)
+      (pointer screen :down sx sy)
+      (pointer screen :move (+ sx 40) (+ sy 40))
+      ;; The view has a :button-1: this one will be :button-2.
+      (assert-true (m:find-node session :name "Button :button-2"))
+      (pointer screen :up (+ sx 40) (+ sy 40)))))
 
 (define-test a-widget-of-the-view-dragged-moves-to-where-it-is-let-go ()
   (multiple-value-bind (screen session) (open-designer)

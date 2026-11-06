@@ -5,7 +5,8 @@
                     (#:theme #:almighty-bolt/ui/theme)
                     (#:drag #:almighty-bolt/ui/drag)
                     (#:widgets #:almighty-bolt/ui/widgets))
-  (:export #:design-surface))
+  (:export #:design-surface
+           #:mark-selection))
 
 (in-package #:almighty-bolt/ui/design-surface)
 
@@ -60,6 +61,39 @@ this frame: a widget that has changed its size is outlined as it is now."
       (setf (box:box-color float) color)
       (ui:close-float ui open))))
 
+(defun mark-selection (owner color tag &key anchor x y w h)
+  "What a designer marks the selected widget with, as floats of the box OWNER: corner brackets of
+COLOR round it, and over its top left, if TAG is given, a tag that says it (the widget, its id,
+whether it is wired). Round the box ANCHOR, where it is in this frame, or the place X, Y, W, H in
+the window."
+  (let ((ui ui:*ui*))
+    (multiple-value-bind (float open)
+        (ui:open-float ui :outline owner :selected
+                       (if anchor
+                           (ui:make-float-spec :anchor anchor :placement :over :tool t)
+                           (ui:make-float-spec :placement :at :x (float x 1f0) :y (float y 1f0)
+                                               :tool t)))
+      (unless anchor
+        (setf (box:box-pref-w float) (float w 1f0)
+              (box:box-pref-h float) (float h 1f0)))
+      (setf (box:box-color float) color
+            (box:box-n1 float) 1f0)
+      (ui:close-float ui open))
+    (when tag
+      (multiple-value-bind (float open)
+          (ui:open-float ui :panel owner :selection-tag
+                         (if anchor
+                             (ui:make-float-spec :anchor anchor :placement :above :tool t)
+                             (ui:make-float-spec :placement :at :x (- (float x 1f0) 2f0)
+                                                 :y (max 0f0 (- (float y 1f0) 24f0)) :tool t)))
+        (setf (box:box-color float) color
+              (box:box-n1 float) 3f0
+              (box:box-pad-left float) 6f0 (box:box-pad-right float) 6f0
+              (box:box-pad-top float) 2f0 (box:box-pad-bottom float) 2f0)
+        (widgets:label tag :id :selection-tag-text :size 11
+                           :color (theme:theme-background theme:*theme*))
+        (ui:close-float ui open)))))
+
 (defun thing-under (ui surface first x y)
   "The innermost box with an id inside SURFACE (its boxes are FIRST and after, this build) that was
 under the point X, Y in the last frame, or NIL."
@@ -104,7 +138,7 @@ frame, or the surface's first box if none was (the view's outermost), or NIL."
           (and first-box (box:box-id first-box) (member (box:box-kind first-box) +containers+)
                first-box)))))
 
-(defun end-design-surface (surface first selected)
+(defun end-design-surface (surface first selected tag)
   "Close SURFACE, take a press on it, and outline what the pointer is over and what is SELECTED.
 Returns the id of the thing the press was on, on the frame of the press, or NIL; and what was
 dropped on it this frame, as a list of what was dragged, the id of the container it goes into and
@@ -141,17 +175,20 @@ the index among that container's children, or NIL. A press on a thing and a move
       ;; saw things; the outlines are put where things are now.
       (outline-over ui surface :hover (and under (not (eq under chosen)) under)
                     (theme:theme-dim-text theme:*theme*))
-      (outline-over ui surface :selected chosen (theme:theme-ring theme:*theme*)))
+      (when chosen
+        (mark-selection (box:box-key surface) (theme:theme-ring theme:*theme*) tag
+                        :anchor chosen)))
     (values pressed drop)))
 
-(defmacro design-surface ((&key id selected (flex 0)) &body body)
+(defmacro design-surface ((&key id selected tag (flex 0)) &body body)
   "What BODY describes, one under another, drawn as it looks but with none of it working: the
 pointer, a press and the keyboard do not reach it. A press on it returns the id of the innermost
 thing with an id that the press was on, on the frame of the press (and NIL otherwise, or if the press
-was on none). The thing whose id is SELECTED is outlined, and so is the thing the pointer is over.
+was on none). The thing whose id is SELECTED is marked, with corner brackets and, if TAG is given,
+a tag over it that says TAG; the thing the pointer is over is outlined.
 For a designer, which draws the view being designed in one. The :id is required."
   (let ((box (gensym "SURFACE")) (first (gensym "FIRST")) (held (gensym "HELD")))
     `(multiple-value-bind (,box ,first ,held) (begin-design-surface ,id ,flex)
        (unwind-protect (progn ,@body)
          (put-input-back ,held))
-       (end-design-surface ,box ,first ,selected))))
+       (end-design-surface ,box ,first ,selected ,tag))))

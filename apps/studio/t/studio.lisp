@@ -469,6 +469,16 @@ ACROSS of the way along it."
              (press-in-running screen :plus)
              (assert-equal "Count 0" (inner :count))
              (assert-equal "Button :plus" (s:node-name (m:find-node session :id :selected-what)))
+             ;; Marked where the app draws it: a bracket just outside its corner, and a tag that
+             ;; says it and that the code wires it.
+             (assert-equal "Button :plus · wired"
+                           (s:node-name (m:find-node session :id :selection-tag-text)))
+             (multiple-value-bind (px py) (core:lookup-target (screen-app screen) :running)
+               (multiple-value-bind (x y) (core:lookup-target studio:*running* :plus)
+                 (assert-eql (bolt:theme-setting (bolt:find-theme (core:context-appearance
+                                                                   (screen-context screen)))
+                                                 :ring)
+                             (color-at screen (+ px x -1) (+ py y -1)))))
              ;; Another widget of the view, picked as the view is live.
              (press-in-running screen :count)
              (assert-equal "Label :count" (s:node-name (m:find-node session :id :selected-what)))

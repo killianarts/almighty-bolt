@@ -499,7 +499,7 @@ with KEY put in ANCHOR's group (`:into`) or beside it in a group of its own
 or tall), and `(bolt:pane-group layout key)` the keys of the group that has
 KEY.
 
-`app-pane` (`constructor &key id zoom width height flex mode selected
+`app-pane` (`constructor &key id zoom width height flex mode selected tag
 appearance` and the size limits) is another app, working, in an area of this one: a designer
 showing the app being made. `(bolt:app-pane 'my-app:make-app :id :running
 :zoom 2 :flex 1)` makes the app the first time (and again if the constructor
@@ -526,7 +526,8 @@ wheel or move of the pointer, and nothing in it is hovered. A press on it picks
 the widget of a view (`define-view`) it is on, and `app-pane` returns the
 view's name and the widget's id as its second and third values on the frame
 of the press. The pane outlines the widget the pointer is over, and the one
-`:selected` names, a list of a view's name and a widget's id:
+`:selected` names, a list of a view's name and a widget's id, with corner
+brackets and, with `:tag`, a tag over it that says `:tag`:
 `(bolt:app-pane 'my-app:make-app :id :running :mode :design :selected (list
 'my-app::sign-in :name))`. What is dragged (`drag-source`) over it goes into
 the container of a view under the pointer, among that container's widgets
@@ -550,13 +551,14 @@ its designer with it. `:edit-source`, a function of what to show (`:view`,
 and Edit Wiring, and returns `nil` or what went wrong, which the inspector
 shows.
 
-`design-surface` (`:id :selected :flex`) is for a designer, which draws the view being designed in
+`design-surface` (`:id :selected :tag :flex`) is for a designer, which draws the view being designed in
 it: what is in it is drawn as it looks, one under another, and none of it works. The pointer, a press
 and the keyboard do not reach it, so a button in it is not hovered or pressed and a text field in it
 takes no keys. A press on it returns the id of the innermost thing with an id that the press was on,
 on the frame of the press: `(let ((pressed (bolt:design-surface (:id :canvas :selected picked) (draw
-view)))) (when pressed (setf picked pressed)))`. The thing whose id is `:selected` is outlined in
-the theme's ring colour, and the thing the pointer is over in its dim text colour. What is in it is
+view)))) (when pressed (setf picked pressed)))`. The thing whose id is `:selected` is marked with
+corner brackets in the theme's ring colour, and, with `:tag`, a tag over its top left that says
+it; the thing the pointer is over is outlined in the theme's dim text colour. What is in it is
 in the semantic tree as it would be anywhere, so the machine interface finds it (`:within` the
 surface), and a click there, or VoiceOver's press, selects it. No input reaches anything in it:
 not a shortcut, not a dialog's Escape, not a press that would close a popover. What floats above the

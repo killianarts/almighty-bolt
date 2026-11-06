@@ -123,7 +123,9 @@ user of.
     and dark, is not offered, since an app pane can only give its app an
     appearance.)
 12. **The selection:** corner brackets, and a tag that says the widget, its id
-    and whether it is wired; what is dragged says the id it will have.
+    and whether it is wired; what is dragged says the id it will have. (Done,
+    on the app and on the view drawn alone: `:tag` on `app-pane` and
+    `design-surface`.)
 13. **The catalogue and the outline:** a search, groups with counts, icons;
     each widget's kind abbreviated and each container's count.
 14. **The inspector:** each option's value and where it comes from (given,

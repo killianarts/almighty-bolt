@@ -266,6 +266,13 @@ menu), turned to the other side or moved in where it would go out of the window.
                       (:center (values (/ (- width w) 2) (/ (- height h) 2)))
                       (:at (values (ui:float-spec-x spec) (ui:float-spec-y spec)))
                       (:over (window-position (ui:float-spec-anchor spec)))
+                      ;; Over its anchor's top left, or under it if there is no room above.
+                      (:above
+                       (let ((anchor (ui:float-spec-anchor spec)))
+                         (multiple-value-bind (ax ay) (window-position anchor)
+                           (values (- ax 2f0) (if (>= (- ay h 4f0) 0f0)
+                                                  (- ay h 4f0)
+                                                  (+ ay (box:box-h anchor) 4f0))))))
                       ((:below :right)
                        (let ((anchor (ui:float-spec-anchor spec)))
                          (multiple-value-bind (ax ay) (window-position anchor)

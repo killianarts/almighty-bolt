@@ -10,6 +10,7 @@
                     (#:box #:almighty-bolt/ui/box)
                     (#:ui #:almighty-bolt/ui/ui)
                     (#:widgets #:almighty-bolt/ui/widgets)
+                    (#:design-surface #:almighty-bolt/ui/design-surface)
                     (#:inspection #:almighty-bolt/ui/inspection)
                     (#:drag #:almighty-bolt/ui/drag)
                     (#:catalogue #:almighty-bolt/ui/catalogue)
@@ -306,7 +307,7 @@ wherever in the window it is described.")
 
 (defun app-pane (constructor &key (id (widgets:required-id 'app-pane)) (zoom 1) width height (flex 0)
                                min-width min-height max-width max-height (mode :run) selected
-                               appearance)
+                               appearance tag)
   "The app that CONSTRUCTOR (a function, or the name of one, as OPEN-APP takes) makes, working, in
 an area of this window, at ZOOM (1 as it is; 2 twice as large). It is made the first time and kept
 by the pane's id, wherever in the window the pane is (two app panes of a window have two ids), and
@@ -316,7 +317,8 @@ the area's size, as a container's; with neither, give it a FLEX.
 
 With MODE :design the inner app is given nothing: it is shown as it is, and a press on it picks the
 widget of a view (DEFINE-VIEW) it is on. The pane outlines that widget and the one the pointer is
-over; SELECTED, a list of a view's name and a widget's id, is outlined as chosen. A press with
+over; SELECTED, a list of a view's name and a widget's id, is marked as chosen, with corner
+brackets and, if TAG is given, a tag over it that says TAG. A press with
 Command down is the inner app's, and what follows until it is let go of: to try a widget.
 
 APPEARANCE, :light or :dark, is the inner app's in place of the window's: it is drawn in that theme
@@ -517,9 +519,12 @@ into and the index among that container's widgets. The :id is required."
     ;; Designing: what the pointer is over, and what is chosen, where the inner app drew it now.
     (when (and design rect)
       (outline-widget ui key :hover hover rect zoom (theme:theme-dim-text theme:*theme*))
-      (let ((inner-ui (and selected (inner-ui state))))
-        (when inner-ui
-          (outline-widget ui key :selected
-                          (view-widget-place inner-ui (first selected) (second selected))
-                          rect zoom (theme:theme-ring theme:*theme*)))))
+      (let* ((inner-ui (and selected (inner-ui state)))
+             (place (and inner-ui (view-widget-place inner-ui (first selected) (second selected)))))
+        (when place
+          (destructuring-bind (x y w h) place
+            (design-surface:mark-selection key (theme:theme-ring theme:*theme*) tag
+                                           :x (+ (ui:rect-x rect) (* x zoom))
+                                           :y (+ (ui:rect-y rect) (* y zoom))
+                                           :w (* w zoom) :h (* h zoom))))))
     (values (app-pane-state-instance state) picked-view picked-id drop)))

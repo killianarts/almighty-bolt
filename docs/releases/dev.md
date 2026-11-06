@@ -121,10 +121,15 @@ canvas shows the view drawn alone, from its own options. The App pane is
 gone: the canvas is in every mode that showed it, and the app is one app in
 all of them, keeping what it holds when the mode changes.
 
+The selected widget, on the app or on the view drawn alone, is marked with
+corner brackets and a tag that says its kind, its id and whether the code
+that draws the view wires it: `Button :sign-in · wired`. A widget dragged
+from the catalogue says the id it will have: `Button :button-2`.
+
 `app-pane` takes `:mode :design`, which gives the inner app nothing and
 returns the view and the widget a press picked, and what was let go of on a
 container of a view and where (a Command-press is the inner app's); `:selected`,
-outlined as chosen; and `:appearance`, the inner app's light or dark in place
+marked as chosen, with a `:tag`; and `:appearance`, the inner app's light or dark in place
 of the window's. An app pane is kept by its id wherever in the window it is.
 
 ### The studio's REPL

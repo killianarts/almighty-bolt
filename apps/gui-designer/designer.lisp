@@ -239,16 +239,20 @@ shows the parts (the studio) gives one of its own.")
 (defun heading (id title &optional count)
   (funcall *heading* id title count))
 
-(defun palette ()
-  "The widgets that can be added. Returns the kind of the one pressed, or NIL."
+(defun palette (view)
+  "The widgets that can be added to VIEW, each dragged with the id it will have there. Returns the
+kind of the one pressed, or NIL."
   (let ((pressed nil))
     (bolt:column (:id :palette :gap 8 :cross-align :stretch)
       (heading :palette-heading "Add" (length (catalogue:catalogue)))
       (bolt:grid (:id :palette-grid :columns 2 :gap 6)
         ;; Each is pressed to add it, or dragged to where it goes.
         (dolist (entry (catalogue:catalogue))
-          (when (bolt:drag-source (:id (id "add" (catalogue:entry-kind entry)) :payload (catalogue:entry-kind entry)
-                                   :label (catalogue:entry-title entry))
+          (when (bolt:drag-source (:id (id "add" (catalogue:entry-kind entry))
+                                   :payload (catalogue:entry-kind entry)
+                                   :label (format nil "~a ~(~s~)" (catalogue:entry-title entry)
+                                                  (designer-view:fresh-id
+                                                   view (catalogue:entry-kind entry))))
                   (bolt:panel (:id :tile :all 6 :radius 4)
                     (bolt:label (catalogue:entry-title entry) :id :title)))
             (setf pressed (catalogue:entry-kind entry)))))
@@ -260,7 +264,8 @@ shows the parts (the studio) gives one of its own.")
             (dolist (name names)
               (when (bolt:drag-source (:id (id "add-view" (symbol-name name))
                                        :payload (list :view name)
-                                       :label (string-downcase (symbol-name name)))
+                                       :label (format nil "~(~a ~s~)" (symbol-name name)
+                                                      (designer-view:fresh-id view :view)))
                       (bolt:panel (:id :tile :all 6 :radius 4)
                         (bolt:label (string-downcase (symbol-name name)) :id :title)))
                 (setf pressed (list :view name))))))))
@@ -557,6 +562,16 @@ selected if given."
                (let ((problems (handler-bind ((warning #'muffle-warning))
                                  (views:set-view symbol (designer-view:node-form view) :file path))))
                  (setf status (format nil "Saved to ~a~:[.~;; ~:*~{~a~^ ~}~]" path problems))))
+             (selected-tag ()
+               "What the tag over the selected widget says: its kind, its id, and whether the code
+that draws the view wires it."
+               (let ((node (and selected (designer-view:find-by-id view selected))))
+                 (and node
+                      (format nil "~a ~(~s~) · ~:[not wired~;wired~]"
+                              (catalogue:entry-title (catalogue:find-entry
+                                                      (designer-view:node-kind node)))
+                              selected
+                              (and live (views:wired-keys live selected))))))
              (dropped (payload into at)
                "A widget from the left, or one of the view's own ((:move id)), let go of in the
 container INTO, at AT among its children."
@@ -654,7 +669,7 @@ container INTO, at AT among its children."
         (lambda ()
           (bolt:panel (:id :left :all 14 :radius 0)
             (bolt:column (:gap 20)
-              (let ((kind (palette)))
+              (let ((kind (palette view)))
                 (when kind
                   (multiple-value-bind (new id) (added view selected kind)
                     (change new)
@@ -675,7 +690,8 @@ container INTO, at AT among its children."
                          (multiple-value-bind (instance picked widget drop)
                              (bolt:app-pane app :id :running :zoom zoom :flex 1 :mode mode
                                                 :appearance appearance
-                                                :selected (and live selected (list live selected)))
+                                                :selected (and live selected (list live selected))
+                                                :tag (selected-tag))
                            (setf running instance)
                            (when picked
                              (if (eq picked live)
@@ -692,7 +708,8 @@ container INTO, at AT among its children."
                                  (when (eq into-view live)
                                    (dropped payload into at))))))
                          (multiple-value-bind (pressed drop)
-                             (bolt:design-surface (:id :canvas :selected selected)
+                             (bolt:design-surface (:id :canvas :selected selected
+                                                   :tag (selected-tag))
                                (catalogue:draw-form (designer-view:node-form view)))
                            (when pressed
                              (select pressed))
