@@ -11,6 +11,8 @@
                     (#:ui #:almighty-bolt/ui/ui)
                     (#:widgets #:almighty-bolt/ui/widgets)
                     (#:inspection #:almighty-bolt/ui/inspection)
+                    (#:drag #:almighty-bolt/ui/drag)
+                    (#:catalogue #:almighty-bolt/ui/catalogue)
                     (#:immediate #:almighty-bolt/ui/immediate)
                     (#:views #:almighty-bolt/ui/views))
   (:export #:app-pane
@@ -250,6 +252,51 @@ OWNER's floats, called ID."
               (box:box-color float) color)
         (ui:close-float ui open)))))
 
+(defun container-node-p (name id)
+  "True if ID is a widget of the view NAME that holds others (a column, a row ...)."
+  (labels ((find-node (form)
+             (destructuring-bind (kind form-id &optional options &rest children) form
+               (declare (ignore options))
+               (if (eq form-id id)
+                   (catalogue:entry-container-p (catalogue:find-entry kind))
+                   (some #'find-node children)))))
+    (let ((form (views:find-view name)))
+      (and form (find-node form)))))
+
+(defun container-at (ui x y)
+  "The innermost container of a view under X, Y (in the inner app's points) in UI's last frame: the
+view's name, the container's id, its box and where it is (x and y), or NIL."
+  (let ((found nil))
+    (inspection:walk-frame ui (lambda (box bx by left top right bottom)
+                                (declare (ignore left top right bottom))
+                                (when (and (box:box-view box) (box:box-id box)
+                                           (<= bx x) (< x (+ bx (box:box-w box)))
+                                           (<= by y) (< y (+ by (box:box-h box)))
+                                           (container-node-p (box:box-view box) (box:box-id box)))
+                                  (setf found (list (box:box-view box) (box:box-id box) box bx by)))))
+    (values-list found)))
+
+(defun place-in (box bx by x y)
+  "Where among the children of the container BOX (at BX, BY) a drop at X, Y goes, all in the inner
+app's points: the index among its children with ids (the view's widgets), and where the marker of it
+is (x, y, width and height)."
+  (let ((horizontal (eq (box:box-kind box) :row))
+        (index 0)
+        (edge nil))
+    (loop :for child :across (box:box-children box)
+          :when (box:box-id child)
+            :do (let* ((start (if horizontal (+ bx (box:box-x child)) (+ by (box:box-y child))))
+                       (end (+ start (if horizontal (box:box-w child) (box:box-h child)))))
+                  (if (< (if horizontal x y) (/ (+ start end) 2))
+                      (progn (setf edge (or edge start))
+                             (return))
+                      (setf index (1+ index)
+                            edge end))))
+    (let ((edge (or edge (if horizontal bx by))))
+      (if horizontal
+          (values index (- edge 1) by 2 (box:box-h box))
+          (values index bx (- edge 1) (box:box-w box) 2)))))
+
 (defparameter +pane-root+ (hash:hash-of :app-pane)
   "What an app pane's key is made from in place of its parent's, so that it is kept by its id
 wherever in the window it is described.")
@@ -267,9 +314,14 @@ With MODE :design the inner app is given nothing: it is shown as it is, and a pr
 widget of a view (DEFINE-VIEW) it is on. The pane outlines that widget and the one the pointer is
 over; SELECTED, a list of a view's name and a widget's id, is outlined as chosen.
 
-Returns the inner app (for a tool that looks at it, as the inspector does), and, on the frame of a
-press in design mode on a widget of a view, the view's name and the widget's id. The :id is
-required."
+What is dragged (DRAG-SOURCE) over it in design mode goes into the container of a view under the
+pointer, among its widgets where it is, which a marker shows; a widget of a view pressed and moved
+is dragged, carrying (:move id).
+
+Returns the inner app (for a tool that looks at it, as the inspector does); on the frame of a press
+in design mode on a widget of a view, the view's name and the widget's id; and on the frame of a
+drop, what was dropped, as a list of the payload, the view's name, the id of the container it goes
+into and the index among that container's widgets. The :id is required."
   (let* ((ui ui:*ui*)
          (box (ui:open-box ui :canvas :id id :rooted-at +pane-root+))
          (key (box:box-key box))
@@ -282,7 +334,8 @@ required."
          (moved nil)
          (picked-view nil)
          (picked-id nil)
-         (hover nil))
+         (hover nil)
+         (drop nil))
     (widgets:set-size-limits box width height min-width min-height max-width max-height)
     (setf (box:box-interactive box) t
           (box:box-focusable box) (not design)
@@ -347,7 +400,25 @@ required."
                   (when (ui:ui-pressed ui)
                     (ui:consume-press ui)
                     (setf picked-view name
-                          picked-id widget))))))
+                          picked-id widget)
+                    ;; Moved, the widget is dragged.
+                    (when name
+                      (drag:begin-drag key (list :move widget)
+                                       (format nil "~(~s~)" widget))))
+                  ;; What is dragged over it goes into the container under the pointer.
+                  (when (drag:dragging)
+                    (multiple-value-bind (view into container cx cy) (container-at inner-ui x y)
+                      (when view
+                        (multiple-value-bind (index mx my mw mh) (place-in container cx cy x y)
+                          (let ((payload (drag:take-drop)))
+                            (if payload
+                                (setf drop (list payload view into index))
+                                (drag:show-insertion key (+ (ui:rect-x rect) (* mx zoom))
+                                                     (+ (ui:rect-y rect) (* my zoom))
+                                                     (* mw zoom) (* mh zoom))))))))))))
+          (when design
+            (drag:follow-drag key)
+            (drag:drag-ghost key))
           (when (and (not design) hot (ui:ui-pressed ui))
             (ui:consume-press ui)
             (setf (ui:ui-active ui) key)
@@ -431,4 +502,4 @@ required."
           (outline-widget ui key :selected
                           (view-widget-place inner-ui (first selected) (second selected))
                           rect zoom (theme:theme-ring theme:*theme*)))))
-    (values (app-pane-state-instance state) picked-view picked-id)))
+    (values (app-pane-state-instance state) picked-view picked-id drop)))

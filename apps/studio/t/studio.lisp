@@ -337,6 +337,83 @@ inside every clip it is in."
         (pointer screen :up x y)
         (dotimes (i 3) (draw screen))))))
 
+(defun in-running (screen id fraction &optional (across 1/2))
+  "The point on the canvas FRACTION of the way down the widget ID of the app running there, and
+ACROSS of the way along it."
+  (multiple-value-bind (px py) (core:lookup-target (screen-app screen) :running)
+    (multiple-value-bind (x y w h) (core:lookup-target studio:*running* id)
+      (values (+ px x (* w across)) (+ py y (* h fraction))))))
+
+;; A view with a row inside its column, and an app that draws it.
+(bolt:define-view nested-view
+  (:column :nested-page (:gap 8)
+   (:row :bar (:gap 8)
+    (:button :first (:text "First"))
+    (:button :second (:text "Second")))
+   (:label :under (:text "Under"))))
+
+(defparameter *nested-view* (almighty-bolt/ui/views:find-view 'nested-view))
+
+(defun make-nested ()
+  (lambda ()
+    (bolt:view nested-view)))
+
+(defun drag-to (screen from-x from-y to-x to-y)
+  "Press at FROM, move to TO in steps, and let go."
+  (pointer screen :move from-x from-y)
+  (pointer screen :down from-x from-y)
+  (dotimes (i 4)
+    (let ((f (/ (1+ i) 4)))
+      (pointer screen :move (+ from-x (* f (- to-x from-x))) (+ from-y (* f (- to-y from-y))))))
+  (pointer screen :up to-x to-y)
+  (dotimes (i 3) (draw screen)))
+
+(defun view-kinds (name)
+  "The kinds and ids of the widgets in the outermost container of the view NAME, in order."
+  (mapcar (lambda (form) (list (first form) (second form)))
+          (cdddr (views:find-view name))))
+
+(define-test what-is-let-go-of-on-the-running-app-goes-into-its-view-where-it-was ()
+  (multiple-value-bind (screen session) (open-studio)
+    (unwind-protect
+         (progn
+           (run-in-studio session 'make-viewed :mode "Design")
+           (dotimes (i 3) (draw screen))
+           ;; A label from the catalogue, let go of low on the button: after it, before the count;
+           ;; the view, opened live, has it there, and so does the running app.
+           (destructuring-bind (x y w h) (s:node-bounds (m:find-node session :id :add-label
+                                                                             :within :left))
+             (multiple-value-bind (to-x to-y) (in-running screen :plus 0.9)
+               (drag-to screen (+ x (/ w 2)) (+ y (/ h 2)) to-x to-y)))
+           (assert-equal '((:button :plus) (:label :label-1) (:label :count))
+                         (view-kinds 'tiny-view))
+           (assert-true (s:find-nodes (core:accessibility-tree studio:*running*) :id :label-1))
+           ;; One of the view's own, dragged high on the button: before it.
+           (multiple-value-bind (from-x from-y) (in-running screen :count 0.5)
+             (multiple-value-bind (to-x to-y) (in-running screen :plus 0.1)
+               (drag-to screen from-x from-y to-x to-y)))
+           (assert-equal '((:label :count) (:button :plus) (:label :label-1))
+                         (view-kinds 'tiny-view)))
+      (views:set-view 'tiny-view *tiny-view*))))
+
+(define-test what-is-let-go-of-goes-into-the-innermost-container-along-it ()
+  (multiple-value-bind (screen session) (open-studio)
+    (unwind-protect
+         (progn
+           (run-in-studio session 'make-nested :mode "Design")
+           (dotimes (i 3) (draw screen))
+           ;; On the right of the row's first button: into the row, between its buttons, not into
+           ;; the column around it.
+           (destructuring-bind (x y w h) (s:node-bounds (m:find-node session :id :add-label
+                                                                             :within :left))
+             (multiple-value-bind (to-x to-y) (in-running screen :first 1/2 9/10)
+               (drag-to screen (+ x (/ w 2)) (+ y (/ h 2)) to-x to-y)))
+           (assert-equal '((:row :bar) (:label :under)) (view-kinds 'nested-view))
+           (assert-equal '((:button :first) (:label :label-1) (:button :second))
+                         (mapcar (lambda (form) (list (first form) (second form)))
+                                 (cdddr (fourth (views:find-view 'nested-view))))))
+      (views:set-view 'nested-view *nested-view*))))
+
 (define-test on-the-canvas-a-press-picks-the-widget-of-its-view-and-in-run-is-the-apps ()
   (multiple-value-bind (screen session) (open-studio)
     (flet ((inner (id)

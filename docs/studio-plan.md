@@ -109,10 +109,10 @@ user of.
     on a stage with a window's bar. In Design, a press picks the widget of the
     view it is on (`view-widget`) and does not reach the app, and a widget let
     go of goes into the view's container under it; in Run, the app has the
-    input. With no app running, the view is drawn with sample data. (Done
-    but for the drop: the canvas pane has the app, under a window's bar, in
-    every mode, one app in all of them; `app-pane`'s `:mode :design` picks and
-    outlines; the App pane is gone. With no app, the view is drawn from its own
+    input. With no app running, the view is drawn with sample data. (Done:
+    the canvas pane has the app, under a window's bar, in every mode, one app
+    in all of them; `app-pane`'s `:mode :design` picks, outlines and takes
+    drops; the App pane is gone. With no app, the view is drawn from its own
     options.)
 11. **The canvas's bar:** the window's size, the zoom, the theme (the app drawn
     in a theme the studio picks), live or sample data, Design or Run, and

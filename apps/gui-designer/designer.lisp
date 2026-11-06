@@ -557,6 +557,15 @@ selected if given."
                (let ((problems (handler-bind ((warning #'muffle-warning))
                                  (views:set-view symbol (designer-view:node-form view) :file path))))
                  (setf status (format nil "Saved to ~a~:[.~;; ~:*~{~a~^ ~}~]" path problems))))
+             (dropped (payload into at)
+               "A widget from the left, or one of the view's own ((:move id)), let go of in the
+container INTO, at AT among its children."
+               (if (and (consp payload) (eq (first payload) :move))
+                   (when (designer-view:find-by-id view (second payload))
+                     (change (designer-view:move-node view (second payload) into at)))
+                   (let ((new (new-node view payload)))
+                     (change (designer-view:add-node view new :into into :at at))
+                     (select (designer-view:node-id new)))))
              (save ()
                "To its own file without asking, if that file is only the view; else ask where."
                (if (and live file (view-only-file-p file live))
@@ -663,14 +672,24 @@ selected if given."
                      (if app
                          ;; The app, with its own data; designing, a press picks the widget of
                          ;; the view it is on, as in the view drawn alone.
-                         (multiple-value-bind (instance picked widget)
+                         (multiple-value-bind (instance picked widget drop)
                              (bolt:app-pane app :id :running :zoom zoom :flex 1 :mode mode
                                                 :selected (and live selected (list live selected)))
                            (setf running instance)
                            (when picked
                              (if (eq picked live)
                                  (select widget)
-                                 (open-view picked widget))))
+                                 (open-view picked widget)))
+                           ;; Let go of on a container of a view: into it, that view opened if it
+                           ;; is another (a widget of one view is not moved into another).
+                           (when drop
+                             (destructuring-bind (payload into-view into at) drop
+                               (let ((moving (and (consp payload) (eq (first payload) :move))))
+                                 (unless (eq into-view live)
+                                   (unless moving
+                                     (open-view into-view)))
+                                 (when (eq into-view live)
+                                   (dropped payload into at))))))
                          (multiple-value-bind (pressed drop)
                              (bolt:design-surface (:id :canvas :selected selected)
                                (catalogue:draw-form (designer-view:node-form view)))
@@ -680,11 +699,7 @@ selected if given."
                            ;; it goes.
                            (when drop
                              (destructuring-bind (payload into at) drop
-                               (if (and (consp payload) (eq (first payload) :move))
-                                   (change (designer-view:move-node view (second payload) into at))
-                                   (let ((new (new-node view payload)))
-                                     (change (designer-view:add-node view new :into into :at at))
-                                     (select (designer-view:node-id new)))))))))
+                               (dropped payload into at))))))
                    stage-drafts :scale (if app zoom 1) :title title)
                 (setf stage-w w stage-h h)))
             running))

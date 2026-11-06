@@ -109,14 +109,17 @@ a stage the size of its window, under a window's bar. The bar over the canvas
 has the app's name, its zoom, and Design or Run. In Design, a press on the app
 picks the widget of the view it is on: the view is opened, live, with the
 widget selected, and outlined where the app draws it; the app has none of the
-press. In Run, the app has the pointer and the keys. With no app named, the
+press. A widget dragged from the catalogue onto the app goes into
+the view's container under the pointer, where it is let go of, and a widget
+of the view is dragged to another place in it, as on the view drawn alone; the
+app shows it at once. In Run, the app has the pointer and the keys. With no app named, the
 canvas shows the view drawn alone, from its own options. The App pane is
 gone: the canvas is in every mode that showed it, and the app is one app in
 all of them, keeping what it holds when the mode changes.
 
 `app-pane` takes `:mode :design`, which gives the inner app nothing and
-returns the view and the widget a press picked, and `:selected`, outlined as
-chosen. An app pane is kept by its id wherever in the window it is.
+returns the view and the widget a press picked, and what was let go of on a
+container of a view and where; and `:selected`, outlined as chosen. An app pane is kept by its id wherever in the window it is.
 
 ### The studio's REPL
 

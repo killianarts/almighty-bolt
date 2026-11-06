@@ -14,8 +14,8 @@ are not listed.
 
 ### Added
 
-- The studio's canvas is the app's window: the app running with its own data under a window's bar, where in Design a press picks the widget of its view and in Run is the app's ([0.3](docs/releases/dev.md#the-studios-canvas-is-the-apps-window)).
-- `:mode :design` and `:selected` on `app-pane`: the inner app shown and given nothing, a press returning the view and the widget it picked, outlined ([0.3](docs/releases/dev.md#the-studios-canvas-is-the-apps-window)).
+- The studio's canvas is the app's window: the app running with its own data under a window's bar, where in Design a press picks the widget of its view, a widget let go of goes into its view's container, and in Run the press is the app's ([0.3](docs/releases/dev.md#the-studios-canvas-is-the-apps-window)).
+- `:mode :design` and `:selected` on `app-pane`: the inner app shown and given nothing, a press returning the view and the widget it picked, outlined, and a drop the container and the place ([0.3](docs/releases/dev.md#the-studios-canvas-is-the-apps-window)).
 - `scroll` takes `:follow`: the window stays at the end while it is there, as more is put at the end ([0.3](docs/releases/dev.md#the-studios-repl)).
 - The studio's REPL, in the app's package, with what was printed and returned, errors, and the forms typed before on Up and Down ([0.3](docs/releases/dev.md#the-studios-repl)).
 - The studio's rail, section headers, bottom panel (REPL, problems, events, agent) and status bar ([0.3](docs/releases/dev.md#the-studios-rail-sections-bottom-panel-and-status-bar)).

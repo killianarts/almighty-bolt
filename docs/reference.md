@@ -528,7 +528,12 @@ view's name and the widget's id as its second and third values on the frame
 of the press. The pane outlines the widget the pointer is over, and the one
 `:selected` names, a list of a view's name and a widget's id:
 `(bolt:app-pane 'my-app:make-app :id :running :mode :design :selected (list
-'my-app::sign-in :name))`. `:mode :run`, the default, is as above.
+'my-app::sign-in :name))`. What is dragged (`drag-source`) over it goes into
+the container of a view under the pointer, among that container's widgets
+where it is let go of, which a marker shows; a widget of a view pressed and
+moved is dragged, carrying `(:move id)`. On the frame of the drop the fourth
+value is a list of the payload, the view's name, the container's id and the
+index. `:mode :run`, the default, is as above.
 
 `inspector-pane` (`target &key id flex`) is the inspector, in this window, of
 TARGET, an app in an `app-pane` as it returns it (or `nil`): Pick, then a press
