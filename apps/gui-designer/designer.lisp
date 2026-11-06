@@ -427,9 +427,9 @@ widget's id."
 but still have the File menu, the dialogs and a view typed in an editor taken up, and :SAVE-BUTTON
 NIL to have no Save... of its own. LEFT is the widgets to add and the outline. CANVAS is the view
 drawn, on a stage of the size it is designed at; with :APP (a constructor, as APP-PANE takes) it is
-that app, running with its own data, at :ZOOM, in the :MODE APP-PANE takes (:design, the default:
-a press picks the widget of a view it is on, and opens that view if it is another), under a
-window's bar that says :TITLE; it returns the app running, or NIL. RIGHT is the selected widget's
+that app, running with its own data, at :ZOOM, in the :MODE and the :APPEARANCE APP-PANE takes
+(:design, the default: a press picks the widget of a view it is on, and opens that view if it is
+another), under a window's bar that says :TITLE; it returns the app running, or NIL. RIGHT is the selected widget's
 options and the wiring, KEYS the shortcuts (Command-Z and Command-Shift-Z), described after the
 part that has the keyboard so that a text field undoes its own typing first. OPEN-VIEW is not
 drawn: it is called with the name of a view the image has, and the id of a widget in it, to open
@@ -662,7 +662,7 @@ container INTO, at AT among its children."
               (let ((chosen (outline view selected)))
                 (when chosen
                   (select chosen))))))
-        (lambda (&key app (zoom 1) (mode :design) title)
+        (lambda (&key app (zoom 1) (mode :design) appearance title)
           (let ((running nil))
             (bolt:panel (:id :canvas-back :color :background :radius 0 :flex 1 :all 24)
               (multiple-value-bind (w h)
@@ -674,6 +674,7 @@ container INTO, at AT among its children."
                          ;; the view it is on, as in the view drawn alone.
                          (multiple-value-bind (instance picked widget drop)
                              (bolt:app-pane app :id :running :zoom zoom :flex 1 :mode mode
+                                                :appearance appearance
                                                 :selected (and live selected (list live selected)))
                            (setf running instance)
                            (when picked

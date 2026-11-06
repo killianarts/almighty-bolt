@@ -499,8 +499,8 @@ with KEY put in ANCHOR's group (`:into`) or beside it in a group of its own
 or tall), and `(bolt:pane-group layout key)` the keys of the group that has
 KEY.
 
-`app-pane` (`constructor &key id zoom width height flex mode selected` and the
-size limits) is another app, working, in an area of this one: a designer
+`app-pane` (`constructor &key id zoom width height flex mode selected
+appearance` and the size limits) is another app, working, in an area of this one: a designer
 showing the app being made. `(bolt:app-pane 'my-app:make-app :id :running
 :zoom 2 :flex 1)` makes the app the first time (and again if the constructor
 is another) and keeps it by the pane's id, wherever in the window the pane is
@@ -533,7 +533,10 @@ the container of a view under the pointer, among that container's widgets
 where it is let go of, which a marker shows; a widget of a view pressed and
 moved is dragged, carrying `(:move id)`. On the frame of the drop the fourth
 value is a list of the payload, the view's name, the container's id and the
-index. `:mode :run`, the default, is as above.
+index. A press with Command down is the inner app's, and what follows until it
+is let go of, to try a widget while designing. `:mode :run`, the default, is
+as above. `:appearance`, `:light` or `:dark`, is the inner app's in place of
+the window's: it is drawn in that theme, if it gives none of its own.
 
 `inspector-pane` (`target &key id flex`) is the inspector, in this window, of
 TARGET, an app in an `app-pane` as it returns it (or `nil`): Pick, then a press

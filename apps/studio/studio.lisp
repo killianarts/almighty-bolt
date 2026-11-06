@@ -82,6 +82,10 @@ of the app on it, and Theme the theme's preview and settings and the canvas.")
                        (app-name "")
                        (zoom 1)
                        (canvas-mode :design)
+                       ;; Whether the app runs on the canvas (:live) or the view is drawn alone
+                       ;; (:sample), and the appearance it is drawn in (NIL: the window's).
+                       (data :live)
+                       (look nil)
                        ;; True for the frame after Edit in the View: the canvas and the options
                        ;; are brought to the front.
                        (to-canvas nil)
@@ -104,40 +108,50 @@ of the app on it, and Theme the theme's preview and settings and the canvas.")
                          (bolt:stack (:id :widgets-part) (funcall widgets)))
                        (funcall view-keys))
                      ;; The app being made, running on the canvas with its own data, or the view
-                     ;; drawn alone; in the window's theme, not the studio's.
+                     ;; drawn alone (its sample data); in the theme the bar picks, or the window's,
+                     ;; not the studio's.
                      (canvas-pane ()
                        (bolt:column (:id :canvas-column :flex 1 :fill t :cross-align :stretch)
                          (canvas-bar)
-                         (bolt:with-theme ((bolt:appearance))
+                         (bolt:with-theme ((or look (bolt:appearance)))
                            (bolt:stack (:id :canvas-part :flex 1)
                              (setf *running*
-                                   (funcall canvas :app constructor :zoom zoom :mode canvas-mode
-                                                   :title (if constructor
+                                   (funcall canvas :app (and (eq data :live) constructor)
+                                                   :zoom zoom :mode canvas-mode :appearance look
+                                                   :title (if (and (eq data :live) constructor)
                                                               app-name
                                                               (getf facts :name)))))))
                        (funcall view-keys))
-                     ;; Over the canvas: the app to run on it, its zoom, and whether a press picks
-                     ;; a widget (Design) or is the app's (Run).
+                     ;; Over the canvas: the app to run on it and whether it runs (Live) or the
+                     ;; view is drawn alone (Sample); whether a press picks a widget (Design,
+                     ;; where Command-press tries it) or is the app's (Run), the zoom, and the
+                     ;; theme it is drawn in.
                      (canvas-bar ()
-                       (bolt:panel (:id :canvas-bar :all 8 :radius 0)
-                         (bolt:row (:id :canvas-bar-row :gap 8 :cross-align :center :fill t)
-                           (multiple-value-bind (index changed)
-                               (bolt:choice '("Design" "Run") (if (eq canvas-mode :run) 1 0)
-                                            :id :canvas-mode :style :segmented)
-                             (when changed (setf canvas-mode (if (= index 1) :run :design))))
-                           (multiple-value-bind (index changed)
-                               (bolt:choice (mapcar #'first +zooms+)
-                                            (or (position zoom +zooms+ :key #'second) 1)
-                                            :id :zoom :style :segmented)
-                             (when changed (setf zoom (second (nth index +zooms+)))))
-                           (bolt:label "App" :id :run-label)
-                           ;; The app's name takes what room is left.
-                           (multiple-value-bind (text edited)
-                               (bolt:text-field app-name :id :app-name :flex 1 :width 120
-                                                         :labelled-by :run-label
-                                                         :invalid (and (plusp (length app-name))
-                                                                       (null constructor)))
-                             (when edited (setf app-name text))))))
+                       (flet ((segments (id labels values value)
+                                (multiple-value-bind (index changed)
+                                    (bolt:choice labels (or (position value values) 0)
+                                                 :id id :style :segmented)
+                                  (if changed (nth index values) value))))
+                         (bolt:panel (:id :canvas-bar :all 8 :radius 0)
+                           (bolt:column (:id :canvas-bar-rows :gap 6 :cross-align :stretch)
+                             (bolt:row (:id :canvas-bar-row :gap 8 :cross-align :center :fill t)
+                               (bolt:label "App" :id :run-label)
+                               ;; The app's name takes what room is left.
+                               (multiple-value-bind (text edited)
+                                   (bolt:text-field app-name :id :app-name :flex 1 :width 120
+                                                             :labelled-by :run-label
+                                                             :invalid (and (plusp (length app-name))
+                                                                           (null constructor)))
+                                 (when edited (setf app-name text)))
+                               (setf data (segments :canvas-data '("Live" "Sample")
+                                                    '(:live :sample) data)))
+                             (bolt:row (:id :canvas-bar-row-2 :gap 8 :cross-align :center)
+                               (setf canvas-mode (segments :canvas-mode '("Design" "Run")
+                                                           '(:design :run) canvas-mode))
+                               (setf zoom (segments :zoom (mapcar #'first +zooms+)
+                                                    (mapcar #'second +zooms+) zoom))
+                               (setf look (segments :canvas-theme '("System" "Light" "Dark")
+                                                    '(nil :light :dark) look)))))))
                      (options-pane ()
                        (bolt:stack (:id :options-part :flex 1) (funcall options))
                        (funcall view-keys))

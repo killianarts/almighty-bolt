@@ -170,12 +170,13 @@ inside every clip it is in."
                                                                  core:+modifier-shift+ 0))))
   (dotimes (i 3) (draw screen)))
 
-(defun pointer (screen kind x y)
+(defun pointer (screen kind x y &optional (modifiers 0))
   (core:handle-event (screen-app screen)
                      (core:make-pointer-event :timestamp 0 :kind kind :x (float x 1d0)
                                               :y (float y 1d0) :button 0
                                               :buttons (if (eq kind :up) 0 1)
-                                              :click-count (if (eq kind :move) 0 1)))
+                                              :click-count (if (eq kind :move) 0 1)
+                                              :modifiers modifiers))
   (draw screen))
 
 (define-test command-z-undoes-in-the-designer-last-used ()
@@ -413,6 +414,47 @@ ACROSS of the way along it."
                          (mapcar (lambda (form) (list (first form) (second form)))
                                  (cdddr (fourth (views:find-view 'nested-view))))))
       (views:set-view 'nested-view *nested-view*))))
+
+(define-test the-canvas-bar-tries-a-widget-shows-sample-data-and-picks-the-apps-theme ()
+  (multiple-value-bind (screen session) (open-studio)
+    (flet ((inner (id)
+             (s:node-name (first (s:find-nodes (core:accessibility-tree studio:*running*) :id id))))
+           (button-color ()
+             (multiple-value-bind (px py) (core:lookup-target (screen-app screen) :running)
+               (multiple-value-bind (x y w h) (core:lookup-target studio:*running* :plus)
+                 (color-at screen (+ px x (/ w 2)) (+ py y (/ h 2)))))))
+      (unwind-protect
+           (progn
+             (setf (core:context-appearance (screen-context screen)) :light)
+             (run-in-studio session 'make-viewed :mode "Design")
+             (dotimes (i 3) (draw screen))
+             ;; Command-press, designing: the app has it, and nothing is picked.
+             (multiple-value-bind (x y) (in-running screen :plus 1/2)
+               (pointer screen :move x y)
+               (pointer screen :down x y core:+modifier-super+)
+               (pointer screen :up x y core:+modifier-super+)
+               (dotimes (i 3) (draw screen)))
+             (assert-equal "Count 1" (inner :count))
+             (assert-false (shown-p session :selected-what))
+             ;; A plain press picks again.
+             (press-in-running screen :plus)
+             (assert-equal "Count 1" (inner :count))
+             (assert-equal "Button :plus" (s:node-name (m:find-node session :id :selected-what)))
+             ;; The app drawn dark in a light window, and as the window again.
+             (assert-eql (bolt:theme-setting (bolt:find-theme :light) :button) (button-color))
+             (m:set-value session "Dark" :id :canvas-theme)
+             (dotimes (i 3) (draw screen))
+             (assert-eql (bolt:theme-setting (bolt:find-theme :dark) :button) (button-color))
+             (m:set-value session "System" :id :canvas-theme)
+             (dotimes (i 3) (draw screen))
+             (assert-eql (bolt:theme-setting (bolt:find-theme :light) :button) (button-color))
+             ;; Sample: the view drawn alone, the app not running there; Live, back as it was.
+             (m:set-value session "Sample" :id :canvas-data)
+             (assert-false studio:*running*)
+             (assert-true (shown-p session :plus :canvas))
+             (m:set-value session "Live" :id :canvas-data)
+             (assert-equal "Count 1" (inner :count)))
+        (views:set-view 'tiny-view *tiny-view*)))))
 
 (define-test on-the-canvas-a-press-picks-the-widget-of-its-view-and-in-run-is-the-apps ()
   (multiple-value-bind (screen session) (open-studio)

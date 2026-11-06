@@ -123,6 +123,9 @@ ZOOMED, the same at the pane's zoom, which draws."
   (shown (dl:make-display-list :capacity 4096))
   (zoom 0f0 :type single-float)
   (was-hot nil)
+  ;; True from a press with Command down in design mode until it is let go of: the inner app has
+  ;; that press, to try a widget.
+  (trying nil)
   ;; Whether the input method is composing in the inner app: it began and has not been committed.
   (composing nil))
 
@@ -302,7 +305,8 @@ is (x, y, width and height)."
 wherever in the window it is described.")
 
 (defun app-pane (constructor &key (id (widgets:required-id 'app-pane)) (zoom 1) width height (flex 0)
-                               min-width min-height max-width max-height (mode :run) selected)
+                               min-width min-height max-width max-height (mode :run) selected
+                               appearance)
   "The app that CONSTRUCTOR (a function, or the name of one, as OPEN-APP takes) makes, working, in
 an area of this window, at ZOOM (1 as it is; 2 twice as large). It is made the first time and kept
 by the pane's id, wherever in the window the pane is (two app panes of a window have two ids), and
@@ -312,7 +316,11 @@ the area's size, as a container's; with neither, give it a FLEX.
 
 With MODE :design the inner app is given nothing: it is shown as it is, and a press on it picks the
 widget of a view (DEFINE-VIEW) it is on. The pane outlines that widget and the one the pointer is
-over; SELECTED, a list of a view's name and a widget's id, is outlined as chosen.
+over; SELECTED, a list of a view's name and a widget's id, is outlined as chosen. A press with
+Command down is the inner app's, and what follows until it is let go of: to try a widget.
+
+APPEARANCE, :light or :dark, is the inner app's in place of the window's: it is drawn in that theme
+(if it gives none of its own).
 
 What is dragged (DRAG-SOURCE) over it in design mode goes into the container of a view under the
 pointer, among its widgets where it is, which a marker shows; a widget of a view pressed and moved
@@ -328,7 +336,14 @@ into and the index among that container's widgets. The :id is required."
          (state (ui:state-of ui key #'make-app-pane-state))
          (rect (ui:rect-of ui key))
          (hot (= (ui:ui-hot ui) key))
-         (design (eq mode :design))
+         ;; A press with Command down, designing, tries the widget: the inner app has it, and
+         ;; what follows until it is let go of.
+         (trying (and (eq mode :design)
+                      (or (app-pane-state-trying state)
+                          (and hot (ui:ui-pressed ui)
+                               (event:modifier-down-p (ui:ui-press-modifiers ui)
+                                                      event:+modifier-super+)))))
+         (design (and (eq mode :design) (not trying)))
          (zoom (float zoom 1f0))
          (outer (ui:ui-context ui))
          (moved nil)
@@ -366,14 +381,17 @@ into and the index among that container's widgets. The :id is required."
       (when (make-inner-again state id)
         (setf moved t)))
     (let ((inner (app-pane-state-context state)))
-      ;; The system gone dark or light: the inner app is drawn again, in its new theme.
-      (unless (eq (app-instance:context-appearance inner) (app-instance:context-appearance outer))
+      ;; The system gone dark or light (or the appearance given another): the inner app is drawn
+      ;; again, in its new theme.
+      (unless (eq (app-instance:context-appearance inner)
+                  (or appearance (app-instance:context-appearance outer)))
         (setf moved t))
       ;; The window's, which the inner app follows, and its size, the pane's in its points.
       (setf (pane-context-outer inner) outer
             (pane-context-zoom inner) zoom
             (app-instance:context-scale inner) (app-instance:context-scale outer)
-            (app-instance:context-appearance inner) (app-instance:context-appearance outer)
+            (app-instance:context-appearance inner) (or appearance
+                                                        (app-instance:context-appearance outer))
             (app-instance:context-window inner) (app-instance:context-window outer))
       (when rect
         (let ((w (/ (ui:rect-w rect) zoom)) (h (/ (ui:rect-h rect) zoom)))
@@ -494,6 +512,8 @@ into and the index among that container's widgets. The :id is required."
             (box:box-n3 box) (dl:display-list-hash shown)
             (box:box-look box) (widgets:look-of ui key t)))
     (ui:close-box ui)
+    ;; The press that tried a widget let go of.
+    (setf (app-pane-state-trying state) (and trying (= (ui:ui-active ui) key)))
     ;; Designing: what the pointer is over, and what is chosen, where the inner app drew it now.
     (when (and design rect)
       (outline-widget ui key :hover hover rect zoom (theme:theme-dim-text theme:*theme*))

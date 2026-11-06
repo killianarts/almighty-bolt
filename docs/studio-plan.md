@@ -116,7 +116,12 @@ user of.
     options.)
 11. **The canvas's bar:** the window's size, the zoom, the theme (the app drawn
     in a theme the studio picks), live or sample data, Design or Run, and
-    Command-click to try a widget in Design.
+    Command-click to try a widget in Design. (Done: Live or Sample, Design or
+    Run, the zoom, and the window's appearance, light or dark, as the theme;
+    Command-press tries a widget. The size is typed and dragged on the stage,
+    under the bar, as before; a theme by name, other than the window's light
+    and dark, is not offered, since an app pane can only give its app an
+    appearance.)
 12. **The selection:** corner brackets, and a tag that says the widget, its id
     and whether it is wired; what is dragged says the id it will have.
 13. **The catalogue and the outline:** a search, groups with counts, icons;

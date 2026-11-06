@@ -112,14 +112,20 @@ widget selected, and outlined where the app draws it; the app has none of the
 press. A widget dragged from the catalogue onto the app goes into
 the view's container under the pointer, where it is let go of, and a widget
 of the view is dragged to another place in it, as on the view drawn alone; the
-app shows it at once. In Run, the app has the pointer and the keys. With no app named, the
+app shows it at once; a press with Command down is the app's, to try a
+widget. In Run, the app has the pointer and the keys. The bar also has the
+zoom, the theme the app is drawn in (the window's, light or dark, whatever
+the studio is), and Live or Sample: the app running, or the view drawn
+alone. With no app named, the
 canvas shows the view drawn alone, from its own options. The App pane is
 gone: the canvas is in every mode that showed it, and the app is one app in
 all of them, keeping what it holds when the mode changes.
 
 `app-pane` takes `:mode :design`, which gives the inner app nothing and
 returns the view and the widget a press picked, and what was let go of on a
-container of a view and where; and `:selected`, outlined as chosen. An app pane is kept by its id wherever in the window it is.
+container of a view and where (a Command-press is the inner app's); `:selected`,
+outlined as chosen; and `:appearance`, the inner app's light or dark in place
+of the window's. An app pane is kept by its id wherever in the window it is.
 
 ### The studio's REPL
 

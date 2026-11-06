@@ -61,6 +61,7 @@
            #:ui-down
            #:ui-pressed
            #:ui-click-count
+           #:ui-press-modifiers
            #:ui-released
            #:ui-secondary-pressed
            #:ui-moved
@@ -181,6 +182,8 @@ pointer has gone far enough from there; DROPPING in the frame it is let go of, w
   (pressed nil)
   ;; How many clicks in a row the press is, as the platform counts them.
   (click-count 1 :type fixnum)
+  ;; The modifier keys down at the press (the event's bits).
+  (press-modifiers 0 :type fixnum)
   (released nil)
   (secondary-pressed nil)
   (moved nil)
@@ -590,7 +593,8 @@ were left."
                       (changed-button (return))
                       (t (setf (ui-pointer-x ui) x (ui-pointer-y ui) y
                                (ui-down ui) t (ui-pressed ui) t changed-button t
-                               (ui-click-count ui) (max 1 (core:pointer-event-click-count event))))))
+                               (ui-click-count ui) (max 1 (core:pointer-event-click-count event))
+                               (ui-press-modifiers ui) (core:pointer-event-modifiers event)))))
                (:up
                 (cond ((not (eql (core:pointer-event-button event) 0)))
                       (changed-button (return))
