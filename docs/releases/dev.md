@@ -166,6 +166,22 @@ again from its new first value, as `state-let` has always done.
 `(bolt:set-app-pane-variable app 'count 41)` gives one a value and draws the
 app again, and `(bolt:pin-app-pane-variable app 'count t)` pins it.
 
+### Wire: the view's file and the code's
+
+Wire shows, beside its views, the view being designed as its file is written
+(in front of the canvas, which is a tab behind it) and the code that wires
+it: the form of the code's file that has the `view` form, read from the file
+as it is now, so that what is saved in Emacs shows, with its file and first
+line over it (`app.lisp:42`). The selected widget's line is marked in both,
+and the caret put on a widget's line in either selects it, on the canvas and
+in the options. Under the view: whether it is defined in the image; under the
+code: whether it fits the view, and how many of its widgets it wires.
+
+The GUI designer now writes a view's file with each widget on a line of its
+own, one column in from its container, as Emacs indents it; a view it sends
+to an Emacs buffer is written the same way. A file written before still
+loads.
+
 ### The studio's REPL
 
 The bottom panel's REPL evaluates what is typed in the image the studio runs in, in the package of the app being run (or the view's), as the prompt says: `counter> (+ 1 2)`. It shows what each form printed and what it returned, each value on a line of its own, or the error, in red, and goes on; `*`, `**`, `+` and the rest are set as in any REPL. Up and Down go back through what was typed. It runs on the window's thread, so a form that takes long holds the window as long.

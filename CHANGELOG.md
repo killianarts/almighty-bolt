@@ -14,6 +14,7 @@ are not listed.
 
 ### Added
 
+- The studio's Wire mode shows the view as its file is written and the form of the code that wires it, read from its file as it is now, each with the selected widget's line marked; the caret put on a widget's line selects it ([0.3](docs/releases/dev.md#wire-the-views-file-and-the-codes)).
 - The studio's Wire mode has the views, each with how many of its widgets the code wires, to open one; and the state of the app on the canvas, each `state-let` variable live, its value typed and entered with Return, and pinned to keep it when its first value is edited ([0.3](docs/releases/dev.md#wire-the-views-and-the-state)).
 - `app-pane-variables`, `set-app-pane-variable` and `pin-app-pane-variable`: what an app in an app pane keeps with `state-let`, given a value, and pinned to be kept when its initial form is edited ([0.3](docs/releases/dev.md#wire-the-views-and-the-state)).
 - The studio's canvas is the app's window: the app running with its own data under a window's bar, where in Design a press picks the widget of its view, a widget let go of goes into its view's container, and Command-press or Run gives the press to the app; its bar has the zoom, light or dark, and live or sample data; the selection is marked with corner brackets and a tag that says whether it is wired, and a widget dragged from the catalogue says the id it will have; the catalogue is in groups with counts and searched, and the outline abbreviates each kind and counts each container; the options say where each value comes from, the container's gap and alignments are changed from what is in it, and the wiring says the file and line of the code that wires the view; a Frames chart of the app's build, layout and paint; Command-G wraps the selection in a column ([0.3](docs/releases/dev.md#the-studios-canvas-is-the-apps-window)).
@@ -77,6 +78,7 @@ are not listed.
 
 ### Changed
 
+- The GUI designer writes a view's file with each widget on a line of its own, one column in from its container, and so does a view sent to an Emacs buffer ([0.3](docs/releases/dev.md#wire-the-views-file-and-the-codes)).
 - An `app-pane` is kept by its id wherever in the window it is described, so two app panes of one window need two ids ([0.3](docs/releases/dev.md#the-studios-canvas-is-the-apps-window)).
 - `context-push-text` takes an optional turn, so a method of it for a context of your own must take it too ([0.3](docs/releases/dev.md#context-push-text-takes-a-turn)).
 - A window whose frame fails shows the last frame that did not, with the error over it, and goes on, instead of failing again on every event ([0.3](docs/releases/dev.md#windowing)).

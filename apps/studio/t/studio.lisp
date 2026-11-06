@@ -790,7 +790,8 @@ ACROSS of the way along it."
     (assert-true (shown-p session :theme-part))
     (to-mode session "WIRE")
     (assert-true (shown-p session :views-part))
-    (assert-true (shown-p session :canvas-part))
+    (assert-true (shown-p session :view-code-part))
+    (assert-true (shown-p session :code-part))
     (assert-true (shown-p session :options-part))
     (assert-false (shown-p session :widgets-part))
     (to-mode session "DEBUG")
@@ -1150,3 +1151,113 @@ its two variables."
       (define-pinnable 20)
       (make-studio-again screen)
       (assert-equal "20 20" (shown)))))
+;;; --- Wire: the view's file and the code's ---
+
+(defun line-of (text start &key (from 0))
+  "The number (from 1) of the first line of TEXT, from the line numbered FROM on, that begins, after
+its spaces, with START."
+  (loop :for line :in (uiop:split-string text :separator '(#\Newline))
+        :for number :from 1
+        :when (and (>= number from)
+                   (eql 0 (search start (string-left-trim '(#\Space) line))))
+          :return number))
+
+(defun caret-to-line (session id line)
+  "Put the caret of the code view ID on LINE, as a person does: press the view, then Up or Down."
+  (m:click session :id id)
+  ;; A long line goes on under no number, and Up and Down go a line as it shows.
+  (flet ((now ()
+           (let ((node (m:find-node session :id id)))
+             (1+ (count #\Newline (s:node-value node) :end (s:node-property node :caret))))))
+    (loop :repeat 200
+          :until (= (now) line)
+          :do (m:press-key session (if (> line (now)) :down :up)))))
+
+(defun marks-of (session id)
+  (s:node-property (m:find-node session :id id) :marks))
+
+(define-test wire-shows-the-views-file-and-the-codes-in-step-with-the-selection ()
+  (multiple-value-bind (screen session) (open-studio)
+    (declare (ignore screen))
+    (to-mode session "WIRE")
+    (m:click session :id (list :view-row 'tiny-view))
+    (run-in-studio session 'make-viewed)
+    (m:click session :id :view-code-pane)
+    (let* ((view-text (s:node-value (m:find-node session :id :view-code-text)))
+           (code-text (s:node-value (m:find-node session :id :code-text)))
+           (view-start (line-of code-text "(bolt:view tiny-view")))
+      ;; The view as its file is written, and the code that wires it, this file, from where it is.
+      (assert-true (search "(almighty-bolt:define-view tiny-view" view-text))
+      (assert-equal "DEFINED IN THE IMAGE WRITTEN BY THE DESIGNER, READABLE BY YOU"
+                    (format nil "~{~a~^ ~}"
+                            (loop :for i :from 0 :below 2
+                                  :collect (s:node-name (m:find-node session :id (list :words i)
+                                                                             :within :view-code-foot)))))
+      ;; The form of this file that wires it, numbered from its first line, which the header says.
+      (assert-true (eql 0 (search "(defun make-viewed ()" code-text)))
+      (assert-true (search code-text (uiop:read-file-string (views:wiring-file 'tiny-view))))
+      (assert-equal (format nil "studio.lisp:~d"
+                            (line-of (uiop:read-file-string (views:wiring-file 'tiny-view))
+                                     "(defun make-viewed ()"))
+                    (s:node-name (m:find-node session :id :count :within '(:code-heading :header))))
+      (assert-true view-start)
+      ;; The caret put on a widget's line in the view selects it, and its line is marked there and
+      ;; in the code.
+      (caret-to-line session :view-code-text (line-of view-text "(:button :plus"))
+      (assert-equal "Button :plus" (s:node-name (m:find-node session :id :selected-what)))
+      (assert-equal (list (list (line-of view-text "(:button :plus") ":plus, selected"))
+                    (marks-of session :view-code-text))
+      (assert-equal (list (list (line-of code-text "(button :plus" :from view-start)
+                                ":plus, selected"))
+                    (marks-of session :code-text))
+      ;; And on a clause in the code, the same.
+      (caret-to-line session :code-text (line-of code-text "(label :count" :from view-start))
+      (assert-equal "Label :count" (s:node-name (m:find-node session :id :selected-what)))
+      (assert-equal (list (list (line-of view-text "(:label :count") ":count, selected"))
+                    (marks-of session :view-code-text)))))
+
+;; A view that only the code in a file of the test's own wires.
+(bolt:define-view file-view
+  (:column :file-page (:gap 8)
+   (:label :words (:text "Words"))))
+
+(define-test wire-reads-the-codes-file-again-when-it-is-written ()
+  (uiop:with-temporary-file (:pathname file :type "lisp" :keep nil)
+    (flet ((write-code (lines-before words)
+             (with-open-file (out file :direction :output :if-exists :supersede)
+               (format out "(in-package #:almighty-bolt-studio/t/studio)~%")
+               (dotimes (i lines-before) (terpri out))
+               ;; Another view's code first, which is not the one to show.
+               (format out "~%(defun make-other ()~%  (lambda () (bolt:view nested-view)))~%")
+               (format out "~%(defun make-from-file ()~%  (lambda ()~%    (bolt:view file-view~%      ~
+                            (label :words~%       :text ~s))))~%~%;; After it.~%(defvar *after* 1)~%"
+                       words))))
+      (write-code 0 "From a file")
+      (load file)
+      (multiple-value-bind (screen session) (open-studio)
+        (declare (ignore screen))
+        (to-mode session "WIRE")
+        (m:click session :id (list :view-row 'file-view))
+        (m:click session :id :view-code-pane)
+        (flet ((code () (s:node-value (m:find-node session :id :code-text))))
+          ;; The form that wires it, alone, from its first line.
+          (assert-equal (format nil "(defun make-from-file ()~%  (lambda ()~%    (bolt:view file-view~%      ~
+                                     (label :words~%       :text \"From a file\"))))~%")
+                        (code))
+          (assert-equal (format nil "~a:6" (file-namestring file))
+                        (s:node-name (m:find-node session :id :count :within '(:code-heading :header))))
+          (caret-to-line session :view-code-text
+                         (line-of (s:node-value (m:find-node session :id :view-code-text))
+                                  "(:label :words"))
+          (assert-equal (list (list (line-of (code) "(label :words") ":words, selected"))
+                        (marks-of session :code-text))
+          ;; Written again (saved in Emacs, say), a second later: shown as it is now, the clause
+          ;; marked where it is now.
+          (sleep 1.1)
+          (write-code 3 "Written again")
+          (m:press-key session :escape)
+          (assert-true (search "Written again" (code)))
+          (assert-equal (format nil "~a:9" (file-namestring file))
+                        (s:node-name (m:find-node session :id :count :within '(:code-heading :header))))
+          (assert-equal (list (list (line-of (code) "(label :words") ":words, selected"))
+                        (marks-of session :code-text)))))))

@@ -47,7 +47,11 @@ and the file."
       ;; Written as the view is: it reads back as the form.
       (assert-equal '(:column :page (:gap 4) (:label :words (:text "After")))
                     (let ((*package* (find-package :cl-user)))
-                      (read-from-string (getf request :text)))))))
+                      (read-from-string (getf request :text))))
+      ;; As the designer writes it in the file: a widget to a line, one column in from its
+      ;; container, the form being two columns in.
+      (assert-equal (format nil "(:column :page (:gap 4)~%   (:label :words (:text \"After\")))")
+                    (getf request :text)))))
 
 (define-test nothing-is-queued-for-emacs-when-it-is-not-there ()
   (with-view (name path "Before")

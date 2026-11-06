@@ -49,24 +49,32 @@
   "Write VIEW to STREAM as the file the designer saves: Lisp that defines it as the view NAME (a
 symbol), in NAME's package, to be loaded before the code that draws it."
   (let ((package (symbol-package name)))
-    (flet ((written (thing)
-             (with-standard-io-syntax
-               (let ((*package* package)
-                     (*print-case* :downcase)
-                     (*print-pretty* t)
-                     (*print-right-margin* 98))
-                 (prin1-to-string thing)))))
-      (format stream ";;; A view made with the GUI designer of almighty-bolt. Load it before the code ~
-                      that draws it,~%;;; (almighty-bolt:view ~a ...).~%~%(in-package #:~(~a~))~%~%"
-              (written name) (package-name package))
-      ;; The operator is written as the public package names it (its home is another package).
-      (format stream "(almighty-bolt:define-view ~a~%  ~a)~%"
-              (written name)
-              (with-output-to-string (out)
-                (loop :for character :across (written (designer-view:node-form view))
-                      :do (write-char character out)
-                          (when (char= character #\Newline)
-                            (write-string "  " out))))))))
+    (write-view-as (written-in package name) package view stream)))
+
+(defun written-in (package thing)
+  "THING written as the designer writes it, in PACKAGE, in small letters."
+  (with-standard-io-syntax
+    (let ((*package* package)
+          (*print-case* :downcase)
+          (*print-pretty* t)
+          (*print-right-margin* 98))
+      (prin1-to-string thing))))
+
+(defun write-view-as (written-name package view stream)
+  "Write VIEW to STREAM as WRITE-VIEW does, called WRITTEN-NAME (its name as written), in PACKAGE."
+  (format stream ";;; A view made with the GUI designer of almighty-bolt. Load it before the code ~
+                  that draws it,~%;;; (almighty-bolt:view ~a ...).~%~%(in-package #:~(~a~))~%~%"
+          written-name (package-name package))
+  ;; The operator is written as the public package names it (its home is another package).
+  (format stream "(almighty-bolt:define-view ~a~%  ~a)~%"
+          written-name (views:form-text (designer-view:node-form view) package 2)))
+
+(defun view-source (name package view)
+  "The file the designer would save VIEW as, called NAME (a string, as the designer has it) in the
+package named PACKAGE (or CL-USER, if this Lisp has none of that name), as a string."
+  (let ((home (or (find-package (string-upcase package)) (find-package :cl-user))))
+    (with-output-to-string (out)
+      (write-view-as (string-downcase name) home view out))))
 
 (defun read-view (stream)
   "The view that STREAM, a file the designer saved, defines: its name (a symbol, of the package the
@@ -542,8 +550,8 @@ wires: a list of (name count)."
 
 (defun designer-parts ()
   "The GUI designer's parts, each a function that draws one, all of one design and its history:
-(values toolbar left canvas right keys open-view about save). TOOLBAR takes :SHOWN NIL to draw no bar
-but still have the File menu, the dialogs and a view typed in an editor taken up, and :SAVE-BUTTON
+(values toolbar left canvas right keys open-view about save select). TOOLBAR takes :SHOWN NIL to
+draw no bar but still have the File menu, the dialogs and a view typed in an editor taken up, and :SAVE-BUTTON
 NIL to have no Save... of its own. LEFT is the widgets to add and the outline. CANVAS is the view
 drawn, on a stage of the size it is designed at; with :APP (a constructor, as APP-PANE takes) it is
 that app, running with its own data, at :ZOOM, in the :MODE and the :APPEARANCE APP-PANE takes
@@ -559,10 +567,12 @@ is saved to, or NIL), :live (the view of the image it is, while it is live, or N
 id of the widget selected, or NIL), :width and :height (the stage's), :ids (its widgets' ids),
 :undo (how many steps Undo can take back), :status (what was last done, as the bar says it),
 :wires (how many of its widgets the code that draws it wires, while it is live), :problems
-(what does not fit between the two, as sentences) and :views (every view the image has, each with
-how many of its widgets the code wires, as a list of (name count), in order of name). SAVE is what Save... does, from elsewhere: to
-the view's own file, or with the dialog, which TOOLBAR draws. MAKE-DESIGNER puts them in a window;
-the studio puts them in panes."
+(what does not fit between the two, as sentences), :views (every view the image has, each with
+how many of its widgets the code wires, as a list of (name count), in order of name), :source (the
+view as the file it is saved as, a string) and :wiring-file (the file of the code that wires it,
+while it is live, or NIL). SAVE is what Save... does, from elsewhere: to the view's own file, or
+with the dialog, which TOOLBAR draws. SELECT selects the widget whose id it is called with, if the
+view has one. MAKE-DESIGNER puts them in a window; the studio puts them in panes."
   (bolt:state-let ((view (designer-view:form-node +sample+))
                    ;; What the view is called, which an app draws it by (the file's name, once
                    ;; saved), and the package that name is in (the app's), as written.
@@ -600,7 +610,11 @@ the studio puts them in panes."
                    (problems '())
                    (problems-asked nil)
                    ;; Where the code that wires it is, as a sentence, asked when the problems are.
-                   (where ""))
+                   (where "")
+                   ;; The view as the file it is saved as, and what it was written from: the view,
+                   ;; its name and its package.
+                   (source nil)
+                   (source-of nil))
     (labels ((make-live ()
                "Make the view, as it is now, the live view in the image, and say what of the code
 that wires it no longer fits."
@@ -900,9 +914,19 @@ container INTO, at AT among its children."
                            (count-if (lambda (id) (views:wired-keys live id)) (designer-view:all-ids view))
                            0)
                 :problems problems
-                :views (view-wire-counts)))
+                :views (view-wire-counts)
+                :source (let ((of (list view name package)))
+                          (unless (equal of source-of)
+                            (setf source-of of
+                                  source (view-source name package view)))
+                          source)
+                :wiring-file (and live (views:wiring-file live))))
         (lambda ()
-          (save))))))
+          (save))
+        ;; For a tool beside it (the studio's code of the view): select a widget by its id.
+        (lambda (id)
+          (when (designer-view:find-by-id view id)
+            (select id)))))))
 
 (defun make-designer ()
   "The GUI designer in a window of its own: its toolbar over its parts side by side."

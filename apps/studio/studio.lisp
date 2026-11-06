@@ -56,7 +56,9 @@ at it, and a test.")
 (defparameter +mode-layouts+
   `(:design ,+layout+
     :wire (:split :horizontal 300 (:tabs :views-pane :views-pane)
-           (:split :horizontal 340 (:tabs :canvas-pane :canvas-pane)
+           (:split :horizontal 340
+            (:split :horizontal 420 (:tabs :view-code-pane :view-code-pane :canvas-pane)
+             (:tabs :code-pane :code-pane))
             (:tabs :options-pane :options-pane) :second))
     :debug (:split :horizontal 340 (:tabs :canvas-pane :canvas-pane)
                    (:tabs :inspect-pane :inspect-pane) :second)
@@ -64,8 +66,8 @@ at it, and a test.")
                    (:tabs :theme-pane :theme-pane) :second)
     :agent (:tabs :agent-pane :agent-pane))
   "How each mode's panes are first arranged. Design has every pane; Wire has the views and the
-state of the app on the canvas, the canvas, and the options (with the wiring), until its own panes
-are built; Debug the canvas and the inspector
+state of the app on the canvas; the view's code (the canvas behind it) and the code that wires it;
+and the options (with the wiring), until its own panes are built; Debug the canvas and the inspector
 of the app on it, and Theme the theme's preview and settings and the canvas.")
 
 (defvar *open-window* 'bolt:open-window
@@ -107,7 +109,7 @@ a bar of three parts, the latest on the right, and the last in words."
                       :id :frames-summary :font :code)))))
 
 (defun make-studio ()
-  (multiple-value-bind (toolbar widgets canvas options view-keys open-view about save)
+  (multiple-value-bind (toolbar widgets canvas options view-keys open-view about save select)
       (gui-designer:designer-parts)
     (multiple-value-bind (settings preview theme-keys) (theme-designer:designer-parts)
       (let ((repl (repl:make-repl)))
@@ -129,6 +131,9 @@ a bar of three parts, the latest on the right, and the last in words."
                          (to-canvas nil)
                          ;; What is typed in Wire's State for each variable, until Return enters it.
                          (state-drafts (make-hash-table :test 'equal))
+                         ;; What Wire's code panes keep: where each one's caret was, and the code's
+                         ;; file as last read.
+                         (code-memory (make-hash-table :test 'equal))
                          ;; The bottom panel: how tall it is, and how its panes are arranged.
                          (bottom-size 200)
                          (bottom-layout nil))
@@ -202,6 +207,18 @@ a bar of three parts, the latest on the right, and the last in words."
                                  (when name
                                    (funcall open-view name)))
                                (wire:state-list *running* state-drafts)))))
+                       ;; The view as its file is written, and the code that wires it from its
+                       ;; file; a press on a widget's line selects it.
+                       (view-code-pane ()
+                         (bolt:padding (:id :view-code-part :all 12 :flex 1)
+                           (let ((id (wire:view-code facts code-memory)))
+                             (when id (funcall select id))))
+                         (funcall view-keys))
+                       (code-pane ()
+                         (bolt:padding (:id :code-part :all 12 :flex 1)
+                           (let ((id (wire:wiring-code facts code-memory)))
+                             (when id (funcall select id))))
+                         (funcall view-keys))
                        (options-pane ()
                          (bolt:stack (:id :options-part :flex 1) (funcall options))
                          (funcall view-keys))
@@ -253,6 +270,8 @@ a bar of three parts, the latest on the right, and the last in words."
                                   (bolt:dock (:id :wire-panes :layout (getf layouts :wire) :flex 1
                                               :min 220)
                                     (:views-pane "Views" (views-pane))
+                                    (:view-code-pane "View" (view-code-pane))
+                                    (:code-pane "Code" (code-pane))
                                     (:canvas-pane "Canvas" (canvas-pane))
                                     (:options-pane "Options" (options-pane))))
                                  (:debug

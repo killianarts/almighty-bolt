@@ -78,13 +78,8 @@ NIL. Emacs calls it again and again, over Sly, from the minor mode."
 
 (defun view-text (name form)
   "FORM, the view NAME, written as the designer writes it in a file: in NAME's package, in lower
-case."
-  (with-standard-io-syntax
-    (let ((*package* (symbol-package name))
-          (*print-case* :downcase)
-          (*print-pretty* t)
-          (*print-right-margin* 96))
-      (prin1-to-string form))))
+case, a widget to a line (FORM-TEXT), where the define-view form has it, two columns in."
+  (views:form-text form (symbol-package name) 2))
 
 (defun written-name (name)
   (string-downcase (symbol-name name)))

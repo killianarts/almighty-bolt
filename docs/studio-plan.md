@@ -50,7 +50,8 @@ What 0.3 has, against the prototype:
   rail, the section headers, the bottom panel and its REPL, and the status bar;
   Design's canvas, catalogue, outline and options as the prototype has them
   (Phase C), and the app's frames charted; Wire's views, each with its
-  wires, and the state of the app, live, to edit and pin.
+  wires, and the state of the app, live, to edit and pin; the view's file and
+  the code's, in step with the selection.
 - **Part:** the recorder has no face; the theme designer previews widgets,
   not the app's own view.
 - **Missing:** vector icons, and the mark; colours for code's syntax; the panes
@@ -153,7 +154,9 @@ user of.
     Wire's Views pane, the views over the state of the app on the canvas;
     `app-pane-variables`, `set-app-pane-variable`, `pin-app-pane-variable`.)
 17. **The view's file and the code's file** in code views, in step with the
-    canvas and, through the bridge, with Emacs.
+    canvas and, through the bridge, with Emacs. (Done: Wire's View and Code
+    panes, the code's file read again when it is written, each marking the
+    selection and selecting by its lines; a view written a widget to a line.)
 18. **The wires:** each id of the view, what wires it or that nothing does; the
     chosen wire's clauses as written, and when it was last pressed.
 19. **Light editing:** a clause written inline, with completion, into the code

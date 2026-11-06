@@ -17,6 +17,7 @@
            #:wiring-place
            #:*view-changed-functions*
            #:view-names
+           #:form-text
            #:wiring-problems
            #:*view-defined-hook*))
 
@@ -90,6 +91,29 @@ that an open window shows a view changed in a designer.")
 (defun find-view (name)
   "The form of the view called NAME, or NIL."
   (values (gethash name *views*)))
+
+(defun form-text (form package &optional (column 0))
+  "FORM, a view's, written as a file of it has it: in PACKAGE, in small letters, each widget on a line
+of its own, the widgets in a container one column in from it (as Emacs indents a list that begins
+with a keyword). The first line is taken to begin at COLUMN, and the others are indented from there."
+  (with-standard-io-syntax
+    (let ((*package* package)
+          (*print-case* :downcase)
+          (*print-pretty* t)
+          (*print-right-margin* 100))
+      (let ((text (with-output-to-string (out)
+                    (write-string (make-string column :initial-element #\Space) out)
+                    (labels ((walk (form at)
+                               (destructuring-bind (kind id &optional options &rest children) form
+                                 (cond ((null children) (prin1 form out))
+                                       (t (format out "(~s ~s ~s" kind id options)
+                                          (dolist (child children)
+                                            (format out "~%~a" (make-string (1+ at)
+                                                                            :initial-element #\Space))
+                                            (walk child (1+ at)))
+                                          (write-char #\) out))))))
+                      (walk form column)))))
+        (subseq text column)))))
 
 (defun view-names ()
   (loop :for name :being :the :hash-keys :of *views* :collect name))
