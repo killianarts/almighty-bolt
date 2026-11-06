@@ -197,6 +197,26 @@ to its clause.
 the frame and the universal time the widget of a view was last pressed in an
 app in an app pane.
 
+### Wire: light editing of the code
+
+Under the selected wire, Write Code Here takes a clause for it,
+`:on-press (sign-in name password)`: on Return it goes into the `view` form of
+the code's file (in the widget's clause, in place of what that key had, or as
+a new clause at the end of the form), and the form it is in is compiled, so
+the app on the canvas has it as soon as it is made again (at once, in a
+window). The names of the code's package complete the word being typed: press
+one to write it. Write the Stub for Every Id adds `(button :sign-in)` for each
+id the form has no clause for. Rename, with a new id, renames the widget in
+the view (a step Undo takes back) and in the code's `view` form, and compiles
+it. Each is an edit of the file's text where the reader finds the form, so
+the rest of the file, its comments and how it is laid out, is as you wrote
+it; nothing is evaluated in reading it.
+
+The file is written as it is: a buffer of it in Emacs is behind until it is
+read again (`auto-revert-mode` does it). Undo in the designer undoes a rename
+in the view and not in the code. Rename changes the one file of code that the
+studio shows.
+
 ### The studio's REPL
 
 The bottom panel's REPL evaluates what is typed in the image the studio runs in, in the package of the app being run (or the view's), as the prompt says: `counter> (+ 1 2)`. It shows what each form printed and what it returned, each value on a line of its own, or the error, in red, and goes on; `*`, `**`, `+` and the rest are set as in any REPL. Up and Down go back through what was typed. It runs on the window's thread, so a form that takes long holds the window as long.

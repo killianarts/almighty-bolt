@@ -550,8 +550,8 @@ wires: a list of (name count)."
 
 (defun designer-parts ()
   "The GUI designer's parts, each a function that draws one, all of one design and its history:
-(values toolbar left canvas right keys open-view about save select). TOOLBAR takes :SHOWN NIL to
-draw no bar but still have the File menu, the dialogs and a view typed in an editor taken up, and :SAVE-BUTTON
+(values toolbar left canvas right keys open-view about save select rename). TOOLBAR takes :SHOWN NIL
+to draw no bar but still have the File menu, the dialogs and a view typed in an editor taken up, and :SAVE-BUTTON
 NIL to have no Save... of its own. LEFT is the widgets to add and the outline. CANVAS is the view
 drawn, on a stage of the size it is designed at; with :APP (a constructor, as APP-PANE takes) it is
 that app, running with its own data, at :ZOOM, in the :MODE and the :APPEARANCE APP-PANE takes
@@ -570,10 +570,12 @@ id of the widget selected, or NIL), :width and :height (the stage's), :ids (its 
 (what does not fit between the two, as sentences), :views (every view the image has, each with
 how many of its widgets the code wires, as a list of (name count), in order of name), :source (the
 view as the file it is saved as, a string), :wiring-file (the file of the code that wires it,
-while it is live, or NIL), and :selected-kind and :selected-options (the selected widget's kind, as
+while it is live, or NIL), :kinds (each widget's id and kind, as a list of (id kind)), and
+:selected-kind and :selected-options (the selected widget's kind, as
 the catalogue calls it, and the options the view gives it, a property list). SAVE is what Save... does, from elsewhere: to the view's own file, or
 with the dialog, which TOOLBAR draws. SELECT selects the widget whose id it is called with, if the
-view has one. MAKE-DESIGNER puts them in a window; the studio puts them in panes."
+view has one. RENAME, called with a widget's id and a new one, gives it the new id as a step that
+Undo takes back, and returns NIL, or what is wrong (no such widget, the id taken) as a sentence. MAKE-DESIGNER puts them in a window; the studio puts them in panes."
   (bolt:state-let ((view (designer-view:form-node +sample+))
                    ;; What the view is called, which an app draws it by (the file's name, once
                    ;; saved), and the package that name is in (the app's), as written.
@@ -922,6 +924,9 @@ container INTO, at AT among its children."
                                   source (view-source name package view)))
                           source)
                 :wiring-file (and live (views:wiring-file live))
+                :kinds (mapcar (lambda (id)
+                                 (list id (designer-view:node-kind (designer-view:find-by-id view id))))
+                               (designer-view:all-ids view))
                 :selected-kind (let ((node (and selected (designer-view:find-by-id view selected))))
                                  (and node (catalogue:entry-title
                                             (catalogue:find-entry (designer-view:node-kind node)))))
@@ -933,7 +938,17 @@ container INTO, at AT among its children."
         ;; For a tool beside it (the studio's code of the view): select a widget by its id.
         (lambda (id)
           (when (designer-view:find-by-id view id)
-            (select id)))))))
+            (select id)))
+        ;; For a tool beside it (the studio's Wire): rename a widget, as a step Undo takes back.
+        (lambda (old new)
+          (cond ((not (designer-view:find-by-id view old))
+                 (format nil "The view has no widget ~(~s~)." old))
+                ((member new (designer-view:all-ids view))
+                 (format nil "Another widget is ~(~s~) already." new))
+                (t (clrhash drafts)
+                   (change (designer-view:with-id view old new))
+                   (setf selected new)
+                   nil)))))))
 
 (defun make-designer ()
   "The GUI designer in a window of its own: its toolbar over its parts side by side."

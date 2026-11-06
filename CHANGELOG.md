@@ -14,6 +14,7 @@ are not listed.
 
 ### Added
 
+- Light editing of the code in the studio's Wire mode: a clause written for the selected widget, with the code's names to complete what is typed, goes into the code's `view` form and is compiled; Write the Stub for Every Id; Rename an id in the view and in the code that wires it ([0.3](docs/releases/dev.md#wire-light-editing-of-the-code)).
 - The studio's Wire mode lists each id of the view and what the code's `view` form wires of it, or that nothing does; the selected wire's clauses as written, the options the view gives it, when it was last pressed in the app, and Go to the Code ([0.3](docs/releases/dev.md#wire-the-wires)).
 - `app-pane-last-press`: the frame and the time the widget of a view was last pressed in an app in an app pane ([0.3](docs/releases/dev.md#wire-the-wires)).
 - The studio's Wire mode shows the view as its file is written and the form of the code that wires it, read from its file as it is now, each with the selected widget's line marked; the caret put on a widget's line selects it ([0.3](docs/releases/dev.md#wire-the-views-file-and-the-codes)).

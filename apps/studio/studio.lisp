@@ -109,7 +109,7 @@ a bar of three parts, the latest on the right, and the last in words."
                       :id :frames-summary :font :code)))))
 
 (defun make-studio ()
-  (multiple-value-bind (toolbar widgets canvas options view-keys open-view about save select)
+  (multiple-value-bind (toolbar widgets canvas options view-keys open-view about save select rename)
       (gui-designer:designer-parts)
     (multiple-value-bind (settings preview theme-keys) (theme-designer:designer-parts)
       (let ((repl (repl:make-repl)))
@@ -230,11 +230,15 @@ a bar of three parts, the latest on the right, and the last in words."
                          (bolt:scroll (:id :wire-scroll :flex 1)
                            (bolt:padding (:id :wire-part :all 12)
                              (multiple-value-bind (clauses package) (wire:view-clauses facts code-memory)
-                               (when (wire:wire-detail facts clauses package *running*
-                                                       (gethash :wire-note code-memory))
-                                 (setf (gethash :wire-note code-memory)
-                                       (nth-value 1 (emacs:show-wiring (getf facts :live)
-                                                                       (getf facts :selected))))))))
+                               (let ((action (wire:wire-detail facts clauses package *running*
+                                                               (gethash :wire-note code-memory)
+                                                               code-memory)))
+                                 (when action
+                                   (setf (gethash :wire-note code-memory)
+                                         (if (eq action :go)
+                                             (nth-value 1 (emacs:show-wiring (getf facts :live)
+                                                                             (getf facts :selected)))
+                                             (wire:edit-code action facts code-memory rename))))))))
                          (funcall view-keys))
                        (options-pane ()
                          (bolt:stack (:id :options-part :flex 1) (funcall options))

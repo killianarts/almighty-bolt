@@ -1357,3 +1357,118 @@ its spaces, with START."
       (assert-equal ":sharp-words, not wired"
                     (s:node-name (m:find-node session :id (list :wire-row :sharp-words))))
       (assert-equal '("\"Words\"" "VIEW") (wire-option session :text)))))
+
+;;; --- Wire: light editing of the code ---
+
+(defvar *edit-presses* 0 "How many times the code written in by the studio was pressed.")
+
+;; A view whose code, in a file of the test's own, the studio edits.
+(bolt:define-view edit-view
+  (:column :edit-page (:gap 8)
+   (:button :go (:text "Go"))
+   (:label :said (:text "Said"))))
+
+(defparameter *edit-view* (views:find-view 'edit-view))
+
+;; The same view again, for another test: each test's code wires a view of its own, since the
+;; wiring of code loaded before is known until it is collected as garbage.
+(bolt:define-view stub-view
+  (:column :edit-page (:gap 8)
+   (:button :go (:text "Go"))
+   (:label :said (:text "Said"))))
+
+(defparameter *stub-view* (views:find-view 'stub-view))
+
+(defun write-edit-code (file &optional (view "edit-view") (maker "make-edit"))
+  "Write to FILE code that wires VIEW, made by the function MAKER, and load it."
+  (with-open-file (out file :direction :output :if-exists :supersede)
+    (format out "(in-package #:almighty-bolt-studio/t/studio)~%~%~
+                 (defun bump-said () (incf *edit-presses*))~%~%~
+                 (defun ~a ()~%  (lambda ()~%    (bolt:view ~a~%        ~
+                 ;; What it said, kept as written.~%        ~
+                 (label :said :text (format nil \"~~d\" *edit-presses*)))))~%"
+            maker view))
+  (handler-bind ((warning #'muffle-warning))
+    (load file)))
+
+(defun said (session)
+  (declare (ignore session))
+  (s:node-name (first (s:find-nodes (core:accessibility-tree studio:*running*) :id :said))))
+
+(define-test a-clause-written-in-wire-goes-into-the-code-which-is-compiled ()
+  (uiop:with-temporary-file (:pathname file :type "lisp" :keep nil)
+    (write-edit-code file)
+    (setf *edit-presses* 0)
+    (multiple-value-bind (screen session) (open-studio)
+      (unwind-protect
+           (flet ((code () (uiop:read-file-string file)))
+             (to-mode session "WIRE")
+             (m:click session :id (list :view-row 'edit-view))
+             (run-in-studio session 'make-edit)
+             (m:click session :id (list :wire-row :go))
+             ;; What is typed is completed by the names of the code's package.
+             (m:set-value session ":on-press (bump-sa" :id :wire-inline)
+             (m:click session :id (list :completion "bump-said"))
+             (assert-equal ":on-press (bump-said" (s:node-value (m:find-node session :id :wire-inline)))
+             ;; What does not read is marked, and Return writes nothing.
+             (m:set-value session (format nil ":on-press (bump-said~%") :id :wire-inline)
+             (assert-true (s:node-property (m:find-node session :id :wire-inline) :invalid))
+             (assert-false (search "(button :go" (code)))
+             ;; Written and entered: a clause at the end of the VIEW form, the rest of the file as it
+             ;; was, compiled; and the app made again (as compiling does in a window) has it.
+             (m:set-value session (format nil ":on-press (bump-said)~%") :id :wire-inline)
+             (assert-true (search (format nil "(label :said :text (format nil \"~~d\" *edit-presses*))~%        ~
+                                               (button :go :on-press (bump-said)))))")
+                                  (code)))
+             (assert-true (search ";; What it said, kept as written." (code)))
+             (assert-equal ":go, wired to :on-press"
+                           (s:node-name (m:find-node session :id (list :wire-row :go))))
+             (assert-true (search "compiled" (s:node-name (m:find-node session :id :wire-go-note))))
+             (make-studio-again screen)
+             (m:click session :id :canvas-pane)
+             (press-in-running screen :go)
+             (assert-equal "1" (said session))
+             ;; A key the clause gives already is given the new form in its place.
+             (m:click session :id (list :wire-row :said))
+             (m:set-value session (format nil ":text (format nil \"Said ~~d\" *edit-presses*)~%")
+                          :id :wire-inline)
+             (assert-true (search "(label :said :text (format nil \"Said ~d\" *edit-presses*))" (code)))
+             (assert-false (search "\"~d\" *edit-presses*" (code)))
+             (make-studio-again screen)
+             (assert-equal "Said 1" (said session)))
+        (views:set-view 'edit-view *edit-view*)))))
+
+(define-test wire-writes-the-stub-for-every-id-and-renames-an-id-everywhere ()
+  (uiop:with-temporary-file (:pathname file :type "lisp" :keep nil)
+    (write-edit-code file "stub-view" "make-stub")
+    (setf *edit-presses* 0)
+    (multiple-value-bind (screen session) (open-studio)
+      (unwind-protect
+           (flet ((code () (uiop:read-file-string file)))
+             (to-mode session "WIRE")
+             (m:click session :id (list :view-row 'stub-view))
+             (run-in-studio session 'make-stub)
+             (m:click session :id (list :wire-row :go))
+             ;; A clause, of no keys, for each id that has none, after those there are.
+             (m:click session :id :wire-stubs)
+             (assert-true (search (format nil "*edit-presses*))~%        (column :edit-page)~%        (button :go))))")
+                                  (code)))
+             (assert-true (search "Wrote 2 stubs" (s:node-name (m:find-node session :id :wire-go-note))))
+             ;; Again: none are missing.
+             (m:click session :id :wire-stubs)
+             (assert-true (search "Wrote 0 stubs" (s:node-name (m:find-node session :id :wire-go-note))))
+             ;; Renamed: in the view, and in the code, which is compiled; the app made again draws it.
+             (m:set-value session (format nil "launch~%") :id :wire-rename-to)
+             (assert-true (search "(button :launch)" (code)))
+             (assert-false (search "(button :go)" (code)))
+             (assert-true (shown-p session (list :wire-row :launch)))
+             (assert-false (shown-p session (list :wire-row :go)))
+             (assert-equal ":launch" (s:node-name (m:find-node session :id :wire-head-id)))
+             ;; The view and the code fit.
+             (assert-true (search "0 PROBLEMS" (words-of session :status-words)))
+             (make-studio-again screen)
+             (m:click session :id :canvas-pane)
+             (assert-true (core:lookup-target studio:*running* :launch)))
+        ;; Put back as this file has it, which the code renamed no longer fits.
+        (handler-bind ((warning #'muffle-warning))
+          (views:set-view 'stub-view *stub-view*))))))

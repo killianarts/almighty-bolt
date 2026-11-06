@@ -51,7 +51,8 @@ What 0.3 has, against the prototype:
   Design's canvas, catalogue, outline and options as the prototype has them
   (Phase C), and the app's frames charted; Wire's views, each with its
   wires, and the state of the app, live, to edit and pin; the view's file and
-  the code's, in step with the selection; the wires, and the selected one.
+  the code's, in step with the selection; the wires, and the selected one;
+  a clause, the stubs and a rename written into the code and compiled.
 - **Part:** the recorder has no face; the theme designer previews widgets,
   not the app's own view.
 - **Missing:** vector icons, and the mark; colours for code's syntax; the panes
@@ -160,10 +161,13 @@ user of.
 18. **The wires:** each id of the view, what wires it or that nothing does; the
     chosen wire's clauses as written, and when it was last pressed. (Done:
     Wire's Wires and Wire panes, read from the code's file as it is now;
-    `app-pane-last-press`. The stub and the rename wait for item 19.)
+    `app-pane-last-press`.)
 19. **Light editing:** a clause written inline, with completion, into the code
     and compiled; the stub written for every id; an id renamed in the view and
-    in every wiring of it.
+    in every wiring of it. (Done: in the Wire pane, as edits of the file's
+    text where the reader finds the form, compiled. Rename changes the view
+    and the one file of code the studio shows; Undo in the designer does not
+    undo the code's half, which item 20's checks will say.)
 20. **Problems,** checked across files, and before a save: a wire a save would
     leave with nothing to wire.
 

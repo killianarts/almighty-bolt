@@ -45,7 +45,8 @@ or NIL) in the text's colour, the rest in COLOR. TOOLTIP is said by the last."
     (:problems-heading "Problems" "問題") (:events-heading "Events" "イベント")
     (:agent-heading "Agent" "エージェント") (:repl-heading "REPL" "リプル")
     (:state-heading "State" "状態") (:view-code-heading "View" "ビュー") (:code-heading "Code" "コード")
-    (:wires-heading "Wires" "ワイヤー") (:wire-heading "Selected wire" "配線"))
+    (:wires-heading "Wires" "ワイヤー") (:wire-heading "Selected wire" "配線")
+    (:inline-heading "Write code here" "インライン"))
   "The studio's sections: each heading's id, its title and its kana. A heading not here is called
 what it is given.")
 
