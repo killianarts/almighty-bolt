@@ -556,6 +556,11 @@ variable keeps its value when the app is made again even if its initial form
 was edited, and takes the new form as its own, so that unpinned it is kept
 until the form is edited again. The studio's Wire shows them, to edit and pin.
 
+`app-pane-last-press` (`app view id`) is when the widget ID of the view VIEW
+was last pressed in an app in an app pane: the number of the frame the press
+came in (the app's frames counted from its first) and the universal time it
+came at, as two values, or `nil` if it has not been pressed.
+
 `inspector-pane` (`target &key id flex`) is the inspector, in this window, of
 TARGET, an app in an `app-pane` as it returns it (or `nil`): Pick, then a press
 on the app in the pane, says what the widget there is, and the inspector

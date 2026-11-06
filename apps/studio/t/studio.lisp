@@ -792,7 +792,8 @@ ACROSS of the way along it."
     (assert-true (shown-p session :views-part))
     (assert-true (shown-p session :view-code-part))
     (assert-true (shown-p session :code-part))
-    (assert-true (shown-p session :options-part))
+    (assert-true (shown-p session :wires-part))
+    (assert-true (shown-p session :wire-part))
     (assert-false (shown-p session :widgets-part))
     (to-mode session "DEBUG")
     (assert-true (shown-p session :canvas-part))
@@ -1204,7 +1205,7 @@ its spaces, with START."
       ;; The caret put on a widget's line in the view selects it, and its line is marked there and
       ;; in the code.
       (caret-to-line session :view-code-text (line-of view-text "(:button :plus"))
-      (assert-equal "Button :plus" (s:node-name (m:find-node session :id :selected-what)))
+      (assert-equal ":plus" (s:node-name (m:find-node session :id :wire-head-id)))
       (assert-equal (list (list (line-of view-text "(:button :plus") ":plus, selected"))
                     (marks-of session :view-code-text))
       (assert-equal (list (list (line-of code-text "(button :plus" :from view-start)
@@ -1212,7 +1213,7 @@ its spaces, with START."
                     (marks-of session :code-text))
       ;; And on a clause in the code, the same.
       (caret-to-line session :code-text (line-of code-text "(label :count" :from view-start))
-      (assert-equal "Label :count" (s:node-name (m:find-node session :id :selected-what)))
+      (assert-equal ":count" (s:node-name (m:find-node session :id :wire-head-id)))
       (assert-equal (list (list (line-of view-text "(:label :count") ":count, selected"))
                     (marks-of session :view-code-text)))))
 
@@ -1261,3 +1262,98 @@ its spaces, with START."
                         (s:node-name (m:find-node session :id :count :within '(:code-heading :header))))
           (assert-equal (list (list (line-of (code) "(label :words") ":words, selected"))
                         (marks-of session :code-text)))))))
+;;; --- Wire: the wires ---
+
+(defun wire-option (session key)
+  "What the selected wire says of KEY: its value and where it comes from."
+  (list (s:node-name (m:find-node session :id :wire-value :within (list :wire-option key)))
+        (s:node-name (m:find-node session :id :wire-source :within (list :wire-option key)))))
+
+(defun last-press-frame (session)
+  "The frame the selected wire's widget was last pressed in, as the wire says it, or NIL."
+  (let ((said (first (wire-option session :last-press))))
+    (and (eql 0 (search "frame " said))
+         (parse-integer said :start 6 :junk-allowed t))))
+
+(define-test wire-lists-each-id-and-what-wires-it-and-the-selected-wires-clauses ()
+  (multiple-value-bind (screen session) (open-studio)
+    (to-mode session "WIRE")
+    (m:click session :id (list :view-row 'tiny-view))
+    (run-in-studio session 'make-viewed)
+    ;; Each id, and the keys the code's VIEW form gives it, or that nothing does.
+    (assert-equal ":tiny-page, not wired"
+                  (s:node-name (m:find-node session :id (list :wire-row :tiny-page))))
+    (assert-equal ":plus, wired to :on-press"
+                  (s:node-name (m:find-node session :id (list :wire-row :plus))))
+    (assert-equal ":count, wired to :text"
+                  (s:node-name (m:find-node session :id (list :wire-row :count))))
+    ;; Pressed, it is the selected wire: its kind, its id, its clauses as the code has them, and
+    ;; what the view gives it.
+    (assert-true (search "Select a widget" (s:node-name (m:find-node session :id :wire-note))))
+    (m:click session :id (list :wire-row :plus))
+    (assert-true (s:node-property (m:find-node session :id (list :wire-row :plus)) :selected))
+    (assert-equal "BUTTON" (s:node-name (m:find-node session :id :wire-kind)))
+    (assert-equal ":plus" (s:node-name (m:find-node session :id :wire-head-id)))
+    (assert-equal '("(incf count)" "WIRED") (wire-option session :on-press))
+    (assert-equal '("\"Add one\"" "VIEW") (wire-option session :text))
+    ;; When it was last pressed in the app: not yet; then in a frame, and later in a later one.
+    (assert-equal '("not pressed" "TRACE") (wire-option session :last-press))
+    (press-in-running screen :plus)
+    (let ((first (last-press-frame session)))
+      (assert-true first)
+      (assert-true (search (format nil " ~a " "■") (first (wire-option session :last-press))))
+      (press-in-running screen :plus)
+      (assert-true (> (last-press-frame session) first)))
+    ;; Another wire: the label, its words wired.
+    (m:click session :id (list :wire-row :count))
+    (assert-equal "LABEL" (s:node-name (m:find-node session :id :wire-kind)))
+    (assert-equal '("(format nil \"Count ~d\" count)" "WIRED") (wire-option session :text))
+    (assert-equal '("not pressed" "TRACE") (wire-option session :last-press))))
+
+(define-test the-selected-wire-goes-to-its-clause-in-emacs ()
+  (multiple-value-bind (screen session) (open-studio)
+    (declare (ignore screen))
+    (unwind-protect
+         (progn
+           (to-mode session "WIRE")
+           (m:click session :id (list :view-row 'tiny-view))
+           (m:click session :id (list :wire-row :plus))
+           ;; Emacs not there: said so.
+           (emacs-gone)
+           (m:click session :id :wire-go-to-code)
+           (assert-true (search "not connected" (s:node-name (m:find-node session :id :wire-go-note))))
+           ;; There: asked to show the clause.
+           (emacs-there)
+           (m:click session :id :wire-go-to-code)
+           (let ((request (first (requests))))
+             (assert-eq :show-wiring (getf request :op))
+             (assert-equal "tiny-view" (getf request :name))
+             (assert-equal "plus" (getf request :widget))
+             (assert-false (shown-p session :wire-go-note))))
+      (emacs-gone))))
+
+(defvar *evaluated* nil "Set by a #. form in a file that the studio must read without evaluating.")
+
+;; A view whose code, in a file of the test's own, has a #. in a clause.
+(bolt:define-view sharp-view
+  (:column :sharp-page (:gap 8)
+   (:label :sharp-words (:text "Words"))))
+
+(define-test the-code-is-read-for-its-wires-without-evaluating-anything ()
+  (uiop:with-temporary-file (:pathname file :type "lisp" :keep nil)
+    (with-open-file (out file :direction :output :if-exists :supersede)
+      (format out "(in-package #:almighty-bolt-studio/t/studio)~%~%(defun make-sharp ()~%  ~
+                   (lambda ()~%    (bolt:view sharp-view~%      ~
+                   (label :sharp-words :text #.(progn (setf *evaluated* t) \"Sharp\")))))~%"))
+    (load file)
+    (setf *evaluated* nil)
+    (multiple-value-bind (screen session) (open-studio)
+      (declare (ignore screen))
+      (to-mode session "WIRE")
+      (m:click session :id (list :view-row 'sharp-view))
+      (m:click session :id (list :wire-row :sharp-words))
+      ;; The form does not read, and nothing in it ran: no clause is shown for it.
+      (assert-false *evaluated*)
+      (assert-equal ":sharp-words, not wired"
+                    (s:node-name (m:find-node session :id (list :wire-row :sharp-words))))
+      (assert-equal '("\"Words\"" "VIEW") (wire-option session :text)))))

@@ -569,8 +569,9 @@ id of the widget selected, or NIL), :width and :height (the stage's), :ids (its 
 :wires (how many of its widgets the code that draws it wires, while it is live), :problems
 (what does not fit between the two, as sentences), :views (every view the image has, each with
 how many of its widgets the code wires, as a list of (name count), in order of name), :source (the
-view as the file it is saved as, a string) and :wiring-file (the file of the code that wires it,
-while it is live, or NIL). SAVE is what Save... does, from elsewhere: to the view's own file, or
+view as the file it is saved as, a string), :wiring-file (the file of the code that wires it,
+while it is live, or NIL), and :selected-kind and :selected-options (the selected widget's kind, as
+the catalogue calls it, and the options the view gives it, a property list). SAVE is what Save... does, from elsewhere: to the view's own file, or
 with the dialog, which TOOLBAR draws. SELECT selects the widget whose id it is called with, if the
 view has one. MAKE-DESIGNER puts them in a window; the studio puts them in panes."
   (bolt:state-let ((view (designer-view:form-node +sample+))
@@ -920,7 +921,13 @@ container INTO, at AT among its children."
                             (setf source-of of
                                   source (view-source name package view)))
                           source)
-                :wiring-file (and live (views:wiring-file live))))
+                :wiring-file (and live (views:wiring-file live))
+                :selected-kind (let ((node (and selected (designer-view:find-by-id view selected))))
+                                 (and node (catalogue:entry-title
+                                            (catalogue:find-entry (designer-view:node-kind node)))))
+                :selected-options (let ((node (and selected
+                                                   (designer-view:find-by-id view selected))))
+                                    (and node (designer-view:node-options node)))))
         (lambda ()
           (save))
         ;; For a tool beside it (the studio's code of the view): select a widget by its id.

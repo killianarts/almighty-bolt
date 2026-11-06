@@ -57,17 +57,17 @@ at it, and a test.")
   `(:design ,+layout+
     :wire (:split :horizontal 300 (:tabs :views-pane :views-pane)
            (:split :horizontal 340
-            (:split :horizontal 420 (:tabs :view-code-pane :view-code-pane :canvas-pane)
-             (:tabs :code-pane :code-pane))
-            (:tabs :options-pane :options-pane) :second))
+            (:split :horizontal 300 (:tabs :view-code-pane :view-code-pane :canvas-pane)
+             (:split :vertical 220 (:tabs :wires-pane :wires-pane) (:tabs :code-pane :code-pane)))
+            (:tabs :wire-pane :wire-pane :options-pane) :second))
     :debug (:split :horizontal 340 (:tabs :canvas-pane :canvas-pane)
                    (:tabs :inspect-pane :inspect-pane) :second)
     :theme (:split :horizontal 340 (:tabs :preview-pane :preview-pane :canvas-pane)
                    (:tabs :theme-pane :theme-pane) :second)
     :agent (:tabs :agent-pane :agent-pane))
   "How each mode's panes are first arranged. Design has every pane; Wire has the views and the
-state of the app on the canvas; the view's code (the canvas behind it) and the code that wires it;
-and the options (with the wiring), until its own panes are built; Debug the canvas and the inspector
+state of the app on the canvas; the view's code (the canvas behind it), and its wires over the
+code that wires it; and the selected wire (the options behind it); Debug the canvas and the inspector
 of the app on it, and Theme the theme's preview and settings and the canvas.")
 
 (defvar *open-window* 'bolt:open-window
@@ -219,6 +219,23 @@ a bar of three parts, the latest on the right, and the last in words."
                            (let ((id (wire:wiring-code facts code-memory)))
                              (when id (funcall select id))))
                          (funcall view-keys))
+                       ;; Each id of the view and what wires it, and the selected one's wiring.
+                       (wires-pane ()
+                         (bolt:scroll (:id :wires-scroll :flex 1)
+                           (bolt:padding (:id :wires-part :all 12)
+                             (let ((id (wire:wires-list facts (wire:view-clauses facts code-memory))))
+                               (when id (funcall select id)))))
+                         (funcall view-keys))
+                       (wire-pane ()
+                         (bolt:scroll (:id :wire-scroll :flex 1)
+                           (bolt:padding (:id :wire-part :all 12)
+                             (multiple-value-bind (clauses package) (wire:view-clauses facts code-memory)
+                               (when (wire:wire-detail facts clauses package *running*
+                                                       (gethash :wire-note code-memory))
+                                 (setf (gethash :wire-note code-memory)
+                                       (nth-value 1 (emacs:show-wiring (getf facts :live)
+                                                                       (getf facts :selected))))))))
+                         (funcall view-keys))
                        (options-pane ()
                          (bolt:stack (:id :options-part :flex 1) (funcall options))
                          (funcall view-keys))
@@ -272,6 +289,8 @@ a bar of three parts, the latest on the right, and the last in words."
                                     (:views-pane "Views" (views-pane))
                                     (:view-code-pane "View" (view-code-pane))
                                     (:code-pane "Code" (code-pane))
+                                    (:wires-pane "Wires" (wires-pane))
+                                    (:wire-pane "Wire" (wire-pane))
                                     (:canvas-pane "Canvas" (canvas-pane))
                                     (:options-pane "Options" (options-pane))))
                                  (:debug

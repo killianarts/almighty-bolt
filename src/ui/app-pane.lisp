@@ -19,6 +19,7 @@
   (:export #:app-pane
            #:app-pane-frames
            #:app-pane-variables
+           #:app-pane-last-press
            #:set-app-pane-variable
            #:pin-app-pane-variable
            #:settle-app-pane
@@ -139,7 +140,12 @@ ZOOMED, the same at the pane's zoom, which draws."
   ;; a ring of +FRAMES-KEPT+ (the next to be written at FRAMES-NEXT), and how many there are.
   (frames (make-array (* 3 +frames-kept+) :element-type '(unsigned-byte 64) :initial-element 0))
   (frames-next 0 :type fixnum)
-  (frames-count 0 :type fixnum))
+  (frames-count 0 :type fixnum)
+  ;; How many frames the inner app has drawn.
+  (frame-number 0 :type fixnum)
+  ;; The last press on each widget of a view the inner app draws, by (view . id): the number of
+  ;; the frame it came in and the universal time it came at.
+  (presses (make-hash-table :test 'equal)))
 
 (defun note-frame (state context)
   "Keep the times of the frame of STATE's app just settled, from CONTEXT's phases."
@@ -156,7 +162,8 @@ ZOOMED, the same at the pane's zoom, which draws."
           (app-pane-state-frames-next state) (mod (1+ (app-pane-state-frames-next state))
                                                   +frames-kept+)
           (app-pane-state-frames-count state) (min +frames-kept+
-                                                   (1+ (app-pane-state-frames-count state))))))
+                                                   (1+ (app-pane-state-frames-count state))))
+    (incf (app-pane-state-frame-number state))))
 
 (defvar *pane-states* (views:make-weak-table)
   "The state of the pane each app in a pane is in, by the app.")
@@ -226,6 +233,23 @@ OCCURRENCE-th of that name) VALUE; the app is drawn again with it. Returns VALUE
 OCCURRENCE-th of that name), or with PINNED NIL unpin it: pinned, it keeps its value when the app is
 made again even if its initial form was edited."
   (kept:pin-kept (pane-store instance) name pinned occurrence))
+
+(defun app-pane-last-press (instance view id)
+  "When the widget ID of the view VIEW was last pressed in INSTANCE, an app in an app pane: the
+number of the frame the press came in (the app's frames counted from its first) and the universal
+time it came at, as two values; NIL if it has not been pressed (or the app is in no pane)."
+  (let* ((state (and instance (gethash instance *pane-states*)))
+         (press (and state (gethash (cons view id) (app-pane-state-presses state)))))
+    (and press (values (car press) (cdr press)))))
+
+(defun note-press (state x y)
+  "Note a press at X, Y (in the inner app's points) on the widget of a view there, if there is one."
+  (let ((inner-ui (inner-ui state)))
+    (when inner-ui
+      (multiple-value-bind (name id) (view-widget-at inner-ui x y)
+        (when name
+          (setf (gethash (cons name id) (app-pane-state-presses state))
+                (cons (1+ (app-pane-state-frame-number state)) (get-universal-time))))))))
 
 (defun app-pane-inside (ui key)
   "If the box KEY of UI's last frame is an app pane, the app in it, its zoom, and whether the pane
@@ -510,6 +534,7 @@ into and the index among that container's widgets. The :id is required."
             (drag:follow-drag key)
             (drag:drag-ghost key))
           (when (and (not design) hot (ui:ui-pressed ui))
+            (note-press state x y)
             (ui:consume-press ui)
             (setf (ui:ui-active ui) key)
             (ui:focus-by-click ui key)

@@ -6,7 +6,10 @@
   (:export #:views-list
            #:state-list
            #:view-code
-           #:wiring-code))
+           #:wiring-code
+           #:view-clauses
+           #:wires-list
+           #:wire-detail))
 
 (in-package #:almighty-bolt-studio/wire)
 
@@ -30,11 +33,16 @@ the frame it is, or NIL."
                                        :tooltip (format nil "~(~s~): ~d of its widgets wired. ~
                                                              Press to open it."
                                                         name count))
-                      (bolt:row (:id :view-row-parts :gap 8 :cross-align :center :fill t)
-                        (bolt:label "VIEW" :id :view-kind :font chrome:+small+ :color :dim-text)
-                        (bolt:label (string-downcase (symbol-name name)) :id :view-name :flex 1)
-                        (bolt:label (princ-to-string count) :id :view-wires :font chrome:+small+
-                                                                             :color :dim-text)))
+                      ;; Chosen, on the selection's fill, in the colour words on it take.
+                      (let ((dim (if (eq name open) :button-text :dim-text)))
+                        (bolt:row (:id :view-row-parts :gap 8 :cross-align :center :fill t)
+                          (bolt:label "VIEW" :id :view-kind :font chrome:+small+ :color dim)
+                          (bolt:label (string-downcase (symbol-name name)) :id :view-name :flex 1
+                                                                           :color (if (eq name open)
+                                                                                      :button-text
+                                                                                      :text))
+                          (bolt:label (princ-to-string count) :id :view-wires :font chrome:+small+
+                                                                               :color dim))))
                   (setf pressed name))))
     pressed))
 
@@ -143,13 +151,18 @@ variable keeps its value when the app is made again even if its first value was 
 (defun bare (token)
   (string-downcase (subseq token (1+ (or (position #\: token :from-end t) -1)))))
 
-(defun view-form-line-p (line name)
-  "True if a VIEW form of the view NAME (a string, as written) begins on LINE."
+(defun view-form-at (line name)
+  "Where on LINE a VIEW form of the view NAME (a string, as written) begins, or NIL."
   (loop :for open = (position #\( line) :then (position #\( line :start (1+ open))
         :while open
-          :thereis (multiple-value-bind (operator next) (tokens line (1+ open))
-                     (and operator (string= (bare operator) "view") next
-                          (string= (bare (string-left-trim "(" next)) (string-downcase name))))))
+        :when (multiple-value-bind (operator next) (tokens line (1+ open))
+                (and operator (string= (bare operator) "view") next
+                     (string= (bare (string-left-trim "(" next)) (string-downcase name))))
+          :return open))
+
+(defun view-form-line-p (line name)
+  "True if a VIEW form of the view NAME (a string, as written) begins on LINE."
+  (and (view-form-at line name) t))
 
 (defun clause-lines (lines ids &key from)
   "For each of LINES (from the index FROM, to the next form at the left edge after it, if FROM is
@@ -271,3 +284,133 @@ was moved to, on the frame it was, or NIL."
                                    "Checked against the view"))
                          (list t (format nil "~d wire~:p" (getf about :wires))))))))
     picked))
+
+;;; --- the wires ---
+
+(defun file-package (text default)
+  "The package TEXT's first IN-PACKAGE names, if this Lisp has it, or else DEFAULT."
+  (let ((at (search "(in-package" text :test #'char-equal)))
+    (or (and at
+             (ignore-errors
+              (let ((*read-eval* nil))
+                (find-package (second (read-from-string text t nil :start at))))))
+        default)))
+
+(defun view-clauses (about memory)
+  "The clauses of the VIEW form that wires the view being designed, as its code's file has them now
+(ABOUT, the GUI designer's, says which file): a list of (id kind options), OPTIONS a property list
+of the forms as written; with the package they were read in as a second value. NIL if there is no
+such form, or it does not read. Read with *READ-EVAL* off, again only when the file changes."
+  (let* ((file (getf about :wiring-file))
+         (text (and file (file-text file memory)))
+         (name (getf about :name))
+         (known (gethash :clauses memory)))
+    (if (and known (eq (first known) text) (equal (second known) name))
+        (values (third known) (fourth known))
+        (let* ((package (and text (file-package text (or (find-package (string-upcase
+                                                                         (getf about :package)))
+                                                         (find-package :cl-user)))))
+               (clauses
+                 (and text
+                      (let* ((lines (lines-of text))
+                             (at (position-if (lambda (line) (view-form-line-p line name)) lines)))
+                        (when at
+                          (let* ((start (+ (loop :for i :below at :sum (1+ (length (aref lines i))))
+                                           (view-form-at (aref lines at) name)))
+                                 (form (ignore-errors
+                                        (let ((*read-eval* nil) (*package* package))
+                                          (read-from-string text t nil :start start)))))
+                            (loop :for clause :in (cddr form)
+                                  :when (and (consp clause) (consp (cdr clause)) (symbolp (second clause)))
+                                    :collect (list (second clause) (first clause) (cddr clause)))))))))
+          (setf (gethash :clauses memory) (list text name clauses package))
+          (values clauses package)))))
+
+(defun written (form package)
+  (let ((*package* (or package *package*)) (*print-case* :downcase) (*print-pretty* nil))
+    (prin1-to-string form)))
+
+(defun wire-keys (clause)
+  (loop :for (key) :on (third clause) :by #'cddr :collect key))
+
+(defun wires-list (about clauses)
+  "Each id of the view being designed (ABOUT, the GUI designer's), and what of it CLAUSES (VIEW-
+CLAUSES's) wire, or that nothing does; the selected one chosen. Returns the id pressed, on the frame
+it is, or NIL."
+  (let ((pressed nil)
+        (ids (getf about :ids)))
+    (bolt:column (:id :wires-list :gap 2 :fill t :cross-align :stretch)
+      (chrome:section-header :wires-heading "Wires" (count-if (lambda (id) (wire-keys (assoc id clauses)))
+                                                              ids))
+      (dolist (id ids)
+        (let ((keys (wire-keys (assoc id clauses))))
+          (when (bolt:pressable (:id (list :wire-row id) :selected (eq id (getf about :selected))
+                                 :radius 0 :left 6 :right 6 :top 4 :bottom 4
+                                 :name (format nil "~(~s~), ~:[not wired~;wired to ~:*~(~{~s~^ ~}~)~]"
+                                               id keys))
+                  (bolt:row (:id :wire-row-parts :gap 8 :cross-align :center)
+                    (bolt:panel (:id :wire-dot :radius 4 :width 8 :height 8
+                                 :color (studio-theme:tool-color (if keys :ok :line-strong))))
+                    ;; Chosen, on the selection's fill, in the colour words on it take.
+                    (let ((chosen (eq id (getf about :selected))))
+                      (bolt:column (:id :wire-ends :gap 0)
+                        (bolt:label (format nil "~(~s~)" id) :id :wire-id :font chrome:+small+
+                                                             :color (cond (chosen :button-text)
+                                                                          (keys :text)
+                                                                          (t :dim-text)))
+                        (bolt:label (if keys
+                                        (format nil "TO ~:@(~{~s~^ ~}~)" keys)
+                                        "TO NOT WIRED")
+                                    :id :wire-to :font chrome:+small+
+                                    :color (if chosen :button-text :dim-text))))))
+            (setf pressed id)))))
+    pressed))
+
+(defun clock-time (universal-time)
+  (multiple-value-bind (second minute hour) (decode-universal-time universal-time)
+    (format nil "~2,'0d:~2,'0d:~2,'0d" hour minute second)))
+
+(defun wire-detail (about clauses package app note)
+  "The selected widget of the view being designed (ABOUT, the GUI designer's): its kind and id, each
+option the code wires (CLAUSES, VIEW-CLAUSES's, read in PACKAGE) as written and each the view gives,
+and when it was last pressed in APP (the app on the canvas, or NIL); and a button to go to its
+clause in the code, under which NOTE (a string, or NIL) is said. Returns true on the frame the
+button is pressed."
+  (let* ((id (getf about :selected))
+         (clause (and id (assoc id clauses)))
+         (wired (third clause))
+         (given (getf about :selected-options))
+         (go nil))
+    (bolt:column (:id :wire-detail :gap 8 :fill t :cross-align :stretch)
+      (chrome:section-header :wire-heading "Selected wire")
+      (cond ((null id)
+             (bolt:paragraph "Select a widget, here or on the canvas, to see what wires it."
+                             :id :wire-note :color :dim-text))
+            (t
+             (bolt:row (:id :wire-head :gap 10 :cross-align :center)
+               (bolt:label (chrome:caps (or (getf about :selected-kind) "")) :id :wire-kind
+                                                                              :font '(:heading :size 20 :weight :bold))
+               (bolt:label (format nil "~(~s~)" id) :id :wire-head-id :font chrome:+small+ :color :dim-text))
+             (flet ((row (key value source)
+                      (bolt:row (:id (list :wire-option key) :gap 8 :cross-align :center :fill t)
+                        (bolt:label (format nil "~(~s~)" key) :id :wire-key :font chrome:+small+
+                                                              :color :dim-text)
+                        (bolt:label value :id :wire-value :font :code :flex 1)
+                        (bolt:label source :id :wire-source :font chrome:+small+ :color :dim-text))))
+               (loop :for (key form) :on wired :by #'cddr
+                     :do (row key (written form package) "WIRED"))
+               (loop :for (key value) :on given :by #'cddr
+                     :unless (getf wired key)
+                       :do (row key (written value package) "VIEW"))
+               (multiple-value-bind (frame time) (bolt:app-pane-last-press app (getf about :live) id)
+                 (row :last-press (if frame
+                                      (format nil "frame ~d ~a ~a" frame chrome:+separator+
+                                              (clock-time time))
+                                      "not pressed")
+                      "TRACE")))
+             (when (bolt:button "GO TO THE CODE" :id :wire-go-to-code
+                                                 :enabled (and clause (getf about :live) t))
+               (setf go t))
+             (when note
+               (bolt:paragraph note :id :wire-go-note :color :dim-text)))))
+    go))

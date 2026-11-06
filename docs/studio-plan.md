@@ -51,7 +51,7 @@ What 0.3 has, against the prototype:
   Design's canvas, catalogue, outline and options as the prototype has them
   (Phase C), and the app's frames charted; Wire's views, each with its
   wires, and the state of the app, live, to edit and pin; the view's file and
-  the code's, in step with the selection.
+  the code's, in step with the selection; the wires, and the selected one.
 - **Part:** the recorder has no face; the theme designer previews widgets,
   not the app's own view.
 - **Missing:** vector icons, and the mark; colours for code's syntax; the panes
@@ -158,7 +158,9 @@ user of.
     panes, the code's file read again when it is written, each marking the
     selection and selecting by its lines; a view written a widget to a line.)
 18. **The wires:** each id of the view, what wires it or that nothing does; the
-    chosen wire's clauses as written, and when it was last pressed.
+    chosen wire's clauses as written, and when it was last pressed. (Done:
+    Wire's Wires and Wire panes, read from the code's file as it is now;
+    `app-pane-last-press`. The stub and the rename wait for item 19.)
 19. **Light editing:** a clause written inline, with completion, into the code
     and compiled; the stub written for every id; an id renamed in the view and
     in every wiring of it.

@@ -14,6 +14,8 @@ are not listed.
 
 ### Added
 
+- The studio's Wire mode lists each id of the view and what the code's `view` form wires of it, or that nothing does; the selected wire's clauses as written, the options the view gives it, when it was last pressed in the app, and Go to the Code ([0.3](docs/releases/dev.md#wire-the-wires)).
+- `app-pane-last-press`: the frame and the time the widget of a view was last pressed in an app in an app pane ([0.3](docs/releases/dev.md#wire-the-wires)).
 - The studio's Wire mode shows the view as its file is written and the form of the code that wires it, read from its file as it is now, each with the selected widget's line marked; the caret put on a widget's line selects it ([0.3](docs/releases/dev.md#wire-the-views-file-and-the-codes)).
 - The studio's Wire mode has the views, each with how many of its widgets the code wires, to open one; and the state of the app on the canvas, each `state-let` variable live, its value typed and entered with Return, and pinned to keep it when its first value is edited ([0.3](docs/releases/dev.md#wire-the-views-and-the-state)).
 - `app-pane-variables`, `set-app-pane-variable` and `pin-app-pane-variable`: what an app in an app pane keeps with `state-let`, given a value, and pinned to be kept when its initial form is edited ([0.3](docs/releases/dev.md#wire-the-views-and-the-state)).

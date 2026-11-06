@@ -133,6 +133,7 @@
                 #:app-pane
                 #:app-pane-frames
                 #:app-pane-variables
+                #:app-pane-last-press
                 #:set-app-pane-variable
                 #:pin-app-pane-variable)
   (:import-from #:almighty-bolt/machine/inspector-pane
@@ -183,7 +184,7 @@
            #:dialog #:toast #:shortcut #:spacer #:grid #:pressable #:open-file-dialog #:save-file-dialog #:list-box
            #:progress #:canvas #:scrim #:design-surface #:app-menu #:drag-source #:drop-target #:dragging
            #:split #:tree #:dock #:show-pane #:place-pane #:pane-group #:app-pane #:app-pane-frames
-           #:app-pane-variables #:set-app-pane-variable #:pin-app-pane-variable #:inspector-pane
+           #:app-pane-variables #:app-pane-last-press #:set-app-pane-variable #:pin-app-pane-variable #:inspector-pane
            #:define-view #:view #:define-widget-entry
            #:column #:row #:stack #:padding #:panel #:center #:stage #:scroll #:lazy-list
            #:typeface #:+font-roles+ #:load-font-file

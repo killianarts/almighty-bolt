@@ -182,6 +182,21 @@ own, one column in from its container, as Emacs indents it; a view it sends
 to an Emacs buffer is written the same way. A file written before still
 loads.
 
+### Wire: the wires
+
+Wire lists each id of the view being designed and what the code's `view`
+form wires of it (`:sign-in · to :enabled :on-press`), or that nothing does,
+read from the code's file as it is now, with `*read-eval*` off. Pressing one
+selects it. The selected wire says its kind and id, each clause the code
+gives it as written (`:on-press (sign-in name password)`, wired), each option
+the view gives it (`:text "Sign in"`, view), and when it was last pressed in
+the app on the canvas (`frame 1031 ■ 12:04:22`); Go to the Code takes Emacs
+to its clause.
+
+`(bolt:app-pane-last-press app 'my-app::login :sign-in)` gives the number of
+the frame and the universal time the widget of a view was last pressed in an
+app in an app pane.
+
 ### The studio's REPL
 
 The bottom panel's REPL evaluates what is typed in the image the studio runs in, in the package of the app being run (or the view's), as the prompt says: `counter> (+ 1 2)`. It shows what each form printed and what it returned, each value on a line of its own, or the error, in red, and goes on; `*`, `**`, `+` and the rest are set as in any REPL. Up and Down go back through what was typed. It runs on the window's thread, so a form that takes long holds the window as long.
